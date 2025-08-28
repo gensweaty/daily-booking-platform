@@ -141,16 +141,15 @@ export const ChatArea = () => {
         console.log('🔍 Found DM partner participant:', other);
 
         if (other?.user_id) {
-          const { data: profile } = await supabase
-            .from('profiles').select('username, avatar_url').eq('id', other.user_id).maybeSingle();
+          // Use the new admin display helper function
+          const { data: adminName } = await supabase
+            .rpc('get_admin_display_name', { p_user_id: other.user_id });
           
-          // Enhanced name resolution for admins
-          const adminName = profile?.username?.startsWith('user_') 
-            ? 'Admin'  // Replace auto-generated usernames
-            : (profile?.username || 'Admin');
+          const { data: profile } = await supabase
+            .from('profiles').select('avatar_url').eq('id', other.user_id).maybeSingle();
             
-          console.log('✅ Admin DM partner resolved:', { username: profile?.username, displayName: adminName });
-          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: adminName, avatar: profile?.avatar_url } });
+          console.log('✅ Admin DM partner resolved:', { displayName: adminName });
+          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: adminName || 'Admin', avatar: profile?.avatar_url } });
         } else if (other?.sub_user_id) {
           const { data: su } = await supabase
             .from('sub_users').select('fullname, avatar_url, email').eq('id', other.sub_user_id).maybeSingle();
@@ -226,7 +225,7 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, location.pathname]);
 
-  // Listen for real-time messages broadcast from ChatProvider
+  // Listen for real-time messages broadcast from ChatProvider + instant fanout
   useEffect(() => {
     const handleMessage = (event: CustomEvent) => {
       const { message } = event.detail;
@@ -277,8 +276,23 @@ export const ChatArea = () => {
         });
         if (error) throw error;
 
-        // No immediate echo - let real-time handle it
-        console.log('✅ Public board message sent via RPC, real-time will handle display');
+        // Instant echo to sender (local append before clearing draft)
+        setMessages(prev => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            content: draft.trim(),
+            created_at: new Date().toISOString(),
+            sender_user_id: me?.type === 'admin' ? me.id : undefined,
+            sender_sub_user_id: me?.type === 'sub_user' ? me.id : undefined,
+            sender_type: me?.type || 'sub_user',
+            sender_name: me?.name || 'You',
+            sender_avatar_url: me?.avatarUrl,
+            channel_id: activeChannelId
+          }
+        ]);
+        
+        console.log('✅ Public board message sent via RPC with instant echo');
       } else {
         // dashboard (owner) - use RPC
         const { data, error } = await supabase.rpc('send_authenticated_message', {
@@ -288,8 +302,23 @@ export const ChatArea = () => {
         });
         if (error) throw error;
 
-        // No immediate echo - let real-time handle it
-        console.log('✅ Message sent via RPC, real-time will handle display');
+        // Instant echo to sender (local append before clearing draft)
+        setMessages(prev => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            content: draft.trim(),
+            created_at: new Date().toISOString(),
+            sender_user_id: me?.type === 'admin' ? me.id : undefined,
+            sender_sub_user_id: me?.type === 'sub_user' ? me.id : undefined,
+            sender_type: me?.type || 'sub_user',
+            sender_name: me?.name || 'You',
+            sender_avatar_url: me?.avatarUrl,
+            channel_id: activeChannelId
+          }
+        ]);
+        
+        console.log('✅ Message sent via RPC with instant echo');
       }
       
       setDraft('');

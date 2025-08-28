@@ -443,33 +443,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user?.id, user?.email, shouldShowChat, location.pathname, isOnPublicBoard]);
 
-  // (One-time) normalize old DM rows on the fly
-  useEffect(() => {
-    if (!boardOwnerId) return;
-    (async () => {
-      const { data: chans } = await supabase
-        .from('chat_channels')
-        .select('id, is_dm, participants, chat_participants(user_id, sub_user_id)')
-        .eq('owner_id', boardOwnerId);
-
-      for (const ch of (chans || [])) {
-        const cps = (ch.chat_participants || []) as any[];
-        const hasOwner = cps.some(p => p.user_id === boardOwnerId);
-        if (!hasOwner) await supabase.from('chat_participants')
-          .insert({ channel_id: ch.id, user_id: boardOwnerId, user_type: 'admin' })
-          .then(() => {});
-        if (cps.length === 2 && ch.is_dm !== true) {
-          await supabase.from('chat_channels').update({ is_dm: true, is_private: true }).eq('id', ch.id);
-        }
-        if (!Array.isArray(ch.participants) || ch.participants.length < 2) {
-          const otherId = (cps.find(p => p.user_id && p.user_id !== boardOwnerId)?.user_id) ||
-                          (cps.find(p => p.sub_user_id)?.sub_user_id);
-          if (otherId) await supabase.from('chat_channels')
-            .update({ participants: [boardOwnerId, otherId] }).eq('id', ch.id);
-        }
-      }
-    })();
-  }, [boardOwnerId]);
+  // ❌ REMOVED: Old normalization logic is no longer needed since the migration handles it
 
   // Check for sub-users (always allow chat to show)
   useEffect(() => {

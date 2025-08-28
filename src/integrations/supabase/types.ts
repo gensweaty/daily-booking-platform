@@ -1634,6 +1634,10 @@ export type Database = {
         }
         Returns: number
       }
+      get_admin_display_name: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
       get_all_related_files: {
         Args: {
           customer_id_param?: string
