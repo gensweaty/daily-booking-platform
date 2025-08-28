@@ -463,32 +463,81 @@ const handleRegister = async () => {
         return;
       }
 
-      // Upsert-like behavior: update name if email exists, otherwise insert
+      console.log('🔍 Registering sub-user:', { fullName: fullName.trim(), normalizedEmail, boardOwner: boardData.user_id });
+
+      // Check for existing sub-user by email (exact match, case-insensitive)
       const { data: existing, error: findExistingError } = await supabase
         .from('sub_users')
-        .select('id')
+        .select('id, fullname')
         .eq('board_owner_id', boardData.user_id)
         .ilike('email', normalizedEmail)
         .maybeSingle();
-      if (findExistingError) throw findExistingError;
+      
+      if (findExistingError) {
+        console.error('Error finding existing sub-user:', findExistingError);
+        throw findExistingError;
+      }
 
       const now = new Date().toISOString();
+      let subUserId: string;
+      
       if (existing) {
-        await supabase
+        console.log('🔍 Updating existing sub-user:', existing.id);
+        const { error: updateError } = await supabase
           .from('sub_users')
-          .update({ fullname: fullName.trim(), password_hash: hash, password_salt: salt, last_login_at: now, updated_at: now })
+          .update({ 
+            fullname: fullName.trim(), 
+            password_hash: hash, 
+            password_salt: salt, 
+            last_login_at: now, 
+            updated_at: now 
+          })
           .eq('id', existing.id);
+        
+        if (updateError) {
+          console.error('Error updating sub-user:', updateError);
+          throw updateError;
+        }
+        subUserId = existing.id;
       } else {
-        await supabase
+        console.log('🔍 Creating new sub-user...');
+        
+        // Handle potential fullname uniqueness conflict
+        let finalFullName = fullName.trim();
+        const { data: nameConflict } = await supabase
+          .from('sub_users')
+          .select('id')
+          .eq('board_owner_id', boardData.user_id)
+          .eq('fullname', finalFullName)
+          .maybeSingle();
+        
+        if (nameConflict) {
+          // Append email local part to make fullname unique
+          const emailLocal = normalizedEmail.split('@')[0];
+          finalFullName = `${finalFullName}_${emailLocal}`;
+          console.log('🔍 Fullname conflict detected, using:', finalFullName);
+        }
+        
+        const { data: insertData, error: insertError } = await supabase
           .from('sub_users')
           .insert({
             board_owner_id: boardData.user_id,
-            fullname: fullName.trim(),
+            fullname: finalFullName,
             email: normalizedEmail,
             password_hash: hash,
             password_salt: salt,
             last_login_at: now,
-          });
+          })
+          .select('id')
+          .single();
+        
+        if (insertError) {
+          console.error('Error inserting sub-user:', insertError);
+          throw insertError;
+        }
+        
+        subUserId = insertData.id;
+        console.log('🔍 Sub-user created successfully:', subUserId);
       }
 
       // Create access token for immediate board access
