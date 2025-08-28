@@ -303,8 +303,8 @@ export const ChatArea = () => {
         });
         if (error) throw error;
 
-        // immediate echo
-        if (data) setMessages(prev => [...prev, data as Message]);
+        // No immediate echo - let real-time handle it
+        console.log('✅ Public board message sent via RPC, real-time will handle display');
       } else {
         // dashboard (owner) - use RPC
         const { data, error } = await supabase.rpc('send_authenticated_message', {
@@ -314,7 +314,8 @@ export const ChatArea = () => {
         });
         if (error) throw error;
 
-        if (data) setMessages(prev => [...prev, data as Message]);
+        // No immediate echo - let real-time handle it
+        console.log('✅ Message sent via RPC, real-time will handle display');
       }
       
       setDraft('');

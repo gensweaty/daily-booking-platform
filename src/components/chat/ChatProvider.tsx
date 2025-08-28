@@ -107,6 +107,7 @@ export const ChatProvider: React.FC = () => {
     (async () => {
       console.log('🔍 Initializing chat for:', { 
         user: user?.email, 
+        userId: user?.id,
         isPublicBoard, 
         shouldShowChat, 
         path: location.pathname,
@@ -256,9 +257,12 @@ export const ChatProvider: React.FC = () => {
           console.log('⚠️ No valid public board access found');
         }
         
-        // Handle authenticated users (admin and sub-users)
+        // Handle authenticated users (admin and sub-users) - FIXED
         if (user?.id) {
-          console.log('🔍 Checking authenticated user:', user.email);
+          console.log('🔍 Checking authenticated user:', { 
+            email: user.email, 
+            userId: user.id 
+          });
           
           // Try admin first - check profiles table
           const { data: profile, error: profileError } = await supabase
@@ -267,17 +271,25 @@ export const ChatProvider: React.FC = () => {
             .eq("id", user.id)
             .maybeSingle();
           
-          if (profileError) {
-            console.log('⚠️ Profile query error:', profileError);
-          }
+          console.log('🔍 Profile query result:', { 
+            profile, 
+            profileError: profileError?.message,
+            hasProfile: !!profile 
+          });
           
           if (active && profile) {
             console.log('✅ Admin user detected:', profile.username);
+            
+            // Use email local part if username is auto-generated
+            const displayName = profile.username?.startsWith('user_') 
+              ? (user.email?.split('@')[0] || 'Admin')
+              : (profile.username || 'Admin');
+            
             setBoardOwnerId(user.id);
             setMe({
               id: profile.id,
               type: "admin",
-              name: profile.username || "Admin",
+              name: displayName,
               email: user.email || undefined,
               avatarUrl: resolveAvatarUrl(profile.avatar_url)
             });
@@ -378,24 +390,37 @@ export const ChatProvider: React.FC = () => {
     console.log('🚀 Starting DM with:', { otherId, otherType, me, boardOwnerId });
     
     try {
-      // Simple DM name
-      const dmName = `DM: ${me.name} & ${otherType === 'admin' ? 'Admin' : 'Member'}`;
-
-      // Look for existing DM channel
+      // Look for existing DM channel using participants JSON field
       const { data: existing } = await supabase
         .from("chat_channels")
-        .select("id, participants")
+        .select("id, participants, name")
         .eq("is_dm", true)
         .eq("owner_id", boardOwnerId);
+
+      console.log('🔍 Existing DM channels:', existing);
 
       // Find existing DM with these participants
       let channelId = existing?.find(ch => {
         const participants = ch.participants as string[];
-        return participants?.includes(me.id) && participants?.includes(otherId);
+        const hasMe = participants?.includes(me.id);
+        const hasOther = participants?.includes(otherId);
+        console.log('🔍 Checking channel participants:', { 
+          channelId: ch.id, 
+          participants, 
+          hasMe, 
+          hasOther, 
+          myId: me.id, 
+          otherId 
+        });
+        return hasMe && hasOther;
       })?.id;
       
-      if (!channelId) {
+      if (channelId) {
+        console.log('✅ Found existing DM channel:', channelId);
+      } else {
         console.log('🆕 Creating new DM channel');
+        const dmName = "Direct Message";
+        
         const { data: created, error } = await supabase
           .from("chat_channels")
           .insert({
@@ -417,29 +442,33 @@ export const ChatProvider: React.FC = () => {
           return;
         }
         
-        // Create participant entries
-        if (created?.id) {
-          await supabase.from("chat_participants").insert([
+        channelId = created?.id;
+        console.log('✅ New DM channel created:', channelId);
+        
+        // Create participant entries for better compatibility
+        if (channelId) {
+          const participantInserts = [
             {
-              channel_id: created.id,
+              channel_id: channelId,
               user_id: me.type === 'admin' ? me.id : null,
               sub_user_id: me.type === 'sub_user' ? me.id : null,
               user_type: me.type
             },
             {
-              channel_id: created.id,
+              channel_id: channelId,
               user_id: otherType === 'admin' ? otherId : null,
               sub_user_id: otherType === 'sub_user' ? otherId : null,
               user_type: otherType
             }
-          ]);
+          ];
+          
+          console.log('🔗 Creating participant entries:', participantInserts);
+          await supabase.from("chat_participants").insert(participantInserts);
         }
-        
-        channelId = created?.id;
-        console.log('✅ New DM channel created:', channelId);
       }
 
       if (channelId) {
+        console.log('🎯 Opening DM channel:', channelId);
         openChannel(channelId);
         if (!isOpen) open();
       }
