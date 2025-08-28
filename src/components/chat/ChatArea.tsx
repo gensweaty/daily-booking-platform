@@ -13,15 +13,12 @@ type Message = {
   id: string;
   content: string;
   created_at: string;
-  sender_user_id?: string | null;
-  sender_sub_user_id?: string | null;
+  sender_user_id?: string;
+  sender_sub_user_id?: string;
   sender_type: 'admin' | 'sub_user';
-  sender_name?: string | null;
-  sender_avatar_url?: string | null;
+  sender_name?: string;
+  sender_avatar_url?: string;
   channel_id: string;
-  owner_id?: string | null;
-  reply_to_id?: string | null;
-  updated_at?: string;
 };
 
 export const ChatArea = () => {
@@ -283,32 +280,11 @@ export const ChatArea = () => {
   }, [messages.length]);
 
   const send = async () => {
-    if (!draft.trim() || !activeChannelId || !boardOwnerId || !me) {
+    if (!draft.trim() || !activeChannelId || !boardOwnerId) {
       return;
     }
     
     setSending(true);
-    const messageContent = draft.trim();
-    
-    // Create optimistic message for immediate UI update
-    const optimisticMessage: Message = {
-      id: `temp-${Date.now()}`,
-      channel_id: activeChannelId,
-      owner_id: boardOwnerId,
-      sender_type: me.type,
-      sender_user_id: me.type === 'admin' ? me.id : null,
-      sender_sub_user_id: me.type === 'sub_user' ? me.id : null,
-      sender_name: me.name,
-      sender_avatar_url: me.avatarUrl || null,
-      content: messageContent,
-      reply_to_id: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    // Optimistically add message to UI
-    setMessages(prev => [...prev, optimisticMessage]);
-    setDraft('');
     
     try {
       const isPublicBoard = location.pathname.startsWith('/board/');
@@ -319,43 +295,25 @@ export const ChatArea = () => {
         const senderEmail = me?.email || stored?.email;
         if (!senderEmail) throw new Error('Missing sub-user email for public board');
 
-        const { data, error } = await supabase.rpc('send_public_board_message', {
+        const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: senderEmail,
-          p_content: messageContent,
+          p_content: draft.trim(),
         });
-        
         if (error) throw error;
-        
-        // Replace optimistic message with real one
-        if (data) {
-          setMessages(prev => prev.map(msg => 
-            msg.id === optimisticMessage.id ? (data as Message) : msg
-          ));
-        }
       } else {
         // dashboard (owner) - use RPC
-        const { data, error } = await supabase.rpc('send_authenticated_message', {
+        const { error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
-          p_content: messageContent,
+          p_content: draft.trim(),
         });
-        
         if (error) throw error;
-        
-        // Replace optimistic message with real one
-        if (data) {
-          setMessages(prev => prev.map(msg => 
-            msg.id === optimisticMessage.id ? (data as Message) : msg
-          ));
-        }
       }
       
+      setDraft('');
     } catch (e: any) {
-      // Remove optimistic message on error
-      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
-      setDraft(messageContent); // Restore draft
       toast({ 
         title: 'Error', 
         description: e.message || 'Failed to send', 
