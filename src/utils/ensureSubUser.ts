@@ -2,17 +2,17 @@ import { supabase } from "@/integrations/supabase/client";
 
 export async function ensureSubUser(boardOwnerId: string, email: string, fullName?: string) {
   const normalized = email.trim().toLowerCase();
-  const display = fullName?.trim() || normalized.split('@')[0];
+  let display = fullName?.trim() || normalized.split('@')[0];
 
-  // First check if sub-user already exists
+  // First check if sub-user already exists by email
   const { data: existingUser, error: selectError } = await supabase
     .from('sub_users')
     .select('id, fullname, email, avatar_url')
     .eq('board_owner_id', boardOwnerId)
-    .ilike('email', normalized)
-    .single();
+    .eq('email', normalized)
+    .maybeSingle();
 
-  if (selectError && selectError.code !== 'PGRST116') {
+  if (selectError) {
     throw selectError;
   }
 
@@ -21,7 +21,21 @@ export async function ensureSubUser(boardOwnerId: string, email: string, fullNam
     return existingUser;
   }
 
-  // If user doesn't exist, create new one
+  // Check if fullname is already taken by another user
+  const { data: nameConflict } = await supabase
+    .from('sub_users')
+    .select('id')
+    .eq('board_owner_id', boardOwnerId)
+    .eq('fullname', display)
+    .maybeSingle();
+
+  // If fullname is taken, make it unique by appending email local part
+  if (nameConflict) {
+    const emailLocal = normalized.split('@')[0];
+    display = `${display} (${emailLocal})`;
+  }
+
+  // Create new sub-user
   const { data: newUser, error: insertError } = await supabase
     .from('sub_users')
     .insert({
