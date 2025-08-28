@@ -44,87 +44,61 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
   }, []);
 
   const setupConnection = useCallback(() => {
-    if (!config.enabled || !config.userId || !config.boardOwnerId) {
-      console.log('🚫 Skipping realtime setup - missing requirements');
+    if (!config.enabled || !config.boardOwnerId) {
+      console.log('🚫 Realtime connection disabled or missing boardOwnerId');
+      setConnectionStatus('disconnected');
       return;
     }
 
-    cleanup(); // Clean up any existing connection
-
-    console.log('🔄 Setting up enhanced realtime connection:', {
-      userId: config.userId,
-      boardOwnerId: config.boardOwnerId,
-      retryCount
-    });
-
+    cleanup();
     setConnectionStatus('connecting');
 
-    try {
-      // Use stable channel name to avoid creating too many channels
-      const channelName = `enhanced_chat_${config.boardOwnerId}`;
-      
-      // Remove any existing channels with this name first
-      const existingChannels = supabase.getChannels();
-      const existingChannel = existingChannels.find(ch => ch.topic === channelName);
-      if (existingChannel) {
-        console.log('🧹 Removing existing channel before creating new one:', channelName);
-        supabase.removeChannel(existingChannel);
-      }
-      
-      const channel = supabase
-        .channel(channelName)
-        .on('postgres_changes',
-          { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'chat_messages',
-            filter: `owner_id=eq.${config.boardOwnerId}`
-          },
-          (payload) => {
-            console.log('📨 Enhanced realtime message received:', payload);
-            config.onNewMessage(payload.new);
-          }
-        )
-        .subscribe((status, error) => {
-          console.log('📡 Enhanced subscription status:', status, error);
+    // Use stable channel name to prevent rate limits
+    const channelName = `enhanced-chat-${config.boardOwnerId}`;
+    console.log('🔗 Setting up enhanced realtime connection:', channelName);
+
+    const channel = supabase
+      .channel(channelName)
+      .on('postgres_changes',
+        { 
+          schema: 'public', 
+          table: 'chat_messages', 
+          event: 'INSERT', 
+          filter: `owner_id=eq.${config.boardOwnerId}` 
+        },
+        (payload) => {
+          console.log('📨 Enhanced realtime message:', payload);
+          config.onNewMessage(payload.new);
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Enhanced subscription status:', status);
+        
+        if (status === 'SUBSCRIBED') {
+          setConnectionStatus('connected');
+          setRetryCount(0);
+          startHeartbeat();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('❌ Enhanced channel error:', status);
+          setConnectionStatus('disconnected');
           
-          if (status === 'SUBSCRIBED') {
-            setConnectionStatus('connected');
-            setRetryCount(0);
-            startHeartbeat();
-            console.log('✅ Enhanced realtime connection established');
-          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            setConnectionStatus('disconnected');
-            console.error('❌ Enhanced realtime connection failed:', error);
+          // Exponential backoff retry with max attempts
+          if (retryCount < 5) {
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+            setRetryCount(prev => prev + 1);
             
-            // Handle rate limit specifically
-            if (error?.message?.includes('ChannelRateLimitReached')) {
-              console.log('⏸️ Rate limit reached, will not retry to avoid more errors');
-              return;
-            }
-            
-            // Retry with exponential backoff for other errors
-            if (retryCount < 3) {
-              const delay = Math.min(2000 * Math.pow(2, retryCount), 15000);
-              console.log(`🔄 Retrying connection in ${delay}ms (attempt ${retryCount + 1}/3)`);
-              
-              reconnectTimeoutRef.current = setTimeout(() => {
-                setRetryCount(prev => prev + 1);
-                setupConnection();
-              }, delay);
-            } else {
-              console.log('❌ Max retry attempts reached, giving up');
-            }
+            reconnectTimeoutRef.current = setTimeout(() => {
+              console.log(`🔄 Retrying enhanced connection (attempt ${retryCount + 1}) in ${delay}ms`);
+              setupConnection();
+            }, delay);
+          } else {
+            console.error('❌ Max retry attempts reached for enhanced connection');
           }
-        });
+        }
+      });
 
-      channelRef.current = channel;
-
-    } catch (error) {
-      console.error('❌ Failed to setup enhanced realtime connection:', error);
-      setConnectionStatus('disconnected');
-    }
-  }, [config, retryCount, cleanup, startHeartbeat]);
+    channelRef.current = channel;
+  }, [config.enabled, config.boardOwnerId, config.onNewMessage, cleanup, startHeartbeat, retryCount]);
 
   // Setup connection when config changes
   useEffect(() => {

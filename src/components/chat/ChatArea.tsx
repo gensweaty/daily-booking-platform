@@ -205,12 +205,15 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, location.pathname]);
 
-  // Real-time updates
+  // Real-time updates - using stable channel name to prevent rate limits
   useEffect(() => {
     if (!activeChannelId) return;
 
+    console.log('🔗 Setting up real-time subscription for channel:', activeChannelId);
+    
+    const channelName = `chat-messages-${activeChannelId}`;
     const ch = supabase
-      .channel(`messages:${activeChannelId}`)
+      .channel(channelName)
       .on('postgres_changes',
         { 
           schema: 'public', 
@@ -219,8 +222,13 @@ export const ChatArea = () => {
           filter: `channel_id=eq.${activeChannelId}` 
         },
         (payload) => {
+          console.log('📨 Real-time message update:', payload);
           if (payload.eventType === 'INSERT') {
-            setMessages(prev => [...prev, payload.new as Message]);
+            setMessages(prev => {
+              const exists = prev.some(m => m.id === (payload.new as any).id);
+              if (exists) return prev; // Prevent duplicates
+              return [...prev, payload.new as Message];
+            });
           } else if (payload.eventType === 'UPDATE') {
             setMessages(prev => prev.map(m => 
               m.id === (payload.new as any).id ? payload.new as Message : m
@@ -230,9 +238,12 @@ export const ChatArea = () => {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('📡 ChatArea subscription status:', status);
+      });
 
     return () => {
+      console.log('🧹 Cleaning up ChatArea subscription for:', channelName);
       supabase.removeChannel(ch);
     };
   }, [activeChannelId]);

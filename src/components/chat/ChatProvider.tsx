@@ -1,6 +1,6 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePublicBoardAuth } from "@/contexts/PublicBoardAuthContext";
@@ -35,6 +35,7 @@ type ChatCtx = {
   unreadTotal: number;
   channelUnreads: { [channelId: string]: number };
   boardOwnerId: string | null;
+  connectionStatus: string;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -45,44 +46,59 @@ export const useChat = () => {
   return ctx;
 };
 
-export const ChatProvider: React.FC = () => {
-  const { user } = useAuth();
-  const { user: publicBoardUser, isPublicBoard } = usePublicBoardAuth();
-  const location = useLocation();
+export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
-  
-  // Determine effective user and board owner
-  const effectiveUser = isPublicBoard ? publicBoardUser : user;
-  const isOnPublicBoard = location.pathname.startsWith('/board/');
-  const isOnDashboard = location.pathname.includes('/dashboard');
-  
-  // Should we show chat at all?
-  const shouldShowChat = useMemo(() => {
-    // Show on dashboard when user is present
-    if (isOnDashboard && user) {
-      console.log('✅ Dashboard + user -> show chat');
-      return true;
-    }
-    
-    // Show on public board (even without user, for external access)
-    if (isOnPublicBoard) {
-      console.log('✅ Public board -> show chat');
-      return true;
-    }
-    
-    console.log('❌ No conditions met -> hide chat', { isOnDashboard, isOnPublicBoard, hasUser: !!user });
-    return false;
-  }, [location.pathname, user, isOnDashboard, isOnPublicBoard]);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { user: publicBoardUser } = usePublicBoardAuth();
 
   // UI state
-  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [hasSubUsers, setHasSubUsers] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [boardOwnerId, setBoardOwnerId] = useState<string | null>(null);
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
+  const [hasSubUsers, setHasSubUsers] = useState(false);
 
-  // Enhanced unread management
+  // Portal root - memoized to prevent re-creation
+  const portalRoot = useMemo(() => {
+    let root = document.getElementById('chat-portal-root');
+    if (!root) {
+      root = document.createElement('div');
+      root.id = 'chat-portal-root';
+      root.style.position = 'fixed';
+      root.style.top = '0';
+      root.style.left = '0';
+      root.style.width = '100%';
+      root.style.height = '100%';
+      root.style.pointerEvents = 'none';
+      root.style.zIndex = '9998';
+      document.body.appendChild(root);
+    }
+    return root;
+  }, []);
+
+  // Determine context variables
+  const isOnPublicBoard = location.pathname.startsWith('/board/');
+  const isOnDashboard = location.pathname === '/dashboard';
+  const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
+
+  // Determine if chat should be shown - memoized to prevent re-renders
+  const shouldShowChat = useMemo(() => {
+    return (isOnDashboard && !!user) || isOnPublicBoard;
+  }, [location.pathname, user, isOnDashboard, isOnPublicBoard]);
+
+  console.log('🔍 ChatProvider render:', {
+    hasSubUsers,
+    isInitialized,
+    hasUser: !!user,
+    shouldShowChat,
+    me,
+    boardOwnerId
+  });
+
+  // Enhanced unread management - memoized dependencies
   const {
     unreadTotal,
     channelUnreads,
@@ -91,79 +107,73 @@ export const ChatProvider: React.FC = () => {
     clearAllUnread,
   } = useUnreadManager(currentChannelId, isOpen);
 
-  // Enhanced notifications
+  // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
 
-  // Enhanced realtime connection
-  const { connectionStatus } = useEnhancedRealtimeChat({
-    onNewMessage: (message) => {
-      console.log('📨 Enhanced realtime message received:', message);
+  // Memoized real-time message handler to prevent re-renders
+  const handleNewMessage = useCallback((message: any) => {
+    console.log('📨 Enhanced realtime message received:', message);
 
-      // Only process messages for this board
-      if (message.owner_id !== boardOwnerId) {
-        console.log('⏭️ Skipping message - owner mismatch');
-        return;
-      }
+    // Only process messages for this board
+    if (message.owner_id !== boardOwnerId) {
+      console.log('⏭️ Skipping message - owner mismatch');
+      return;
+    }
 
-      // Enhanced message ownership detection
-      const isMine = (
-        (me?.type === 'admin' && message.sender_type === 'admin' && message.sender_user_id === me?.id) ||
-        (me?.type === 'sub_user' && message.sender_type === 'sub_user' && message.sender_sub_user_id === me?.id)
-      );
+    // Skip my own messages for notifications
+    const isMyMessage = me?.type === 'admin' 
+      ? message.sender_user_id === me.id 
+      : message.sender_sub_user_id === me.id;
 
-      const isActiveChannel = (message.channel_id === currentChannelId);
-      const shouldCount = !isMine && (!isActiveChannel || !isOpen);
-      const shouldNotify = !isMine && (!isOpen || !isActiveChannel);
+    if (isMyMessage) {
+      console.log('⏭️ Skipping notification - own message');
+      return;
+    }
 
-      console.log('🔍 Enhanced message processing:', {
-        isMine,
-        isActiveChannel,
-        shouldCount,
-        shouldNotify,
-        connectionStatus,
+    // Increment unread count for channel
+    incrementUnread(message.channel_id);
+
+    // Show notification if chat is closed or different channel
+    if (!isOpen || currentChannelId !== message.channel_id) {
+      console.log('🔔 Showing notification for message:', message);
+      showNotification({
+        title: `${message.sender_name || 'Someone'} messaged`,
+        body: message.content,
+        channelId: message.channel_id,
+        senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+        senderName: message.sender_name || 'Unknown',
       });
+    }
+  }, [boardOwnerId, me, isOpen, currentChannelId, incrementUnread, showNotification]);
 
-      // Update unread counts
-      if (shouldCount) {
-        incrementUnread(message.channel_id);
-      }
-
-      // Show enhanced notifications with voice
-      if (shouldNotify) {
-        showNotification({
-          title: message.sender_name || 'New message',
-          body: String(message.content || '').slice(0, 120),
-          channelId: message.channel_id,
-          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-          senderName: message.sender_name || 'Unknown',
-        });
-      }
-    },
+  // Enhanced realtime connection with memoized handler
+  const { connectionStatus } = useEnhancedRealtimeChat({
+    onNewMessage: handleNewMessage,
     userId: me?.id,
-    boardOwnerId: boardOwnerId,
-    enabled: !!me && !!boardOwnerId && shouldShowChat,
+    boardOwnerId: boardOwnerId || undefined,
+    enabled: shouldShowChat && isInitialized && !!boardOwnerId,
   });
 
-  // Create portal root
-  const portalRef = useRef<HTMLElement | null>(null);
+  // Request notification permission on mount - immediate request
   useEffect(() => {
-    let node = document.getElementById("chat-root") as HTMLElement | null;
-    if (!node) {
-      node = document.createElement("div");
-      node.id = "chat-root";
-      node.style.position = "fixed";
-      node.style.inset = "0";
-      node.style.pointerEvents = "none";
-      node.style.zIndex = "2147483647";
-      document.body.appendChild(node);
+    if (shouldShowChat) {
+      console.log('🔔 Requesting notification permission...');
+      requestPermission().then((granted) => {
+        console.log('🔔 Notification permission:', granted ? 'granted' : 'denied');
+      });
     }
-    portalRef.current = node;
-  }, []);
+  }, [shouldShowChat, requestPermission]);
 
-  // Chat controls
+  // Chat control functions - memoized to prevent re-renders
   const open = useCallback(() => setIsOpen(true), []);
   const close = useCallback(() => setIsOpen(false), []);
-  const toggle = useCallback(() => setIsOpen(prev => !prev), []);
+  const toggle = useCallback(() => setIsOpen(!isOpen), [isOpen]);
+
+  const openChannel = useCallback((channelId: string) => {
+    setCurrentChannelId(channelId);
+    clearChannelUnread(channelId);
+    setIsOpen(true);
+  }, [clearChannelUnread]);
 
   // Initialize user identity and board owner
   useEffect(() => {
@@ -173,7 +183,6 @@ export const ChatProvider: React.FC = () => {
       console.log('🔍 Initializing chat for:', { 
         user: user?.email, 
         userId: user?.id,
-        isPublicBoard, 
         shouldShowChat, 
         path: location.pathname,
         isOnPublicBoard,
@@ -467,13 +476,6 @@ export const ChatProvider: React.FC = () => {
     }
   }, [boardOwnerId]);
 
-  // Channel management
-  const openChannel = useCallback((id: string) => {
-    console.log('📂 Opening channel:', id);
-    setCurrentChannelId(id);
-    clearChannelUnread(id);
-  }, [clearChannelUnread]);
-
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
     if (!me || !boardOwnerId) return;
 
@@ -541,42 +543,40 @@ export const ChatProvider: React.FC = () => {
     if (!isOpen) open();
   }, [me, boardOwnerId, openChannel, isOpen, open]);
 
-  // Request notification permission on mount
-  useEffect(() => {
-    requestPermission();
-  }, [requestPermission]);
-
-  const value = useMemo<ChatCtx>(() => ({
-    isOpen, open, close, toggle, isInitialized, hasSubUsers, me,
-    currentChannelId, setCurrentChannelId, openChannel, startDM, 
-    unreadTotal, channelUnreads, boardOwnerId
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, 
-       currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, boardOwnerId]);
-
-  if (!shouldShowChat || !portalRef.current) return null;
-
-  console.log('🔍 ChatProvider render:', { 
-    hasSubUsers, isInitialized, hasUser: !!user?.id, shouldShowChat,
-    me, boardOwnerId
-  });
+  // Context value - memoized to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    isOpen,
+    open,
+    close,
+    toggle,
+    isInitialized,
+    hasSubUsers,
+    me,
+    currentChannelId,
+    setCurrentChannelId,
+    openChannel,
+    startDM,
+    unreadTotal,
+    channelUnreads,
+    boardOwnerId,
+    connectionStatus,
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, boardOwnerId, connectionStatus]);
 
   return (
-    <ChatContext.Provider value={value}>
-      {createPortal(
+    <ChatContext.Provider value={contextValue}>
+      {children}
+      {shouldShowChat && portalRoot && createPortal(
         <>
-          {isInitialized && !isOpen && (
-            <div style={{ pointerEvents: "auto" }}>
-              <ChatIcon onClick={toggle} isOpen={isOpen} unreadCount={unreadTotal} />
-            </div>
-          )}
-
+          <ChatIcon 
+            onClick={toggle} 
+            isOpen={isOpen} 
+            unreadCount={unreadTotal}
+          />
           {isOpen && (
-            <div style={{ pointerEvents: "auto" }}>
-              <ChatWindow isOpen={isOpen} onClose={close} />
-            </div>
+            <ChatWindow isOpen={isOpen} onClose={close} />
           )}
         </>,
-        portalRef.current
+        portalRoot
       )}
     </ChatContext.Provider>
   );

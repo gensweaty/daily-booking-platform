@@ -276,7 +276,9 @@ const AppContent = () => {
                 <Route path="*" element={<Landing />} />
               </Routes>
               {/* Global Chat Provider for all routes */}
-              <ChatProvider />
+              <ChatProvider>
+                <div />
+              </ChatProvider>
               <Toaster />
             </RouteAwareWrapper>
           </RouteAwareThemeProvider>
