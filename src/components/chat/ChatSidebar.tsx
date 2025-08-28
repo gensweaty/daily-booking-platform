@@ -16,6 +16,7 @@ export const ChatSidebar = () => {
     type: 'admin' | 'sub_user'; 
     avatar_url?: string | null;
   }>>([]);
+  const [presenceState, setPresenceState] = useState<Record<string, any>>({});
 
   // Load general channel with improved selection logic
   useEffect(() => {
@@ -233,6 +234,50 @@ export const ChatSidebar = () => {
     })();
   }, [boardOwnerId, location.pathname]);
 
+  // Setup presence tracking
+  useEffect(() => {
+    if (!boardOwnerId || !me) return;
+
+    console.log('👥 Setting up presence for board:', boardOwnerId);
+    
+    const channel = supabase.channel(`presence:board:${boardOwnerId}`, {
+      config: {
+        presence: {
+          key: `${me.type}:${me.id}`
+        }
+      }
+    });
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState();
+        console.log('👥 Presence sync:', state);
+        setPresenceState(state);
+      })
+      .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+        console.log('👥 User joined:', key, newPresences);
+      })
+      .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+        console.log('👥 User left:', key, leftPresences);
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('👥 Tracking presence for:', me.name);
+          await channel.track({
+            user_id: me.id,
+            user_type: me.type,
+            user_name: me.name,
+            online_at: new Date().toISOString(),
+          });
+        }
+      });
+
+    return () => {
+      console.log('👥 Cleaning up presence');
+      supabase.removeChannel(channel);
+    };
+  }, [boardOwnerId, me]);
+
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
@@ -303,17 +348,27 @@ export const ChatSidebar = () => {
                 className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-all text-left group"
                 title={`Start conversation with ${member.name}`}
               >
-                <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
-                  {resolveAvatarUrl(member.avatar_url) ? (
-                    <img
-                      src={resolveAvatarUrl(member.avatar_url)!}
-                      alt={member.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-xs font-medium text-foreground">
-                      {(member.name || "U").slice(0, 2).toUpperCase()}
-                    </span>
+                <div className="relative">
+                  <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
+                    {resolveAvatarUrl(member.avatar_url) ? (
+                      <img
+                        src={resolveAvatarUrl(member.avatar_url)!}
+                        alt={member.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs font-medium text-foreground">
+                        {(member.name || "U").slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  {/* Presence indicator */}
+                  {Object.values(presenceState).some((presences: any) => 
+                    presences.some((p: any) => 
+                      p.user_id === member.id && p.user_type === member.type
+                    )
+                  ) && (
+                    <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-green-500 border border-background"></div>
                   )}
                 </div>
                 
