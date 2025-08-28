@@ -50,11 +50,16 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction }: Mess
   const isOwnMessage = (message: ChatMessage) => {
     if (!currentUser) return false;
     
+    // Enhanced logic to handle both admin and sub-user messages
     if (currentUser.type === 'admin' && message.sender_type === 'admin') {
       return message.sender_user_id === currentUser.id;
     }
     
-    return false; // For sub-users, we'd need additional logic
+    if (currentUser.type === 'sub_user' && message.sender_type === 'sub_user') {
+      return message.sender_sub_user_id === currentUser.id;
+    }
+    
+    return false;
   };
 
   const groupReactions = (reactions: any[]) => {
@@ -70,9 +75,15 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction }: Mess
       emoji,
       count: reactionList.length,
       users: reactionList.map((r: any) => r.sender_name || 'Unknown'),
-      hasCurrentUser: reactionList.some((r: any) => 
-        currentUser?.type === 'admin' ? r.user_id === currentUser.id : false
-      )
+      hasCurrentUser: reactionList.some((r: any) => {
+        if (!currentUser) return false;
+        if (currentUser.type === 'admin') {
+          return r.user_id === currentUser.id;
+        } else if (currentUser.type === 'sub_user') {
+          return r.sub_user_id === currentUser.id;
+        }
+        return false;
+      })
     }));
   };
 

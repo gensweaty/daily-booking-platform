@@ -182,6 +182,11 @@ export const ChatArea = () => {
       }
       
       console.log('📨 Loading messages for channel:', activeChannelId);
+      console.log('🔍 Current user context:', { 
+        me, 
+        boardOwnerId,
+        authUser: (await supabase.auth.getUser()).data.user?.id || 'NO_AUTH_USER'
+      });
       
       try {
         const { data, error } = await supabase
@@ -189,6 +194,13 @@ export const ChatArea = () => {
           .select('*')
           .eq('channel_id', activeChannelId)
           .order('created_at', { ascending: true });
+
+        console.log('📨 Messages query result:', { 
+          messageCount: data?.length || 0, 
+          error: error?.message,
+          firstMessage: data?.[0],
+          channelId: activeChannelId
+        });
 
         if (error) {
           console.error('❌ Error loading messages:', error);
