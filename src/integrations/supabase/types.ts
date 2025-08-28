@@ -1564,6 +1564,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _as_service_role: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       activate_subscription: {
         Args: { p_subscription_type: string; p_user_id: string }
         Returns: Json
