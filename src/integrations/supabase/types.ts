@@ -1827,6 +1827,24 @@ export type Database = {
             }
         Returns: string
       }
+      send_public_board_message: {
+        Args: {
+          p_board_owner_id: string
+          p_channel_id: string
+          p_content: string
+          p_sender_email: string
+        }
+        Returns: Json
+      }
+      start_public_board_dm: {
+        Args: {
+          p_board_owner_id: string
+          p_other_id: string
+          p_other_type: string
+          p_sender_email: string
+        }
+        Returns: string
+      }
       validate_and_use_redeem_code: {
         Args: { p_code: string; p_user_id: string }
         Returns: boolean

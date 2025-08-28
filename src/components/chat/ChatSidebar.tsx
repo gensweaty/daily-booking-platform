@@ -246,11 +246,8 @@ export const ChatSidebar = () => {
           </p>
           
           {members.map((member) => {
-            // Enhanced self-detection logic - only use database IDs  
-            const isMe = me && (
-              // Exact match by ID and type
-              (member.id === me.id && member.type === me.type)
-            );
+            // Enhanced self-detection - only filter if me is properly resolved
+            const isMe = me && member.id === me.id && member.type === me.type;
             
             console.log('👤 Member filtering check:', { 
               member: { id: member.id, name: member.name, type: member.type },
@@ -271,10 +268,28 @@ export const ChatSidebar = () => {
                   console.log('🖱️ Starting DM with:', { 
                     member, 
                     currentUser: me,
-                    boardOwnerId 
+                    boardOwnerId,
+                    isPublicBoard: location.pathname.startsWith('/board/')
                   });
                   
                   try {
+                    if (location.pathname.startsWith('/board/')) {
+                      const slug = location.pathname.split('/').pop()!;
+                      const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+                      const senderEmail = stored?.email;
+                      if (!senderEmail || !boardOwnerId) return;
+
+                      const { data, error } = await supabase.rpc('start_public_board_dm', {
+                        p_board_owner_id: boardOwnerId,
+                        p_sender_email: senderEmail,
+                        p_other_id: member.id,
+                        p_other_type: member.type,
+                      });
+                      if (!error && data) openChannel(data as string);
+                      return;
+                    }
+
+                    // Fallback existing startDM for dashboard
                     await startDM(member.id, member.type);
                     console.log('✅ DM started successfully with:', member.name);
                   } catch (error) {

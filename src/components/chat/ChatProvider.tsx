@@ -9,7 +9,13 @@ import { ChatWindow } from "./ChatWindow";
 import { resolveAvatarUrl } from "./_avatar";
 import { useToast } from "@/hooks/use-toast";
 
-type Me = { id: string; type: "admin" | "sub_user"; name: string; avatarUrl?: string };
+type Me = { 
+  id: string; 
+  type: "admin" | "sub_user"; 
+  name: string; 
+  email?: string;
+  avatarUrl?: string 
+};
 
 type ChatCtx = {
   isOpen: boolean;
@@ -215,6 +221,7 @@ export const ChatProvider: React.FC = () => {
                     id: subUser.id,
                     type: "sub_user" as const, 
                     name: subUser.fullname || storedFullName,
+                    email: storedEmail,
                     avatarUrl: resolveAvatarUrl(subUser.avatar_url)
                   };
                   
@@ -271,6 +278,7 @@ export const ChatProvider: React.FC = () => {
               id: profile.id,
               type: "admin",
               name: profile.username || "Admin",
+              email: user.email || undefined,
               avatarUrl: resolveAvatarUrl(profile.avatar_url)
             });
             setIsInitialized(true);
@@ -304,6 +312,7 @@ export const ChatProvider: React.FC = () => {
                 id: subUser.id,
                 type: "sub_user",
                 name: subUser.fullname || "Member",
+                email: subUser.email,
                 avatarUrl: resolveAvatarUrl(subUser.avatar_url)
               });
               setIsInitialized(true);

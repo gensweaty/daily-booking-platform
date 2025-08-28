@@ -294,75 +294,55 @@ export const ChatArea = () => {
   }, [messages.length]);
 
   const send = async () => {
-    if (!draft.trim() || !activeChannelId || !me || !boardOwnerId) {
-      console.log('❌ Cannot send message - missing data:', {
-        hasDraft: !!draft.trim(),
-        hasChannelId: !!activeChannelId,
-        hasMe: !!me,
-        hasBoardOwnerId: !!boardOwnerId
-      });
+    if (!draft.trim() || !activeChannelId || !boardOwnerId) {
       return;
     }
-    
-    console.log('🚀 SENDING MESSAGE DEBUG:', {
-      senderInfo: {
-        id: me.id,
-        type: me.type,
-        name: me.name,
-        avatarUrl: me.avatarUrl
-      },
-      channelId: activeChannelId,
-      boardOwnerId: boardOwnerId,
-      messageContent: draft.trim().slice(0, 50) + (draft.length > 50 ? '...' : ''),
-      messageLength: draft.trim().length
-    });
     
     setSending(true);
     
     try {
-      let senderUserId = null;
-      let senderSubUserId = null;
+      const isPublicBoard = location.pathname.startsWith('/board/');
       
-      if (me.type === 'admin') {
-        senderUserId = me.id;
-        console.log('📝 Setting as ADMIN message:', { senderUserId });
-      } else if (me.type === 'sub_user') {
-        senderSubUserId = me.id;
-        console.log('📝 Setting as SUB-USER message:', { senderSubUserId });
+      if (isPublicBoard && me?.type === 'sub_user') {
+        // Get stored email from the same place used during PublicBoard login
+        const slug = location.pathname.split('/').pop()!;
+        const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+        const senderEmail = stored?.email;
+        if (!senderEmail) throw new Error('Missing sub-user email for public board');
+
+        const { error } = await supabase.rpc('send_public_board_message', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_sender_email: senderEmail,
+          p_content: draft.trim(),
+        });
+        if (error) throw error;
+      } else {
+        // Dashboard / authenticated
+        let senderUserId: string | null = null;
+        let senderSubUserId: string | null = null;
+        if (me?.type === 'admin') senderUserId = me.id;
+        if (me?.type === 'sub_user') senderSubUserId = me.id;
+
+        const { error } = await supabase.from('chat_messages').insert({
+          content: draft.trim(),
+          channel_id: activeChannelId,
+          sender_user_id: senderUserId,
+          sender_sub_user_id: senderSubUserId,
+          sender_type: me?.type,
+          sender_name: me?.name,
+          sender_avatar_url: me?.avatarUrl || null,
+          owner_id: boardOwnerId,
+        });
+        if (error) throw error;
       }
-      
-      const messageData = {
-        content: draft.trim(),
-        channel_id: activeChannelId,
-        sender_user_id: senderUserId,
-        sender_sub_user_id: senderSubUserId,
-        sender_type: me.type,
-        sender_name: me.name,
-        sender_avatar_url: me.avatarUrl || null,
-        owner_id: boardOwnerId
-      };
-      
-      console.log('📤 Inserting message with data:', messageData);
-      
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .insert(messageData)
-        .select('*');
-      
-      if (error) {
-        console.error('❌ Database insert error:', error);
-        throw error;
-      }
-      
-      console.log('✅ Message sent successfully, returned data:', data);
       
       setDraft('');
-    } catch (error) {
-      console.error('❌ Failed to send message:', error);
-      toast({
-        title: "Error",
-        description: `Failed to send message: ${error.message || 'Unknown error'}`,
-        variant: "destructive"
+    } catch (e: any) {
+      toast({ 
+        title: 'Error', 
+        description: e.message || 'Failed to send', 
+        variant: 'destructive' 
       });
     } finally {
       setSending(false);
