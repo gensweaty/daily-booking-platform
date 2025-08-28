@@ -8,7 +8,7 @@ export async function ensureSubUser(boardOwnerId: string, email: string, fullNam
     .from('sub_users')
     .upsert(
       { board_owner_id: boardOwnerId, email: normalized, fullname: display },
-      { onConflict: 'unique_email_per_owner' }
+      { onConflict: 'board_owner_id,email' }
     )
     .select('id, fullname, email, avatar_url')
     .single();
