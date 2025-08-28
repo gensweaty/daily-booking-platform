@@ -34,40 +34,71 @@ export const ChatArea = () => {
   } | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  // Get or create default channel
+  // Get or create default channel with better error handling
   useEffect(() => {
     let active = true;
     
     (async () => {
-      if (!boardOwnerId) return;
-
-      // Find default channel
-      const { data: ch } = await supabase
-        .from('chat_channels')
-        .select('id')
-        .eq('owner_id', boardOwnerId)
-        .eq('is_default', true)
-        .maybeSingle();
-
-      if (ch && active) {
-        setDefaultChannelId(ch.id);
+      if (!boardOwnerId) {
+        console.log('❌ No boardOwnerId for default channel setup');
         return;
       }
 
-      // Create default channel if missing
-      const { data: created } = await supabase
-        .from('chat_channels')
-        .insert({ 
-          owner_id: boardOwnerId, 
-          name: 'General', 
-          emoji: '💬',
-          is_default: true 
-        })
-        .select('id')
-        .single();
+      console.log('🔍 Setting up default channel for board owner:', boardOwnerId);
 
-      if (created && active) {
-        setDefaultChannelId(created.id);
+      try {
+        // Find default channel with participants
+        const { data: channelsWithParticipants, error } = await supabase
+          .from('chat_channels')
+          .select(`
+            id, 
+            name,
+            created_at,
+            chat_participants(id)
+          `)
+          .eq('owner_id', boardOwnerId)
+          .eq('is_default', true)
+          .eq('name', 'General')
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('❌ Error loading default channels:', error);
+          return;
+        }
+
+        if (channelsWithParticipants && channelsWithParticipants.length > 0) {
+          // Sort by participant count, prefer channels with participants
+          const sortedChannels = channelsWithParticipants.sort((a, b) => {
+            const aParticipants = (a.chat_participants as any[])?.length || 0;
+            const bParticipants = (b.chat_participants as any[])?.length || 0;
+            
+            if (aParticipants !== bParticipants) {
+              return bParticipants - aParticipants; // More participants first
+            }
+            
+            // If same participant count, prefer older channel
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          });
+
+          const selectedChannel = sortedChannels[0];
+          const participantCount = (selectedChannel.chat_participants as any[])?.length || 0;
+
+          console.log('✅ Default channel selected:', { 
+            id: selectedChannel.id,
+            participantCount,
+            createdAt: selectedChannel.created_at 
+          });
+
+          if (active) {
+            setDefaultChannelId(selectedChannel.id);
+          }
+          return;
+        }
+
+        console.log('⚠️ No default General channels found - this should not happen after cleanup');
+        
+      } catch (error) {
+        console.error('❌ Error setting up default channel:', error);
       }
     })();
     
@@ -139,21 +170,38 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, me]);
 
-  // Load messages
+  // Load messages with enhanced error handling
   useEffect(() => {
     let active = true;
     
     (async () => {
-      if (!activeChannelId) return;
+      if (!activeChannelId) {
+        console.log('❌ No activeChannelId for loading messages');
+        if (active) setMessages([]);
+        return;
+      }
       
-      const { data } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('channel_id', activeChannelId)
-        .order('created_at', { ascending: true });
+      console.log('📨 Loading messages for channel:', activeChannelId);
+      
+      try {
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('channel_id', activeChannelId)
+          .order('created_at', { ascending: true });
 
-      if (active && data) {
-        setMessages(data as Message[]);
+        if (error) {
+          console.error('❌ Error loading messages:', error);
+          return;
+        }
+
+        if (active && data) {
+          console.log('✅ Messages loaded:', data.length, 'messages');
+          setMessages(data as Message[]);
+        }
+      } catch (error) {
+        console.error('❌ Unexpected error loading messages:', error);
+        if (active) setMessages([]);
       }
     })();
     

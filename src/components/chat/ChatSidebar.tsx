@@ -15,57 +15,70 @@ export const ChatSidebar = () => {
     avatar_url?: string | null;
   }>>([]);
 
-  // Load general channel with participants check
+  // Load general channel with improved selection logic
   useEffect(() => {
     if (!boardOwnerId) return;
     
     (async () => {
       console.log('🔍 Loading General channel for board owner:', boardOwnerId);
       
-      // Find General channel that has participants (the active one)
-      const { data, error } = await supabase
-        .from('chat_channels')
-        .select(`
-          id, 
-          name,
-          chat_participants!inner(id)
-        `)
-        .eq('owner_id', boardOwnerId)
-        .eq('is_default', true)
-        .eq('name', 'General')
-        .limit(1)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('❌ Error loading General channel:', error);
-        return;
-      }
-      
-      if (data) {
-        console.log('✅ General channel found with participants:', data.id);
-        setGeneralChannelId(data.id);
-      } else {
-        console.log('⚠️ No General channel with participants found');
-        // Fallback: get any General channel for this owner
-        const { data: fallback } = await supabase
+      try {
+        // Strategy 1: Find General channel with most participants (preferred)
+        const { data: channelsWithParticipants, error: participantsError } = await supabase
           .from('chat_channels')
-          .select('id')
+          .select(`
+            id, 
+            name,
+            created_at,
+            chat_participants(id)
+          `)
           .eq('owner_id', boardOwnerId)
           .eq('is_default', true)
           .eq('name', 'General')
-          .order('created_at', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-          
-        if (fallback) {
-          console.log('📋 Using fallback General channel:', fallback.id);
-          setGeneralChannelId(fallback.id);
+          .order('created_at', { ascending: true });
+        
+        if (participantsError) {
+          console.error('❌ Error loading General channels:', participantsError);
+          return;
         }
+        
+        if (channelsWithParticipants && channelsWithParticipants.length > 0) {
+          // Sort by participant count (descending), then by creation date (ascending) 
+          const sortedChannels = channelsWithParticipants.sort((a, b) => {
+            const aParticipants = (a.chat_participants as any[])?.length || 0;
+            const bParticipants = (b.chat_participants as any[])?.length || 0;
+            
+            if (aParticipants !== bParticipants) {
+              return bParticipants - aParticipants; // More participants first
+            }
+            
+            // If same participant count, prefer older channel
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          });
+          
+          const selectedChannel = sortedChannels[0];
+          const participantCount = (selectedChannel.chat_participants as any[])?.length || 0;
+          
+          console.log('✅ Selected General channel:', {
+            id: selectedChannel.id,
+            participantCount,
+            createdAt: selectedChannel.created_at,
+            totalChannels: channelsWithParticipants.length
+          });
+          
+          setGeneralChannelId(selectedChannel.id);
+          return;
+        }
+        
+        console.log('⚠️ No General channels found, this should not happen after cleanup');
+        
+      } catch (error) {
+        console.error('❌ Unexpected error loading General channel:', error);
       }
     })();
   }, [boardOwnerId]);
 
-  // Load team members
+  // Load team members with enhanced logic
   useEffect(() => {
     if (!boardOwnerId) {
       console.log('❌ No boardOwnerId for loading team members');
@@ -79,7 +92,7 @@ export const ChatSidebar = () => {
       try {
         const teamMembers = [];
         
-        // Add admin (board owner)
+        // Add admin (board owner) - always include
         console.log('🔍 Loading admin profile for:', boardOwnerId);
         const { data: adminProfile, error: adminError } = await supabase
           .from('profiles')
@@ -98,14 +111,21 @@ export const ChatSidebar = () => {
             avatar_url: adminProfile.avatar_url
           });
         } else {
-          console.log('⚠️ No admin profile found for board owner');
+          console.log('⚠️ No admin profile found, creating placeholder admin');
+          // Fallback: include admin even without profile
+          teamMembers.push({
+            id: boardOwnerId,
+            name: 'Admin',
+            type: 'admin' as const,
+            avatar_url: null
+          });
         }
         
         // Add sub-users
         console.log('🔍 Loading sub-users for board owner:', boardOwnerId);
         const { data: subUsers, error: subUsersError } = await supabase
           .from('sub_users')
-          .select('id, fullname, avatar_url')
+          .select('id, fullname, avatar_url, email')
           .eq('board_owner_id', boardOwnerId);
         
         if (subUsersError) {
@@ -114,20 +134,42 @@ export const ChatSidebar = () => {
           console.log('✅ Sub-users loaded:', subUsers.length, 'users');
           teamMembers.push(...subUsers.map(su => ({
             id: su.id,
-            name: su.fullname || 'Member',
+            name: su.fullname || su.email || 'Member',
             type: 'sub_user' as const,
             avatar_url: su.avatar_url
           })));
         } else {
-          console.log('⚠️ No sub-users found for board owner');
+          console.log('ℹ️ No sub-users found for board owner');
         }
         
-        console.log('👥 Final team members list:', teamMembers.map(m => ({ name: m.name, type: m.type })));
+        console.log('👥 Final team members list:', teamMembers.map(m => ({ 
+          id: m.id, 
+          name: m.name, 
+          type: m.type 
+        })));
+        
+        // Ensure we always have at least the admin
+        if (teamMembers.length === 0) {
+          console.log('⚠️ No team members found, adding fallback admin');
+          teamMembers.push({
+            id: boardOwnerId,
+            name: 'Admin',
+            type: 'admin' as const,
+            avatar_url: null
+          });
+        }
+        
         setMembers(teamMembers);
         
       } catch (error) {
         console.error('❌ Error loading team members:', error);
-        setMembers([]);
+        // Fallback: at least show the admin
+        setMembers([{
+          id: boardOwnerId,
+          name: 'Admin',
+          type: 'admin' as const,
+          avatar_url: null
+        }]);
       }
     })();
   }, [boardOwnerId]);
@@ -154,25 +196,40 @@ export const ChatSidebar = () => {
           </p>
           
           {members.map((member) => {
-            // Don't show DM with self
-            const isMe = me && member.id === me.id && member.type === me.type;
-            if (isMe) return null;
+            // Enhanced self-detection logic
+            const isMe = me && (
+              // Exact match by ID and type
+              (member.id === me.id && member.type === me.type) ||
+              // For external users, match by name (fallback)
+              (me.id.startsWith('external_') || me.id.startsWith('guest_')) && member.name === me.name
+            );
+            
+            if (isMe) {
+              console.log('👤 Hiding self from member list:', { member, me });
+              return null;
+            }
             
             return (
               <button
                 key={`${member.type}-${member.id}`}
                 onClick={async () => {
-                  console.log('🖱️ Starting DM with:', member);
+                  console.log('🖱️ Starting DM with:', { 
+                    member, 
+                    currentUser: me,
+                    boardOwnerId 
+                  });
+                  
                   try {
                     await startDM(member.id, member.type);
-                    console.log('✅ DM started successfully');
+                    console.log('✅ DM started successfully with:', member.name);
                   } catch (error) {
-                    console.error('❌ Failed to start DM:', error);
+                    console.error('❌ Failed to start DM with:', member.name, error);
                   }
                 }}
-                className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-all text-left"
+                className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-all text-left group"
+                title={`Start conversation with ${member.name}`}
               >
-                <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
                   {resolveAvatarUrl(member.avatar_url) ? (
                     <img
                       src={resolveAvatarUrl(member.avatar_url)!}
@@ -180,7 +237,7 @@ export const ChatSidebar = () => {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="text-xs font-medium">
+                    <span className="text-xs font-medium text-foreground">
                       {(member.name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}

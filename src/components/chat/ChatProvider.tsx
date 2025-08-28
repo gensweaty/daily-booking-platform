@@ -361,7 +361,7 @@ export const ChatProvider: React.FC = () => {
     }
   }, [me, boardOwnerId, openChannel, isOpen, open, toast]);
 
-  // Notifications with improved logic
+  // Enhanced notifications with improved message matching
   useEffect(() => {
     if (!me || !boardOwnerId || !shouldShowChat) {
       console.log('🔔 Skipping notifications setup - missing data:', { 
@@ -406,34 +406,43 @@ export const ChatProvider: React.FC = () => {
             return;
           }
 
-          // Enhanced message ownership detection
+          // Enhanced message ownership detection with better matching
           const isMine = (
-            // Admin user match
+            // Admin user match (exact ID match)
             (me.type === 'admin' && msg.sender_type === 'admin' && msg.sender_user_id === me.id) ||
-            // Sub-user match  
+            // Sub-user match (exact ID match)
             (me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id) ||
-            // External/guest user name match
-            ((me.id.startsWith('external_') || me.id.startsWith('guest_')) && msg.sender_name === me.name)
+            // External/guest user name match (fallback for external users)
+            ((me.id.startsWith('external_') || me.id.startsWith('guest_')) && 
+             msg.sender_name === me.name && msg.sender_type === 'sub_user')
           );
           
           const isActiveChannel = (msg.channel_id === currentChannelId);
           const shouldCount = !isMine && (!isActiveChannel || !isOpen);
           const shouldNotify = !isMine && (!isOpen || !isActiveChannel);
 
-          console.log('🔍 Message analysis:', { 
+          console.log('🔍 Enhanced message analysis:', { 
             isMine, 
             isActiveChannel, 
             shouldCount, 
             shouldNotify,
             chatOpen: isOpen,
-            myId: me.id,
-            myType: me.type,
-            myName: me.name,
-            senderDetails: {
+            currentUser: {
+              id: me.id,
+              type: me.type,
+              name: me.name
+            },
+            messageFromSender: {
               userId: msg.sender_user_id,
               subUserId: msg.sender_sub_user_id,
               type: msg.sender_type,
               name: msg.sender_name
+            },
+            matchingLogic: {
+              adminMatch: me.type === 'admin' && msg.sender_type === 'admin' && msg.sender_user_id === me.id,
+              subUserMatch: me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id,
+              externalMatch: (me.id.startsWith('external_') || me.id.startsWith('guest_')) && 
+                            msg.sender_name === me.name && msg.sender_type === 'sub_user'
             }
           });
 
@@ -445,19 +454,33 @@ export const ChatProvider: React.FC = () => {
             });
           }
 
+          // Enhanced notification display
           if (shouldNotify && "Notification" in window && Notification.permission === "granted") {
-            console.log('🔔 Showing browser notification');
-            new Notification(msg.sender_name || "New message", { 
-              body: String(msg.content || '').slice(0, 120),
-              icon: '/favicon.ico'
-            });
+            console.log('🔔 Showing browser notification from:', msg.sender_name);
+            try {
+              const notification = new Notification(msg.sender_name || "New message", { 
+                body: String(msg.content || '').slice(0, 120),
+                icon: '/favicon.ico',
+                tag: `chat-${msg.channel_id}`, // Prevent duplicate notifications
+                requireInteraction: false,
+                silent: false
+              });
+              
+              // Auto-close notification after 5 seconds
+              setTimeout(() => {
+                notification.close();
+              }, 5000);
+              
+            } catch (notifError) {
+              console.error('❌ Failed to show notification:', notifError);
+            }
           }
         }
       )
       .subscribe();
 
     return () => {
-      console.log('🧹 Cleaning up notification listener');
+      console.log('🧹 Cleaning up notification listener for:', me.name);
       supabase.removeChannel(ch);
     };
   }, [me?.id, me?.type, me?.name, boardOwnerId, currentChannelId, isOpen, shouldShowChat]);
