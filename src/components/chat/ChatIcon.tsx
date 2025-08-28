@@ -35,12 +35,9 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0 }: ChatIconProps) =>
         <span>Team Chat</span>
         
         {unreadCount > 0 && (
-          <Badge 
-            variant="destructive" 
-            className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 text-xs font-medium flex items-center justify-center min-w-[16px]"
-          >
+          <div className="absolute -top-2 -right-2 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-background">
             {unreadCount > 9 ? '9+' : unreadCount}
-          </Badge>
+          </div>
         )}
       </Button>
     </div>
