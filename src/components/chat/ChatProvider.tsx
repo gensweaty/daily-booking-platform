@@ -437,11 +437,14 @@ export const ChatProvider: React.FC = () => {
             return;
           }
 
-          // Check if this message is from current user - improved detection
+          // Improved detection of own messages
           const isMine = (
-            (msg.sender_user_id === me.id && msg.sender_type === me.type) ||
-            (me.id.startsWith('external_') && msg.sender_name?.includes('Guest')) ||
-            (me.id.startsWith('guest_') && msg.sender_name?.includes('Guest'))
+            // Standard user/sub-user match
+            (msg.sender_user_id && me.id === msg.sender_user_id && msg.sender_type === me.type) ||
+            (msg.sender_sub_user_id && me.id === msg.sender_sub_user_id && msg.sender_type === me.type) ||
+            // External user name match for guests
+            (me.id.startsWith('external_') || me.id.startsWith('guest_')) && 
+            (msg.sender_name === me.name || msg.sender_name?.includes('Guest'))
           );
           
           const isActiveChannelMessage = (msg.channel_id === currentChannelId);

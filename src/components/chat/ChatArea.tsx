@@ -216,23 +216,40 @@ export const ChatArea = () => {
     if (!draft.trim() || !activeChannelId || !me?.id) return;
     setSending(true);
     try {
-      // Determine board owner for this message
+      // Determine board owner and sender info for this message
       let ownerId: string | null = null;
+      let senderUserId: string | null = null;
+      let senderSubUserId: string | null = null;
+      
       if (me.type === 'admin') {
         ownerId = me.id;
+        senderUserId = me.id;
       } else {
+        // For sub-users, get their board owner
         const { data: su } = await supabase
           .from('sub_users')
           .select('board_owner_id')
           .eq('id', me.id)
           .maybeSingle();
         ownerId = su?.board_owner_id || null;
+        senderSubUserId = me.id;
       }
+      
+      console.log('📤 Sending message:', {
+        content: draft.trim(),
+        channel_id: activeChannelId,
+        sender_user_id: senderUserId,
+        sender_sub_user_id: senderSubUserId,
+        sender_type: me.type,
+        sender_name: me.name,
+        owner_id: ownerId
+      });
       
       await supabase.from('chat_messages').insert({
         content: draft.trim(),
         channel_id: activeChannelId,
-        sender_user_id: me.id,
+        sender_user_id: senderUserId,
+        sender_sub_user_id: senderSubUserId,
         sender_type: me.type,
         sender_name: me.name,
         sender_avatar_url: me.avatarUrl || null,
