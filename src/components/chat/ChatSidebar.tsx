@@ -28,13 +28,73 @@ export const ChatSidebar = () => {
         // Use service function for public boards to bypass RLS
         const isPublicBoard = location.pathname.startsWith('/board/');
         
-        const { data: channels, error } = await supabase
+        if (isPublicBoard) {
+          console.log('🔍 Using service function for public board channel');
+          const { data: channelData, error } = await supabase.rpc('get_default_channel_for_board', {
+            p_board_owner_id: boardOwnerId
+          });
+          
+          if (error) {
+            console.error('❌ Error loading channel via service function:', error);
+            return;
+          }
+          
+          if (channelData && channelData.length > 0) {
+            const channel = channelData[0];
+            console.log('✅ Found General channel via service function:', {
+              id: channel.id,
+              name: channel.name,
+              participantCount: channel.participant_count
+            });
+            setGeneralChannelId(channel.id);
+            return;
+          }
+        }
+        
+        // Fallback to regular query for authenticated users
+        const { data: channelsWithParticipants, error: participantsError } = await supabase
           .from('chat_channels')
-          .select('id, name')
+          .select(`
+            id, 
+            name,
+            created_at,
+            chat_participants(id)
+          `)
           .eq('owner_id', boardOwnerId)
           .eq('is_default', true)
-          .limit(1);
-        if (!error && channels?.[0]) setGeneralChannelId(channels[0].id);
+          .eq('name', 'General')
+          .order('created_at', { ascending: true });
+        
+        if (participantsError) {
+          console.error('❌ Error loading General channels:', participantsError);
+          return;
+        }
+        
+        if (channelsWithParticipants && channelsWithParticipants.length > 0) {
+          const sortedChannels = channelsWithParticipants.sort((a, b) => {
+            const aParticipants = (a.chat_participants as any[])?.length || 0;
+            const bParticipants = (b.chat_participants as any[])?.length || 0;
+            
+            if (aParticipants !== bParticipants) {
+              return bParticipants - aParticipants;
+            }
+            
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          });
+          
+          const selectedChannel = sortedChannels[0];
+          const participantCount = (selectedChannel.chat_participants as any[])?.length || 0;
+          
+          console.log('✅ Selected General channel:', {
+            id: selectedChannel.id,
+            participantCount,
+            createdAt: selectedChannel.created_at,
+            totalChannels: channelsWithParticipants.length
+          });
+          
+          setGeneralChannelId(selectedChannel.id);
+          return;
+        }
         
         console.log('⚠️ No General channels found');
         
@@ -60,9 +120,39 @@ export const ChatSidebar = () => {
         const teamMembers = [];
         const isPublicBoard = location.pathname.startsWith('/board/');
         
-        // Load team members using direct queries (works for both public and dashboard)
+        if (isPublicBoard) {
+          console.log('🔍 Using service function for public board team members');
+          const { data: memberData, error } = await supabase.rpc('get_team_members_for_board', {
+            p_board_owner_id: boardOwnerId
+          });
+          
+          if (error) {
+            console.error('❌ Error loading team members via service function:', error);
+            setMembers([{ id: boardOwnerId, name: 'Admin', type: 'admin', avatar_url: null }]);
+            return;
+          }
+
+          if (!memberData || memberData.length === 0) {
+            setMembers([{ id: boardOwnerId, name: 'Admin', type: 'admin', avatar_url: null }]);
+            return;
+          }
+
+          if (memberData && memberData.length > 0) {
+            console.log('✅ Team members loaded via service function:', memberData.length, 'members');
+            
+            const mappedMembers = memberData.map((member: any) => ({
+              id: member.id,
+              name: member.name,
+              type: member.type as 'admin' | 'sub_user',
+              avatar_url: member.avatar_url
+            }));
+            
+            setMembers(mappedMembers);
+            return;
+          }
+        }
         
-        // Load admin and sub-users
+        // Fallback to regular queries for authenticated users
         console.log('🔍 Loading admin profile for:', boardOwnerId);
         const { data: adminProfile, error: adminError } = await supabase
           .from('profiles')
@@ -143,25 +233,6 @@ export const ChatSidebar = () => {
     })();
   }, [boardOwnerId, location.pathname]);
 
-  // Realtime: show new sub-users immediately in everyone's chat list
-  useEffect(() => {
-    if (!boardOwnerId) return;
-    const ch = supabase
-      .channel(`team:${boardOwnerId}`)
-      .on('postgres_changes',
-        { schema: 'public', table: 'sub_users', event: 'INSERT', filter: `board_owner_id=eq.${boardOwnerId}` },
-        (payload) => {
-          const su = payload.new as any;
-          setMembers(prev => {
-            if (prev.some(m => m.id === su.id && m.type === 'sub_user')) return prev;
-            return [...prev, { id: su.id, name: su.fullname || su.email, type: 'sub_user', avatar_url: su.avatar_url }];
-          });
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [boardOwnerId]);
-
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
@@ -194,7 +265,19 @@ export const ChatSidebar = () => {
               <button
                 key={`${member.type}-${member.id}`}
                 onClick={async () => {
-                  await startDM(member.id, member.type);
+                  console.log('🖱️ Starting DM with:', { 
+                    member, 
+                    currentUser: me,
+                    boardOwnerId,
+                    isPublicBoard: location.pathname.startsWith('/board/')
+                  });
+                  
+                  try {
+                    await startDM(member.id, member.type);
+                    console.log('✅ DM started successfully with:', member.name);
+                  } catch (error) {
+                    console.error('❌ Failed to start DM with:', member.name, error);
+                  }
                 }}
                 className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-all text-left group"
                 title={`Start conversation with ${member.name}`}

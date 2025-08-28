@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 
 interface PublicBoardUser {
   id: string;
@@ -36,7 +35,7 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
   const [isPublicBoard, setIsPublicBoard] = useState(false);
 
   useEffect(() => {
-      const checkPublicBoardAuth = async () => {
+      const checkPublicBoardAuth = () => {
         // Check if we're on a public board route
         const isOnPublicBoard = !!slug && window.location.pathname.includes(`/board/${slug}`);
         setIsPublicBoard(isOnPublicBoard);
@@ -60,32 +59,16 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
               console.log('🔍 PublicBoardAuth: Token data:', { fullName, email, boardOwnerId, isExpired });
               
               if (!isExpired && fullName && email && boardOwnerId) {
-                // Resolve actual sub-user database ID for chat functionality
-                try {
-                  const { data: subUser } = await supabase
-                    .from('sub_users')
-                    .select('id')
-                    .eq('board_owner_id', boardOwnerId)
-                    .eq('email', email.toLowerCase())
-                    .maybeSingle();
-                  
-                  if (subUser?.id) {
-                    const publicUser = {
-                      id: subUser.id,
-                      email,
-                      fullName,
-                      boardOwnerId
-                    };
-                    setUser(publicUser);
-                    console.log('🔍 PublicBoardAuth: Set user from stored data with DB ID:', publicUser);
-                  } else {
-                    console.log('🔍 PublicBoardAuth: No sub-user found in database, clearing token');
-                    setUser(null);
-                  }
-                } catch (error) {
-                  console.error('Error resolving sub-user ID:', error);
-                  setUser(null);
-                }
+                // For chat to work, we need the actual sub-user database ID
+                // This will be resolved in ChatProvider when it queries the sub_users table
+                const publicUser = {
+                  id: email, // Use email as temporary ID, ChatProvider will resolve to real DB ID
+                  email,
+                  fullName,
+                  boardOwnerId
+                };
+                setUser(publicUser);
+                console.log('🔍 PublicBoardAuth: Set user from stored data:', publicUser);
               } else {
                 setUser(null);
                 console.log('🔍 PublicBoardAuth: Token expired or incomplete');
@@ -122,7 +105,7 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
     localStorage.setItem = function(key, value) {
       originalSetItem.apply(this, [key, value]);
       if (key === `public-board-access-${slug}`) {
-        setTimeout(() => checkPublicBoardAuth(), 100); // Small delay to ensure data is set
+        setTimeout(checkPublicBoardAuth, 100); // Small delay to ensure data is set
       }
     };
 
