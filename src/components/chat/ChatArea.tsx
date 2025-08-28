@@ -128,18 +128,36 @@ export const ChatArea = () => {
       
       if (!active || !channel) return;
       
-      if (channel.is_dm && channel.participants) {
-        const participants = channel.participants as string[];
-        const otherParticipant = participants.find(pid => pid !== me?.id);
-        
-        if (otherParticipant) {
+      if (channel.is_dm) {
+        let otherId: string | null = null;
+        if (Array.isArray(channel.participants) && channel.participants.length) {
+          otherId = (channel.participants as string[]).find(pid => pid !== me?.id) || null;
+        } else {
+          // Fall back to chat_participants when participants is NULL
+          const { data: cps } = await supabase
+            .from('chat_participants')
+            .select('user_type, user_id, sub_user_id')
+            .eq('channel_id', activeChannelId);
+
+          const mine = cps?.find(cp =>
+            (me?.type === 'admin' && cp.user_id === me?.id) ||
+            (me?.type === 'sub_user' && cp.sub_user_id === me?.id)
+          );
+          const other = cps?.find(cp => cp !== mine);
+          otherId =
+            other?.user_type === 'admin' ? other?.user_id :
+            other?.user_type === 'sub_user' ? other?.sub_user_id :
+            null;
+        }
+
+        if (otherId) {
           // Try admin first
           const { data: profile } = await supabase
             .from('profiles')
             .select('username, avatar_url')
-            .eq('id', otherParticipant)
+            .eq('id', otherId)
             .maybeSingle();
-          
+
           if (profile && active) {
             setChannelInfo({
               name: channel.name,
@@ -153,18 +171,21 @@ export const ChatArea = () => {
           const { data: subUser } = await supabase
             .from('sub_users')
             .select('fullname, avatar_url')
-            .eq('id', otherParticipant)
+            .eq('id', otherId)
             .maybeSingle();
-          
+
           if (subUser && active) {
             setChannelInfo({
               name: channel.name,
               isDM: true,
               dmPartner: { name: subUser.fullname || 'Member', avatar: subUser.avatar_url }
             });
+            return;
           }
         }
-      } else if (active) {
+      }
+      
+      if (active) {
         setChannelInfo({ name: channel.name, isDM: false });
       }
     })();
