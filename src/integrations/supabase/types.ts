@@ -1673,7 +1673,7 @@ export type Database = {
         }[]
       }
       get_chat_messages_for_channel: {
-        Args: { p_board_owner_id?: string; p_channel_id: string }
+        Args: { p_board_owner_id: string; p_channel_id: string }
         Returns: {
           channel_id: string
           content: string

@@ -39,25 +39,36 @@ export const ChatArea = () => {
   // Get or create default channel with better error handling
   useEffect(() => {
     let active = true;
-    
-    (async () => {
-      if (!boardOwnerId) {
-        console.log('❌ No boardOwnerId for default channel setup');
-        return;
-      }
 
-      console.log('🔍 Setting up default channel for board owner:', boardOwnerId);
+    (async () => {
+      if (!boardOwnerId) return;
+
+      const isPublicBoard = location.pathname.startsWith('/board/');
 
       try {
-        // Find default channel with participants
+        if (isPublicBoard) {
+          // ✅ RLS-safe path for public boards
+          const { data, error } = await supabase.rpc('get_default_channel_for_board', {
+            p_board_owner_id: boardOwnerId,
+          });
+
+          if (error) {
+            console.error('❌ get_default_channel_for_board:', error);
+            return;
+          }
+          if (data && data.length > 0) {
+            const ch = data[0];
+            if (active) setDefaultChannelId(ch.id as string);
+            return;
+          }
+          console.warn('⚠️ No default channel via RPC');
+          return;
+        }
+
+        // ✅ Dashboard / authenticated fallback
         const { data: channelsWithParticipants, error } = await supabase
           .from('chat_channels')
-          .select(`
-            id, 
-            name,
-            created_at,
-            chat_participants(id)
-          `)
+          .select(`id, name, created_at, chat_participants(id)`)
           .eq('owner_id', boardOwnerId)
           .eq('is_default', true)
           .eq('name', 'General')
@@ -68,44 +79,25 @@ export const ChatArea = () => {
           return;
         }
 
-        if (channelsWithParticipants && channelsWithParticipants.length > 0) {
-          // Sort by participant count, prefer channels with participants
-          const sortedChannels = channelsWithParticipants.sort((a, b) => {
-            const aParticipants = (a.chat_participants as any[])?.length || 0;
-            const bParticipants = (b.chat_participants as any[])?.length || 0;
-            
-            if (aParticipants !== bParticipants) {
-              return bParticipants - aParticipants; // More participants first
-            }
-            
-            // If same participant count, prefer older channel
-            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        if (channelsWithParticipants?.length) {
+          const sorted = channelsWithParticipants.sort((a: any, b: any) => {
+            const ac = (a.chat_participants as any[])?.length || 0;
+            const bc = (b.chat_participants as any[])?.length || 0;
+            return ac !== bc
+              ? bc - ac
+              : new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           });
-
-          const selectedChannel = sortedChannels[0];
-          const participantCount = (selectedChannel.chat_participants as any[])?.length || 0;
-
-          console.log('✅ Default channel selected:', { 
-            id: selectedChannel.id,
-            participantCount,
-            createdAt: selectedChannel.created_at 
-          });
-
-          if (active) {
-            setDefaultChannelId(selectedChannel.id);
-          }
-          return;
+          if (active) setDefaultChannelId(sorted[0].id);
+        } else {
+          console.warn('⚠️ No default General channels found');
         }
-
-        console.log('⚠️ No default General channels found - this should not happen after cleanup');
-        
-      } catch (error) {
-        console.error('❌ Error setting up default channel:', error);
+      } catch (e) {
+        console.error('❌ Error setting up default channel:', e);
       }
     })();
-    
+
     return () => { active = false; };
-  }, [boardOwnerId]);
+  }, [boardOwnerId, location.pathname]);
 
   // Active channel ID (context takes precedence)
   const activeChannelId = currentChannelId || defaultChannelId;
@@ -120,6 +112,8 @@ export const ChatArea = () => {
         return;
       }
       
+      const isPublicBoard = location.pathname.startsWith('/board/');
+      
       // Use new approach: get channel info without participants JSON
       const { data: channel } = await supabase
         .from('chat_channels')
@@ -130,6 +124,12 @@ export const ChatArea = () => {
       if (!active || !channel) return;
       
       if (channel.is_dm) {
+        if (isPublicBoard) {
+          // RLS-safe fallback header in public view
+          setChannelInfo({ name: channel.name, isDM: true });
+          return;
+        }
+        
         // get both participants from chat_participants
         const { data: cps, error: cpErr } = await supabase
           .from('chat_participants')
@@ -186,7 +186,7 @@ export const ChatArea = () => {
     })();
     
     return () => { active = false; };
-  }, [activeChannelId, me]);
+  }, [activeChannelId, me, location.pathname]);
 
   // Load messages with enhanced error handling
   useEffect(() => {
