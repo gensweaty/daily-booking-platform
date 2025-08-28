@@ -133,31 +133,81 @@ export const ChatProvider: React.FC = () => {
               const parsedData = JSON.parse(storedData);
               const { token, fullName: storedFullName, email: storedEmail, boardOwnerId: storedBoardOwnerId } = parsedData;
               
+              console.log('🔍 PUBLIC BOARD: Parsing stored access data:', { 
+                hasToken: !!token,
+                storedFullName, 
+                storedEmail,
+                storedBoardOwnerId 
+              });
+              
               if (token && storedFullName && storedBoardOwnerId && storedEmail) {
-                console.log('✅ Found stored public board access:', { 
-                  storedFullName, 
-                  storedEmail,
-                  storedBoardOwnerId 
-                });
+                console.log('✅ Found stored public board access - searching for sub-user record');
                 
-                // For public board users, we MUST find their sub-user record 
-                // Chat functionality requires valid database records - use exact same logic as internal dashboard
-                const { data: subUser, error: subUserError } = await supabase
+                // Enhanced sub-user lookup with multiple strategies
+                console.log('🔍 Strategy 1: Exact email match');
+                let { data: subUser, error: subUserError } = await supabase
                   .from("sub_users")
                   .select("id, fullname, avatar_url, email")
                   .eq("board_owner_id", storedBoardOwnerId)
-                  .ilike("email", storedEmail.toLowerCase())
+                  .ilike("email", storedEmail.trim().toLowerCase())
                   .maybeSingle();
                 
                 if (subUserError) {
-                  console.error('❌ Error finding sub-user record:', subUserError);
+                  console.error('❌ Strategy 1 error:', subUserError);
+                }
+                
+                // Strategy 2: If no exact match, try searching by name
+                if (!subUser?.id) {
+                  console.log('🔍 Strategy 2: Searching by name');
+                  const { data: nameMatch } = await supabase
+                    .from("sub_users")
+                    .select("id, fullname, avatar_url, email")
+                    .eq("board_owner_id", storedBoardOwnerId)
+                    .ilike("fullname", storedFullName.trim())
+                    .maybeSingle();
+                  
+                  if (nameMatch?.id) {
+                    console.log('✅ Found sub-user by name match:', nameMatch);
+                    subUser = nameMatch;
+                  }
+                }
+                
+                // Strategy 3: List all sub-users for this board to debug
+                if (!subUser?.id) {
+                  console.log('🔍 Strategy 3: Debugging - listing all sub-users for board');
+                  const { data: allSubUsers } = await supabase
+                    .from("sub_users")
+                    .select("id, fullname, avatar_url, email")
+                    .eq("board_owner_id", storedBoardOwnerId);
+                  
+                  console.log('🔍 All sub-users for board:', allSubUsers?.map(u => ({
+                    id: u.id,
+                    email: u.email,
+                    fullname: u.fullname,
+                    emailMatch: u.email?.toLowerCase() === storedEmail.toLowerCase(),
+                    nameMatch: u.fullname?.toLowerCase() === storedFullName.toLowerCase()
+                  })));
+                  
+                  // Try to find any matching user from the list
+                  const potentialMatch = allSubUsers?.find(u => 
+                    u.email?.toLowerCase().includes(storedEmail.toLowerCase()) ||
+                    u.fullname?.toLowerCase().includes(storedFullName.toLowerCase()) ||
+                    storedEmail.toLowerCase().includes(u.email?.toLowerCase() || '') ||
+                    storedFullName.toLowerCase().includes(u.fullname?.toLowerCase() || '')
+                  );
+                  
+                  if (potentialMatch) {
+                    console.log('✅ Found potential match via fuzzy search:', potentialMatch);
+                    subUser = potentialMatch;
+                  }
                 }
                 
                 if (subUser?.id) {
-                  console.log('✅ Found valid sub-user record for PUBLIC BOARD:', { 
+                  console.log('✅ SUCCESS: Found sub-user record for PUBLIC BOARD:', { 
                     id: subUser.id, 
                     name: subUser.fullname,
                     email: subUser.email,
+                    avatarUrl: subUser.avatar_url,
                     boardOwnerId: storedBoardOwnerId 
                   });
                   
@@ -178,8 +228,9 @@ export const ChatProvider: React.FC = () => {
                   }
                   return;
                 } else {
-                  console.log('⚠️ Sub-user record not found in database - chat disabled');
-                  console.log('💡 Sub-user must be properly registered to use chat functionality');
+                  console.log('❌ FAILED: Sub-user record not found in database');
+                  console.log('💡 Searched for email:', storedEmail, 'and name:', storedFullName);
+                  console.log('💡 Chat functionality requires a valid sub-user database record');
                   
                   // Initialize without chat functionality
                   if (active) {

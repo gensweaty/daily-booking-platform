@@ -246,14 +246,21 @@ export const ChatSidebar = () => {
           </p>
           
           {members.map((member) => {
-            // Enhanced self-detection logic - only use database IDs
+            // Enhanced self-detection logic - only use database IDs  
             const isMe = me && (
               // Exact match by ID and type
               (member.id === me.id && member.type === me.type)
             );
             
+            console.log('👤 Member filtering check:', { 
+              member: { id: member.id, name: member.name, type: member.type },
+              me: me ? { id: me.id, name: me.name, type: me.type } : null,
+              isMe,
+              shouldHide: isMe
+            });
+            
             if (isMe) {
-              console.log('👤 Hiding self from member list:', { member, me });
+              console.log('👤 ✅ Hiding self from member list:', member.name);
               return null;
             }
             

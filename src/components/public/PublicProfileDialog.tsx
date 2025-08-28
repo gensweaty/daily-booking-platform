@@ -69,6 +69,8 @@ export const PublicProfileDialog = ({
 
   const fetchSubUserProfile = async () => {
     try {
+      console.log('🔍 AVATAR DEBUG: Fetching sub-user profile for:', { boardUserId, userEmail });
+      
       const { data, error } = await supabase
         .from('sub_users')
         .select('fullname, avatar_url')
@@ -77,18 +79,36 @@ export const PublicProfileDialog = ({
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching sub user profile:', error);
+        console.error('❌ AVATAR DEBUG: Error fetching sub user profile:', error);
         return;
       }
 
+      console.log('🔍 AVATAR DEBUG: Fetched profile data:', { 
+        data,
+        hasFullName: !!data?.fullname,
+        hasAvatarUrl: !!data?.avatar_url,
+        avatarUrlType: typeof data?.avatar_url,
+        avatarUrlLength: data?.avatar_url?.length,
+        avatarUrlPreview: data?.avatar_url?.slice(0, 50) + (data?.avatar_url?.length > 50 ? '...' : '')
+      });
+
       if (data?.fullname) {
         setDisplayUserName(data.fullname);
+        console.log('✅ AVATAR DEBUG: Set display name:', data.fullname);
       }
       if (data?.avatar_url) {
         setAvatarUrl(data.avatar_url);
+        console.log('✅ AVATAR DEBUG: Set avatar URL:', {
+          url: data.avatar_url.slice(0, 100) + (data.avatar_url.length > 100 ? '...' : ''),
+          isBase64: data.avatar_url.startsWith('data:'),
+          isHttps: data.avatar_url.startsWith('https:')
+        });
+      } else {
+        console.log('⚠️ AVATAR DEBUG: No avatar URL found in database');
+        setAvatarUrl(null);
       }
     } catch (error) {
-      console.error('Error fetching sub user profile:', error);
+      console.error('❌ AVATAR DEBUG: Unexpected error fetching profile:', error);
     }
   };
 

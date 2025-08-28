@@ -293,9 +293,16 @@ export const ChatArea = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  // Send message
   const send = async () => {
-    if (!draft.trim() || !activeChannelId || !me || !boardOwnerId) return;
+    if (!draft.trim() || !activeChannelId || !me || !boardOwnerId) {
+      console.log('❌ Cannot send message - missing data:', {
+        hasDraft: !!draft.trim(),
+        hasChannelId: !!activeChannelId,
+        hasMe: !!me,
+        hasBoardOwnerId: !!boardOwnerId
+      });
+      return;
+    }
     
     console.log('🚀 SENDING MESSAGE DEBUG:', {
       senderInfo: {
@@ -306,7 +313,8 @@ export const ChatArea = () => {
       },
       channelId: activeChannelId,
       boardOwnerId: boardOwnerId,
-      messageContent: draft.trim().slice(0, 50) + '...'
+      messageContent: draft.trim().slice(0, 50) + (draft.length > 50 ? '...' : ''),
+      messageLength: draft.trim().length
     });
     
     setSending(true);
@@ -341,7 +349,10 @@ export const ChatArea = () => {
         .insert(messageData)
         .select('*');
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Database insert error:', error);
+        throw error;
+      }
       
       console.log('✅ Message sent successfully, returned data:', data);
       
@@ -350,7 +361,7 @@ export const ChatArea = () => {
       console.error('❌ Failed to send message:', error);
       toast({
         title: "Error",
-        description: "Failed to send message",
+        description: `Failed to send message: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
     } finally {
