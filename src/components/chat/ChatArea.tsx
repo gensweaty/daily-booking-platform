@@ -120,72 +120,67 @@ export const ChatArea = () => {
         return;
       }
       
+      // Use new approach: get channel info without participants JSON
       const { data: channel } = await supabase
         .from('chat_channels')
-        .select('name, is_dm, participants')
+        .select('id, name, is_dm')
         .eq('id', activeChannelId)
         .maybeSingle();
       
       if (!active || !channel) return;
       
       if (channel.is_dm) {
-        let otherId: string | null = null;
-        if (Array.isArray(channel.participants) && channel.participants.length) {
-          otherId = (channel.participants as string[]).find(pid => pid !== me?.id) || null;
-        } else {
-          // Fall back to chat_participants when participants is NULL
-          const { data: cps } = await supabase
-            .from('chat_participants')
-            .select('user_type, user_id, sub_user_id')
-            .eq('channel_id', activeChannelId);
+        // get both participants from chat_participants
+        const { data: cps, error: cpErr } = await supabase
+          .from('chat_participants')
+          .select('user_id, sub_user_id, user_type')
+          .eq('channel_id', channel.id);
 
-          const mine = cps?.find(cp =>
-            (me?.type === 'admin' && cp.user_id === me?.id) ||
-            (me?.type === 'sub_user' && cp.sub_user_id === me?.id)
-          );
-          const other = cps?.find(cp => cp !== mine);
-          otherId =
-            other?.user_type === 'admin' ? other?.user_id :
-            other?.user_type === 'sub_user' ? other?.sub_user_id :
-            null;
+        if (cpErr || !cps) {
+          setChannelInfo({ name: channel.name, isDM: true });
+          return;
         }
 
-        if (otherId) {
-          // Try admin first
+        // identify "me" vs "other"
+        const amAdmin = me?.type === 'admin';
+        const myId = me?.id;
+
+        const other = cps.find(p => {
+          if (amAdmin) return p.user_id && p.user_id !== myId;
+          return p.sub_user_id && p.sub_user_id !== myId;
+        }) || cps.find(p => (amAdmin ? p.sub_user_id : p.user_id)); // fallback
+
+        if (!other) {
+          setChannelInfo({ name: channel.name, isDM: true });
+          return;
+        }
+
+        if (other.user_id) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('username, avatar_url')
-            .eq('id', otherId)
+            .eq('id', other.user_id)
             .maybeSingle();
-
-          if (profile && active) {
-            setChannelInfo({
-              name: channel.name,
-              isDM: true,
-              dmPartner: { name: profile.username || 'Admin', avatar: profile.avatar_url }
-            });
-            return;
-          }
-
-          // Try sub-user
-          const { data: subUser } = await supabase
+          setChannelInfo({
+            name: channel.name,
+            isDM: true,
+            dmPartner: { name: profile?.username || 'Admin', avatar: profile?.avatar_url }
+          });
+        } else if (other.sub_user_id) {
+          const { data: su } = await supabase
             .from('sub_users')
             .select('fullname, avatar_url')
-            .eq('id', otherId)
+            .eq('id', other.sub_user_id)
             .maybeSingle();
-
-          if (subUser && active) {
-            setChannelInfo({
-              name: channel.name,
-              isDM: true,
-              dmPartner: { name: subUser.fullname || 'Member', avatar: subUser.avatar_url }
-            });
-            return;
-          }
+          setChannelInfo({
+            name: channel.name,
+            isDM: true,
+            dmPartner: { name: su?.fullname || 'Member', avatar: su?.avatar_url || undefined }
+          });
+        } else {
+          setChannelInfo({ name: channel.name, isDM: true });
         }
-      }
-      
-      if (active) {
+      } else {
         setChannelInfo({ name: channel.name, isDM: false });
       }
     })();
@@ -215,44 +210,14 @@ export const ChatArea = () => {
         hasAuthError: !!authResult.error
       });
       
-      
       try {
-        const isPublicBoard = location.pathname.startsWith('/board/');
-        
-        if (isPublicBoard && boardOwnerId) {
-          console.log('🔍 Using service function for public board messages');
-          const { data, error } = await supabase.rpc('get_chat_messages_for_channel', {
-            p_channel_id: activeChannelId,
-            p_board_owner_id: boardOwnerId
-          });
+        // Use RPC for all message loading (both board + dashboard)
+        const { data, error } = await supabase.rpc('get_chat_messages_for_channel', {
+          p_channel_id: activeChannelId,
+          p_board_owner_id: boardOwnerId
+        });
 
-          console.log('📨 Service function messages result:', { 
-            messageCount: data?.length || 0, 
-            error: error?.message,
-            firstMessage: data?.[0],
-            channelId: activeChannelId
-          });
-
-          if (error) {
-            console.error('❌ Error loading messages via service function:', error);
-            return;
-          }
-
-          if (active && data) {
-            console.log('✅ Messages loaded via service function:', data.length, 'messages');
-            setMessages(data as Message[]);
-          }
-          return;
-        }
-        
-        // Fallback to regular query for authenticated users
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('channel_id', activeChannelId)
-          .order('created_at', { ascending: true });
-
-        console.log('📨 Regular query messages result:', { 
+        console.log('📨 RPC messages result:', { 
           messageCount: data?.length || 0, 
           error: error?.message,
           firstMessage: data?.[0],
@@ -260,12 +225,12 @@ export const ChatArea = () => {
         });
 
         if (error) {
-          console.error('❌ Error loading messages:', error);
+          console.error('❌ Error loading messages via RPC:', error);
           return;
         }
 
         if (active && data) {
-          console.log('✅ Messages loaded:', data.length, 'messages');
+          console.log('✅ Messages loaded via RPC:', data.length, 'messages');
           setMessages(data as Message[]);
         }
       } catch (error) {
@@ -338,21 +303,11 @@ export const ChatArea = () => {
         });
         if (error) throw error;
       } else {
-        // Dashboard / authenticated
-        let senderUserId: string | null = null;
-        let senderSubUserId: string | null = null;
-        if (me?.type === 'admin') senderUserId = me.id;
-        if (me?.type === 'sub_user') senderSubUserId = me.id;
-
-        const { error } = await supabase.from('chat_messages').insert({
-          content: draft.trim(),
-          channel_id: activeChannelId,
-          sender_user_id: senderUserId,
-          sender_sub_user_id: senderSubUserId,
-          sender_type: me?.type,
-          sender_name: me?.name,
-          sender_avatar_url: me?.avatarUrl || null,
-          owner_id: boardOwnerId,
+        // dashboard (owner) - use RPC
+        const { error } = await supabase.rpc('send_authenticated_message', {
+          p_channel_id: activeChannelId,
+          p_owner_id: boardOwnerId,
+          p_content: draft.trim(),
         });
         if (error) throw error;
       }

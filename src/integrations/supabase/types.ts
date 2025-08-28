@@ -1831,6 +1831,10 @@ export type Database = {
             }
         Returns: string
       }
+      send_authenticated_message: {
+        Args: { p_channel_id: string; p_content: string; p_owner_id: string }
+        Returns: Json
+      }
       send_public_board_message: {
         Args: {
           p_board_owner_id: string
