@@ -196,12 +196,10 @@ export const ChatSidebar = () => {
           </p>
           
           {members.map((member) => {
-            // Enhanced self-detection logic
+            // Enhanced self-detection logic - only use database IDs
             const isMe = me && (
               // Exact match by ID and type
-              (member.id === me.id && member.type === me.type) ||
-              // For external users, match by name (fallback)
-              (me.id.startsWith('external_') || me.id.startsWith('guest_')) && member.name === me.name
+              (member.id === me.id && member.type === me.type)
             );
             
             if (isMe) {

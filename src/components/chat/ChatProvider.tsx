@@ -131,38 +131,81 @@ export const ChatProvider: React.FC = () => {
               const parsedData = JSON.parse(storedData);
               const { token, fullName: storedFullName, email: storedEmail, boardOwnerId: storedBoardOwnerId } = parsedData;
               
-              if (token && storedFullName && storedBoardOwnerId) {
+              if (token && storedFullName && storedBoardOwnerId && storedEmail) {
                 console.log('✅ Found stored public board access:', { 
                   storedFullName, 
                   storedEmail,
                   storedBoardOwnerId 
                 });
                 
-                // For public board users, we need to find their sub-user record to get the ID
-                let subUserId = null;
-                if (storedEmail) {
-                  const { data: subUser } = await supabase
-                    .from("sub_users")
-                    .select("id")
-                    .eq("board_owner_id", storedBoardOwnerId)
-                    .ilike("email", storedEmail.toLowerCase())
-                    .maybeSingle();
-                  
-                  subUserId = subUser?.id;
+                // For public board users, we MUST find their sub-user record 
+                // Chat functionality requires valid database records
+                const { data: subUser, error: subUserError } = await supabase
+                  .from("sub_users")
+                  .select("id, fullname, avatar_url")
+                  .eq("board_owner_id", storedBoardOwnerId)
+                  .ilike("email", storedEmail.toLowerCase())
+                  .maybeSingle();
+                
+                if (subUserError) {
+                  console.error('❌ Error finding sub-user record:', subUserError);
                 }
                 
-                if (active) {
-                  setBoardOwnerId(storedBoardOwnerId);
-                  setMe({
-                    id: subUserId || `external_${token}`,
-                    type: "sub_user",
-                    name: storedFullName,
-                    avatarUrl: null
+                if (subUser?.id) {
+                  console.log('✅ Found valid sub-user record:', { 
+                    id: subUser.id, 
+                    name: subUser.fullname,
+                    boardOwnerId: storedBoardOwnerId 
                   });
-                  setIsInitialized(true);
-                  console.log('✅ Public board user initialized:', { id: subUserId || `external_${token}`, name: storedFullName, boardOwnerId: storedBoardOwnerId });
+                  
+                  if (active) {
+                    setBoardOwnerId(storedBoardOwnerId);
+                    setMe({
+                      id: subUser.id,
+                      type: "sub_user",
+                      name: subUser.fullname || storedFullName,
+                      avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+                    });
+                    setIsInitialized(true);
+                    
+                    // Ensure sub-user is added to the default General channel
+                    const { data: defaultChannel } = await supabase
+                      .from("chat_channels")
+                      .select("id")
+                      .eq("owner_id", storedBoardOwnerId)
+                      .eq("is_default", true)
+                      .eq("name", "General")
+                      .maybeSingle();
+                    
+                    if (defaultChannel?.id) {
+                      // Add sub-user to General channel if not already there
+                      await supabase
+                        .from("chat_participants")
+                        .upsert({
+                          channel_id: defaultChannel.id,
+                          sub_user_id: subUser.id,
+                          user_type: "sub_user"
+                        }, { 
+                          onConflict: "channel_id,sub_user_id,user_type",
+                          ignoreDuplicates: true 
+                        });
+                      
+                      console.log('✅ Ensured sub-user is in General channel');
+                    }
+                  }
+                  return;
+                } else {
+                  console.log('⚠️ Sub-user record not found in database - chat disabled');
+                  console.log('💡 Sub-user must be properly registered to use chat functionality');
+                  
+                  // Initialize without chat functionality
+                  if (active) {
+                    setBoardOwnerId(storedBoardOwnerId);
+                    setMe(null); // No chat access without database record
+                    setIsInitialized(true);
+                  }
+                  return;
                 }
-                return;
               }
             } catch (error) {
               console.error('❌ Error parsing stored access data:', error);
@@ -412,15 +455,12 @@ export const ChatProvider: React.FC = () => {
             return;
           }
 
-          // Enhanced message ownership detection with better matching
+          // Enhanced message ownership detection - only use database IDs
           const isMine = (
             // Admin user match (exact ID match)
             (me.type === 'admin' && msg.sender_type === 'admin' && msg.sender_user_id === me.id) ||
             // Sub-user match (exact ID match)
-            (me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id) ||
-            // External/guest user name match (fallback for external users)
-            ((me.id.startsWith('external_') || me.id.startsWith('guest_')) && 
-             msg.sender_name === me.name && msg.sender_type === 'sub_user')
+            (me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id)
           );
           
           const isActiveChannel = (msg.channel_id === currentChannelId);
@@ -446,9 +486,7 @@ export const ChatProvider: React.FC = () => {
             },
             matchingLogic: {
               adminMatch: me.type === 'admin' && msg.sender_type === 'admin' && msg.sender_user_id === me.id,
-              subUserMatch: me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id,
-              externalMatch: (me.id.startsWith('external_') || me.id.startsWith('guest_')) && 
-                            msg.sender_name === me.name && msg.sender_type === 'sub_user'
+              subUserMatch: me.type === 'sub_user' && msg.sender_type === 'sub_user' && msg.sender_sub_user_id === me.id
             }
           });
 
