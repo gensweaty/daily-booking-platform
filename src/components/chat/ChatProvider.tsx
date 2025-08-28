@@ -378,37 +378,20 @@ export const ChatProvider: React.FC = () => {
     console.log('🚀 Starting DM with:', { otherId, otherType, me, boardOwnerId });
     
     try {
-      // Simple DM name
-      const dmName = `DM: ${me.name} & ${otherType === 'admin' ? 'Admin' : 'Member'}`;
-
-      // Look for existing DM channel
-      const { data: existing } = await supabase
-        .from("chat_channels")
-        .select("id, participants")
-        .eq("is_dm", true)
-        .eq("owner_id", boardOwnerId);
-
-      // Find existing DM with these participants
-      let channelId = existing?.find(ch => {
-        const participants = ch.participants as string[];
-        return participants?.includes(me.id) && participants?.includes(otherId);
-      })?.id;
+      const isPublicBoard = location.pathname.startsWith('/board/');
       
-      if (!channelId) {
-        console.log('🆕 Creating new DM channel');
-        const { data: created, error } = await supabase
-          .from("chat_channels")
-          .insert({
-            is_dm: true,
-            participants: [me.id, otherId],
-            name: dmName,
-            owner_id: boardOwnerId
-          })
-          .select("id")
-          .single();
+      if (isPublicBoard && me.type === 'sub_user') {
+        // Use RPC for public board users to start DM
+        console.log('📱 Using RPC for public board DM');
+        const { data: channelId, error } = await supabase.rpc('start_public_board_dm', {
+          p_board_owner_id: boardOwnerId,
+          p_sender_email: me.email || '',
+          p_other_id: otherId,
+          p_other_type: otherType
+        });
         
         if (error) {
-          console.error('❌ Error creating DM channel:', error);
+          console.error('❌ Error starting public board DM:', error);
           toast({
             title: "Error",
             description: "Failed to start direct message",
@@ -417,9 +400,92 @@ export const ChatProvider: React.FC = () => {
           return;
         }
         
-        // Create participant entries
-        if (created?.id) {
-          await supabase.from("chat_participants").insert([
+        if (channelId) {
+          console.log('✅ Public board DM channel ready:', channelId);
+          openChannel(channelId);
+          if (!isOpen) open();
+        }
+        return;
+      }
+
+      // Dashboard logic - find existing DM using chat_participants
+      console.log('📱 Using dashboard DM logic');
+      
+      // Find existing DM channel with both participants
+      const { data: existingChannels } = await supabase
+        .from("chat_channels")
+        .select(`
+          id,
+          chat_participants (
+            user_id,
+            sub_user_id,
+            user_type
+          )
+        `)
+        .eq("is_dm", true)
+        .eq("owner_id", boardOwnerId);
+
+      let existingChannelId = null;
+      
+      if (existingChannels?.length) {
+        // Find channel where both me and other participant exist
+        for (const channel of existingChannels) {
+          const participants = channel.chat_participants as any[];
+          
+          const meExists = participants.some(p => 
+            (me.type === 'admin' && p.user_id === me.id) ||
+            (me.type === 'sub_user' && p.sub_user_id === me.id)
+          );
+          
+          const otherExists = participants.some(p =>
+            (otherType === 'admin' && p.user_id === otherId) ||
+            (otherType === 'sub_user' && p.sub_user_id === otherId)
+          );
+          
+          if (meExists && otherExists) {
+            existingChannelId = channel.id;
+            console.log('✅ Found existing DM channel:', existingChannelId);
+            break;
+          }
+        }
+      }
+      
+      if (existingChannelId) {
+        openChannel(existingChannelId);
+        if (!isOpen) open();
+        return;
+      }
+
+      // Create new DM channel
+      console.log('🆕 Creating new DM channel via dashboard');
+      const dmName = `DM: ${me.name} & ${otherType === 'admin' ? 'Admin' : 'Member'}`;
+      
+      const { data: created, error } = await supabase
+        .from("chat_channels")
+        .insert({
+          is_dm: true,
+          name: dmName,
+          owner_id: boardOwnerId,
+          participants: null // Don't use JSON participants anymore
+        })
+        .select("id")
+        .single();
+      
+      if (error) {
+        console.error('❌ Error creating DM channel:', error);
+        toast({
+          title: "Error",
+          description: "Failed to start direct message",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Create participant entries
+      if (created?.id) {
+        const { error: participantError } = await supabase
+          .from("chat_participants")
+          .insert([
             {
               channel_id: created.id,
               user_id: me.type === 'admin' ? me.id : null,
@@ -433,11 +499,16 @@ export const ChatProvider: React.FC = () => {
               user_type: otherType
             }
           ]);
-        }
         
-        channelId = created?.id;
-        console.log('✅ New DM channel created:', channelId);
+        if (participantError) {
+          console.error('❌ Error creating participants:', participantError);
+        } else {
+          console.log('✅ DM participants created successfully');
+        }
       }
+      
+      const channelId = created?.id;
+      console.log('✅ New DM channel created:', channelId);
 
       if (channelId) {
         openChannel(channelId);
@@ -451,7 +522,7 @@ export const ChatProvider: React.FC = () => {
         variant: "destructive"
       });
     }
-  }, [me, boardOwnerId, openChannel, isOpen, open, toast]);
+  }, [me, boardOwnerId, openChannel, isOpen, open, toast, location.pathname]);
 
   // Enhanced notifications with improved message matching
   useEffect(() => {
