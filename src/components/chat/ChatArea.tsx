@@ -303,11 +303,10 @@ export const ChatArea = () => {
     try {
       const isPublicBoard = location.pathname.startsWith('/board/');
       
-      if (isPublicBoard && me?.type === 'sub_user') {
-        // Get stored email from the same place used during PublicBoard login
+      if (isPublicBoard) {
         const slug = location.pathname.split('/').pop()!;
         const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-        const senderEmail = stored?.email;
+        const senderEmail = me?.email || stored?.email;
         if (!senderEmail) throw new Error('Missing sub-user email for public board');
 
         const { error } = await supabase.rpc('send_public_board_message', {

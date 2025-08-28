@@ -245,19 +245,10 @@ export const ChatSidebar = () => {
             Team Members
           </p>
           
-          {members.map((member) => {
-            // Enhanced self-detection - only filter if me is properly resolved
-            const isMe = me && member.id === me.id && member.type === me.type;
-            
-            console.log('👤 Member filtering check:', { 
-              member: { id: member.id, name: member.name, type: member.type },
-              me: me ? { id: me.id, name: me.name, type: me.type } : null,
-              isMe,
-              shouldHide: isMe
-            });
+          {me && members.map((member) => {
+            const isMe = member.id === me.id && member.type === me.type;
             
             if (isMe) {
-              console.log('👤 ✅ Hiding self from member list:', member.name);
               return null;
             }
             
@@ -285,7 +276,11 @@ export const ChatSidebar = () => {
                         p_other_id: member.id,
                         p_other_type: member.type,
                       });
-                      if (!error && data) openChannel(data as string);
+                      if (error) {
+                        console.error('start_public_board_dm error:', error);
+                        return;
+                      }
+                      if (data) openChannel(data as string);
                       return;
                     }
 
