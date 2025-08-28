@@ -5,7 +5,23 @@ import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { ChatMessage } from '@/hooks/useChat';
+// This type is now defined locally since we removed the separate useChat hook
+type ChatMessage = {
+  id: string;
+  channel_id: string;
+  sender_user_id?: string;
+  sender_sub_user_id?: string;
+  sender_type: 'admin' | 'sub_user';
+  content: string;
+  reply_to_id?: string;
+  created_at: string;
+  updated_at: string;
+  sender_name?: string;
+  sender_avatar?: string;
+  reactions?: any[];
+  reply_to?: ChatMessage;
+  files?: any[];
+};
 
 interface MessageListProps {
   messages: ChatMessage[];

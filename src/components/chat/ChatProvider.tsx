@@ -3,9 +3,11 @@ import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePublicBoardAuth } from "@/contexts/PublicBoardAuthContext";
 import { ChatIcon } from "./ChatIcon";
 import { ChatWindow } from "./ChatWindow";
 import { resolveAvatarUrl } from "./_avatar";
+import { useToast } from "@/hooks/use-toast";
 
 type Me = { id: string; type: "admin" | "sub_user"; name: string; avatarUrl?: string };
 
@@ -22,6 +24,7 @@ type ChatCtx = {
   openChannel: (id: string) => void;
   startDM: (otherId: string, otherType: "admin" | "sub_user") => void;
   unreadTotal: number;
+  boardOwnerId: string | null;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -34,21 +37,19 @@ export const useChat = () => {
 
 export const ChatProvider: React.FC = () => {
   const { user } = useAuth();
+  const { user: publicBoardUser, isPublicBoard } = usePublicBoardAuth();
   const location = useLocation();
+  const { toast } = useToast();
   
-  // Only show chat on dashboard routes when user is authenticated
-  const { loading } = useAuth();
+  // Determine effective user and board owner
+  const effectiveUser = isPublicBoard ? publicBoardUser : user;
+  const isOnPublicBoard = location.pathname.startsWith('/board/');
+  const isOnDashboard = location.pathname.includes('/dashboard');
+  
   // Should we show chat at all?
   const shouldShowChat = useMemo(() => {
-    // Always show on dashboard or public board routes  
-    const isOnPublicBoard = location.pathname.startsWith('/board/');
-    const isOnDashboard = location.pathname.includes('/dashboard');
-    const hasUser = !!user;
-    
-    console.log('🤔 Should show chat?', { isOnDashboard, isOnPublicBoard, hasUser, path: location.pathname });
-    
     // Show on dashboard when user is present
-    if (isOnDashboard && hasUser) {
+    if (isOnDashboard && user) {
       console.log('✅ Dashboard + user -> show chat');
       return true;
     }
@@ -59,19 +60,20 @@ export const ChatProvider: React.FC = () => {
       return true;
     }
     
-    console.log('❌ No conditions met -> hide chat');
+    console.log('❌ No conditions met -> hide chat', { isOnDashboard, isOnPublicBoard, hasUser: !!user });
     return false;
-  }, [location.pathname, user]);
+  }, [location.pathname, user, isOnDashboard, isOnPublicBoard]);
 
-  // UI state - ALWAYS start closed
+  // UI state
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [hasSubUsers, setHasSubUsers] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
+  const [boardOwnerId, setBoardOwnerId] = useState<string | null>(null);
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [unreadTotal, setUnreadTotal] = useState(0);
 
-  // Make one portal root for chat
+  // Create portal root
   const portalRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     let node = document.getElementById("chat-root") as HTMLElement | null;
@@ -80,263 +82,236 @@ export const ChatProvider: React.FC = () => {
       node.id = "chat-root";
       node.style.position = "fixed";
       node.style.inset = "0";
-      node.style.pointerEvents = "none"; // let only chat elements opt-in to pointer events
-      node.style.zIndex = "2147483647";  // max z
+      node.style.pointerEvents = "none";
+      node.style.zIndex = "2147483647";
       document.body.appendChild(node);
     }
     portalRef.current = node;
   }, []);
 
-  // Persist UI state so a page change keeps your window state
-  useEffect(() => {
-    localStorage.setItem("chat_isOpen", String(isOpen));
-  }, [isOpen]);
+  // Chat controls
+  const open = useCallback(() => setIsOpen(true), []);
+  const close = useCallback(() => setIsOpen(false), []);
+  const toggle = useCallback(() => setIsOpen(prev => !prev), []);
 
-  // Public toggles
-  const open = useCallback(() => {
-    console.log("💬 ChatProvider.open()");
-    setIsOpen(true);
-  }, []);
-  const close = useCallback(() => {
-    console.log("💬 ChatProvider.close()");
-    setIsOpen(false);
-  }, []);
-  const toggle = useCallback(() => {
-    console.log("💬 ChatProvider.toggle()");
-    setIsOpen(prev => !prev);
-  }, []);
-
-  // Simple, non-invasive check to decide if icon should show.
-  // Adjust query to match your sub-user table if needed.
+  // Initialize user identity and board owner
   useEffect(() => {
     let active = true;
-    const load = async () => {
-      setIsInitialized(false);
-      if (!user?.id) {
-        // On public boards, still allow chat even without authenticated user
-        const isOnPublicBoard = location.pathname.startsWith('/board/');
-        if (isOnPublicBoard) {
-          console.log('📋 Public board - allowing chat without user');
+    
+    (async () => {
+      console.log('🔍 Initializing chat for:', { effectiveUser, isPublicBoard, shouldShowChat });
+      
+      if (!shouldShowChat) {
+        if (active) {
+          setMe(null);
+          setBoardOwnerId(null);
+          setIsInitialized(true);
+        }
+        return;
+      }
+
+      try {
+        // Handle public board access (external users)
+        if (isOnPublicBoard && !user) {
+          const pathParts = location.pathname.split('/');
+          const accessToken = pathParts[pathParts.length - 1];
+          
+          if (accessToken) {
+            const { data: boardAccess } = await supabase
+              .from('public_board_access')
+              .select('external_user_name, external_user_email, board_id')
+              .eq('access_token', accessToken)
+              .maybeSingle();
+            
+            if (active && boardAccess) {
+              const { data: publicBoard } = await supabase
+                .from('public_boards')
+                .select('user_id')
+                .eq('id', boardAccess.board_id)
+                .maybeSingle();
+                
+              if (publicBoard) {
+                console.log('🎯 External user on public board:', boardAccess);
+                setBoardOwnerId(publicBoard.user_id);
+                setMe({
+                  id: `external_${accessToken}`,
+                  type: "sub_user",
+                  name: boardAccess.external_user_name || "Guest",
+                  avatarUrl: null
+                });
+                setIsInitialized(true);
+                return;
+              }
+            }
+          }
+          
+          // Fallback for external access
           if (active) {
-            setHasSubUsers(false);
+            console.log('🎯 Fallback external user');
+            setMe({
+              id: `guest_${Date.now()}`,
+              type: "sub_user",
+              name: "Guest User",
+              avatarUrl: null
+            });
             setIsInitialized(true);
           }
           return;
         }
         
-        console.log("👤 No user -> hide chat");
-        if (active) {
-          setHasSubUsers(false);
-          setIsInitialized(true);
-        }
-        return;
-      }
-
-        try {
-          let has = true; // don't gate visibility by sub-users anymore
-          
-          // Still try to load sub-users for hasSubUsers state
-          try {
-            const { data, error } = await supabase
-              .from("sub_users")
-              .select("id")
-              .eq("board_owner_id", user.id)
-              .limit(1);
-            if (error) console.log("ℹ️ sub_users probe:", error.message);
-            if (data?.length) setHasSubUsers(true);
-          } catch (e) {
-            console.log("ℹ️ sub_users probe failed (table may not exist)");
-          }
-
+        // Handle authenticated users
+        if (!user?.id) {
           if (active) {
-            setHasSubUsers(has);
+            setMe(null);
+            setBoardOwnerId(null);
             setIsInitialized(true);
-            console.log("✅ Chat init:", { userId: user.id, hasSubUsers: has, shouldShowChat });
           }
-      } catch (e) {
-        console.log("⚠️ Chat init error:", e);
+          return;
+        }
+
+        // Try admin first
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .maybeSingle();
+        
+        if (active && profile) {
+          console.log('🎯 Admin user detected:', profile);
+          setBoardOwnerId(user.id);
+          setMe({
+            id: profile.id,
+            type: "admin",
+            name: profile.username || "Admin",
+            avatarUrl: resolveAvatarUrl(profile.avatar_url)
+          });
+          setIsInitialized(true);
+          return;
+        }
+        
+        // Try sub-user by email
+        const userEmail = user.email?.toLowerCase();
+        if (!userEmail) {
+          console.log('❌ No user email found');
+          if (active) {
+            setMe(null);
+            setBoardOwnerId(null);
+            setIsInitialized(true);
+          }
+          return;
+        }
+
+        const { data: subUser } = await supabase
+          .from("sub_users")
+          .select("*")
+          .filter("email", "ilike", userEmail)
+          .maybeSingle();
+
+        if (active && subUser) {
+          console.log('🎯 Sub-user detected:', subUser);
+          setBoardOwnerId(subUser.board_owner_id);
+          setMe({
+            id: subUser.id,
+            type: "sub_user",
+            name: subUser.fullname || "Member",
+            avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+          });
+          setIsInitialized(true);
+        } else {
+          console.log('❌ No matching user found');
+          if (active) {
+            setMe(null);
+            setBoardOwnerId(null);
+            setIsInitialized(true);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error initializing chat:', error);
         if (active) {
-          setHasSubUsers(false);
+          setMe(null);
+          setBoardOwnerId(null);
           setIsInitialized(true);
         }
-      }
-    };
-    load();
-    return () => {
-      active = false;
-    };
-  }, [user?.id, shouldShowChat]);
-
-  // Resolve current user identity (admin or sub-user)
-  useEffect(() => {
-    let active = true;
-    
-    if (!shouldShowChat) {
-      setMe(null);
-      return;
-    }
-
-    (async () => {
-      // Handle public board access (external users without authentication)
-      const isOnPublicBoard = location.pathname.startsWith('/board/');
-      if (isOnPublicBoard && !user?.id) {
-        // For external public board access, check if we can get user info from URL/token
-        const pathParts = location.pathname.split('/');
-        const accessToken = pathParts[pathParts.length - 1];
-        
-        if (accessToken) {
-          const { data: boardAccess } = await supabase
-            .from('public_board_access')
-            .select('external_user_name, external_user_email, board_id')
-            .eq('access_token', accessToken)
-            .maybeSingle();
-          
-          if (active && boardAccess) {
-            console.log('🎯 External user detected:', boardAccess);
-            setMe({
-              id: `external_${accessToken}`,
-              type: "sub_user", // Treat external users as sub-users
-              name: boardAccess.external_user_name || "Guest",
-              avatarUrl: null
-            });
-            return;
-          }
-        }
-        
-        // Fallback for external access without proper token
-        if (active) {
-          setMe({
-            id: `guest_${Date.now()}`,
-            type: "sub_user",
-            name: "Guest User",
-            avatarUrl: null
-          });
-        }
-        return;
-      }
-      
-      if (!user?.id) {
-        if (active) setMe(null);
-        return;
-      }
-
-      // Try to find user as admin first
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .maybeSingle();
-      
-      if (active && prof) {
-        console.log('🎯 Admin user detected:', prof);
-        setMe({
-          id: prof.id,
-          type: "admin",
-          name: prof.username || "Admin",
-          avatarUrl: resolveAvatarUrl(prof.avatar_url)
-        });
-        return;
-      }
-      
-      // If not admin, try to find as sub-user by email
-      const userEmail = user.email?.toLowerCase();
-      if (!userEmail) {
-        console.log('❌ No user email found');
-        return;
-      }
-
-      const { data: subUser } = await supabase
-        .from("sub_users")
-        .select("*")
-        .filter("email", "ilike", userEmail)
-        .maybeSingle();
-
-      if (active && subUser) {
-        console.log('🎯 Sub-user detected:', subUser);
-        setMe({
-          id: subUser.id,
-          type: "sub_user",
-          name: subUser.fullname || "Member",
-          avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-        });
-      } else {
-        console.log('❌ No matching sub-user found for email:', userEmail);
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [user?.id, shouldShowChat, location.pathname]);
+  }, [user?.id, shouldShowChat, location.pathname, isOnPublicBoard, effectiveUser]);
 
-  // Channel and DM management
+  // Check for sub-users (always allow chat to show)
+  useEffect(() => {
+    if (boardOwnerId) {
+      supabase
+        .from("sub_users")
+        .select("id")
+        .eq("board_owner_id", boardOwnerId)
+        .limit(1)
+        .then(({ data }) => {
+          setHasSubUsers((data?.length || 0) > 0);
+        });
+    } else {
+      setHasSubUsers(false);
+    }
+  }, [boardOwnerId]);
+
+  // Channel management
   const openChannel = useCallback((id: string) => {
+    console.log('📂 Opening channel:', id);
     setCurrentChannelId(id);
-    // Reset unread count when opening a channel
     setUnreadTotal(0);
   }, []);
 
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
-    if (!me || !user?.id) {
-      console.log('❌ Missing me or user for DM:', { me, userId: user?.id });
+    if (!me || !boardOwnerId) {
+      console.log('❌ Missing me or boardOwnerId for DM:', { me, boardOwnerId });
       return;
     }
     
-    console.log('🚀 Starting DM with:', { otherId, otherType, me, userId: user.id });
+    console.log('🚀 Starting DM with:', { otherId, otherType, me, boardOwnerId });
     
     try {
-      // Determine the board owner for the channel
-      let channelOwnerId = user.id;
-      if (me.type === 'sub_user') {
-        // If current user is a sub-user, find their board owner
-        const { data: subUserData, error: subUserError } = await supabase
-          .from('sub_users')
-          .select('board_owner_id')
-          .eq('id', me.id)
-          .maybeSingle();
-        
-        if (subUserError) {
-          console.error('❌ Error finding board owner:', subUserError);
-        }
-        
-        if (subUserData) {
-          channelOwnerId = subUserData.board_owner_id;
-          console.log('📋 Board owner found:', channelOwnerId);
-        }
-      }
-
-      // Create DM name for easier identification
+      // Simple DM name
       const dmName = `DM: ${me.name} & ${otherType === 'admin' ? 'Admin' : 'Member'}`;
 
-      // Look for existing DM channel - check both participant orders
-      const { data: existing, error: searchError } = await supabase
+      // Look for existing DM channel
+      const { data: existing } = await supabase
         .from("chat_channels")
-        .select("id, name, participants")
+        .select("id, participants")
         .eq("is_dm", true)
-        .eq("owner_id", channelOwnerId)
-        .or(`participants.cs.{${me.id},${otherId}},participants.cs.{${otherId},${me.id}}`);
+        .eq("owner_id", boardOwnerId);
 
-      if (searchError) {
-        console.error('❌ Error searching for existing DM:', searchError);
-      }
-
-      let channelId = existing?.[0]?.id;
-      console.log('🔍 Existing DM found:', existing);
+      // Find existing DM with these participants
+      let channelId = existing?.find(ch => {
+        const participants = ch.participants as string[];
+        return participants?.includes(me.id) && participants?.includes(otherId);
+      })?.id;
       
       if (!channelId) {
         console.log('🆕 Creating new DM channel');
-        const { data: created, error: createError } = await supabase
+        const { data: created, error } = await supabase
           .from("chat_channels")
           .insert({
             is_dm: true,
-            participants: [me.id, otherId], // Simple array of participant IDs
+            participants: [me.id, otherId],
             name: dmName,
-            owner_id: channelOwnerId
+            owner_id: boardOwnerId
           })
           .select("id")
           .single();
         
-        // Also create participant entries for proper access control
+        if (error) {
+          console.error('❌ Error creating DM channel:', error);
+          toast({
+            title: "Error",
+            description: "Failed to start direct message",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        // Create participant entries
         if (created?.id) {
           await supabase.from("chat_participants").insert([
             {
@@ -354,203 +329,115 @@ export const ChatProvider: React.FC = () => {
           ]);
         }
         
-        if (createError) {
-          console.error('❌ Error creating DM channel:', createError);
-          return;
-        }
-        
         channelId = created?.id;
         console.log('✅ New DM channel created:', channelId);
       }
 
       if (channelId) {
-        console.log('🎯 Opening DM channel:', channelId);
         openChannel(channelId);
-        
-        // Open chat window if not already open
-        if (!isOpen) {
-          console.log('📂 Opening chat window for DM');
-          open();
-        }
+        if (!isOpen) open();
       }
     } catch (error) {
       console.error('❌ Failed to start DM:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start direct message",
+        variant: "destructive"
+      });
     }
-  }, [me, openChannel, user?.id, isOpen, open]);
+  }, [me, boardOwnerId, openChannel, isOpen, open, toast]);
 
-  // Unread tracking and notifications
+  // Notifications
   useEffect(() => {
-    if (!me || !shouldShowChat) return;
+    if (!me || !boardOwnerId || !shouldShowChat) return;
 
-    console.log('🔔 Setting up notification listener for:', me);
-
-    // Get board owner ID for filtering messages
-    let boardOwnerIdPromise: Promise<string | null> = (async () => {
-      if (me.type === 'admin') return me.id;
-      
-      if (me.id.startsWith('external_') || me.id.startsWith('guest_')) {
-        // For external users, get board owner from public board access
-        const pathParts = location.pathname.split('/');
-        const accessToken = pathParts[pathParts.length - 1];
-        
-        if (accessToken) {
-          const { data: boardAccess } = await supabase
-            .from('public_board_access')
-            .select('board_id')
-            .eq('access_token', accessToken)
-            .maybeSingle();
-            
-          if (boardAccess) {
-            const { data: publicBoard } = await supabase
-              .from('public_boards')
-              .select('user_id')
-              .eq('id', boardAccess.board_id)
-              .maybeSingle();
-              
-            if (publicBoard) {
-              return publicBoard.user_id;
-            }
-          }
-        }
-        return null;
-      }
-      
-      const { data } = await supabase.from('sub_users').select('board_owner_id').eq('id', me.id).maybeSingle();
-      return data?.board_owner_id || null;
-    })();
+    console.log('🔔 Setting up notifications for:', me);
 
     const ch = supabase
-      .channel('chat_unread_listener')
+      .channel('chat_notifications')
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'chat_messages' },
-        async (payload) => {
+        (payload) => {
           const msg = payload.new as any;
-          console.log('📨 New message detected:', msg);
-          
-          const ownerId = await boardOwnerIdPromise;
-          console.log('👤 Expected board owner ID:', ownerId);
-          console.log('📄 Message owner_id:', msg.owner_id);
+          console.log('📨 New message:', msg);
 
           // Only process messages for this board
-          if (!ownerId || !msg.owner_id || msg.owner_id !== ownerId) {
-            console.log('⏭️ Skipping message - owner ID mismatch', { ownerId, msgOwnerId: msg.owner_id });
+          if (msg.owner_id !== boardOwnerId) {
+            console.log('⏭️ Skipping - wrong board owner');
             return;
           }
 
-          // Improved detection of own messages
+          // Check if it's my message
           const isMine = (
-            // Standard user/sub-user match
-            (msg.sender_user_id && me.id === msg.sender_user_id && msg.sender_type === me.type) ||
-            (msg.sender_sub_user_id && me.id === msg.sender_sub_user_id && msg.sender_type === me.type) ||
-            // External user name match for guests
+            (msg.sender_user_id && me.id === msg.sender_user_id && msg.sender_type === 'admin') ||
+            (msg.sender_sub_user_id && me.id === msg.sender_sub_user_id && msg.sender_type === 'sub_user') ||
             (me.id.startsWith('external_') || me.id.startsWith('guest_')) && 
-            (msg.sender_name === me.name || msg.sender_name?.includes('Guest'))
+            (msg.sender_name === me.name)
           );
           
-          const isActiveChannelMessage = (msg.channel_id === currentChannelId);
-          const shouldCount = !isMine && (!isActiveChannelMessage || !isOpen);
-          const shouldNotify = !isMine && (!isOpen || !isActiveChannelMessage);
+          const isActiveChannel = msg.channel_id === currentChannelId;
+          const shouldCount = !isMine && (!isActiveChannel || !isOpen);
+          const shouldNotify = !isMine && (!isOpen || !isActiveChannel);
 
-          console.log('🔍 Message analysis:', {
-            senderId: msg.sender_user_id,
-            senderType: msg.sender_type,
-            senderName: msg.sender_name,
-            myId: me.id,
-            myType: me.type,
-            myName: me.name,
-            isMine,
-            isActiveChannelMessage,
-            isOpen,
-            shouldCount,
-            shouldNotify,
-            currentChannelId,
-            messageChannelId: msg.channel_id
-          });
+          console.log('🔍 Message check:', { isMine, isActiveChannel, shouldCount, shouldNotify });
 
-          // Increment unread count for non-own messages when chat is closed or different channel
           if (shouldCount) {
-            setUnreadTotal(prev => {
-              const newCount = prev + 1;
-              console.log('📈 Incrementing unread count:', prev, '->', newCount);
-              return newCount;
-            });
+            setUnreadTotal(prev => prev + 1);
           }
 
-          // Show browser notification for non-own messages
           if (shouldNotify && "Notification" in window && Notification.permission === "granted") {
-            console.log('🔔 Showing browser notification');
             new Notification(msg.sender_name || "New message", { 
               body: String(msg.content || '').slice(0, 120),
-              icon: '/favicon.ico',
-              tag: 'chat-notification',
-              silent: false
+              icon: '/favicon.ico'
             });
           }
         }
       )
       .subscribe();
 
-    return () => { 
-      console.log('🧹 Cleaning up notification listener');
-      supabase.removeChannel(ch); 
+    return () => {
+      supabase.removeChannel(ch);
     };
-  }, [me?.id, me?.type, me?.name, currentChannelId, shouldShowChat, isOpen, location.pathname]);
+  }, [me, boardOwnerId, currentChannelId, isOpen, shouldShowChat]);
 
-  // Reset unread count when chat opens or channel changes
+  // Reset unread on open/channel change
   useEffect(() => {
     if (isOpen || currentChannelId) {
-      console.log('💡 Resetting unread count - chat opened or channel switched');
       setUnreadTotal(0);
     }
   }, [isOpen, currentChannelId]);
 
-  // Ask permission once
+  // Request notification permission
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission().catch(() => {});
     }
   }, []);
 
-  // Expose a global debug toggle to verify clicks quickly
-  useEffect(() => {
-    (window as any).__smartbooklyChatOpen = () => {
-      console.log("🧪 Toggling chat from window.__smartbooklyChatOpen()");
-      toggle();
-    };
-  }, [toggle]);
-
   const value = useMemo<ChatCtx>(() => ({
     isOpen, open, close, toggle, isInitialized, hasSubUsers, me,
-    currentChannelId, setCurrentChannelId, openChannel, startDM, unreadTotal
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal]);
+    currentChannelId, setCurrentChannelId, openChannel, startDM, 
+    unreadTotal, boardOwnerId
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, 
+       currentChannelId, openChannel, startDM, unreadTotal, boardOwnerId]);
 
-  // Show chat only when conditions are met
-  if (!shouldShowChat) return null;
+  if (!shouldShowChat || !portalRef.current) return null;
 
   console.log('🔍 ChatProvider render:', { 
-    hasSubUsers, 
-    isInitialized, 
-    hasUser: !!user?.id, 
-    shouldShowChat,
-    path: location.pathname
+    hasSubUsers, isInitialized, hasUser: !!user?.id, shouldShowChat,
+    me, boardOwnerId
   });
-
-  // Nothing to render until portal root is ready
-  if (!portalRef.current) return null;
 
   return (
     <ChatContext.Provider value={value}>
       {createPortal(
         <>
-          {/* The icon must be pointer-events enabled inside a pointer-events:none root */}
-          {/* Only show icon when chat is closed to prevent overlap with send button */}
           {isInitialized && !isOpen && (
             <div style={{ pointerEvents: "auto" }}>
               <ChatIcon onClick={toggle} isOpen={isOpen} unreadCount={unreadTotal} />
             </div>
           )}
 
-          {/* Render window when open, also opt-in to pointer events */}
           {isOpen && (
             <div style={{ pointerEvents: "auto" }}>
               <ChatWindow isOpen={isOpen} onClose={close} />
