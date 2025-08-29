@@ -220,9 +220,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     setIsOpen(true);
   }, [clearChannelUnread]);
 
-  // Initialize user identity and board owner - ENHANCED with loading states
+  // Initialize user identity and board owner - ENHANCED with loading states and timeout
   useEffect(() => {
     let active = true;
+    let initTimeout: NodeJS.Timeout;
     
     (async () => {
       console.log('🔍 Initializing chat for:', { 
@@ -232,19 +233,57 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         path: location.pathname,
         isOnPublicBoard,
         effectiveUser: effectiveUser?.email,
-        publicBoardUser: publicBoardUser?.email
+        publicBoardUser: publicBoardUser?.email,
+        publicBoardUserLoading: publicBoardUser === undefined
       });
       
       // Set loading state initially
       setIsInitialized(false);
       
+      // Timeout to prevent infinite loading
+      initTimeout = setTimeout(() => {
+        if (active) {
+          console.log('⚠️ ChatProvider: Initialization timeout - forcing completion');
+          setIsInitialized(true);
+        }
+      }, 8000);
+      
       if (!shouldShowChat) {
         if (active) {
           setMe(null);
           setBoardOwnerId(null);
+          clearTimeout(initTimeout);
           setIsInitialized(true);
         }
         return;
+      }
+
+      // Wait for public board auth to complete if we're on a public board
+      if (isOnPublicBoard && publicBoardUser === undefined) {
+        console.log('⏳ Waiting for public board authentication to complete...');
+        // Create a polling mechanism to wait for auth completion
+        const waitForAuth = () => {
+          return new Promise<void>((resolve) => {
+            const checkAuth = () => {
+              const { user: currentPublicUser } = usePublicBoardAuth();
+              if (currentPublicUser !== undefined) {
+                resolve();
+              } else {
+                setTimeout(checkAuth, 100);
+              }
+            };
+            checkAuth();
+          });
+        };
+        
+        try {
+          await Promise.race([
+            waitForAuth(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 3000))
+          ]);
+        } catch (error) {
+          console.log('⚠️ Public board auth wait timeout, proceeding anyway');
+        }
       }
 
       try {
@@ -285,6 +324,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                   if (active) {
                     setBoardOwnerId(storedBoardOwnerId);
                     setMe(subUserIdentity);
+                    clearTimeout(initTimeout);
                     setIsInitialized(true);
                   }
                   return;
@@ -401,6 +441,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                   if (active) {
                     setBoardOwnerId(storedBoardOwnerId);
                     setMe(subUserIdentity);
+                    clearTimeout(initTimeout);
                     setIsInitialized(true);
                     console.log('🎉 PUBLIC BOARD: Chat initialized for sub-user with identity:', subUserIdentity);
                   }
@@ -414,6 +455,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                   if (active) {
                     setBoardOwnerId(storedBoardOwnerId);
                     setMe(null); // No chat access without database record
+                    clearTimeout(initTimeout);
                     setIsInitialized(true);
                   }
                   return;
@@ -464,6 +506,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               email: user.email || undefined,
               avatarUrl: resolveAvatarUrl(profile.avatar_url)
             });
+            clearTimeout(initTimeout);
             setIsInitialized(true);
             console.log('🎉 AUTHENTICATED ADMIN: Chat initialized with full features');
             return;
@@ -500,6 +543,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                 email: subUser.email,
                 avatarUrl: resolveAvatarUrl(subUser.avatar_url)
               });
+              clearTimeout(initTimeout);
               setIsInitialized(true);
               console.log('🎉 AUTHENTICATED SUB-USER: Chat initialized with full features');
               return;
@@ -514,6 +558,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         if (active) {
           setMe(null);
           setBoardOwnerId(null);
+          clearTimeout(initTimeout);
           setIsInitialized(true);
         }
         
@@ -522,15 +567,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         if (active) {
           setMe(null);
           setBoardOwnerId(null);
+          clearTimeout(initTimeout);
           setIsInitialized(true);
         }
       }
     })();
 
-    return () => {
+    return () => { 
       active = false;
+      if (initTimeout) clearTimeout(initTimeout);
     };
-  }, [user?.id, user?.email, shouldShowChat, location.pathname, isOnPublicBoard]);
+  }, [user?.id, user?.email, shouldShowChat, location.pathname, isOnPublicBoard, publicBoardUser]);
 
   // ❌ REMOVED: Old normalization logic is no longer needed since the migration handles it
 

@@ -469,8 +469,24 @@ export const ChatArea = () => {
     }
   };
 
+  // Enhanced loading state with timeout fallback
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+  
+  useEffect(() => {
+    if (loading || !isInitialized) {
+      const timeoutId = setTimeout(() => {
+        console.log('⚠️ ChatArea: Loading timeout reached, forcing display');
+        setLoadingTimeout(true);
+      }, 6000);
+      
+      return () => clearTimeout(timeoutId);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading, isInitialized]);
+
   // Show loading state while authentication and data are resolving
-  if (loading || !isInitialized) {
+  if (!loadingTimeout && (loading || !isInitialized)) {
     return (
       <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
         <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
@@ -481,6 +497,7 @@ export const ChatArea = () => {
           <div className="text-center space-y-2">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
             <p className="text-sm text-muted-foreground">Loading chat...</p>
+            <p className="text-xs text-muted-foreground">This should only take a moment...</p>
           </div>
         </div>
         <div className="p-4 border-t bg-muted/30">

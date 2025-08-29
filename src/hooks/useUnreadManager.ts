@@ -7,25 +7,39 @@ interface UnreadCounts {
 export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) => {
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [channelUnreads, setChannelUnreads] = useState<UnreadCounts>({});
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load unread counts from localStorage on mount
+  // Enhanced load unread counts from localStorage with better error handling
   useEffect(() => {
+    console.log('📊 useUnreadManager: Loading unread counts from localStorage');
     const saved = localStorage.getItem('chat_unread_counts');
     if (saved) {
       try {
         const counts: UnreadCounts = JSON.parse(saved);
+        console.log('📊 useUnreadManager: Loaded counts:', counts);
         setChannelUnreads(counts);
-        setUnreadTotal(Object.values(counts).reduce((sum, count) => sum + count, 0));
+        const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+        setUnreadTotal(total);
+        console.log('📊 useUnreadManager: Total unread count:', total);
       } catch (error) {
         console.error('Failed to load unread counts:', error);
+        // Reset to clean state on error
+        setChannelUnreads({});
+        setUnreadTotal(0);
       }
+    } else {
+      console.log('📊 useUnreadManager: No saved unread counts found');
     }
+    setIsInitialized(true);
   }, []);
 
-  // Save unread counts to localStorage
+  // Save unread counts to localStorage with initialization check
   useEffect(() => {
-    localStorage.setItem('chat_unread_counts', JSON.stringify(channelUnreads));
-  }, [channelUnreads]);
+    if (isInitialized) {
+      console.log('💾 useUnreadManager: Saving unread counts to localStorage:', channelUnreads);
+      localStorage.setItem('chat_unread_counts', JSON.stringify(channelUnreads));
+    }
+  }, [channelUnreads, isInitialized]);
 
   // Reset unread count for active channel when chat is opened
   useEffect(() => {
@@ -39,9 +53,10 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) =>
     }
   }, [isOpen, currentChannelId, channelUnreads]);
 
-  // Update total when channel unreads change
+  // Update total when channel unreads change with better logging
   useEffect(() => {
     const total = Object.values(channelUnreads).reduce((sum, count) => sum + (count as number), 0);
+    console.log('📊 useUnreadManager: Updating total unread count:', total, 'from channels:', channelUnreads);
     setUnreadTotal(total);
   }, [channelUnreads]);
 

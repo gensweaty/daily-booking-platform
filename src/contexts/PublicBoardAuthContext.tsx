@@ -46,6 +46,12 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
           console.log('🔍 PublicBoardAuth: Setting loading true for authentication check');
           setLoading(true);
           
+          // Add timeout to prevent infinite loading
+          const authTimeout = setTimeout(() => {
+            console.log('⚠️ PublicBoardAuth: Authentication timeout - fallback to guest access');
+            setLoading(false);
+          }, 5000);
+          
           // Check for existing public board access token
           const storedData = localStorage.getItem(`public-board-access-${slug}`);
           console.log('🔍 PublicBoardAuth: Stored data exists:', !!storedData);
@@ -73,24 +79,29 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
                 setUser(publicUser);
                 console.log('🔍 PublicBoardAuth: Set user from stored data:', publicUser);
                 
-                // Add a small delay to ensure ChatProvider has time to process
+                // Clear timeout and complete authentication
+                clearTimeout(authTimeout);
+                // Ensure sufficient time for state propagation
                 setTimeout(() => {
                   setLoading(false);
                   console.log('🔍 PublicBoardAuth: Loading complete after user resolution');
-                }, 100);
+                }, 150);
               } else {
                 setUser(null);
                 console.log('🔍 PublicBoardAuth: Token expired or incomplete');
+                clearTimeout(authTimeout);
                 setLoading(false);
               }
             } catch (error) {
               console.error('Error parsing public board auth data:', error);
               setUser(null);
+              clearTimeout(authTimeout);
               setLoading(false);
             }
           } else {
             setUser(null);
             console.log('🔍 PublicBoardAuth: No stored access token');
+            clearTimeout(authTimeout);
             setLoading(false);
           }
         } else {
