@@ -35,6 +35,9 @@ export const ChatArea = () => {
     dmPartner?: { name: string; avatar?: string } 
   } | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  
+  // Per-channel message cache to prevent disappearing history
+  const cacheRef = useRef<Record<string, Message[]>>({});
 
   // Get or create default channel with better error handling
   useEffect(() => {
@@ -171,13 +174,22 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, me, location.pathname]);
 
-  // Load messages with proper dependencies and no immediate clearing
+  // Load messages with cache support to prevent disappearing history
   useEffect(() => {
+    if (!activeChannelId) return;
+    
+    // Show cached messages immediately if available
+    if (cacheRef.current[activeChannelId]) {
+      setMessages(cacheRef.current[activeChannelId]);
+    } else {
+      setMessages([]); // Clear if switching to new channel
+    }
+    
     let active = true;
     
     (async () => {
-      if (!activeChannelId || !me) {
-        console.log('❌ Missing prerequisites for loading messages:', { activeChannelId, me: !!me });
+      if (!me) {
+        console.log('❌ Missing user identity for loading messages');
         return;
       }
       
@@ -197,7 +209,9 @@ export const ChatArea = () => {
 
         if (active && data) {
           console.log('✅ Messages loaded:', data.length, 'messages');
-          setMessages(data as Message[]);
+          const messageList = data as Message[];
+          cacheRef.current[activeChannelId] = messageList;
+          setMessages(messageList);
         }
       } catch (error) {
         console.error('❌ Unexpected error loading messages:', error);
@@ -205,25 +219,23 @@ export const ChatArea = () => {
     })();
     
     return () => { active = false; };
-  }, [activeChannelId, me]); // Fixed: Include me in dependencies
+  }, [activeChannelId, me]);
 
-  // Listen for real-time messages with simplified deduplication
+  // Listen for real-time messages with cache updates
   useEffect(() => {
     const handleMessage = (event: CustomEvent) => {
-      const { message } = event.detail;
+      const message: Message = event.detail.message;
+      const ch = message.channel_id;
       
-      // Only process messages for this channel
-      if (message.channel_id === activeChannelId) {
-        console.log('📨 Received real-time message for channel:', activeChannelId);
-        setMessages(prev => {
-          // Simple deduplication by message ID only
-          const exists = prev.some(m => m.id === message.id);
-          if (exists) {
-            console.log('⏭️ Skipping duplicate message:', message.id);
-            return prev;
-          }
-          return [...prev, message as Message];
-        });
+      // Update cache for the message's channel
+      const cachedList = cacheRef.current[ch] || [];
+      if (!cachedList.some(m => m.id === message.id)) {
+        cacheRef.current[ch] = [...cachedList, message];
+        
+        // Update active messages if this is the current channel
+        if (ch === activeChannelId) {
+          setMessages(cacheRef.current[ch]);
+        }
       }
     };
 
@@ -239,46 +251,33 @@ export const ChatArea = () => {
   }, [messages.length]);
 
   const send = async () => {
-    if (!draft.trim() || !activeChannelId || !boardOwnerId) {
-      return;
-    }
+    if (!draft.trim() || !activeChannelId || !boardOwnerId || !me) return;
     
     setSending(true);
     
     try {
-      const isPublicBoard = location.pathname.startsWith('/board/');
+      const { data: newMsg, error } = await supabase.rpc('send_chat_message', {
+        p_owner_id: boardOwnerId,
+        p_channel_id: activeChannelId,
+        p_sender_type: me.type,
+        p_sender_id: me.id,
+        p_content: draft.trim(),
+      });
       
-      if (isPublicBoard) {
-        const slug = location.pathname.split('/').pop()!;
-        const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-        const senderEmail = me?.email || stored?.email;
-        if (!senderEmail) throw new Error('Missing sub-user email for public board');
+      if (error) throw error;
 
-        const { data, error } = await supabase.rpc('send_public_board_message', {
-          p_board_owner_id: boardOwnerId,
-          p_channel_id: activeChannelId,
-          p_sender_email: senderEmail,
-          p_content: draft.trim(),
-        });
-        if (error) throw error;
-        
-        console.log('✅ Public board message sent via RPC');
-      } else {
-        // dashboard (owner) - use RPC
-        const { data, error } = await supabase.rpc('send_authenticated_message', {
-          p_channel_id: activeChannelId,
-          p_owner_id: boardOwnerId,
-          p_content: draft.trim(),
-        });
-        if (error) throw error;
-        
-        console.log('✅ Dashboard message sent via RPC');
+      // Optimistic cache update with strict deduplication
+      if (newMsg) {
+        const cachedList = cacheRef.current[activeChannelId] || [];
+        const typedMsg = newMsg as Message;
+        if (!cachedList.some(m => m.id === typedMsg.id)) {
+          cacheRef.current[activeChannelId] = [...cachedList, typedMsg];
+          setMessages(cacheRef.current[activeChannelId]);
+        }
       }
       
-      // Clear draft immediately after successful send
       setDraft('');
-      
-      // No instant echo - let real-time handle all message display
+      console.log('✅ Unified message sent via send_chat_message RPC');
       
     } catch (e: any) {
       toast({ 

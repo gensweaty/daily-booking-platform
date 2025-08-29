@@ -461,143 +461,37 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [boardOwnerId]);
 
-  // Start DM with proper peer-to-peer logic (no admin interference)
+  // Start DM using unified RPC (replaces complex logic)
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
     if (!boardOwnerId || !me) {
       console.log('❌ Cannot start DM - missing prerequisites');
       return;
     }
 
-    console.log('🔄 Starting PEER-TO-PEER DM:', { me, otherId, otherType, boardOwnerId });
+    console.log('🔄 Starting DM via unified RPC:', { me, otherId, otherType, boardOwnerId });
     
     try {
-      setIsOpen(true);
-      
-      // Check if DM already exists between these TWO participants only
-      const { data: existingChannels } = await supabase
-        .from('chat_channels')
-        .select(`
-          id, 
-          name, 
-          is_dm,
-          participants,
-          chat_participants(user_id, sub_user_id, user_type)
-        `)
-        .eq('owner_id', boardOwnerId)
-        .eq('is_dm', true);
-      
-      console.log('🔍 Checking existing DM channels for PEER-TO-PEER match:', existingChannels);
-      
-      for (const ch of (existingChannels || [])) {
-        const participants = ch.chat_participants as any[];
-        console.log('🔍 Checking channel participants:', { channelId: ch.id, participants, totalCount: participants.length });
-        
-        // For peer-to-peer DMs, we want EXACTLY 2 participants
-        if (participants.length !== 2) {
-          console.log('⏭️ Skipping channel - not exactly 2 participants');
-          continue;
-        }
-        
-        const hasMe = me.type === 'admin' 
-          ? participants.some(p => p.user_id === me.id && p.user_type === 'admin')
-          : participants.some(p => p.sub_user_id === me.id && p.user_type === 'sub_user');
-        
-        const hasOther = otherType === 'admin'
-          ? participants.some(p => p.user_id === otherId && p.user_type === 'admin')
-          : participants.some(p => p.sub_user_id === otherId && p.user_type === 'sub_user');
-        
-        if (hasMe && hasOther) {
-          console.log('✅ Found existing PEER-TO-PEER DM channel:', ch.id);
-          setCurrentChannelId(ch.id);
-          return;
-        }
-      }
-      
-      // No existing DM found, create new PEER-TO-PEER DM
-      console.log('🔧 Creating new PEER-TO-PEER DM channel...');
-      
-      const isPublicBoard = location.pathname.startsWith('/board/');
-      
-      if (isPublicBoard && me.type === 'sub_user') {
-        console.log('🔧 PUBLIC BOARD: Creating PEER-TO-PEER DM via RPC for sub-user...');
-        
-        const slug = location.pathname.split('/').pop()!;
-        const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-        const senderEmail = me.email || stored?.email;
-        
-        if (!senderEmail) {
-          console.error('❌ Missing sub-user email for public board DM');
-          return;
-        }
-        
-        const { data: dmId, error } = await supabase.rpc('start_public_board_dm', {
-          p_board_owner_id: boardOwnerId,
-          p_sender_email: senderEmail,
-          p_other_id: otherId,
-          p_other_type: otherType
+      const { data: channelId, error } = await supabase.rpc('ensure_dm_channel', {
+        p_board_owner_id: boardOwnerId,
+        p_a_type: me.type,
+        p_a_id: me.id,
+        p_b_type: otherType,
+        p_b_id: otherId,
+      });
+
+      if (error || !channelId) {
+        console.error('❌ ensure_dm_channel failed:', error);
+        toast({
+          title: "Error",
+          description: "Failed to start direct message",
+          variant: "destructive"
         });
-        
-        if (error) {
-          console.error('❌ Error creating public board DM:', error);
-          return;
-        }
-        
-        console.log('✅ Created public board PEER-TO-PEER DM:', dmId);
-        setCurrentChannelId(dmId);
         return;
       }
-      
-      // Dashboard/authenticated PEER-TO-PEER DM creation
-      console.log('🔧 DASHBOARD: Creating PEER-TO-PEER DM channel via direct API...');
-      
-      const { data: newChannel, error: channelError } = await supabase
-        .from('chat_channels')
-        .insert({
-          owner_id: boardOwnerId,
-          name: 'Direct Message',
-          emoji: '💬',
-          is_dm: true,
-          is_private: true,
-          participants: JSON.stringify([me.id, otherId]) // Store as JSON for consistency
-        })
-        .select()
-        .single();
-      
-      if (channelError) {
-        console.error('❌ Error creating DM channel:', channelError);
-        return;
-      }
-      
-      console.log('✅ Created PEER-TO-PEER DM channel:', newChannel);
-      
-      // Add ONLY the two participants (no board owner unless they're one of the participants)
-      const participantInserts = [
-        {
-          channel_id: newChannel.id,
-          user_id: me.type === 'admin' ? me.id : null,
-          sub_user_id: me.type === 'sub_user' ? me.id : null,
-          user_type: me.type
-        },
-        {
-          channel_id: newChannel.id,
-          user_id: otherType === 'admin' ? otherId : null,
-          sub_user_id: otherType === 'sub_user' ? otherId : null,
-          user_type: otherType
-        }
-      ];
-      
-      console.log('🔧 Adding PEER-TO-PEER participants:', participantInserts);
-      
-      const { error: participantsError } = await supabase
-        .from('chat_participants')
-        .insert(participantInserts);
-      
-      if (participantsError) {
-        console.warn('⚠️ Error adding participants (might already exist):', participantsError);
-      }
-      
-      console.log('✅ PEER-TO-PEER DM setup complete, opening channel:', newChannel.id);
-      setCurrentChannelId(newChannel.id);
+
+      console.log('✅ DM channel ensured:', channelId);
+      setCurrentChannelId(channelId as string);
+      setIsOpen(true);
       
     } catch (error) {
       console.error('❌ Error starting DM:', error);
@@ -607,7 +501,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         variant: "destructive"
       });
     }
-  }, [boardOwnerId, me, location.pathname, toast]);
+  }, [boardOwnerId, me, toast]);
 
   // Context value - memoized to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
