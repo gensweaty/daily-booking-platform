@@ -461,7 +461,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [boardOwnerId]);
 
-  // Simplified DM creation with fallback to existing logic
+  // Fixed DM creation to prevent duplicates and ensure message visibility
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
     if (!boardOwnerId || !me) {
       console.log('❌ Cannot start DM - missing prerequisites');
@@ -498,50 +498,53 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // Dashboard authenticated user DM creation - simplified approach
-      console.log('🔍 Creating authenticated DM...');
-
-      // Find existing DM between the two participants
-      const { data: existingChannel, error: findError } = await supabase
+      // Dashboard authenticated user DM creation - find existing or create canonical DM
+      console.log('🔍 Finding existing DM with proper participant matching...');
+      
+      // First, find ALL DM channels where both participants exist
+      const { data: existingDMs, error: findError } = await supabase
         .from('chat_channels')
         .select(`
-          id, is_dm,
-          chat_participants!inner(user_id, sub_user_id, user_type)
+          id, name, participants, is_dm,
+          chat_participants(user_id, sub_user_id, user_type)
         `)
         .eq('owner_id', boardOwnerId)
-        .eq('is_dm', true);
+        .eq('is_dm', true)
+        .order('updated_at', { ascending: false }); // Get most recent first
 
       if (findError) {
-        console.error('❌ Error finding existing DM:', findError);
+        console.error('❌ Error finding existing DMs:', findError);
         throw findError;
       }
 
-      // Check for an existing DM with exactly these 2 participants
-      const existingDM = existingChannel?.find((ch: any) => {
+      console.log('🔍 Found DM channels:', existingDMs?.length || 0);
+
+      // Find a DM with exactly these 2 participants
+      const existingDM = existingDMs?.find((ch: any) => {
         const participants = ch.chat_participants || [];
-        if (participants.length !== 2) return false; // Must be exactly 2 participants
+        if (participants.length !== 2) return false;
 
         const hasMe = participants.some((p: any) => 
-          (me.type === 'admin' && p.user_id === me.id) ||
-          (me.type === 'sub_user' && p.sub_user_id === me.id)
+          (me.type === 'admin' && p.user_id === me.id && p.user_type === 'admin') ||
+          (me.type === 'sub_user' && p.sub_user_id === me.id && p.user_type === 'sub_user')
         );
 
         const hasOther = participants.some((p: any) => 
-          (otherType === 'admin' && p.user_id === otherId) ||
-          (otherType === 'sub_user' && p.sub_user_id === otherId)
+          (otherType === 'admin' && p.user_id === otherId && p.user_type === 'admin') ||
+          (otherType === 'sub_user' && p.sub_user_id === otherId && p.user_type === 'sub_user')
         );
 
         return hasMe && hasOther;
       });
 
       if (existingDM) {
-        console.log('✅ Found existing DM:', existingDM.id);
+        console.log('✅ Found existing DM channel:', existingDM.id);
         setCurrentChannelId(existingDM.id);
         setIsOpen(true);
         return;
       }
 
-      console.log('🔍 No existing DM found, creating new one...');
+      console.log('🔍 No existing DM found, creating new canonical channel...');
 
       // Create new DM channel
       const { data: newChannel, error: channelError } = await supabase
