@@ -497,7 +497,11 @@ export const ChatArea = () => {
           <div className="text-center space-y-2">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
             <p className="text-sm text-muted-foreground">Loading chat...</p>
-            <p className="text-xs text-muted-foreground">This should only take a moment...</p>
+            <p className="text-xs text-muted-foreground">Initializing chat system...</p>
+            {/* Add timeout hint to prevent confusion about infinite loading */}
+            <p className="text-xs text-muted-foreground/70 mt-2">
+              If this takes too long, try refreshing the page
+            </p>
           </div>
         </div>
         <div className="p-4 border-t bg-muted/30">

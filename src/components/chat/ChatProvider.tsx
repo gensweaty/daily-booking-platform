@@ -258,32 +258,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // Wait for public board auth to complete if we're on a public board
+      // Fixed: Simplified auth wait - no broken polling mechanism
       if (isOnPublicBoard && publicBoardUser === undefined) {
-        console.log('⏳ Waiting for public board authentication to complete...');
-        // Create a polling mechanism to wait for auth completion
-        const waitForAuth = () => {
-          return new Promise<void>((resolve) => {
-            const checkAuth = () => {
-              const { user: currentPublicUser } = usePublicBoardAuth();
-              if (currentPublicUser !== undefined) {
-                resolve();
-              } else {
-                setTimeout(checkAuth, 100);
-              }
-            };
-            checkAuth();
-          });
-        };
-        
-        try {
-          await Promise.race([
-            waitForAuth(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 3000))
-          ]);
-        } catch (error) {
-          console.log('⚠️ Public board auth wait timeout, proceeding anyway');
-        }
+        console.log('⏳ Public board auth not ready yet, initializing anyway to prevent infinite loading');
+        // Don't wait - let the initialization proceed and handle auth later
       }
 
       try {

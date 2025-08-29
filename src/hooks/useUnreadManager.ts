@@ -12,11 +12,17 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) =>
   // Enhanced load unread counts from localStorage with better error handling
   useEffect(() => {
     console.log('📊 useUnreadManager: Loading unread counts from localStorage');
-    const saved = localStorage.getItem('chat_unread_counts');
+    
+    // Use multiple localStorage keys for different contexts (public board vs dashboard)
+    const currentPath = window.location.pathname;
+    const isPublicBoard = currentPath.startsWith('/board/');
+    const storageKey = isPublicBoard ? `chat_unread_counts_public_${currentPath.split('/').pop()}` : 'chat_unread_counts';
+    
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const counts: UnreadCounts = JSON.parse(saved);
-        console.log('📊 useUnreadManager: Loaded counts:', counts);
+        console.log('📊 useUnreadManager: Loaded counts for context:', { storageKey, counts });
         setChannelUnreads(counts);
         const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
         setUnreadTotal(total);
@@ -28,7 +34,7 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) =>
         setUnreadTotal(0);
       }
     } else {
-      console.log('📊 useUnreadManager: No saved unread counts found');
+      console.log('📊 useUnreadManager: No saved unread counts found for context:', storageKey);
     }
     setIsInitialized(true);
   }, []);
@@ -36,8 +42,12 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) =>
   // Save unread counts to localStorage with initialization check
   useEffect(() => {
     if (isInitialized) {
-      console.log('💾 useUnreadManager: Saving unread counts to localStorage:', channelUnreads);
-      localStorage.setItem('chat_unread_counts', JSON.stringify(channelUnreads));
+      const currentPath = window.location.pathname;
+      const isPublicBoard = currentPath.startsWith('/board/');
+      const storageKey = isPublicBoard ? `chat_unread_counts_public_${currentPath.split('/').pop()}` : 'chat_unread_counts';
+      
+      console.log('💾 useUnreadManager: Saving unread counts to localStorage:', { storageKey, channelUnreads });
+      localStorage.setItem(storageKey, JSON.stringify(channelUnreads));
     }
   }, [channelUnreads, isInitialized]);
 
