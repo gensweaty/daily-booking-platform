@@ -131,8 +131,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       : message.sender_sub_user_id === me.id;
 
     if (!isMyMessage) {
-      // Increment unread count for channel
-      incrementUnread(message.channel_id);
+      // Increment unread count for channel with message timestamp
+      incrementUnread(message.channel_id, message.created_at);
 
       // FIXED: Only show notifications to the intended recipient
       const shouldShowNotification = () => {
@@ -265,51 +265,90 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       try {
-        // PRIORITY: Handle sub-user context on public boards FIRST (even if admin is authenticated)
-        if (isOnPublicBoard && publicBoardUser?.id) {
-          console.log('🎯 PRIORITY: Sub-user context detected on public board - using sub-user identity');
-          
-          const pathParts = location.pathname.split('/');
-          const slug = pathParts[pathParts.length - 1];
-          
-          // Check if we have local storage access data for this board
-          const storedData = localStorage.getItem(`public-board-access-${slug}`);
-          if (storedData) {
-            try {
-              const parsedData = JSON.parse(storedData);
-              const { fullName: storedFullName, email: storedEmail, boardOwnerId: storedBoardOwnerId } = parsedData;
+        // SURGICAL FIX 1: Always resolve board owner from URL slug first
+        if (isOnPublicBoard) {
+          const slug = location.pathname.split('/').pop()!;
+          const { data: pb } = await supabase
+            .from('public_boards')
+            .select('user_id')
+            .eq('slug', slug)
+            .maybeSingle();
+
+          if (pb?.user_id) {
+            // Set board owner IMMEDIATELY so the rest of chat can proceed
+            if (active) setBoardOwnerId(pb.user_id);
+            console.log('✅ Board owner resolved from slug:', pb.user_id);
+            
+            // Now determine "who am I"
+            // If there's a Supabase session with an email → look up in sub_users
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.email) {
+              console.log('🔍 Looking up authenticated user in sub_users table');
+              const { data: subUser } = await supabase
+                .from("sub_users")
+                .select("id, fullname, avatar_url, email")
+                .eq("board_owner_id", pb.user_id)
+                .ilike("email", session.user.email.trim().toLowerCase())
+                .maybeSingle();
               
-              if (storedFullName && storedBoardOwnerId && storedEmail) {
-                // Try to find the sub-user record
-                const { data: subUser } = await supabase
-                  .from("sub_users")
-                  .select("id, fullname, avatar_url, email")
-                  .eq("board_owner_id", storedBoardOwnerId)
-                  .ilike("email", storedEmail.trim().toLowerCase())
-                  .maybeSingle();
+              if (subUser?.id) {
+                const subUserIdentity = {
+                  id: subUser.id,
+                  type: "sub_user" as const, 
+                  name: subUser.fullname || session.user.email.split('@')[0],
+                  email: session.user.email,
+                  avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+                };
                 
-                if (subUser?.id) {
-                  const subUserIdentity = {
-                    id: subUser.id,
-                    type: "sub_user" as const, 
-                    name: subUser.fullname || storedFullName,
-                    email: storedEmail,
-                    avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-                  };
-                  
-                  console.log('🎉 PRIORITY SUCCESS: Using sub-user identity:', subUserIdentity);
-                  
-                  if (active) {
-                    setBoardOwnerId(storedBoardOwnerId);
-                    setMe(subUserIdentity);
-                    clearTimeout(initTimeout);
-                    setIsInitialized(true);
-                  }
-                  return;
+                console.log('🎉 SUCCESS: Using authenticated sub-user identity:', subUserIdentity);
+                
+                if (active) {
+                  setMe(subUserIdentity);
+                  clearTimeout(initTimeout);
+                  setIsInitialized(true);
                 }
+                return;
               }
-            } catch (error) {
-              console.error('❌ Error using sub-user priority context:', error);
+            }
+            
+            // Fallback to localStorage token flow
+            const storedData = localStorage.getItem(`public-board-access-${slug}`);
+            if (storedData) {
+              try {
+                const parsedData = JSON.parse(storedData);
+                const { fullName: storedFullName, email: storedEmail } = parsedData;
+                
+                if (storedFullName && storedEmail) {
+                  // Try to find the sub-user record
+                  const { data: subUser } = await supabase
+                    .from("sub_users")
+                    .select("id, fullname, avatar_url, email")
+                    .eq("board_owner_id", pb.user_id)
+                    .ilike("email", storedEmail.trim().toLowerCase())
+                    .maybeSingle();
+                  
+                  if (subUser?.id) {
+                    const subUserIdentity = {
+                      id: subUser.id,
+                      type: "sub_user" as const, 
+                      name: subUser.fullname || storedFullName,
+                      email: storedEmail,
+                      avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+                    };
+                    
+                    console.log('🎉 SUCCESS: Using localStorage sub-user identity:', subUserIdentity);
+                    
+                    if (active) {
+                      setMe(subUserIdentity);
+                      clearTimeout(initTimeout);
+                      setIsInitialized(true);
+                    }
+                    return;
+                  }
+                }
+              } catch (error) {
+                console.error('❌ Error using localStorage context:', error);
+              }
             }
           }
         }

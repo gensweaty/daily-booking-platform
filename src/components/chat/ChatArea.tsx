@@ -194,37 +194,40 @@ export const ChatArea = () => {
         setLoading(true);
         setMessages([]);
         
-        // FIXED: Check if this is an authenticated user from dashboard context
+        // SURGICAL FIX 2: Pick correct RPC based on location and user type
+        const onPublicBoard = location.pathname.startsWith('/board/');
         const { data: { session } } = await supabase.auth.getSession();
-        const isAuthenticatedUser = !!session?.user?.id;
+        const isAuthed = !!session?.user?.id;
         
-        console.log('🔍 Loading messages:', {
+        console.log('🔍 Loading messages context:', {
           activeChannelId,
           boardOwnerId,
           me: me?.email,
           myId: me?.id,
           myType: me?.type,
-          isAuthenticatedUser,
+          onPublicBoard,
+          isAuthed,
           route: location.pathname
         });
         
-        if (isAuthenticatedUser) {
-          // AUTHENTICATED USER: Use regular RPC (works for both admin and sub-users)
-          console.log('📨 Loading messages for authenticated user via get_chat_messages_for_channel');
-          const { data, error } = await supabase
-            .rpc('get_chat_messages_for_channel', {
-              p_board_owner_id: boardOwnerId,
-              p_channel_id: activeChannelId,
-            });
+        // If we're on a public board AND me.type === 'sub_user', always use the public safe RPC
+        if (onPublicBoard && me?.type === 'sub_user') {
+          console.log('📨 Using public RPC for sub-user on public board');
+          const { data, error } = await supabase.rpc('list_channel_messages_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_requester_type: 'sub_user',
+            p_requester_email: me.email!,
+          });
 
           if (error) {
-            console.error('❌ Error loading authenticated messages:', error);
+            console.error('❌ Error loading messages via public RPC:', error);
             if (active) setLoading(false);
             return;
           }
 
           if (active) {
-            console.log('✅ Loaded', data?.length || 0, 'messages for authenticated user');
+            console.log('✅ Loaded', data?.length || 0, 'messages via public RPC');
             setMessages((data || []).map(msg => ({
               ...msg,
               sender_type: msg.sender_type as 'admin' | 'sub_user'
@@ -232,26 +235,21 @@ export const ChatArea = () => {
             setLoading(false);
           }
         } else {
-          // PUBLIC BOARD ACCESS: Use secure RPC function
-          console.log('📨 Loading messages for public board access via list_channel_messages_public');
-          const slug = location.pathname.split('/').pop();
-          const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-          
-          const { data, error } = await supabase.rpc('list_channel_messages_public', {
-            p_owner_id: boardOwnerId,
+          // Admin on dashboard/public, or any authenticated admin
+          console.log('📨 Using authenticated RPC for admin user');  
+          const { data, error } = await supabase.rpc('get_chat_messages_for_channel', {
+            p_board_owner_id: boardOwnerId,
             p_channel_id: activeChannelId,
-            p_requester_type: 'sub_user',
-            p_requester_email: accessData.email || me.email,
           });
 
           if (error) {
-            console.error('❌ Error loading public messages:', error);
+            console.error('❌ Error loading messages via authenticated RPC:', error);
             if (active) setLoading(false);
             return;
           }
 
           if (active) {
-            console.log('✅ Loaded', data?.length || 0, 'messages for public board access');
+            console.log('✅ Loaded', data?.length || 0, 'messages via authenticated RPC');
             setMessages((data || []).map(msg => ({
               ...msg,
               sender_type: msg.sender_type as 'admin' | 'sub_user'
@@ -272,9 +270,15 @@ export const ChatArea = () => {
     };
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, location.pathname, isInitialized]);
 
-  // Clear messages when channel changes to avoid ghost messages
-  useEffect(() => { 
-    setMessages([]); 
+  // SURGICAL FIX 3: No more "empty on switch" - prefill from cache, don't clear to []
+  useEffect(() => {
+    if (!activeChannelId) return;
+    const cached = cacheRef.current.get(activeChannelId);
+    if (cached?.length) {
+      console.log('📋 Using cached messages for channel:', activeChannelId, 'count:', cached.length);
+      setMessages(cached);
+    }
+    // Don't clear; the loader will reconcile afterwards
   }, [activeChannelId]);
 
   // Polling for non-authenticated users only (authenticated users use real-time)
@@ -309,7 +313,17 @@ export const ChatArea = () => {
         
         if (!mounted || !data) return;
         
+        // SURGICAL FIX 4: Make polling increment unread + reuse the realtime pipeline
         setMessages(prev => {
+          const prevIds = new Set(prev.map(m => m.id));
+          const newOnes = data.filter(m => !prevIds.has(m.id));
+
+          // Dispatch events so the central handler increments unread + shows badge
+          for (const m of newOnes) {
+            window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: m } }));
+          }
+
+          // Usual merge
           const byId = new Map(prev.map(m => [m.id, m]));
           for (const m of data) {
             byId.set(m.id, {

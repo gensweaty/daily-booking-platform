@@ -4,79 +4,121 @@ interface UnreadCounts {
   [channelId: string]: number;
 }
 
+interface LastSeenTimes {
+  [channelId: string]: number;
+}
+
 export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) => {
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [channelUnreads, setChannelUnreads] = useState<UnreadCounts>({});
+  const [lastSeenTimes, setLastSeenTimes] = useState<LastSeenTimes>({});
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Enhanced load unread counts from localStorage with better error handling
-  useEffect(() => {
-    console.log('📊 useUnreadManager: Loading unread counts from localStorage');
-    
-    // Use multiple localStorage keys for different contexts (public board vs dashboard)
+  // SURGICAL FIX 5: Persist "last seen" + unread per board/channel
+  const getStorageKeys = () => {
     const currentPath = window.location.pathname;
     const isPublicBoard = currentPath.startsWith('/board/');
-    const storageKey = isPublicBoard ? `chat_unread_counts_public_${currentPath.split('/').pop()}` : 'chat_unread_counts';
+    const slug = isPublicBoard ? currentPath.split('/').pop() : 'dashboard';
+    return {
+      unreadKey: `sb:${slug}:unread`,
+      lastSeenKey: `sb:${slug}:lastSeen`
+    };
+  };
+
+  // Load from localStorage
+  useEffect(() => {
+    console.log('📊 useUnreadManager: Loading from localStorage');
+    const { unreadKey, lastSeenKey } = getStorageKeys();
     
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
+    // Load unread counts
+    const savedUnread = localStorage.getItem(unreadKey);
+    if (savedUnread) {
       try {
-        const counts: UnreadCounts = JSON.parse(saved);
-        console.log('📊 useUnreadManager: Loaded counts for context:', { storageKey, counts });
+        const counts: UnreadCounts = JSON.parse(savedUnread);
+        console.log('📊 Loaded unread counts:', { unreadKey, counts });
         setChannelUnreads(counts);
         const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
         setUnreadTotal(total);
-        console.log('📊 useUnreadManager: Total unread count:', total);
       } catch (error) {
         console.error('Failed to load unread counts:', error);
-        // Reset to clean state on error
         setChannelUnreads({});
         setUnreadTotal(0);
       }
-    } else {
-      console.log('📊 useUnreadManager: No saved unread counts found for context:', storageKey);
     }
+    
+    // Load last seen times  
+    const savedLastSeen = localStorage.getItem(lastSeenKey);
+    if (savedLastSeen) {
+      try {
+        const times: LastSeenTimes = JSON.parse(savedLastSeen);
+        console.log('📊 Loaded last seen times:', { lastSeenKey, times });
+        setLastSeenTimes(times);
+      } catch (error) {
+        console.error('Failed to load last seen times:', error);
+        setLastSeenTimes({});
+      }
+    }
+    
     setIsInitialized(true);
   }, []);
 
-  // Save unread counts to localStorage with initialization check
+  // Save to localStorage
   useEffect(() => {
     if (isInitialized) {
-      const currentPath = window.location.pathname;
-      const isPublicBoard = currentPath.startsWith('/board/');
-      const storageKey = isPublicBoard ? `chat_unread_counts_public_${currentPath.split('/').pop()}` : 'chat_unread_counts';
+      const { unreadKey, lastSeenKey } = getStorageKeys();
       
-      console.log('💾 useUnreadManager: Saving unread counts to localStorage:', { storageKey, channelUnreads });
-      localStorage.setItem(storageKey, JSON.stringify(channelUnreads));
+      console.log('💾 Saving unread counts:', { unreadKey, channelUnreads });
+      localStorage.setItem(unreadKey, JSON.stringify(channelUnreads));
+      
+      console.log('💾 Saving last seen times:', { lastSeenKey, lastSeenTimes });
+      localStorage.setItem(lastSeenKey, JSON.stringify(lastSeenTimes));
     }
-  }, [channelUnreads, isInitialized]);
+  }, [channelUnreads, lastSeenTimes, isInitialized]);
 
-  // Reset unread count for active channel when chat is opened
+  // Update lastSeenAt when chat is open on a channel
   useEffect(() => {
-    if (isOpen && currentChannelId && channelUnreads[currentChannelId] > 0) {
-      console.log('📖 Marking channel as read:', currentChannelId);
-      setChannelUnreads(prev => {
-        const updated = { ...prev };
-        delete updated[currentChannelId];
-        return updated;
-      });
+    if (isOpen && currentChannelId) {
+      const now = Date.now();
+      console.log('📖 Updating last seen for channel:', currentChannelId, 'at:', new Date(now));
+      setLastSeenTimes(prev => ({
+        ...prev,
+        [currentChannelId]: now
+      }));
+      
+      // Clear unread count for this channel
+      if (channelUnreads[currentChannelId] > 0) {
+        console.log('📖 Clearing unread count for active channel:', currentChannelId);
+        setChannelUnreads(prev => {
+          const updated = { ...prev };
+          delete updated[currentChannelId];
+          return updated;
+        });
+      }
     }
   }, [isOpen, currentChannelId, channelUnreads]);
 
-  // Update total when channel unreads change with better logging
+  // Update total when channel unreads change
   useEffect(() => {
     const total = Object.values(channelUnreads).reduce((sum, count) => sum + (count as number), 0);
-    console.log('📊 useUnreadManager: Updating total unread count:', total, 'from channels:', channelUnreads);
+    console.log('📊 Total unread count updated:', total, 'from channels:', channelUnreads);
     setUnreadTotal(total);
   }, [channelUnreads]);
 
-  const incrementUnread = useCallback((channelId: string) => {
-    console.log('📈 Incrementing unread for channel:', channelId);
-    setChannelUnreads(prev => ({
-      ...prev,
-      [channelId]: (prev[channelId] || 0) + 1
-    }));
-  }, []);
+  const incrementUnread = useCallback((channelId: string, messageTimestamp?: string) => {
+    // Only increment if message is newer than last seen time
+    const messageTime = messageTimestamp ? new Date(messageTimestamp).getTime() : Date.now();
+    const lastSeen = lastSeenTimes[channelId] || 0;
+    
+    if (messageTime > lastSeen) {
+      console.log('📈 Incrementing unread for channel:', channelId, 'message time:', new Date(messageTime), 'last seen:', new Date(lastSeen));
+      setChannelUnreads(prev => ({
+        ...prev,
+        [channelId]: (prev[channelId] || 0) + 1
+      }));
+    } else {
+      console.log('⏭️ Skipping unread increment - message older than last seen:', channelId);
+    }
+  }, [lastSeenTimes]);
 
   const clearChannelUnread = useCallback((channelId: string) => {
     console.log('🧹 Clearing unread for channel:', channelId);
