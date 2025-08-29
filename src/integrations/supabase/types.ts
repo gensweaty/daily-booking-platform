@@ -216,6 +216,7 @@ export type Database = {
       chat_channels: {
         Row: {
           created_at: string | null
+          dm_pair_key: string | null
           emoji: string | null
           id: string
           is_default: boolean | null
@@ -228,6 +229,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          dm_pair_key?: string | null
           emoji?: string | null
           id?: string
           is_default?: boolean | null
@@ -240,6 +242,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          dm_pair_key?: string | null
           emoji?: string | null
           id?: string
           is_default?: boolean | null
@@ -1572,6 +1575,10 @@ export type Database = {
         Args: { p_subscription_type: string; p_user_id: string }
         Returns: Json
       }
+      canonical_participant_key: {
+        Args: { p_id: string; p_type: string }
+        Returns: string
+      }
       check_and_lock_redeem_code: {
         Args: { p_code: string }
         Returns: {
@@ -1587,6 +1594,13 @@ export type Database = {
       check_trial_status: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      consolidate_duplicate_dm_channels: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          consolidated_channels_count: number
+          migrated_messages_count: number
+        }[]
       }
       create_subscription: {
         Args: {
@@ -1618,6 +1632,16 @@ export type Database = {
           p_user_id: string
         }
         Returns: number
+      }
+      ensure_dm_channel: {
+        Args: {
+          p_a_id: string
+          p_a_type: string
+          p_b_id: string
+          p_b_type: string
+          p_board_owner_id: string
+        }
+        Returns: string
       }
       generate_code_number: {
         Args: { n: number }
@@ -1700,6 +1724,16 @@ export type Database = {
           name: string
           participant_count: number
         }[]
+      }
+      get_or_create_canonical_dm: {
+        Args: {
+          p_a_id: string
+          p_a_type: string
+          p_b_id: string
+          p_b_type: string
+          p_board_owner_id: string
+        }
+        Returns: string
       }
       get_public_board_by_token: {
         Args: { access_token_param: string }
@@ -1814,6 +1848,15 @@ export type Database = {
           type: string
         }[]
       }
+      make_dm_pair_key: {
+        Args: {
+          p_a_id: string
+          p_a_type: string
+          p_b_id: string
+          p_b_type: string
+        }
+        Returns: string
+      }
       save_event_with_persons: {
         Args:
           | {
@@ -1837,6 +1880,29 @@ export type Database = {
       send_authenticated_message: {
         Args: { p_channel_id: string; p_content: string; p_owner_id: string }
         Returns: Json
+      }
+      send_chat_message: {
+        Args: {
+          p_channel_id: string
+          p_content: string
+          p_owner_id: string
+          p_sender_id: string
+          p_sender_type: string
+        }
+        Returns: {
+          channel_id: string
+          content: string
+          created_at: string | null
+          id: string
+          owner_id: string | null
+          reply_to_id: string | null
+          sender_avatar_url: string | null
+          sender_name: string | null
+          sender_sub_user_id: string | null
+          sender_type: string
+          sender_user_id: string | null
+          updated_at: string | null
+        }
       }
       send_public_board_message: {
         Args: {
