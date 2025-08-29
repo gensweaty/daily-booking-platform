@@ -320,7 +320,10 @@ export const ChatArea = () => {
 
           // Dispatch events so the central handler increments unread + shows badge
           for (const m of newOnes) {
-            window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: m } }));
+            // Normalize public messages to include owner_id for consistency
+            window.dispatchEvent(new CustomEvent('chat-message-received', { 
+              detail: { message: { ...m, owner_id: boardOwnerId } } 
+            }));
           }
 
           // Usual merge

@@ -70,6 +70,14 @@ export const useEnhancedNotifications = () => {
   const showSingleNotification = useCallback(async (data: NotificationData) => {
     console.log('🔔 Showing enhanced notification:', data);
     
+    // STEP 3: Always play sound regardless of notification permission
+    try {
+      const { playNotificationSound } = await import('@/utils/audioManager');
+      playNotificationSound();
+    } catch (error) {
+      console.warn('❌ Failed to play notification sound:', error);
+    }
+    
     const result = await platformNotificationManager.createNotification({
       title: data.title,
       body: data.body,

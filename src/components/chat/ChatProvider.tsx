@@ -119,8 +119,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const handleNewMessage = useCallback((message: any) => {
     console.log('📨 Enhanced realtime message received:', message);
 
-    // Only process messages for this board
-    if (message.owner_id !== boardOwnerId) {
+    // STEP 2: Don't drop public messages that lack owner_id
+    if (boardOwnerId && message.owner_id && message.owner_id !== boardOwnerId) {
       console.log('⏭️ Skipping message - owner mismatch');
       return;
     }
@@ -184,13 +184,32 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [boardOwnerId, me, isOpen, currentChannelId, incrementUnread, showNotification]);
 
   // Real-time setup - FIXED: enable for authenticated users regardless of route
+  const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!user?.id;
   const { connectionStatus } = useEnhancedRealtimeChat({
     onNewMessage: handleNewMessage,
     userId: me?.id,
     boardOwnerId: boardOwnerId || undefined,
     // Enable real-time for authenticated users, disable for public board access only
-    enabled: shouldShowChat && isInitialized && !!boardOwnerId && !!user?.id,
+    enabled: realtimeEnabled,
   });
+
+  // STEP 1: Bridge polling events into central pipeline (only when Realtime is disabled)
+  useEffect(() => {
+    if (realtimeEnabled) return; // internal board: let Realtime drive everything
+
+    const bridge = (ev: Event) => {
+      const e = ev as CustomEvent;
+      const msg = e.detail?.message;
+      if (msg) {
+        // Route polled messages through the same handler
+        handleNewMessage(msg);
+      }
+    };
+
+    console.log('🌉 Setting up polling bridge for sub-users');
+    window.addEventListener('chat-message-received', bridge as EventListener);
+    return () => window.removeEventListener('chat-message-received', bridge as EventListener);
+  }, [realtimeEnabled, handleNewMessage]);
 
   // Request notification permission and preload audio on mount
   useEffect(() => {
