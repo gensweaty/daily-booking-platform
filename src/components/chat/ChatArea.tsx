@@ -174,98 +174,118 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, me, location.pathname]);
 
-  // Load messages with cache-first approach for instant switching
+  // Load messages for the active channel
   useEffect(() => {
-    if (!activeChannelId) {
-      setMessages([]);
-      return;
-    }
-
-    // Check cache first for instant display
-    const cached = cacheRef.current.get(activeChannelId);
-    if (cached) {
-      console.log('⚡ Showing cached messages for channel:', activeChannelId, cached.length);
-      setMessages(cached);
-    } else {
-      console.log('🔍 No cache found for channel:', activeChannelId);
-      setMessages([]);
-    }
-
-    // Always fetch fresh data in background
     let active = true;
-    (async () => {
-      if (!me) return;
-      
-      console.log('📨 Background loading messages for channel:', activeChannelId);
-      
+
+    const loadMessages = async () => {
+      if (!activeChannelId || !me || !boardOwnerId) return;
+
       try {
+        setMessages([]);
+        
         const isPublicBoard = location.pathname.startsWith('/board/');
         
-        // C.6 Fix message loading for public boards 
         if (isPublicBoard) {
-          const slug = location.pathname.split('/').pop()!;
-          const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-          const requesterType = 'sub_user'; // on public page
-          const requesterEmail = me?.email || stored?.email;
-
-          if (!requesterEmail) {
-            console.error('❌ Missing requester email for public board');
-            return;
-          }
-
+          // For public boards, use the secure RPC function
+          const slug = location.pathname.split('/').pop();
+          const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+          
           const { data, error } = await supabase.rpc('list_channel_messages_public', {
             p_owner_id: boardOwnerId,
             p_channel_id: activeChannelId,
-            p_requester_type: requesterType,
-            p_requester_email: requesterEmail,
+            p_requester_type: 'sub_user',
+            p_requester_email: accessData.email || me.email,
           });
 
           if (error) {
-            console.error('❌ Error loading public messages via RPC:', error);
+            console.error('Error loading public messages:', error);
             return;
           }
 
-          if (active && data) {
-            const freshMessages = data as Message[];
-            console.log('✅ Public messages loaded via RPC:', freshMessages.length, 'messages');
-            
-            // Update cache
-            cacheRef.current.set(activeChannelId, freshMessages);
-            
-            // Update UI if still on same channel
-            setMessages(freshMessages);
+          if (active) {
+            setMessages((data || []).map(msg => ({
+              ...msg,
+              sender_type: msg.sender_type as 'admin' | 'sub_user'
+            })));
           }
         } else {
-          // Dashboard (authenticated) can keep the direct select
+          // For authenticated users, use the regular RPC
           const { data, error } = await supabase
-            .from('chat_messages')
-            .select('id, content, created_at, sender_user_id, sender_sub_user_id, sender_type, sender_name, sender_avatar_url, channel_id')
-            .eq('channel_id', activeChannelId)
-            .order('created_at', { ascending: true });
+            .rpc('get_chat_messages_for_channel', {
+              p_board_owner_id: boardOwnerId,
+              p_channel_id: activeChannelId,
+            });
 
           if (error) {
-            console.error('❌ Error loading dashboard messages:', error);
+            console.error('Error loading messages:', error);
             return;
           }
 
-          if (active && data) {
-            const freshMessages = data as Message[];
-            console.log('✅ Dashboard messages loaded:', freshMessages.length, 'messages');
-            
-            // Update cache
-            cacheRef.current.set(activeChannelId, freshMessages);
-            
-            // Update UI if still on same channel
-            setMessages(freshMessages);
+          if (active) {
+            setMessages((data || []).map(msg => ({
+              ...msg,
+              sender_type: msg.sender_type as 'admin' | 'sub_user'
+            })));
           }
         }
       } catch (error) {
-        console.error('❌ Unexpected error loading messages:', error);
+        console.error('Error in loadMessages:', error);
       }
-    })();
+    };
+
+    loadMessages();
+
+    return () => {
+      active = false;
+    };
+  }, [activeChannelId, boardOwnerId, me?.id, me?.email, location.pathname]);
+
+  // Clear messages when channel changes to avoid ghost messages
+  useEffect(() => { 
+    setMessages([]); 
+  }, [activeChannelId]);
+
+  // Polling for public boards (instead of realtime)
+  useEffect(() => {
+    const isPublicBoard = location.pathname.startsWith('/board/');
+    if (!isPublicBoard || !activeChannelId || !boardOwnerId || !me) return;
+
+    let mounted = true;
     
-    return () => { active = false; };
-  }, [activeChannelId, me]);
+    const poll = async () => {
+      const slug = location.pathname.split('/').pop();
+      const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+      
+      const { data } = await supabase.rpc('list_channel_messages_public', {
+        p_owner_id: boardOwnerId,
+        p_channel_id: activeChannelId,
+        p_requester_type: 'sub_user',
+        p_requester_email: accessData.email || me.email,
+      });
+      
+      if (!mounted || !data) return;
+      
+      setMessages(prev => {
+        const byId = new Map(prev.map(m => [m.id, m]));
+        for (const m of data) {
+          byId.set(m.id, {
+            ...m,
+            sender_type: m.sender_type as 'admin' | 'sub_user'
+          });
+        }
+        return Array.from(byId.values()).sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
+      });
+    };
+
+    const intervalId = setInterval(poll, 2500);
+    poll(); // immediate poll
+    
+    return () => { 
+      mounted = false; 
+      clearInterval(intervalId); 
+    };
+  }, [activeChannelId, boardOwnerId, me?.email, location.pathname]);
 
   // Listen for real-time messages with cache updates and strict deduplication
   useEffect(() => {

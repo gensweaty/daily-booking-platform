@@ -150,12 +150,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }));
   }, [boardOwnerId, me, isOpen, currentChannelId, incrementUnread, showNotification]);
 
-  // Enhanced realtime connection with memoized handler
+  // Real-time setup - disable for public boards to use polling instead
   const { connectionStatus } = useEnhancedRealtimeChat({
     onNewMessage: handleNewMessage,
     userId: me?.id,
     boardOwnerId: boardOwnerId || undefined,
-    enabled: shouldShowChat && isInitialized && !!boardOwnerId,
+    enabled: shouldShowChat && isInitialized && !!boardOwnerId && !isOnPublicBoard,
   });
 
   // Request notification permission and preload audio on mount
