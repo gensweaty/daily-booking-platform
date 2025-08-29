@@ -22,7 +22,13 @@ type Message = {
 };
 
 export const ChatArea = () => {
-  const { me, currentChannelId, boardOwnerId, isInitialized } = useChat();
+  const { 
+    me, 
+    currentChannelId, 
+    boardOwnerId, 
+    isInitialized,
+    realtimeEnabled
+  } = useChat();
   const { toast } = useToast();
   const location = useLocation();
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
@@ -292,9 +298,9 @@ export const ChatArea = () => {
       const { data: { session } } = await supabase.auth.getSession();
       const isAuthenticatedUser = !!session?.user?.id;
       
-      // Only poll for non-authenticated public board access
-      if (isAuthenticatedUser) {
-        console.log('⏭️ Skipping polling - authenticated user uses real-time');
+      // Skip polling only when realtime is actually enabled
+      if (realtimeEnabled) {
+        console.log('⏭️ Skipping polling - realtime is enabled');
         return;
       }
       

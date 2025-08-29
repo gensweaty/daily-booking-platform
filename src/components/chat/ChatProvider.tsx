@@ -36,6 +36,7 @@ type ChatCtx = {
   channelUnreads: { [channelId: string]: number };
   boardOwnerId: string | null;
   connectionStatus: string;
+  realtimeEnabled: boolean;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -192,6 +193,50 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     // Enable real-time for authenticated users, disable for public board access only
     enabled: realtimeEnabled,
   });
+
+  // Track default channel for public boards (so we can poll something when closed)
+  const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isOnPublicBoard || !boardOwnerId) return;
+    supabase.rpc('get_default_channel_for_board', { p_board_owner_id: boardOwnerId })
+      .then(({ data, error }) => {
+        if (!error && data?.[0]?.id) setDefaultChannelId(data[0].id as string);
+      });
+  }, [isOnPublicBoard, boardOwnerId]);
+
+  // Background polling when realtime is OFF and chat is CLOSED (external board)
+  useEffect(() => {
+    if (realtimeEnabled) return;                   // admin realtime covers internal board
+    if (!boardOwnerId || !me) return;
+
+    const poll = async () => {
+      // poll the current channel if open, else the default one
+      const channelId = currentChannelId || defaultChannelId;
+      if (!channelId) return;
+
+      const slug = window.location.pathname.split('/').pop();
+      const access = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+
+      const { data, error } = await supabase.rpc('list_channel_messages_public', {
+        p_owner_id: boardOwnerId,
+        p_channel_id: channelId,
+        p_requester_type: 'sub_user',
+        p_requester_email: me.email || access.email,
+      });
+      if (error || !data) return;
+
+      // Route through the same pipeline that drives badges + sounds
+      for (const m of data) {
+        window.dispatchEvent(new CustomEvent('chat-message-received', {
+          detail: { message: { ...m, owner_id: boardOwnerId } } // normalize owner
+        }));
+      }
+    };
+
+    const id = setInterval(poll, 2500);
+    poll();
+    return () => clearInterval(id);
+  }, [realtimeEnabled, boardOwnerId, me?.email, currentChannelId, defaultChannelId]);
 
   // STEP 1: Bridge polling events into central pipeline (only when Realtime is disabled)
   useEffect(() => {
@@ -693,7 +738,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     channelUnreads,
     boardOwnerId,
     connectionStatus,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, boardOwnerId, connectionStatus]);
+    realtimeEnabled,
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, boardOwnerId, connectionStatus, realtimeEnabled]);
 
   return (
     <ChatContext.Provider value={contextValue}>
