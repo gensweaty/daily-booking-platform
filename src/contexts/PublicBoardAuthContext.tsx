@@ -105,7 +105,8 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
     localStorage.setItem = function(key, value) {
       originalSetItem.apply(this, [key, value]);
       if (key === `public-board-access-${slug}`) {
-        setTimeout(checkPublicBoardAuth, 100); // Small delay to ensure data is set
+        // Immediate check for faster response
+        checkPublicBoardAuth();
       }
     };
 

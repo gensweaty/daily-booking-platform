@@ -84,13 +84,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  // Determine if chat should be shown - FIXED: prioritize authenticated users regardless of route
+  // Determine if chat should be shown - FIXED: prioritize sub-user context on public boards
   const shouldShowChat = useMemo(() => {
-    // Always show chat for authenticated users (admin or sub-user) regardless of route
-    if (user?.id) return true;
+    // If on public board with sub-user context, always show chat
+    if (isOnPublicBoard && publicBoardUser?.id) return true;
+    // Show chat for authenticated users (admin) when NOT in sub-user context
+    if (user?.id && (!isOnPublicBoard || !publicBoardUser?.id)) return true;
     // Show chat on public boards as fallback
     return isOnPublicBoard;
-  }, [user?.id, isOnPublicBoard]);
+  }, [user?.id, isOnPublicBoard, publicBoardUser?.id]);
 
   console.log('🔍 ChatProvider render:', {
     hasSubUsers,
@@ -215,8 +217,56 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       try {
-        // Handle PUBLIC BOARD ACCESS FIRST (including authenticated sub-users on public boards)
-        if (isOnPublicBoard) {
+        // PRIORITY: Handle sub-user context on public boards FIRST (even if admin is authenticated)
+        if (isOnPublicBoard && publicBoardUser?.id) {
+          console.log('🎯 PRIORITY: Sub-user context detected on public board - using sub-user identity');
+          
+          const pathParts = location.pathname.split('/');
+          const slug = pathParts[pathParts.length - 1];
+          
+          // Check if we have local storage access data for this board
+          const storedData = localStorage.getItem(`public-board-access-${slug}`);
+          if (storedData) {
+            try {
+              const parsedData = JSON.parse(storedData);
+              const { fullName: storedFullName, email: storedEmail, boardOwnerId: storedBoardOwnerId } = parsedData;
+              
+              if (storedFullName && storedBoardOwnerId && storedEmail) {
+                // Try to find the sub-user record
+                const { data: subUser } = await supabase
+                  .from("sub_users")
+                  .select("id, fullname, avatar_url, email")
+                  .eq("board_owner_id", storedBoardOwnerId)
+                  .ilike("email", storedEmail.trim().toLowerCase())
+                  .maybeSingle();
+                
+                if (subUser?.id) {
+                  const subUserIdentity = {
+                    id: subUser.id,
+                    type: "sub_user" as const, 
+                    name: subUser.fullname || storedFullName,
+                    email: storedEmail,
+                    avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+                  };
+                  
+                  console.log('🎉 PRIORITY SUCCESS: Using sub-user identity:', subUserIdentity);
+                  
+                  if (active) {
+                    setBoardOwnerId(storedBoardOwnerId);
+                    setMe(subUserIdentity);
+                    setIsInitialized(true);
+                  }
+                  return;
+                }
+              }
+            } catch (error) {
+              console.error('❌ Error using sub-user priority context:', error);
+            }
+          }
+        }
+        
+        // Handle regular PUBLIC BOARD ACCESS (guests without authentication)
+        if (isOnPublicBoard && !publicBoardUser?.id) {
           console.log('🔍 Public board access detected');
           
           const pathParts = location.pathname.split('/');

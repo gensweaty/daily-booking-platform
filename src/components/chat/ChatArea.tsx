@@ -371,11 +371,28 @@ export const ChatArea = () => {
     setSending(true);
     
     try {
-      // FIXED: Use authentication status, not route
+      // PRIORITY: Check if we're in sub-user context on public board
+      const isOnPublicBoard = location.pathname.startsWith('/board/');
       const { data: { session } } = await supabase.auth.getSession();
       const isAuthenticatedUser = !!session?.user?.id;
       
-      if (isAuthenticatedUser) {
+      // If sub-user context on public board, use public board message sending
+      if (isOnPublicBoard && me?.type === 'sub_user') {
+        console.log('📤 PRIORITY: Sending message as sub-user on public board');
+        const slug = location.pathname.split('/').pop()!;
+        const senderEmail = me.email;
+        if (!senderEmail) throw new Error('Missing sub-user email for public board');
+
+        const { error } = await supabase.rpc('send_public_board_message', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_sender_email: senderEmail,
+          p_content: draft.trim(),
+        });
+        if (error) throw error;
+        
+        console.log('✅ Sub-user message sent via public board RPC');
+      } else if (isAuthenticatedUser && me?.type === 'admin') {
         // AUTHENTICATED USER: Use authenticated message RPC
         console.log('📤 Sending message as authenticated user');
         const { error } = await supabase.rpc('send_authenticated_message', {
