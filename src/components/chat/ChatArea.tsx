@@ -234,8 +234,10 @@ export const ChatArea = () => {
       if (message.channel_id === activeChannelId) {
         console.log('📨 Received broadcasted message for channel:', activeChannelId);
         setMessages(prev => {
-          const exists = prev.some(m => m.id === message.id);
-          if (exists) return prev; // Prevent duplicates
+          // Skip echo messages and prevent duplicates
+          const isEcho = message.id && message.id.startsWith('echo-');
+          const exists = prev.some(m => m.id === message.id || (m.content === message.content && Math.abs(new Date(m.created_at).getTime() - new Date(message.created_at).getTime()) < 2000));
+          if (isEcho || exists) return prev;
           return [...prev, message as Message];
         });
       }
@@ -277,20 +279,18 @@ export const ChatArea = () => {
         if (error) throw error;
 
         // Instant echo to sender (local append before clearing draft)
-        setMessages(prev => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            content: draft.trim(),
-            created_at: new Date().toISOString(),
-            sender_user_id: me?.type === 'admin' ? me.id : undefined,
-            sender_sub_user_id: me?.type === 'sub_user' ? me.id : undefined,
-            sender_type: me?.type || 'sub_user',
-            sender_name: me?.name || 'You',
-            sender_avatar_url: me?.avatarUrl,
-            channel_id: activeChannelId
-          }
-        ]);
+        const echoMessage = {
+          id: `echo-${Date.now()}-${Math.random()}`,
+          content: draft.trim(),
+          created_at: new Date().toISOString(),
+          sender_user_id: me?.type === 'admin' ? me.id : undefined,
+          sender_sub_user_id: me?.type === 'sub_user' ? me.id : undefined,
+          sender_type: me?.type || 'sub_user',
+          sender_name: me?.name || 'You',
+          sender_avatar_url: me?.avatarUrl,
+          channel_id: activeChannelId
+        };
+        setMessages(prev => [...prev, echoMessage]);
         
         console.log('✅ Public board message sent via RPC with instant echo');
       } else {
@@ -303,20 +303,18 @@ export const ChatArea = () => {
         if (error) throw error;
 
         // Instant echo to sender (local append before clearing draft)
-        setMessages(prev => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            content: draft.trim(),
-            created_at: new Date().toISOString(),
-            sender_user_id: me?.type === 'admin' ? me.id : undefined,
-            sender_sub_user_id: me?.type === 'sub_user' ? me.id : undefined,
-            sender_type: me?.type || 'sub_user',
-            sender_name: me?.name || 'You',
-            sender_avatar_url: me?.avatarUrl,
-            channel_id: activeChannelId
-          }
-        ]);
+        const echoMessage = {
+          id: `echo-${Date.now()}-${Math.random()}`,
+          content: draft.trim(),
+          created_at: new Date().toISOString(),
+          sender_user_id: me?.type === 'admin' ? me.id : undefined,
+          sender_sub_user_id: me?.type === 'sub_user' ? me.id : undefined,
+          sender_type: me?.type || 'sub_user',
+          sender_name: me?.name || 'You',
+          sender_avatar_url: me?.avatarUrl,
+          channel_id: activeChannelId
+        };
+        setMessages(prev => [...prev, echoMessage]);
         
         console.log('✅ Message sent via RPC with instant echo');
       }

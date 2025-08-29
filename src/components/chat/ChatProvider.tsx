@@ -81,7 +81,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Determine context variables
   const isOnPublicBoard = location.pathname.startsWith('/board/');
-  const isOnDashboard = location.pathname === '/dashboard';
+  const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
   // Determine if chat should be shown - memoized to prevent re-renders
