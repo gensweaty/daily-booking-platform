@@ -35,6 +35,9 @@ export const ChatArea = () => {
     dmPartner?: { name: string; avatar?: string } 
   } | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  
+  // Message cache for instant channel switching
+  const cacheRef = useRef<Map<string, Message[]>>(new Map());
 
   // Get or create default channel with better error handling
   useEffect(() => {
@@ -171,17 +174,29 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, me, location.pathname]);
 
-  // Load messages with proper dependencies and no immediate clearing
+  // Load messages with cache-first approach for instant switching
   useEffect(() => {
+    if (!activeChannelId) {
+      setMessages([]);
+      return;
+    }
+
+    // Check cache first for instant display
+    const cached = cacheRef.current.get(activeChannelId);
+    if (cached) {
+      console.log('⚡ Showing cached messages for channel:', activeChannelId, cached.length);
+      setMessages(cached);
+    } else {
+      console.log('🔍 No cache found for channel:', activeChannelId);
+      setMessages([]);
+    }
+
+    // Always fetch fresh data in background
     let active = true;
-    
     (async () => {
-      if (!activeChannelId || !me) {
-        console.log('❌ Missing prerequisites for loading messages:', { activeChannelId, me: !!me });
-        return;
-      }
+      if (!me) return;
       
-      console.log('📨 Loading messages for channel:', activeChannelId);
+      console.log('📨 Background loading messages for channel:', activeChannelId);
       
       try {
         const { data, error } = await supabase
@@ -196,8 +211,14 @@ export const ChatArea = () => {
         }
 
         if (active && data) {
-          console.log('✅ Messages loaded:', data.length, 'messages');
-          setMessages(data as Message[]);
+          const freshMessages = data as Message[];
+          console.log('✅ Fresh messages loaded:', freshMessages.length, 'messages');
+          
+          // Update cache
+          cacheRef.current.set(activeChannelId, freshMessages);
+          
+          // Update UI if still on same channel
+          setMessages(freshMessages);
         }
       } catch (error) {
         console.error('❌ Unexpected error loading messages:', error);
@@ -205,25 +226,38 @@ export const ChatArea = () => {
     })();
     
     return () => { active = false; };
-  }, [activeChannelId, me]); // Fixed: Include me in dependencies
+  }, [activeChannelId, me]);
 
-  // Listen for real-time messages with simplified deduplication
+  // Listen for real-time messages with cache updates and strict deduplication
   useEffect(() => {
     const handleMessage = (event: CustomEvent) => {
-      const { message } = event.detail;
+      const { message } = event.detail as { message: Message };
+      const channelId = message.channel_id;
       
-      // Only process messages for this channel
-      if (message.channel_id === activeChannelId) {
-        console.log('📨 Received real-time message for channel:', activeChannelId);
-        setMessages(prev => {
-          // Simple deduplication by message ID only
-          const exists = prev.some(m => m.id === message.id);
-          if (exists) {
-            console.log('⏭️ Skipping duplicate message:', message.id);
-            return prev;
-          }
-          return [...prev, message as Message];
-        });
+      console.log('📨 Real-time message received for channel:', channelId);
+      
+      // Update cache for this channel
+      const currentCache = cacheRef.current.get(channelId) || [];
+      const existsInCache = currentCache.some(m => m.id === message.id);
+      
+      if (!existsInCache) {
+        const updatedCache = [...currentCache, message];
+        cacheRef.current.set(channelId, updatedCache);
+        console.log('💾 Updated cache for channel:', channelId, 'total:', updatedCache.length);
+        
+        // Update UI if this is the active channel
+        if (channelId === activeChannelId) {
+          setMessages(prev => {
+            const existsInUI = prev.some(m => m.id === message.id);
+            if (existsInUI) {
+              console.log('⏭️ Skipping duplicate in UI:', message.id);
+              return prev;
+            }
+            return [...prev, message];
+          });
+        }
+      } else {
+        console.log('⏭️ Message already in cache:', message.id);
       }
     };
 
@@ -239,13 +273,14 @@ export const ChatArea = () => {
   }, [messages.length]);
 
   const send = async () => {
-    if (!draft.trim() || !activeChannelId || !boardOwnerId) {
+    if (!draft.trim() || !activeChannelId || !boardOwnerId || !me) {
       return;
     }
     
     setSending(true);
     
     try {
+      // For now, fallback to existing separate RPCs since send_chat_message doesn't exist yet
       const isPublicBoard = location.pathname.startsWith('/board/');
       
       if (isPublicBoard) {
@@ -254,7 +289,7 @@ export const ChatArea = () => {
         const senderEmail = me?.email || stored?.email;
         if (!senderEmail) throw new Error('Missing sub-user email for public board');
 
-        const { data, error } = await supabase.rpc('send_public_board_message', {
+        const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: senderEmail,
@@ -265,7 +300,7 @@ export const ChatArea = () => {
         console.log('✅ Public board message sent via RPC');
       } else {
         // dashboard (owner) - use RPC
-        const { data, error } = await supabase.rpc('send_authenticated_message', {
+        const { error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
           p_content: draft.trim(),
@@ -275,12 +310,11 @@ export const ChatArea = () => {
         console.log('✅ Dashboard message sent via RPC');
       }
       
-      // Clear draft immediately after successful send
+      // Clear draft after successful send
       setDraft('');
       
-      // No instant echo - let real-time handle all message display
-      
     } catch (e: any) {
+      console.error('❌ Send error:', e);
       toast({ 
         title: 'Error', 
         description: e.message || 'Failed to send', 
