@@ -199,26 +199,65 @@ export const ChatArea = () => {
       console.log('📨 Background loading messages for channel:', activeChannelId);
       
       try {
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .select('id, content, created_at, sender_user_id, sender_sub_user_id, sender_type, sender_name, sender_avatar_url, channel_id')
-          .eq('channel_id', activeChannelId)
-          .order('created_at', { ascending: true });
+        const isPublicBoard = location.pathname.startsWith('/board/');
+        
+        // C.6 Fix message loading for public boards 
+        if (isPublicBoard) {
+          const slug = location.pathname.split('/').pop()!;
+          const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+          const requesterType = 'sub_user'; // on public page
+          const requesterEmail = me?.email || stored?.email;
 
-        if (error) {
-          console.error('❌ Error loading messages:', error);
-          return;
-        }
+          if (!requesterEmail) {
+            console.error('❌ Missing requester email for public board');
+            return;
+          }
 
-        if (active && data) {
-          const freshMessages = data as Message[];
-          console.log('✅ Fresh messages loaded:', freshMessages.length, 'messages');
-          
-          // Update cache
-          cacheRef.current.set(activeChannelId, freshMessages);
-          
-          // Update UI if still on same channel
-          setMessages(freshMessages);
+          const { data, error } = await supabase.rpc('list_channel_messages_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_requester_type: requesterType,
+            p_requester_email: requesterEmail,
+          });
+
+          if (error) {
+            console.error('❌ Error loading public messages via RPC:', error);
+            return;
+          }
+
+          if (active && data) {
+            const freshMessages = data as Message[];
+            console.log('✅ Public messages loaded via RPC:', freshMessages.length, 'messages');
+            
+            // Update cache
+            cacheRef.current.set(activeChannelId, freshMessages);
+            
+            // Update UI if still on same channel
+            setMessages(freshMessages);
+          }
+        } else {
+          // Dashboard (authenticated) can keep the direct select
+          const { data, error } = await supabase
+            .from('chat_messages')
+            .select('id, content, created_at, sender_user_id, sender_sub_user_id, sender_type, sender_name, sender_avatar_url, channel_id')
+            .eq('channel_id', activeChannelId)
+            .order('created_at', { ascending: true });
+
+          if (error) {
+            console.error('❌ Error loading dashboard messages:', error);
+            return;
+          }
+
+          if (active && data) {
+            const freshMessages = data as Message[];
+            console.log('✅ Dashboard messages loaded:', freshMessages.length, 'messages');
+            
+            // Update cache
+            cacheRef.current.set(activeChannelId, freshMessages);
+            
+            // Update UI if still on same channel
+            setMessages(freshMessages);
+          }
         }
       } catch (error) {
         console.error('❌ Unexpected error loading messages:', error);

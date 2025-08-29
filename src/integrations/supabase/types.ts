@@ -1633,6 +1633,19 @@ export type Database = {
         }
         Returns: number
       }
+      dm_order_pair: {
+        Args: { a_id: string; a_type: string; b_id: string; b_type: string }
+        Returns: {
+          left_id: string
+          left_type: string
+          right_id: string
+          right_type: string
+        }[]
+      }
+      dm_sort_key: {
+        Args: { p_id: string; p_type: string }
+        Returns: string
+      }
       ensure_dm_channel: {
         Args: {
           p_a_id: string
@@ -1640,6 +1653,16 @@ export type Database = {
           p_b_id: string
           p_b_type: string
           p_board_owner_id: string
+        }
+        Returns: string
+      }
+      find_or_create_dm: {
+        Args: {
+          p_a_id: string
+          p_a_type: string
+          p_b_id: string
+          p_b_type: string
+          p_owner_id: string
         }
         Returns: string
       }
@@ -1846,6 +1869,25 @@ export type Database = {
           id: string
           name: string
           type: string
+        }[]
+      }
+      list_channel_messages_public: {
+        Args: {
+          p_channel_id: string
+          p_owner_id: string
+          p_requester_email: string
+          p_requester_type: string
+        }
+        Returns: {
+          channel_id: string
+          content: string
+          created_at: string
+          id: string
+          sender_avatar_url: string
+          sender_name: string
+          sender_sub_user_id: string
+          sender_type: string
+          sender_user_id: string
         }[]
       }
       make_dm_pair_key: {
