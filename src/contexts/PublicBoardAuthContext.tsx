@@ -43,6 +43,9 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
         console.log('🔍 PublicBoardAuth: Checking auth, isOnPublicBoard:', isOnPublicBoard, 'slug:', slug, 'path:', window.location.pathname);
 
         if (isOnPublicBoard && slug) {
+          console.log('🔍 PublicBoardAuth: Setting loading true for authentication check');
+          setLoading(true);
+          
           // Check for existing public board access token
           const storedData = localStorage.getItem(`public-board-access-${slug}`);
           console.log('🔍 PublicBoardAuth: Stored data exists:', !!storedData);
@@ -69,24 +72,32 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
                 };
                 setUser(publicUser);
                 console.log('🔍 PublicBoardAuth: Set user from stored data:', publicUser);
+                
+                // Add a small delay to ensure ChatProvider has time to process
+                setTimeout(() => {
+                  setLoading(false);
+                  console.log('🔍 PublicBoardAuth: Loading complete after user resolution');
+                }, 100);
               } else {
                 setUser(null);
                 console.log('🔍 PublicBoardAuth: Token expired or incomplete');
+                setLoading(false);
               }
             } catch (error) {
               console.error('Error parsing public board auth data:', error);
               setUser(null);
+              setLoading(false);
             }
           } else {
             setUser(null);
             console.log('🔍 PublicBoardAuth: No stored access token');
+            setLoading(false);
           }
         } else {
           setUser(null);
           console.log('🔍 PublicBoardAuth: Not on public board');
+          setLoading(false);
         }
-        
-        setLoading(false);
       };
 
     checkPublicBoardAuth();
@@ -105,8 +116,11 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
     localStorage.setItem = function(key, value) {
       originalSetItem.apply(this, [key, value]);
       if (key === `public-board-access-${slug}`) {
-        // Immediate check for faster response
-        checkPublicBoardAuth();
+        console.log('🔍 PublicBoardAuth: Immediate localStorage update detected');
+        // Immediate check for faster response with delay to prevent race conditions
+        setTimeout(() => {
+          checkPublicBoardAuth();
+        }, 50);
       }
     };
 

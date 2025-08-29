@@ -22,13 +22,14 @@ type Message = {
 };
 
 export const ChatArea = () => {
-  const { me, currentChannelId, boardOwnerId } = useChat();
+  const { me, currentChannelId, boardOwnerId, isInitialized } = useChat();
   const { toast } = useToast();
   const location = useLocation();
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [channelInfo, setChannelInfo] = useState<{ 
     name: string; 
     isDM: boolean; 
@@ -174,14 +175,23 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, me, location.pathname]);
 
-  // Load messages for the active channel - FIXED: Use authentication status, not route
+  // Load messages for the active channel - ENHANCED with loading states
   useEffect(() => {
     let active = true;
 
     const loadMessages = async () => {
-      if (!activeChannelId || !me || !boardOwnerId) return;
+      if (!activeChannelId || !me || !boardOwnerId || !isInitialized) {
+        console.log('⏭️ Skipping message load - missing requirements:', {
+          activeChannelId: !!activeChannelId,
+          me: !!me,
+          boardOwnerId: !!boardOwnerId,
+          isInitialized
+        });
+        return;
+      }
 
       try {
+        setLoading(true);
         setMessages([]);
         
         // FIXED: Check if this is an authenticated user from dashboard context
@@ -192,6 +202,8 @@ export const ChatArea = () => {
           activeChannelId,
           boardOwnerId,
           me: me?.email,
+          myId: me?.id,
+          myType: me?.type,
           isAuthenticatedUser,
           route: location.pathname
         });
@@ -207,6 +219,7 @@ export const ChatArea = () => {
 
           if (error) {
             console.error('❌ Error loading authenticated messages:', error);
+            if (active) setLoading(false);
             return;
           }
 
@@ -216,6 +229,7 @@ export const ChatArea = () => {
               ...msg,
               sender_type: msg.sender_type as 'admin' | 'sub_user'
             })));
+            setLoading(false);
           }
         } else {
           // PUBLIC BOARD ACCESS: Use secure RPC function
@@ -232,6 +246,7 @@ export const ChatArea = () => {
 
           if (error) {
             console.error('❌ Error loading public messages:', error);
+            if (active) setLoading(false);
             return;
           }
 
@@ -241,10 +256,12 @@ export const ChatArea = () => {
               ...msg,
               sender_type: msg.sender_type as 'admin' | 'sub_user'
             })));
+            setLoading(false);
           }
         }
       } catch (error) {
         console.error('❌ Error in loadMessages:', error);
+        if (active) setLoading(false);
       }
     };
 
@@ -253,7 +270,7 @@ export const ChatArea = () => {
     return () => {
       active = false;
     };
-  }, [activeChannelId, boardOwnerId, me?.id, me?.email, location.pathname]);
+  }, [activeChannelId, boardOwnerId, me?.id, me?.email, location.pathname, isInitialized]);
 
   // Clear messages when channel changes to avoid ghost messages
   useEffect(() => { 
@@ -371,17 +388,25 @@ export const ChatArea = () => {
     setSending(true);
     
     try {
-      // PRIORITY: Check if we're in sub-user context on public board
+      // ENHANCED: Determine sending context with better sub-user handling
       const isOnPublicBoard = location.pathname.startsWith('/board/');
       const { data: { session } } = await supabase.auth.getSession();
       const isAuthenticatedUser = !!session?.user?.id;
       
-      // If sub-user context on public board, use public board message sending
-      if (isOnPublicBoard && me?.type === 'sub_user') {
-        console.log('📤 PRIORITY: Sending message as sub-user on public board');
-        const slug = location.pathname.split('/').pop()!;
+      console.log('📤 Sending message context:', {
+        isOnPublicBoard,
+        isAuthenticatedUser,
+        meType: me?.type,
+        meId: me?.id,
+        meEmail: me?.email,
+        boardOwnerId
+      });
+      
+      // PRIORITY 1: Sub-user on public board (authenticated or not)
+      if (me?.type === 'sub_user') {
+        console.log('📤 PRIORITY: Sending message as sub-user');
         const senderEmail = me.email;
-        if (!senderEmail) throw new Error('Missing sub-user email for public board');
+        if (!senderEmail) throw new Error('Missing sub-user email');
 
         const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
@@ -391,10 +416,10 @@ export const ChatArea = () => {
         });
         if (error) throw error;
         
-        console.log('✅ Sub-user message sent via public board RPC');
+        console.log('✅ Sub-user message sent successfully via public board RPC');
       } else if (isAuthenticatedUser && me?.type === 'admin') {
-        // AUTHENTICATED USER: Use authenticated message RPC
-        console.log('📤 Sending message as authenticated user');
+        // PRIORITY 2: Authenticated admin user
+        console.log('📤 Sending message as authenticated admin');
         const { error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
@@ -402,14 +427,14 @@ export const ChatArea = () => {
         });
         if (error) throw error;
         
-        console.log('✅ Authenticated message sent via RPC');
+        console.log('✅ Authenticated admin message sent via RPC');
       } else {
-        // PUBLIC BOARD ACCESS: Use public board message RPC
-        console.log('📤 Sending message as public board access');
+        // FALLBACK: Public board access
+        console.log('📤 Fallback: Sending message as public board access');
         const slug = location.pathname.split('/').pop()!;
         const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
         const senderEmail = me?.email || stored?.email;
-        if (!senderEmail) throw new Error('Missing sub-user email for public board');
+        if (!senderEmail) throw new Error('Missing sender email for public board');
 
         const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
@@ -443,6 +468,27 @@ export const ChatArea = () => {
       send();
     }
   };
+
+  // Show loading state while authentication and data are resolving
+  if (loading || !isInitialized) {
+    return (
+      <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
+        <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
+          <MessageCircle className="h-5 w-5 animate-pulse" />
+          <h2 className="font-semibold">Loading...</h2>
+        </div>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-sm text-muted-foreground">Loading chat...</p>
+          </div>
+        </div>
+        <div className="p-4 border-t bg-muted/30">
+          <div className="bg-muted rounded-md h-10 animate-pulse"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">

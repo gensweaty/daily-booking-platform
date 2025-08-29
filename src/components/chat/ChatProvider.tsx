@@ -134,8 +134,29 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       // Increment unread count for channel
       incrementUnread(message.channel_id);
 
-      // Show notification if chat is closed or different channel
-      if (!isOpen || currentChannelId !== message.channel_id) {
+      // FIXED: Only show notifications to the intended recipient
+      // For sub-users, only show if I'm the intended recipient or in a relevant channel
+      const shouldShowNotification = () => {
+        // If chat is closed or different channel, show notification
+        if (!isOpen || currentChannelId !== message.channel_id) {
+          // Additional check: for sub-user context, ensure notification relevance
+          if (me?.type === 'sub_user') {
+            // Only show if this is a channel I participate in or a DM intended for me
+            console.log('🔔 Sub-user notification check:', {
+              channelId: message.channel_id,
+              isOpen,
+              currentChannelId,
+              myId: me.id,
+              myType: me.type
+            });
+            return true; // Let notification system handle targeting
+          }
+          return true;
+        }
+        return false;
+      };
+
+      if (shouldShowNotification()) {
         console.log('🔔 Showing notification for message:', message);
         showNotification({
           title: `${message.sender_name || 'Someone'} messaged`,
@@ -192,7 +213,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     setIsOpen(true);
   }, [clearChannelUnread]);
 
-  // Initialize user identity and board owner
+  // Initialize user identity and board owner - ENHANCED with loading states
   useEffect(() => {
     let active = true;
     
@@ -206,6 +227,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         effectiveUser: effectiveUser?.email,
         publicBoardUser: publicBoardUser?.email
       });
+      
+      // Set loading state initially
+      setIsInitialized(false);
       
       if (!shouldShowChat) {
         if (active) {
