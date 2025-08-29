@@ -84,10 +84,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  // Determine if chat should be shown - memoized to prevent re-renders
+  // Determine if chat should be shown - FIXED: prioritize authenticated users regardless of route
   const shouldShowChat = useMemo(() => {
-    return (isOnDashboard && !!user) || isOnPublicBoard;
-  }, [location.pathname, user, isOnDashboard, isOnPublicBoard]);
+    // Always show chat for authenticated users (admin or sub-user) regardless of route
+    if (user?.id) return true;
+    // Show chat on public boards as fallback
+    return isOnPublicBoard;
+  }, [user?.id, isOnPublicBoard]);
 
   console.log('🔍 ChatProvider render:', {
     hasSubUsers,
@@ -150,12 +153,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }));
   }, [boardOwnerId, me, isOpen, currentChannelId, incrementUnread, showNotification]);
 
-  // Real-time setup - disable for public boards to use polling instead
+  // Real-time setup - FIXED: enable for authenticated users regardless of route
   const { connectionStatus } = useEnhancedRealtimeChat({
     onNewMessage: handleNewMessage,
     userId: me?.id,
     boardOwnerId: boardOwnerId || undefined,
-    enabled: shouldShowChat && isInitialized && !!boardOwnerId && !isOnPublicBoard,
+    // Enable real-time for authenticated users, disable for public board access only
+    enabled: shouldShowChat && isInitialized && !!boardOwnerId && !!user?.id,
   });
 
   // Request notification permission and preload audio on mount
@@ -342,11 +346,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('⚠️ No valid public board access found');
         }
         
-        // Handle authenticated users (admin and sub-users) - FIXED
+        // Handle authenticated users (admin and sub-users) - PRIORITY: Check authenticated users first
         if (user?.id) {
           console.log('🔍 Checking authenticated user:', { 
             email: user.email, 
-            userId: user.id 
+            userId: user.id,
+            path: location.pathname 
           });
           
           // Try admin first - check profiles table
@@ -363,7 +368,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           });
           
           if (active && profile) {
-            console.log('✅ Admin user detected:', profile.username);
+            console.log('✅ AUTHENTICATED ADMIN detected:', profile.username);
             
             // Use email local part if username is auto-generated
             const displayName = profile.username?.startsWith('user_') 
@@ -379,13 +384,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               avatarUrl: resolveAvatarUrl(profile.avatar_url)
             });
             setIsInitialized(true);
+            console.log('🎉 AUTHENTICATED ADMIN: Chat initialized with full features');
             return;
           }
           
           // Try sub-user by email match (case-insensitive)
           const userEmail = user.email?.toLowerCase();
           if (userEmail) {
-            console.log('🔍 Looking for sub-user with email:', userEmail);
+            console.log('🔍 Looking for authenticated sub-user with email:', userEmail);
             
             const { data: subUser, error: subUserError } = await supabase
               .from("sub_users")
@@ -398,9 +404,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             }
 
             if (active && subUser) {
-              console.log('✅ Sub-user detected:', { 
+              console.log('✅ AUTHENTICATED SUB-USER detected:', { 
                 id: subUser.id,
                 fullname: subUser.fullname, 
+                email: subUser.email,
                 boardOwnerId: subUser.board_owner_id 
               });
               
@@ -413,11 +420,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                 avatarUrl: resolveAvatarUrl(subUser.avatar_url)
               });
               setIsInitialized(true);
+              console.log('🎉 AUTHENTICATED SUB-USER: Chat initialized with full features');
               return;
             }
           }
           
-          console.log('❌ Authenticated user not found in profiles or sub_users');
+          console.log('❌ Authenticated user not found in profiles or sub_users - this should not happen for valid accounts');
         }
         
         // No valid user found

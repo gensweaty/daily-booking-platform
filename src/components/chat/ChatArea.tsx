@@ -174,7 +174,7 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, me, location.pathname]);
 
-  // Load messages for the active channel
+  // Load messages for the active channel - FIXED: Use authentication status, not route
   useEffect(() => {
     let active = true;
 
@@ -184,10 +184,42 @@ export const ChatArea = () => {
       try {
         setMessages([]);
         
-        const isPublicBoard = location.pathname.startsWith('/board/');
+        // FIXED: Check if this is an authenticated user from dashboard context
+        const { data: { session } } = await supabase.auth.getSession();
+        const isAuthenticatedUser = !!session?.user?.id;
         
-        if (isPublicBoard) {
-          // For public boards, use the secure RPC function
+        console.log('🔍 Loading messages:', {
+          activeChannelId,
+          boardOwnerId,
+          me: me?.email,
+          isAuthenticatedUser,
+          route: location.pathname
+        });
+        
+        if (isAuthenticatedUser) {
+          // AUTHENTICATED USER: Use regular RPC (works for both admin and sub-users)
+          console.log('📨 Loading messages for authenticated user via get_chat_messages_for_channel');
+          const { data, error } = await supabase
+            .rpc('get_chat_messages_for_channel', {
+              p_board_owner_id: boardOwnerId,
+              p_channel_id: activeChannelId,
+            });
+
+          if (error) {
+            console.error('❌ Error loading authenticated messages:', error);
+            return;
+          }
+
+          if (active) {
+            console.log('✅ Loaded', data?.length || 0, 'messages for authenticated user');
+            setMessages((data || []).map(msg => ({
+              ...msg,
+              sender_type: msg.sender_type as 'admin' | 'sub_user'
+            })));
+          }
+        } else {
+          // PUBLIC BOARD ACCESS: Use secure RPC function
+          console.log('📨 Loading messages for public board access via list_channel_messages_public');
           const slug = location.pathname.split('/').pop();
           const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
           
@@ -199,30 +231,12 @@ export const ChatArea = () => {
           });
 
           if (error) {
-            console.error('Error loading public messages:', error);
+            console.error('❌ Error loading public messages:', error);
             return;
           }
 
           if (active) {
-            setMessages((data || []).map(msg => ({
-              ...msg,
-              sender_type: msg.sender_type as 'admin' | 'sub_user'
-            })));
-          }
-        } else {
-          // For authenticated users, use the regular RPC
-          const { data, error } = await supabase
-            .rpc('get_chat_messages_for_channel', {
-              p_board_owner_id: boardOwnerId,
-              p_channel_id: activeChannelId,
-            });
-
-          if (error) {
-            console.error('Error loading messages:', error);
-            return;
-          }
-
-          if (active) {
+            console.log('✅ Loaded', data?.length || 0, 'messages for public board access');
             setMessages((data || []).map(msg => ({
               ...msg,
               sender_type: msg.sender_type as 'admin' | 'sub_user'
@@ -230,7 +244,7 @@ export const ChatArea = () => {
           }
         }
       } catch (error) {
-        console.error('Error in loadMessages:', error);
+        console.error('❌ Error in loadMessages:', error);
       }
     };
 
@@ -246,44 +260,62 @@ export const ChatArea = () => {
     setMessages([]); 
   }, [activeChannelId]);
 
-  // Polling for public boards (instead of realtime)
+  // Polling for non-authenticated users only (authenticated users use real-time)
   useEffect(() => {
-    const isPublicBoard = location.pathname.startsWith('/board/');
-    if (!isPublicBoard || !activeChannelId || !boardOwnerId || !me) return;
+    if (!activeChannelId || !boardOwnerId || !me) return;
 
     let mounted = true;
     
-    const poll = async () => {
-      const slug = location.pathname.split('/').pop();
-      const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+    // Check authentication status
+    const checkAndPoll = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const isAuthenticatedUser = !!session?.user?.id;
       
-      const { data } = await supabase.rpc('list_channel_messages_public', {
-        p_owner_id: boardOwnerId,
-        p_channel_id: activeChannelId,
-        p_requester_type: 'sub_user',
-        p_requester_email: accessData.email || me.email,
-      });
+      // Only poll for non-authenticated public board access
+      if (isAuthenticatedUser) {
+        console.log('⏭️ Skipping polling - authenticated user uses real-time');
+        return;
+      }
       
-      if (!mounted || !data) return;
+      console.log('📊 Starting polling for public board access');
       
-      setMessages(prev => {
-        const byId = new Map(prev.map(m => [m.id, m]));
-        for (const m of data) {
-          byId.set(m.id, {
-            ...m,
-            sender_type: m.sender_type as 'admin' | 'sub_user'
-          });
-        }
-        return Array.from(byId.values()).sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
-      });
-    };
+      const poll = async () => {
+        const slug = location.pathname.split('/').pop();
+        const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+        
+        const { data } = await supabase.rpc('list_channel_messages_public', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_requester_type: 'sub_user',
+          p_requester_email: accessData.email || me.email,
+        });
+        
+        if (!mounted || !data) return;
+        
+        setMessages(prev => {
+          const byId = new Map(prev.map(m => [m.id, m]));
+          for (const m of data) {
+            byId.set(m.id, {
+              ...m,
+              sender_type: m.sender_type as 'admin' | 'sub_user'
+            });
+          }
+          return Array.from(byId.values()).sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
+        });
+      };
 
-    const intervalId = setInterval(poll, 2500);
-    poll(); // immediate poll
+      const intervalId = setInterval(poll, 2500);
+      poll(); // immediate poll
+      
+      return () => { 
+        clearInterval(intervalId); 
+      };
+    };
+    
+    checkAndPoll();
     
     return () => { 
       mounted = false; 
-      clearInterval(intervalId); 
     };
   }, [activeChannelId, boardOwnerId, me?.email, location.pathname]);
 
@@ -339,10 +371,24 @@ export const ChatArea = () => {
     setSending(true);
     
     try {
-      // For now, fallback to existing separate RPCs since send_chat_message doesn't exist yet
-      const isPublicBoard = location.pathname.startsWith('/board/');
+      // FIXED: Use authentication status, not route
+      const { data: { session } } = await supabase.auth.getSession();
+      const isAuthenticatedUser = !!session?.user?.id;
       
-      if (isPublicBoard) {
+      if (isAuthenticatedUser) {
+        // AUTHENTICATED USER: Use authenticated message RPC
+        console.log('📤 Sending message as authenticated user');
+        const { error } = await supabase.rpc('send_authenticated_message', {
+          p_channel_id: activeChannelId,
+          p_owner_id: boardOwnerId,
+          p_content: draft.trim(),
+        });
+        if (error) throw error;
+        
+        console.log('✅ Authenticated message sent via RPC');
+      } else {
+        // PUBLIC BOARD ACCESS: Use public board message RPC
+        console.log('📤 Sending message as public board access');
         const slug = location.pathname.split('/').pop()!;
         const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
         const senderEmail = me?.email || stored?.email;
@@ -357,16 +403,6 @@ export const ChatArea = () => {
         if (error) throw error;
         
         console.log('✅ Public board message sent via RPC');
-      } else {
-        // dashboard (owner) - use RPC
-        const { error } = await supabase.rpc('send_authenticated_message', {
-          p_channel_id: activeChannelId,
-          p_owner_id: boardOwnerId,
-          p_content: draft.trim(),
-        });
-        if (error) throw error;
-        
-        console.log('✅ Dashboard message sent via RPC');
       }
       
       // Clear draft after successful send
