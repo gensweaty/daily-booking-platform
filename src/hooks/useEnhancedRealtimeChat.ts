@@ -53,9 +53,9 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
     cleanup();
     setConnectionStatus('connecting');
 
-    // Use stable channel name to prevent rate limits
-    const channelName = `enhanced-chat-${config.boardOwnerId}`;
-    console.log('🔗 Setting up enhanced realtime connection:', channelName);
+    // Use board-specific channel name for single subscription per board
+    const channelName = `board-chat-${config.boardOwnerId}`;
+    console.log('🔗 Setting up single board-wide subscription:', channelName);
 
     const channel = supabase
       .channel(channelName)
@@ -67,32 +67,38 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
           filter: `owner_id=eq.${config.boardOwnerId}` 
         },
         (payload) => {
-          console.log('📨 Enhanced realtime message:', payload);
+          console.log('📨 Board-wide realtime message received:', {
+            messageId: payload.new.id,
+            channelId: payload.new.channel_id,
+            senderId: payload.new.sender_user_id || payload.new.sender_sub_user_id,
+            content: payload.new.content?.substring(0, 50) + '...'
+          });
           config.onNewMessage(payload.new);
         }
       )
       .subscribe((status) => {
-        console.log('📡 Enhanced subscription status:', status);
+        console.log('📡 Board subscription status:', status);
         
         if (status === 'SUBSCRIBED') {
           setConnectionStatus('connected');
           setRetryCount(0);
           startHeartbeat();
+          console.log('✅ Connected to board-wide chat subscription');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error('❌ Enhanced channel error:', status);
+          console.error('❌ Board subscription error:', status);
           setConnectionStatus('disconnected');
           
           // Exponential backoff retry with max attempts
-          if (retryCount < 5) {
-            const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+          if (retryCount < 3) {
+            const delay = Math.min(2000 * Math.pow(2, retryCount), 15000);
             setRetryCount(prev => prev + 1);
             
             reconnectTimeoutRef.current = setTimeout(() => {
-              console.log(`🔄 Retrying enhanced connection (attempt ${retryCount + 1}) in ${delay}ms`);
+              console.log(`🔄 Retrying board subscription (attempt ${retryCount + 1}) in ${delay}ms`);
               setupConnection();
             }, delay);
           } else {
-            console.error('❌ Max retry attempts reached for enhanced connection');
+            console.error('❌ Max retry attempts reached for board subscription');
           }
         }
       });

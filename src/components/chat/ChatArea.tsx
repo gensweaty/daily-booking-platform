@@ -171,27 +171,17 @@ export const ChatArea = () => {
     return () => { active = false; };
   }, [activeChannelId, me, location.pathname]);
 
-  // Load messages with enhanced error handling
+  // Load messages with proper dependencies and no immediate clearing
   useEffect(() => {
     let active = true;
     
     (async () => {
-      if (!activeChannelId) {
-        console.log('❌ No activeChannelId for loading messages');
-        if (active) setMessages([]);
+      if (!activeChannelId || !me) {
+        console.log('❌ Missing prerequisites for loading messages:', { activeChannelId, me: !!me });
         return;
       }
       
       console.log('📨 Loading messages for channel:', activeChannelId);
-      
-      const authResult = await supabase.auth.getUser();
-      console.log('🔍 Current user context for messages:', { 
-        me, 
-        boardOwnerId,
-        authUser: authResult.data.user?.id || 'NO_AUTH_USER',
-        authUserEmail: authResult.data.user?.email || 'NO_AUTH_EMAIL',
-        hasAuthError: !!authResult.error
-      });
       
       try {
         const { data, error } = await supabase
@@ -200,44 +190,38 @@ export const ChatArea = () => {
           .eq('channel_id', activeChannelId)
           .order('created_at', { ascending: true });
 
-        console.log('📨 RPC messages result:', { 
-          messageCount: data?.length || 0, 
-          error: error?.message,
-          firstMessage: data?.[0],
-          channelId: activeChannelId
-        });
-
         if (error) {
-          console.error('❌ Error loading messages via RPC:', error);
+          console.error('❌ Error loading messages:', error);
           return;
         }
 
         if (active && data) {
-          console.log('✅ Messages loaded via RPC:', data.length, 'messages');
+          console.log('✅ Messages loaded:', data.length, 'messages');
           setMessages(data as Message[]);
         }
       } catch (error) {
         console.error('❌ Unexpected error loading messages:', error);
-        if (active) setMessages([]);
       }
     })();
     
     return () => { active = false; };
-  }, [activeChannelId, location.pathname]);
+  }, [activeChannelId, me]); // Fixed: Include me in dependencies
 
-  // Listen for real-time messages broadcast from ChatProvider + instant fanout
+  // Listen for real-time messages with simplified deduplication
   useEffect(() => {
     const handleMessage = (event: CustomEvent) => {
       const { message } = event.detail;
       
       // Only process messages for this channel
       if (message.channel_id === activeChannelId) {
-        console.log('📨 Received broadcasted message for channel:', activeChannelId);
+        console.log('📨 Received real-time message for channel:', activeChannelId);
         setMessages(prev => {
-          // Skip echo messages and prevent duplicates
-          const isEcho = message.id && message.id.startsWith('echo-');
-          const exists = prev.some(m => m.id === message.id || (m.content === message.content && Math.abs(new Date(m.created_at).getTime() - new Date(message.created_at).getTime()) < 2000));
-          if (isEcho || exists) return prev;
+          // Simple deduplication by message ID only
+          const exists = prev.some(m => m.id === message.id);
+          if (exists) {
+            console.log('⏭️ Skipping duplicate message:', message.id);
+            return prev;
+          }
           return [...prev, message as Message];
         });
       }
@@ -277,22 +261,8 @@ export const ChatArea = () => {
           p_content: draft.trim(),
         });
         if (error) throw error;
-
-        // Instant echo to sender (local append before clearing draft)
-        const echoMessage = {
-          id: `echo-${Date.now()}-${Math.random()}`,
-          content: draft.trim(),
-          created_at: new Date().toISOString(),
-          sender_user_id: me?.type === 'admin' ? me.id : undefined,
-          sender_sub_user_id: me?.type === 'sub_user' ? me.id : undefined,
-          sender_type: me?.type || 'sub_user',
-          sender_name: me?.name || 'You',
-          sender_avatar_url: me?.avatarUrl,
-          channel_id: activeChannelId
-        };
-        setMessages(prev => [...prev, echoMessage]);
         
-        console.log('✅ Public board message sent via RPC with instant echo');
+        console.log('✅ Public board message sent via RPC');
       } else {
         // dashboard (owner) - use RPC
         const { data, error } = await supabase.rpc('send_authenticated_message', {
@@ -301,25 +271,15 @@ export const ChatArea = () => {
           p_content: draft.trim(),
         });
         if (error) throw error;
-
-        // Instant echo to sender (local append before clearing draft)
-        const echoMessage = {
-          id: `echo-${Date.now()}-${Math.random()}`,
-          content: draft.trim(),
-          created_at: new Date().toISOString(),
-          sender_user_id: me?.type === 'admin' ? me.id : undefined,
-          sender_sub_user_id: me?.type === 'sub_user' ? me.id : undefined,
-          sender_type: me?.type || 'sub_user',
-          sender_name: me?.name || 'You',
-          sender_avatar_url: me?.avatarUrl,
-          channel_id: activeChannelId
-        };
-        setMessages(prev => [...prev, echoMessage]);
         
-        console.log('✅ Message sent via RPC with instant echo');
+        console.log('✅ Dashboard message sent via RPC');
       }
       
+      // Clear draft immediately after successful send
       setDraft('');
+      
+      // No instant echo - let real-time handle all message display
+      
     } catch (e: any) {
       toast({ 
         title: 'Error', 
