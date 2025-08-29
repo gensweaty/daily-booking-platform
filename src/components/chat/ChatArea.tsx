@@ -272,18 +272,41 @@ export const ChatArea = () => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  // Canonical send function using database RPCs to ensure proper routing
   const send = async () => {
-    if (!draft.trim() || !activeChannelId || !boardOwnerId || !me) {
+    const trimmedContent = draft.trim();
+    if (!trimmedContent || !activeChannelId || !boardOwnerId || !me) {
+      console.log('❌ Cannot send message - missing data');
       return;
     }
     
     setSending(true);
+
+    // Optimistic UI: Add message immediately to cache for instant display
+    const optimisticMessage = {
+      id: `temp-${Date.now()}`,
+      channel_id: activeChannelId,
+      sender_type: me.type,
+      sender_user_id: me.type === 'admin' ? me.id : undefined,
+      sender_sub_user_id: me.type === 'sub_user' ? me.id : undefined,
+      sender_name: me.name || me.email || 'You',
+      sender_avatar_url: me.avatarUrl || undefined,
+      content: trimmedContent,
+      created_at: new Date().toISOString(),
+    } as Message;
+
+    // Add to cache immediately for instant display
+    const currentCache = cacheRef.current.get(activeChannelId) || [];
+    cacheRef.current.set(activeChannelId, [...currentCache, optimisticMessage]);
+    setMessages(prev => [...prev, optimisticMessage]);
     
     try {
-      // For now, fallback to existing separate RPCs since send_chat_message doesn't exist yet
       const isPublicBoard = location.pathname.startsWith('/board/');
       
       if (isPublicBoard) {
+        // Public board messaging using canonical RPC
+        console.log('📤 Sending public board message via canonical RPC...');
+        
         const slug = location.pathname.split('/').pop()!;
         const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
         const senderEmail = me?.email || stored?.email;
@@ -293,31 +316,48 @@ export const ChatArea = () => {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: senderEmail,
-          p_content: draft.trim(),
+          p_content: trimmedContent,
         });
-        if (error) throw error;
         
-        console.log('✅ Public board message sent via RPC');
-      } else {
-        // dashboard (owner) - use RPC
+        if (error) throw error;
+        console.log('✅ Public board message sent via canonical RPC');
+        
+      } else if (me.type === 'admin') {
+        // Dashboard authenticated messaging using canonical RPC
+        console.log('📤 Sending authenticated message via canonical RPC...');
+        
         const { error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
-          p_content: draft.trim(),
+          p_content: trimmedContent,
         });
-        if (error) throw error;
         
-        console.log('✅ Dashboard message sent via RPC');
+        if (error) throw error;
+        console.log('✅ Dashboard message sent via canonical RPC');
+        
+      } else {
+        console.error('❌ Unsupported messaging context');
+        throw new Error('Unsupported messaging context');
       }
       
       // Clear draft after successful send
       setDraft('');
       
+      // The real message will come via real-time, replacing the optimistic one
+      
     } catch (e: any) {
-      console.error('❌ Send error:', e);
+      console.error('❌ Failed to send message:', e);
+      
+      // Remove optimistic message on error
+      const updatedCache = (cacheRef.current.get(activeChannelId) || []).filter(
+        msg => msg.id !== optimisticMessage.id
+      );
+      cacheRef.current.set(activeChannelId, updatedCache);
+      setMessages(prev => prev.filter(msg => msg.id !== optimisticMessage.id));
+      
       toast({ 
         title: 'Error', 
-        description: e.message || 'Failed to send', 
+        description: e.message || 'Failed to send message', 
         variant: 'destructive' 
       });
     } finally {
