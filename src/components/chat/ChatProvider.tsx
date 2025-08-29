@@ -135,25 +135,32 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       incrementUnread(message.channel_id);
 
       // FIXED: Only show notifications to the intended recipient
-      // For sub-users, only show if I'm the intended recipient or in a relevant channel
       const shouldShowNotification = () => {
-        // If chat is closed or different channel, show notification
-        if (!isOpen || currentChannelId !== message.channel_id) {
-          // Additional check: for sub-user context, ensure notification relevance
-          if (me?.type === 'sub_user') {
-            // Only show if this is a channel I participate in or a DM intended for me
-            console.log('🔔 Sub-user notification check:', {
-              channelId: message.channel_id,
-              isOpen,
-              currentChannelId,
-              myId: me.id,
-              myType: me.type
-            });
-            return true; // Let notification system handle targeting
-          }
-          return true;
+        // Skip notifications if chat is open and viewing the same channel
+        if (isOpen && currentChannelId === message.channel_id) {
+          return false;
         }
-        return false;
+
+        // For DM channels (start with 'dm_'), check if I'm one of the participants
+        if (message.channel_id.startsWith('dm_')) {
+          const [, user1Id, user1Type, user2Id, user2Type] = message.channel_id.split('_');
+          const isParticipant = (me?.id === user1Id && me?.type === user1Type) || 
+                               (me?.id === user2Id && me?.type === user2Type);
+          
+          console.log('🔔 DM notification check:', {
+            channelId: message.channel_id,
+            myId: me?.id,
+            myType: me?.type,
+            isParticipant,
+            user1: `${user1Id}_${user1Type}`,
+            user2: `${user2Id}_${user2Type}`
+          });
+          
+          return isParticipant;
+        }
+
+        // For regular channels, show notification if I'm not the sender
+        return true;
       };
 
       if (shouldShowNotification()) {
