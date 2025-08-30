@@ -1748,6 +1748,22 @@ export type Database = {
           participant_count: number
         }[]
       }
+      get_new_messages_multi_channel: {
+        Args: {
+          p_owner_id: string
+          p_since_timestamp?: string
+          p_user_email: string
+        }
+        Returns: {
+          channel_id: string
+          content: string
+          created_at: string
+          message_id: string
+          sender_avatar_url: string
+          sender_name: string
+          sender_type: string
+        }[]
+      }
       get_or_create_canonical_dm: {
         Args: {
           p_a_id: string
@@ -1871,6 +1887,14 @@ export type Database = {
           type: string
         }[]
       }
+      get_user_participating_channels: {
+        Args: { p_owner_id: string; p_user_email: string; p_user_type: string }
+        Returns: {
+          channel_id: string
+          channel_name: string
+          is_dm: boolean
+        }[]
+      }
       list_channel_messages_public: {
         Args: {
           p_channel_id: string
@@ -1888,6 +1912,12 @@ export type Database = {
           sender_sub_user_id: string
           sender_type: string
           sender_user_id: string
+        }[]
+      }
+      list_channels_for_sub_user_public: {
+        Args: { p_email: string; p_owner_id: string }
+        Returns: {
+          channel_id: string
         }[]
       }
       make_dm_pair_key: {

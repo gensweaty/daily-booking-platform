@@ -61,6 +61,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [boardOwnerId, setBoardOwnerId] = useState<string | null>(null);
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [hasSubUsers, setHasSubUsers] = useState(false);
+  
+  // Chat ready state and pending open queue
+  const chatReady = !!boardOwnerId && !!me;
+  const [pendingOpen, setPendingOpen] = useState(false);
 
   // Portal root - memoized to prevent re-creation
   const portalRoot = useMemo(() => {
@@ -228,48 +232,71 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [defaultChannelId, currentChannelId]);
 
+  // Handle pending open when chat becomes ready
+  useEffect(() => {
+    if (chatReady && pendingOpen) {
+      setPendingOpen(false);
+      setIsOpen(true);
+      if (!currentChannelId && defaultChannelId) {
+        setCurrentChannelId(defaultChannelId);
+      }
+    }
+  }, [chatReady, pendingOpen, currentChannelId, defaultChannelId]);
+
   // Background polling when realtime is OFF and chat is CLOSED (external board)
   useEffect(() => {
-    if (realtimeEnabled) return;                   // admin realtime covers internal board
-    if (!boardOwnerId || !me) return;
-    const lastDispatchedAt = new Map<string, number>(); // channelId -> epoch ms
+    if (realtimeEnabled || !boardOwnerId || !me?.email) return;
 
-    const poll = async () => {
-      // poll the current channel if open, else the default one
-      const channelId = currentChannelId || defaultChannelId;
-      if (!channelId) return;
+    let stopped = false;
+    const lastPerChannel = new Map<string, number>(); // channelId -> last ts
+    let channels: string[] = [];
 
-      const slug = window.location.pathname.split('/').pop();
-      const access = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-
-      const { data, error } = await supabase.rpc('list_channel_messages_public', {
+    const refreshChannels = async () => {
+      const { data } = await supabase.rpc('list_channels_for_sub_user_public', {
         p_owner_id: boardOwnerId,
-        p_channel_id: channelId,
-        p_requester_type: 'sub_user',
-        p_requester_email: me.email || access.email,
+        p_email: me.email
       });
-      if (error || !data) return;
+      channels = (data || []).map((r: any) => r.channel_id);
+    };
 
-      // Only dispatch messages newer than what we've already sent for this channel
-      const last = lastDispatchedAt.get(channelId) || 0;
-      const fresh = data.filter(m => +new Date(m.created_at) > last);
-      if (fresh.length) {
-        lastDispatchedAt.set(
-          channelId,
-          Math.max(...fresh.map(m => +new Date(m.created_at)))
-        );
-      }
-      for (const m of fresh) {
-        window.dispatchEvent(new CustomEvent('chat-message-received', {
-          detail: { message: { ...m, owner_id: boardOwnerId } } // normalize owner
-        }));
+    const pollAll = async () => {
+      if (!channels.length) await refreshChannels();
+      for (const channelId of channels) {
+        if (stopped) break;
+        const { data } = await supabase.rpc('list_channel_messages_public', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: channelId,
+          p_requester_type: 'sub_user',
+          p_requester_email: me.email,
+        });
+        if (!data) continue;
+
+        const last = lastPerChannel.get(channelId) || 0;
+        const fresh = data.filter((m: any) => +new Date(m.created_at) > last);
+        if (fresh.length) {
+          lastPerChannel.set(
+            channelId, Math.max(...fresh.map((m: any) => +new Date(m.created_at)))
+          );
+          for (const m of fresh) {
+            window.dispatchEvent(new CustomEvent('chat-message-received', {
+              detail: { message: { ...m, owner_id: boardOwnerId } }
+            }));
+          }
+        }
       }
     };
 
-    const id = setInterval(poll, 2500);
-    poll();
-    return () => clearInterval(id);
-  }, [realtimeEnabled, boardOwnerId, me?.email, currentChannelId, defaultChannelId]);
+    const refreshId = setInterval(refreshChannels, 20_000); // channel list isn't volatile
+    const pollId = setInterval(pollAll, 2500);
+    refreshChannels(); 
+    pollAll();
+
+    return () => { 
+      stopped = true; 
+      clearInterval(refreshId); 
+      clearInterval(pollId); 
+    };
+  }, [realtimeEnabled, boardOwnerId, me?.email]);
 
   // STEP 1: Bridge polling events into central pipeline (only when Realtime is disabled)
   useEffect(() => {
@@ -308,24 +335,32 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Chat control functions - memoized to prevent re-renders
   const open = useCallback(() => {
+    if (!chatReady) { 
+      setPendingOpen(true); 
+      return; 
+    }
     setIsOpen(true);
     // ensure we always have an active channel when opening
     if (!currentChannelId && defaultChannelId) {
       setCurrentChannelId(defaultChannelId);
     }
-  }, [currentChannelId, defaultChannelId]);
+  }, [chatReady, currentChannelId, defaultChannelId]);
 
   const close = useCallback(() => setIsOpen(false), []);
 
   const toggle = useCallback(() => {
     setIsOpen(prev => {
       const next = !prev;
+      if (next && !chatReady) {
+        setPendingOpen(true);
+        return prev; // Don't open if not ready
+      }
       if (next && !currentChannelId && defaultChannelId) {
         setCurrentChannelId(defaultChannelId);
       }
       return next;
     });
-  }, [currentChannelId, defaultChannelId]);
+  }, [chatReady, currentChannelId, defaultChannelId]);
 
   const openChannel = useCallback((channelId: string) => {
     setCurrentChannelId(channelId);
@@ -793,7 +828,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <ChatContext.Provider value={contextValue}>
       {children}
-      {shouldShowChat && portalRoot && createPortal(
+      {shouldShowChat && chatReady && portalRoot && createPortal(
         <>
           {!isOpen && (
             <ChatIcon 

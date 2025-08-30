@@ -31,7 +31,7 @@ export const ChatArea = () => {
   } = useChat();
   const { toast } = useToast();
   const location = useLocation();
-  const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
+  
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
@@ -46,71 +46,18 @@ export const ChatArea = () => {
   // Message cache for instant channel switching
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
 
-  // Get or create default channel with better error handling
-  useEffect(() => {
-    let active = true;
-
-    (async () => {
-      if (!boardOwnerId) return;
-
-      const isPublicBoard = location.pathname.startsWith('/board/');
-
-      try {
-        if (isPublicBoard) {
-          // ✅ RLS-safe path for public boards
-          const { data, error } = await supabase.rpc('get_default_channel_for_board', {
-            p_board_owner_id: boardOwnerId,
-          });
-
-          if (error) {
-            console.error('❌ get_default_channel_for_board:', error);
-            return;
-          }
-          if (data && data.length > 0) {
-            const ch = data[0];
-            if (active) setDefaultChannelId(ch.id as string);
-            return;
-          }
-          console.warn('⚠️ No default channel via RPC');
-          return;
-        }
-
-        // ✅ Dashboard / authenticated fallback
-        const { data: channelsWithParticipants, error } = await supabase
-          .from('chat_channels')
-          .select(`id, name, created_at, chat_participants(id)`)
-          .eq('owner_id', boardOwnerId)
-          .eq('is_default', true)
-          .eq('name', 'General')
-          .order('created_at', { ascending: true });
-
-        if (error) {
-          console.error('❌ Error loading default channels:', error);
-          return;
-        }
-
-        if (channelsWithParticipants?.length) {
-          const sorted = channelsWithParticipants.sort((a: any, b: any) => {
-            const ac = (a.chat_participants as any[])?.length || 0;
-            const bc = (b.chat_participants as any[])?.length || 0;
-            return ac !== bc
-              ? bc - ac
-              : new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-          });
-          if (active) setDefaultChannelId(sorted[0].id);
-        } else {
-          console.warn('⚠️ No default General channels found');
-        }
-      } catch (e) {
-        console.error('❌ Error setting up default channel:', e);
-      }
-    })();
-
-    return () => { active = false; };
-  }, [boardOwnerId, location.pathname]);
-
   // Active channel ID (context takes precedence)
-  const activeChannelId = currentChannelId || defaultChannelId;
+  const activeChannelId = currentChannelId;
+
+  // Timeout fallback - force channel selection after 3 seconds if none exists
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!activeChannelId && isInitialized) {
+        console.log('⏰ Timeout fallback: no channel selected after 3 seconds');
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [activeChannelId, isInitialized]);
 
   // Load channel info
   useEffect(() => {
@@ -198,7 +145,6 @@ export const ChatArea = () => {
 
       try {
         setLoading(true);
-        setMessages([]);
         
         // SURGICAL FIX 2: Pick correct RPC based on location and user type
         const onPublicBoard = location.pathname.startsWith('/board/');
