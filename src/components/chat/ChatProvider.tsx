@@ -228,48 +228,57 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [defaultChannelId, currentChannelId]);
 
-  // Background polling when realtime is OFF and chat is CLOSED (external board)
+  // FIX 2: Background polling for ALL user channels when realtime is OFF
   useEffect(() => {
     if (realtimeEnabled) return;                   // admin realtime covers internal board
     if (!boardOwnerId || !me) return;
-    const lastDispatchedAt = new Map<string, number>(); // channelId -> epoch ms
+    const lastDispatchedAt = new Map<string, number>(); // global timestamp for all channels
 
     const poll = async () => {
-      // poll the current channel if open, else the default one
-      const channelId = currentChannelId || defaultChannelId;
-      if (!channelId) return;
-
       const slug = window.location.pathname.split('/').pop();
       const access = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
 
-      const { data, error } = await supabase.rpc('list_channel_messages_public', {
+      // Use new multi-channel RPC to get messages from all user's channels
+      const { data, error } = await supabase.rpc('get_new_messages_multi_channel', {
         p_owner_id: boardOwnerId,
-        p_channel_id: channelId,
-        p_requester_type: 'sub_user',
-        p_requester_email: me.email || access.email,
+        p_user_email: me.email || access.email,
+        p_since_timestamp: lastDispatchedAt.get('global') ? new Date(lastDispatchedAt.get('global')!).toISOString() : null,
       });
-      if (error || !data) return;
 
-      // Only dispatch messages newer than what we've already sent for this channel
-      const last = lastDispatchedAt.get(channelId) || 0;
-      const fresh = data.filter(m => +new Date(m.created_at) > last);
-      if (fresh.length) {
-        lastDispatchedAt.set(
-          channelId,
-          Math.max(...fresh.map(m => +new Date(m.created_at)))
-        );
+      if (error || !data) {
+        console.log('⚠️ Multi-channel polling error or no data:', error);
+        return;
       }
-      for (const m of fresh) {
-        window.dispatchEvent(new CustomEvent('chat-message-received', {
-          detail: { message: { ...m, owner_id: boardOwnerId } } // normalize owner
-        }));
+
+      // Dispatch all new messages and track latest timestamp
+      if (data.length > 0) {
+        const latestTimestamp = Math.max(...data.map(m => +new Date(m.created_at)));
+        lastDispatchedAt.set('global', latestTimestamp);
+
+        for (const m of data) {
+          window.dispatchEvent(new CustomEvent('chat-message-received', {
+            detail: { 
+              message: { 
+                id: m.message_id,
+                channel_id: m.channel_id,
+                content: m.content,
+                created_at: m.created_at,
+                sender_type: m.sender_type,
+                sender_name: m.sender_name,
+                sender_avatar_url: m.sender_avatar_url,
+                owner_id: boardOwnerId 
+              } 
+            }
+          }));
+        }
+        console.log(`📨 Multi-channel poll dispatched ${data.length} messages`);
       }
     };
 
     const id = setInterval(poll, 2500);
     poll();
     return () => clearInterval(id);
-  }, [realtimeEnabled, boardOwnerId, me?.email, currentChannelId, defaultChannelId]);
+  }, [realtimeEnabled, boardOwnerId, me?.email]);
 
   // STEP 1: Bridge polling events into central pipeline (only when Realtime is disabled)
   useEffect(() => {
@@ -391,6 +400,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             // Set board owner IMMEDIATELY so the rest of chat can proceed
             if (active) setBoardOwnerId(pb.user_id);
             console.log('✅ Board owner resolved from slug:', pb.user_id);
+
+            // FIX 1: Immediately resolve and set default channel when board owner is known
+            const { data: defaultCh } = await supabase.rpc('get_default_channel_for_board', {
+              p_board_owner_id: pb.user_id,
+            });
+            if (defaultCh?.[0]?.id && active) {
+              setDefaultChannelId(defaultCh[0].id as string);
+              setCurrentChannelId(defaultCh[0].id as string); // ← immediately select it
+              console.log('✅ Set default channel immediately on board owner resolution:', defaultCh[0].id);
+            }
             
             // Now determine "who am I"
             // If there's a Supabase session with an email → look up in sub_users

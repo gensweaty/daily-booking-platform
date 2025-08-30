@@ -27,7 +27,8 @@ export const ChatArea = () => {
     currentChannelId, 
     boardOwnerId, 
     isInitialized,
-    realtimeEnabled
+    realtimeEnabled,
+    setCurrentChannelId
   } = useChat();
   const { toast } = useToast();
   const location = useLocation();
@@ -45,6 +46,17 @@ export const ChatArea = () => {
   
   // Message cache for instant channel switching
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
+
+  // FIX 4: Timeout fallback to force channel selection
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!currentChannelId && defaultChannelId && isInitialized) {
+        console.log('⏰ Timeout fallback: selecting default channel');
+        setCurrentChannelId(defaultChannelId);
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [currentChannelId, defaultChannelId, isInitialized, setCurrentChannelId]);
 
   // Get or create default channel with better error handling
   useEffect(() => {
