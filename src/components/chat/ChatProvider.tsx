@@ -116,9 +116,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
 
+  // Avoid re-processing the same message (prevents repeat sounds & badge churn)
+  const seenMessageIdsRef = React.useRef<Set<string>>(new Set());
+
   // Memoized real-time message handler to prevent re-renders
   const handleNewMessage = useCallback((message: any) => {
     console.log('📨 Enhanced realtime message received:', message);
+
+    // Hard dedupe by message id across polling + realtime
+    if (message?.id) {
+      if (seenMessageIdsRef.current.has(message.id)) {
+        return; // already processed this one
+      }
+      seenMessageIdsRef.current.add(message.id);
+      // optional tiny cap to avoid unbounded growth
+      if (seenMessageIdsRef.current.size > 3000) {
+        // drop oldest-ish by clearing (super rare) or rebuild smaller set if you prefer
+        seenMessageIdsRef.current.clear();
+        seenMessageIdsRef.current.add(message.id);
+      }
+    }
 
     // STEP 2: Don't drop public messages that lack owner_id
     if (boardOwnerId && message.owner_id && message.owner_id !== boardOwnerId) {
@@ -204,10 +221,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       });
   }, [isOnPublicBoard, boardOwnerId]);
 
+  // If we learn the default channel later, auto-select it when nothing is selected yet
+  useEffect(() => {
+    if (!currentChannelId && defaultChannelId) {
+      setCurrentChannelId(defaultChannelId);
+    }
+  }, [defaultChannelId, currentChannelId]);
+
   // Background polling when realtime is OFF and chat is CLOSED (external board)
   useEffect(() => {
     if (realtimeEnabled) return;                   // admin realtime covers internal board
     if (!boardOwnerId || !me) return;
+    const lastDispatchedAt = new Map<string, number>(); // channelId -> epoch ms
 
     const poll = async () => {
       // poll the current channel if open, else the default one
@@ -225,8 +250,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       });
       if (error || !data) return;
 
-      // Route through the same pipeline that drives badges + sounds
-      for (const m of data) {
+      // Only dispatch messages newer than what we've already sent for this channel
+      const last = lastDispatchedAt.get(channelId) || 0;
+      const fresh = data.filter(m => +new Date(m.created_at) > last);
+      if (fresh.length) {
+        lastDispatchedAt.set(
+          channelId,
+          Math.max(...fresh.map(m => +new Date(m.created_at)))
+        );
+      }
+      for (const m of fresh) {
         window.dispatchEvent(new CustomEvent('chat-message-received', {
           detail: { message: { ...m, owner_id: boardOwnerId } } // normalize owner
         }));
@@ -274,9 +307,25 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [shouldShowChat, requestPermission]);
 
   // Chat control functions - memoized to prevent re-renders
-  const open = useCallback(() => setIsOpen(true), []);
+  const open = useCallback(() => {
+    setIsOpen(true);
+    // ensure we always have an active channel when opening
+    if (!currentChannelId && defaultChannelId) {
+      setCurrentChannelId(defaultChannelId);
+    }
+  }, [currentChannelId, defaultChannelId]);
+
   const close = useCallback(() => setIsOpen(false), []);
-  const toggle = useCallback(() => setIsOpen(!isOpen), [isOpen]);
+
+  const toggle = useCallback(() => {
+    setIsOpen(prev => {
+      const next = !prev;
+      if (next && !currentChannelId && defaultChannelId) {
+        setCurrentChannelId(defaultChannelId);
+      }
+      return next;
+    });
+  }, [currentChannelId, defaultChannelId]);
 
   const openChannel = useCallback((channelId: string) => {
     setCurrentChannelId(channelId);

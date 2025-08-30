@@ -11,6 +11,7 @@ export interface NotificationData {
 
 export const useEnhancedNotifications = () => {
   const lastNotificationTime = useRef<number>(0);
+  const lastSoundTime = useRef<number>(0);
   const pendingNotifications = useRef<Map<string, NotificationData[]>>(new Map());
 
   const requestPermission = useCallback(async () => {
@@ -70,10 +71,14 @@ export const useEnhancedNotifications = () => {
   const showSingleNotification = useCallback(async (data: NotificationData) => {
     console.log('🔔 Showing enhanced notification:', data);
     
-    // STEP 3: Always play sound regardless of notification permission
+    // Play a short ping, but never more often than once per 1200ms
     try {
-      const { playNotificationSound } = await import('@/utils/audioManager');
-      playNotificationSound();
+      const now = Date.now();
+      if (now - lastSoundTime.current >= 1200) {
+        const { playNotificationSound } = await import('@/utils/audioManager');
+        await playNotificationSound(); // should be a single, non-looped audio
+        lastSoundTime.current = now;
+      }
     } catch (error) {
       console.warn('❌ Failed to play notification sound:', error);
     }
