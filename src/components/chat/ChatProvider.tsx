@@ -156,37 +156,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       // Increment unread count for channel with message timestamp
       incrementUnread(message.channel_id, message.created_at);
 
-      // FIXED: Only show notifications to the intended recipient
-      const shouldShowNotification = () => {
-        // Skip notifications if chat is open and viewing the same channel
+      // FIX: decide if we should alert the user (sound + optional notification)
+      const shouldAlert = () => {
         if (isOpen && currentChannelId === message.channel_id) {
           return false;
         }
-
-        // For DM channels (start with 'dm_'), check if I'm one of the participants
-        if (message.channel_id.startsWith('dm_')) {
-          const [, user1Id, user1Type, user2Id, user2Type] = message.channel_id.split('_');
-          const isParticipant = (me?.id === user1Id && me?.type === user1Type) || 
-                               (me?.id === user2Id && me?.type === user2Type);
-          
-          console.log('🔔 DM notification check:', {
-            channelId: message.channel_id,
-            myId: me?.id,
-            myType: me?.type,
-            isParticipant,
-            user1: `${user1Id}_${user1Type}`,
-            user2: `${user2Id}_${user2Type}`
-          });
-          
-          return isParticipant;
-        }
-
-        // For regular channels, show notification if I'm not the sender
-        return true;
+        return true; // alert for any channel that isn't the one currently open
       };
 
-      if (shouldShowNotification()) {
-        console.log('🔔 Showing notification for message:', message);
+      if (shouldAlert()) {
+        // Always play the sound, regardless of Notification permission/state
+        import('@/utils/audioManager')
+          .then(({ playNotificationSound }) => playNotificationSound())
+          .catch(() => {});
+        // Also attempt a system notification (optional but nice)
         showNotification({
           title: `${message.sender_name || 'Someone'} messaged`,
           body: message.content,
@@ -828,7 +811,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <ChatContext.Provider value={contextValue}>
       {children}
-      {shouldShowChat && chatReady && portalRoot && createPortal(
+      {shouldShowChat && portalRoot && createPortal(
         <>
           {!isOpen && (
             <ChatIcon 
