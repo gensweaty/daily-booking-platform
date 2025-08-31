@@ -83,8 +83,8 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       case 'minimized':
         return {
           ...baseStyle,
-          width: 'min(300px, calc(100vw - 16px))',
-          height: '50px'
+          width: 'min(350px, calc(100vw - 16px))',
+          height: '56px' // Increased to accommodate title bar properly
         };
       case 'maximized':
         return {
@@ -95,8 +95,8 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       default: // normal
         return {
           ...baseStyle,
-          width: '600px',
-          height: '700px'
+          width: 'min(600px, calc(100vw - 16px))',
+          height: 'min(700px, calc(100vh - 16px))'
         };
     }
   };
@@ -114,46 +114,54 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       style={getWindowStyle()}
     >
       {/* Title Bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/50 min-h-[48px]">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="h-6 w-6 p-0"
-            title="Toggle Sidebar"
-          >
-            <Menu className="h-3 w-3" />
-          </Button>
-          <span className="font-medium text-sm">Team Chat</span>
+      <div className={cn(
+        "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
+        "min-h-[52px] shrink-0", // Consistent height with better spacing
+        windowState === 'minimized' ? "h-[52px]" : "" // Fixed height when minimized
+      )}>
+        <div className="flex items-center gap-2 min-w-0">
+          {windowState !== 'minimized' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="h-6 w-6 p-0 shrink-0"
+              title="Toggle Sidebar"
+            >
+              <Menu className="h-3 w-3" />
+            </Button>
+          )}
+          <span className="font-medium text-sm truncate">Team Chat</span>
         </div>
         
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleMinimize}
-            className="h-6 w-6 p-0 hover:bg-muted"
-            title={windowState === 'minimized' ? 'Restore' : 'Minimize'}
-            disabled={window.innerWidth <= 768}
-          >
-            <Minus className="h-3 w-3" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleMaximize}
-            className="h-6 w-6 p-0 hover:bg-muted"
-            title={windowState === 'maximized' ? 'Restore Down' : 'Maximize'}
-            disabled={window.innerWidth <= 768}
-          >
-            {windowState === 'maximized' ? (
-              <Minimize2 className="h-3 w-3" />
-            ) : (
-              <Maximize2 className="h-3 w-3" />
-            )}
-          </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          {window.innerWidth > 768 && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleMinimize}
+                className="h-6 w-6 p-0 hover:bg-muted"
+                title={windowState === 'minimized' ? 'Restore' : 'Minimize'}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleMaximize}
+                className="h-6 w-6 p-0 hover:bg-muted"
+                title={windowState === 'maximized' ? 'Restore Down' : 'Maximize'}
+              >
+                {windowState === 'maximized' ? (
+                  <Minimize2 className="h-3 w-3" />
+                ) : (
+                  <Maximize2 className="h-3 w-3" />
+                )}
+              </Button>
+            </>
+          )}
           
           <Button
             variant="ghost"

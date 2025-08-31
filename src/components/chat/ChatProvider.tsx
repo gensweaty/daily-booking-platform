@@ -820,6 +820,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               onClick={toggle} 
               isOpen={isOpen} 
               unreadCount={unreadTotal}
+              isPending={!chatReady}
             />
           )}
           {isOpen && (
