@@ -140,7 +140,7 @@ export const ChatArea = () => {
           boardOwnerId: !!boardOwnerId,
           isInitialized
         });
-        if (active) setLoading(false);
+        // stay in "Loading..." until the prerequisites are met
         return;
       }
 
@@ -233,19 +233,19 @@ export const ChatArea = () => {
   // SURGICAL FIX 3: No more "empty on switch" - prefill from cache, don't clear to []
   useEffect(() => {
     if (!activeChannelId) {
-      // no channel selected yet – don't pretend it's empty
+      // no channel yet – remain in loader; don't render "empty"
       setMessages([]);
-      setLoading(false);
+      setLoading(true);
       return;
     }
     const cached = cacheRef.current.get(activeChannelId);
-    // show cached instantly, but still fetch
     if (cached?.length) {
       console.log('📋 Using cached messages for channel:', activeChannelId, 'count:', cached.length);
-      setMessages(cached);
+      setMessages(cached);       // instant paint
+      setLoading(false);
+    } else {
+      setLoading(true);          // wait for first fetch
     }
-    // whenever channel changes, we will fetch; show loader unless we had cache
-    setLoading(!cached?.length);
   }, [activeChannelId]);
 
   // Polling for non-authenticated users only (authenticated users use real-time)

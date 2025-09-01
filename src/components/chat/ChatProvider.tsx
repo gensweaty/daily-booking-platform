@@ -203,12 +203,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Track default channel for public boards (so we can poll something when closed)
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
   useEffect(() => {
-    if (!isOnPublicBoard || !boardOwnerId) return;
+    if (!boardOwnerId) return;
     supabase.rpc('get_default_channel_for_board', { p_board_owner_id: boardOwnerId })
       .then(({ data, error }) => {
         if (!error && data?.[0]?.id) setDefaultChannelId(data[0].id as string);
       });
-  }, [isOnPublicBoard, boardOwnerId]);
+  }, [boardOwnerId]);
 
   // If we learn the default channel later, auto-select it when nothing is selected yet
   useEffect(() => {
@@ -320,12 +320,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Chat control functions - memoized to prevent re-renders
   const open = useCallback(() => {
-    // If the icon is visible, let the window open right away.
     if (!shouldShowChat) return;
+    if (!chatReady) {            // queue opening and keep the icon spinning
+      setPendingOpen(true);
+      return;
+    }
     setIsOpen(true);
-    // If not ready yet, mark as pending so it auto-completes later.
-    if (!chatReady) setPendingOpen(true);
-    // Ensure there is always an active channel when the window appears.
     if (!currentChannelId && defaultChannelId) {
       setCurrentChannelId(defaultChannelId);
     }
@@ -335,15 +335,19 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const toggle = useCallback(() => {
     if (!shouldShowChat) return;
-    setIsOpen(prev => {
-      const next = !prev;
-      if (next && !chatReady) setPendingOpen(true);
-      if (next && !currentChannelId && defaultChannelId) {
+    if (!isOpen) {
+      if (!chatReady) {          // do not open yet; just queue
+        setPendingOpen(true);
+        return;
+      }
+      if (!currentChannelId && defaultChannelId) {
         setCurrentChannelId(defaultChannelId);
       }
-      return next;
-    });
-  }, [shouldShowChat, chatReady, currentChannelId, defaultChannelId]);
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
+  }, [shouldShowChat, isOpen, chatReady, currentChannelId, defaultChannelId]);
 
   const openChannel = useCallback((channelId: string) => {
     setCurrentChannelId(channelId);
