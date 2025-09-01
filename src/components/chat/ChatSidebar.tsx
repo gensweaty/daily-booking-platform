@@ -293,15 +293,23 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
 
         const isSub = me?.type === 'sub_user';
         const mySubId = me?.id;
+        const isPublicBoard = location.pathname.startsWith('/board/');
 
         const validDMs = channels.filter(ch => {
           const ps = ch.chat_participants ?? [];
-          if (!isSub) return true; // admins see all DMs
-
-          // For sub-users: only show DMs with exactly 2 participants (admin + this sub-user)
-          const hasAdmin = ps.some(p => p.user_type === 'admin' && p.user_id);
-          const hasMe = ps.some(p => p.sub_user_id === mySubId);
-          return ps.length === 2 && hasAdmin && hasMe;
+          
+          // For internal boards (dashboard), admins see all DMs without restriction
+          if (!isSub && !isPublicBoard) return true;
+          
+          // For external boards or sub-users: filter DMs properly
+          if (isSub) {
+            // Sub-users only see DMs with exactly 2 participants (admin + this sub-user)
+            const hasAdmin = ps.some(p => p.user_type === 'admin' && p.user_id);
+            const hasMe = ps.some(p => p.sub_user_id === mySubId);
+            return ps.length === 2 && hasAdmin && hasMe;
+          }
+          
+          return true; // Fallback
         });
 
         const dmList = await Promise.all(

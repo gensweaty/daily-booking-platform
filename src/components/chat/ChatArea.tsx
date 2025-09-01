@@ -361,10 +361,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             .update({ has_attachments: true, message_type: 'file' })
             .eq('id', real.id);
       } else {
-        // Use the same fallback email as text sending
+        // Use consistent email resolution for public boards
         const slug = location.pathname.split('/').pop()!;
         const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-        const senderEmail = me?.email || stored?.email;
+        const senderEmail = stored?.email || me?.email;
 
         await supabase.rpc('attach_files_to_message_public', {
           p_owner_id: boardOwnerId,
