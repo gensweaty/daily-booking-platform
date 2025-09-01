@@ -9,7 +9,7 @@ import { ChatWindow } from "./ChatWindow";
 import { resolveAvatarUrl } from "./_avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
-import { useServerUnread } from "@/hooks/useServerUnread";
+import { useUnreadManager } from "@/hooks/useUnreadManager";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
 
 type Me = { 
@@ -175,28 +175,85 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const onPublicLoginPage = isOnPublicBoard && location.pathname.includes('/login');
   const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id);
 
-  // State for realtime bumps
+  // State for realtime bumps and unread management
   const [rtBump, setRtBump] = useState<{ channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean } | undefined>(undefined);
-
-  // Server-based unread management
+  
+  // NEW: Enhanced unread management with hydration
   const {
-    channelUnreads,
     unreadTotal,
-    getPeerUnread,
-    clearChannel,
-    clearPeer,
-    refresh: refreshUnread
-  } = useServerUnread(
-    boardOwnerId,
-    me?.type ?? null,
-    me?.id ?? null,
-    rtBump
-  );
+    channelUnreads,
+    memberUnreads,
+    incrementUnread,
+    clearChannelUnread,
+    clearUserUnread,
+    getUserUnreadCount,
+    clearAllUnread,
+    hydrate,
+    markSeen,
+  } = useUnreadManager(currentChannelId, isOpen, channelMemberMap);
 
-  // Wrapper for getUserUnreadCount to match old interface
-  const getUserUnreadCount = useCallback((userId: string, userType: 'admin' | 'sub_user') => {
-    return getPeerUnread(userId, userType);
-  }, [getPeerUnread]);
+  // Helper: fetch & cache the peer for a DM channel if missing
+  const ensureDmPeerForChannel = useCallback(async (channelId: string) => {
+    if (channelMemberMap.has(channelId)) return;
+
+    // Works for admin (has full access). For sub_user, you can keep your RPC if needed.
+    const { data, error } = await supabase
+      .from('chat_channels')
+      .select('id, is_dm, chat_participants(user_id, sub_user_id, user_type)')
+      .eq('id', channelId)
+      .maybeSingle();
+
+    if (!error && data?.is_dm && Array.isArray(data.chat_participants) && data.chat_participants.length === 2 && me) {
+      const myId = me.id;
+      const myType = me.type;
+      const other = data.chat_participants.find((p: any) => {
+        if (myType === 'admin') return !(p.user_type === 'admin' && p.user_id === myId);
+        return !(p.user_type === 'sub_user' && p.sub_user_id === myId);
+      });
+
+      if (other) {
+        const memberId = other.user_id || other.sub_user_id;
+        const memberType = other.user_type as 'admin' | 'sub_user';
+        setChannelMemberMap(prev => {
+          const next = new Map(prev);
+          next.set(channelId, { id: memberId, type: memberType });
+          return next;
+        });
+      }
+    }
+  }, [channelMemberMap, me, supabase]);
+
+  // Handle realtime bumps for incrementing unread counts
+  useEffect(() => {
+    if (!rtBump || rtBump.isSelf) return;
+    
+    if (rtBump.channelId && rtBump.createdAt) {
+      incrementUnread(rtBump.channelId, rtBump.createdAt);
+      ensureDmPeerForChannel(rtBump.channelId);
+    }
+  }, [rtBump, incrementUnread, ensureDmPeerForChannel]);
+
+  // NEW: Hydrate unread counts once identity is known
+  useEffect(() => {
+    if (!boardOwnerId || !me?.id) return;
+
+    const load = async () => {
+      const { data, error } = await supabase.rpc('unread_counters', {
+        p_owner_id: boardOwnerId,
+        p_viewer_type: me.type,
+        p_viewer_id: me.id,
+      });
+      if (!error && Array.isArray(data)) {
+        hydrate(data as any[]);
+      }
+    };
+
+    load();
+
+    const onFocus = () => load();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [boardOwnerId, me?.id, me?.type, hydrate]);
 
   // NEW: identity key + hard reset when it changes
   const identityKey = useMemo(() => {
@@ -221,7 +278,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (prev !== identityKey) {
       // Hard reset everything that could leak between users
       setCurrentChannelId(null);
-      refreshUnread();
+      clearAllUnread();
       setIsOpen(false);
 
       // tell ChatArea to drop its caches & timers
@@ -229,7 +286,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       prevIdentityKeyRef.current = identityKey;
     }
-  }, [identityKey, refreshUnread]);
+  }, [identityKey, clearAllUnread]);
 
   // When NO identity on public board -> clean out
   useEffect(() => {
@@ -238,10 +295,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       setBoardOwnerId(null);
       setCurrentChannelId(null);
       setIsOpen(false);
-      refreshUnread();
+      clearAllUnread();
       window.dispatchEvent(new CustomEvent('chat-reset'));
     }
-  }, [isOnPublicBoard, publicBoardUser?.id, hasPublicAccess, refreshUnread]);
+  }, [isOnPublicBoard, publicBoardUser?.id, hasPublicAccess, clearAllUnread]);
 
   // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
@@ -445,9 +502,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const openChannel = useCallback(async (channelId: string) => {
     setCurrentChannelId(channelId);
+    markSeen(channelId);            // immediately set last seen & clear bubble
     setIsOpen(true);
     
-    // Mark channel as read on server and clear local unread
+    // Mark channel as read on server
     if (boardOwnerId && me?.type && me?.id) {
       try {
         await supabase.rpc('mark_channel_read', {
@@ -456,13 +514,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           p_viewer_id: me.id,
           p_channel_id: channelId,
         });
-        clearChannel(channelId);
-        refreshUnread();
       } catch (error) {
         console.error('❌ Error marking channel as read:', error);
       }
     }
-  }, [boardOwnerId, me, clearChannel, refreshUnread]);
+  }, [boardOwnerId, me, markSeen]);
 
   // Initialize user identity and board owner - DETERMINISTIC for sub-users
   useEffect(() => {
@@ -690,9 +746,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('✅ Canonical DM channel created/found:', channelId);
       setCurrentChannelId(channelId as string);
+      markSeen(channelId as string);
+      ensureDmPeerForChannel(channelId as string);
       setIsOpen(true);
 
-      // Mark DM channel as read on server and clear local unread
+      // Mark DM channel as read on server
       if (channelId) {
         try {
           await supabase.rpc('mark_channel_read', {
@@ -701,9 +759,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             p_viewer_id: me.id,
             p_channel_id: channelId as string,
           });
-          clearChannel(channelId as string);
-          clearPeer(otherId, otherType);
-          refreshUnread();
         } catch (error) {
           console.error('❌ Error marking DM as read:', error);
         }
@@ -717,7 +772,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         variant: 'destructive',
       });
     }
-  }, [boardOwnerId, me, toast, clearChannel, clearPeer, refreshUnread]);
+  }, [boardOwnerId, me, toast, markSeen, ensureDmPeerForChannel]);
 
   // Context value - memoized to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
