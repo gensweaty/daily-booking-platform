@@ -235,6 +235,28 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
 
+  // 🧩 Bridge POLLING -> the same unread pipeline as realtime
+  useEffect(() => {
+    const onPolledMessage = (evt: any) => {
+      const message = evt?.detail?.message;
+      if (!message || !message.channel_id) return;
+
+      // Same guards as handleNewMessage
+      if (boardOwnerId && message.owner_id && message.owner_id !== boardOwnerId) return;
+
+      const isMyMessage = me?.type === 'admin'
+        ? message.sender_user_id === me?.id
+        : message.sender_sub_user_id === me?.id;
+
+      if (!isMyMessage) {
+        incrementUnread(message.channel_id, message.created_at);
+      }
+    };
+
+    window.addEventListener('chat-message-received', onPolledMessage as EventListener);
+    return () => window.removeEventListener('chat-message-received', onPolledMessage as EventListener);
+  }, [boardOwnerId, me?.id, me?.type, incrementUnread]);
+
   // Avoid re-processing the same message (prevents repeat sounds & badge churn)
   const seenMessageIdsRef = React.useRef<Set<string>>(new Set());
 
