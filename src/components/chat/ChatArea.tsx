@@ -140,14 +140,11 @@ export const ChatArea = () => {
           boardOwnerId: !!boardOwnerId,
           isInitialized
         });
+        if (active) setLoading(false);
         return;
       }
 
-      // Don't show loading if we have cached messages - makes switching instant
-      const hasCachedMessages = cacheRef.current.get(activeChannelId)?.length > 0;
-      if (!hasCachedMessages) {
-        setLoading(true);
-      }
+      // loader is set in the channel-change effect; no need to flip here
 
       try {
         
@@ -235,13 +232,20 @@ export const ChatArea = () => {
 
   // SURGICAL FIX 3: No more "empty on switch" - prefill from cache, don't clear to []
   useEffect(() => {
-    if (!activeChannelId) return;
+    if (!activeChannelId) {
+      // no channel selected yet – don't pretend it's empty
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
     const cached = cacheRef.current.get(activeChannelId);
+    // show cached instantly, but still fetch
     if (cached?.length) {
       console.log('📋 Using cached messages for channel:', activeChannelId, 'count:', cached.length);
       setMessages(cached);
     }
-    // Don't clear; the loader will reconcile afterwards
+    // whenever channel changes, we will fetch; show loader unless we had cache
+    setLoading(!cached?.length);
   }, [activeChannelId]);
 
   // Polling for non-authenticated users only (authenticated users use real-time)
@@ -449,24 +453,10 @@ export const ChatArea = () => {
     }
   };
 
-  // Enhanced loading state with timeout fallback
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-  
-  useEffect(() => {
-    if (loading || !isInitialized) {
-      const timeoutId = setTimeout(() => {
-        console.log('⚠️ ChatArea: Loading timeout reached, forcing display');
-        setLoadingTimeout(true);
-      }, 6000);
-      
-      return () => clearTimeout(timeoutId);
-    } else {
-      setLoadingTimeout(false);
-    }
-  }, [loading, isInitialized]);
+  // No artificial timeout – render loader until we actually finish a fetch.
 
   // Show loading state while authentication and data are resolving
-  if (!loadingTimeout && (loading || !isInitialized)) {
+  if (loading || !isInitialized) {
     return (
       <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
         <div className="flex items-center gap-2 p-4 border-b bg-muted/30">

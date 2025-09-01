@@ -320,14 +320,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Chat control functions - memoized to prevent re-renders
   const open = useCallback(() => {
+    // If the icon is visible, let the window open right away.
     if (!shouldShowChat) return;
-    
-    if (!chatReady) { 
-      setPendingOpen(true); 
-      return; 
-    }
     setIsOpen(true);
-    // ensure we always have an active channel when opening
+    // If not ready yet, mark as pending so it auto-completes later.
+    if (!chatReady) setPendingOpen(true);
+    // Ensure there is always an active channel when the window appears.
     if (!currentChannelId && defaultChannelId) {
       setCurrentChannelId(defaultChannelId);
     }
@@ -337,13 +335,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const toggle = useCallback(() => {
     if (!shouldShowChat) return;
-    
     setIsOpen(prev => {
       const next = !prev;
-      if (next && !chatReady) {
-        setPendingOpen(true);
-        return prev; // Don't open if not ready
-      }
+      if (next && !chatReady) setPendingOpen(true);
       if (next && !currentChannelId && defaultChannelId) {
         setCurrentChannelId(defaultChannelId);
       }
@@ -824,7 +818,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               onClick={toggle} 
               isOpen={isOpen} 
               unreadCount={unreadTotal}
-              isPending={pendingOpen || !isInitialized}
+              // show spinner only before the window opens
+              isPending={(pendingOpen || !isInitialized) && !isOpen}
             />
           )}
           {isOpen && (
