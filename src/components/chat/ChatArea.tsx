@@ -251,7 +251,7 @@ export const ChatArea = () => {
   // Polling for non-authenticated users only (authenticated users use real-time)
   useEffect(() => {
     if (!activeChannelId || !boardOwnerId || !me) return;
-
+    const guardKey = `${boardOwnerId}:${me.email || me.id}`;
     let mounted = true;
     
     // Check authentication status
@@ -268,6 +268,12 @@ export const ChatArea = () => {
       console.log('📊 Starting polling for public board access');
       
       const poll = async () => {
+        if (!mounted) return;
+        
+        // before applying results, check if identity changed
+        const currentGuard = `${boardOwnerId}:${me.email || me.id}`;
+        if (currentGuard !== guardKey) return; // identity changed -> ignore batch
+        
         const slug = location.pathname.split('/').pop();
         const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
         
@@ -318,7 +324,7 @@ export const ChatArea = () => {
     return () => { 
       mounted = false; 
     };
-  }, [activeChannelId, boardOwnerId, me?.email, location.pathname]);
+  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled]);
 
   // Listen for real-time messages with cache updates and strict deduplication
   useEffect(() => {
@@ -359,6 +365,17 @@ export const ChatArea = () => {
     };
   }, [activeChannelId]);
 
+  // Drop all cached messages when identity changes (broadcast by provider)
+  useEffect(() => {
+    const onReset = () => {
+      cacheRef.current.clear();
+      setMessages([]);
+      setLoading(false);
+    };
+    window.addEventListener('chat-reset', onReset as EventListener);
+    return () => window.removeEventListener('chat-reset', onReset as EventListener);
+  }, []);
+
   // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -368,6 +385,10 @@ export const ChatArea = () => {
     if (!draft.trim() || !activeChannelId || !boardOwnerId || !me) {
       return;
     }
+
+    // Identity guard - bail if stale closure
+    const keyNow = `${boardOwnerId}:${me.email || me.id}`;
+    if (!keyNow) return; // additional safety check
     
     setSending(true);
     

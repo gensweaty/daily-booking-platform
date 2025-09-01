@@ -108,24 +108,33 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  const { hasAccess: hasPublicAccess } = useMemo(
-    () => getPublicAccess(location.pathname),
-    [location.pathname]
-  );
+  // NEW: reactive public access detection
+  const [hasPublicAccess, setHasPublicAccess] = useState(false);
 
-  // Determine if chat should be shown - check both auth and localStorage
-  const shouldShowChat = useMemo(() => {
-    return isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id;
-  }, [isOnPublicBoard, publicBoardUser?.id, hasPublicAccess, user?.id]);
+  useEffect(() => {
+    const read = () => setHasPublicAccess(getPublicAccess(location.pathname).hasAccess);
+    read(); // initial
 
-  console.log('🔍 ChatProvider render:', {
-    hasSubUsers,
-    isInitialized,
-    hasUser: !!user,
-    shouldShowChat,
-    me,
-    boardOwnerId
-  });
+    // same-tab writes won't fire `storage`; add a brief poll window
+    let alive = true;
+    let tries = 0;
+    const tick = () => {
+      if (!alive) return;
+      read();
+      if (++tries < 10 && !hasPublicAccess) setTimeout(tick, 120); // ~1.2s window
+    };
+    tick();
+
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key) return;
+      if (e.key.includes('public-board-access-')) read();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => { alive = false; window.removeEventListener('storage', onStorage); };
+  }, [location.pathname, publicBoardUser?.id]); // also rerun when auth state flips
+
+  // shouldShowChat now uses state (no useMemo)
+  const shouldShowChat = isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id;
 
   // Enhanced unread management - memoized dependencies
   const {
@@ -135,6 +144,51 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     clearChannelUnread,
     clearAllUnread,
   } = useUnreadManager(currentChannelId, isOpen);
+
+  // NEW: identity key + hard reset when it changes
+  const identityKey = useMemo(() => {
+    if (isOnPublicBoard && boardOwnerId) return `pb:${boardOwnerId}:${me?.email || 'noemail'}`;
+    if (!isOnPublicBoard && user?.id) return `admin:${user.id}`;
+    return 'none';
+  }, [isOnPublicBoard, boardOwnerId, me?.email, user?.id]);
+
+  console.log('🔍 ChatProvider render:', {
+    hasSubUsers,
+    isInitialized,
+    hasUser: !!user,
+    shouldShowChat,
+    me,
+    boardOwnerId,
+    identityKey
+  });
+
+  const prevIdentityKeyRef = React.useRef<string>('init');
+  useEffect(() => {
+    const prev = prevIdentityKeyRef.current;
+    if (prev !== identityKey) {
+      // Hard reset everything that could leak between users
+      setCurrentChannelId(null);
+      clearAllUnread();
+      setIsOpen(false);
+
+      // tell ChatArea to drop its caches & timers
+      window.dispatchEvent(new CustomEvent('chat-reset'));
+
+      prevIdentityKeyRef.current = identityKey;
+    }
+  }, [identityKey, clearAllUnread]);
+
+  // When NO identity on public board -> clean out
+  useEffect(() => {
+    if (isOnPublicBoard && !publicBoardUser?.id && !hasPublicAccess) {
+      setMe(null);
+      setBoardOwnerId(null);
+      setCurrentChannelId(null);
+      setIsOpen(false);
+      clearAllUnread();
+      window.dispatchEvent(new CustomEvent('chat-reset'));
+    }
+  }, [isOnPublicBoard, publicBoardUser?.id, hasPublicAccess, clearAllUnread]);
 
   // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
