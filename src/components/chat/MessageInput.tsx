@@ -1,16 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Smile, X, FileText, Image as ImageIcon } from 'lucide-react';
-
-// helper for size
-const fmt = (n: number) => (n >= 1024*1024 ? `${(n/1024/1024).toFixed(1)} MB` : `${(n/1024).toFixed(0)} KB`);
-
-const OFFICE_EXT = /\.(docx?|xlsx?|csv|pptx?)$/i;
-const GOOGLE_SHORTCUT_EXT = /\.(gdoc|gsheet|gslides)$/i; // local shortcuts still uploadable
-const isOfficeMime = (t: string) =>
-  t.startsWith('application/vnd.openxmlformats-officedocument') ||
-  t.startsWith('application/vnd.ms-') ||
-  t.startsWith('application/vnd.ms') ||
-  t.startsWith('application/vnd.google-apps');
+import { Send, Paperclip, Smile, X, FileText, Image as ImageIcon, FileSpreadsheet, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -27,6 +16,30 @@ interface MessageInputProps {
   replyingTo?: ChatMessage | null;
   onCancelReply?: () => void;
 }
+
+const ALLOWED_MIME: Record<string, string[]> = {
+  image: ['image/png','image/jpeg','image/jpg','image/webp','image/gif','image/bmp','image/svg+xml'],
+  pdf: ['application/pdf'],
+  word: ['application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/rtf'],
+  excel: ['application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','text/csv'],
+  ppt: ['application/vnd.ms-powerpoint','application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+};
+
+const isAllowed = (file: File) => {
+  const t = (file.type || '').toLowerCase();
+  if (Object.values(ALLOWED_MIME).some(list => list.includes(t))) return true;
+  // fallback by extension (covers some browsers that give generic types)
+  const n = file.name.toLowerCase();
+  return /\.(png|jpe?g|gif|webp|bmp|svg|pdf|docx?|rtf|xlsx?|csv|pptx?)$/.test(n);
+};
+
+const iconForName = (name: string, type: string) => {
+  const n = name.toLowerCase();
+  if (type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(n)) return <ImageIcon className="h-4 w-4 text-muted-foreground" />;
+  if (n.endsWith('.xlsx') || n.endsWith('.xls') || n.endsWith('.csv')) return <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />;
+  if (n.endsWith('.ppt') || n.endsWith('.pptx')) return <Presentation className="h-4 w-4 text-muted-foreground" />;
+  return <FileText className="h-4 w-4 text-muted-foreground" />;
+};
 
 export const MessageInput = ({ 
   onSendMessage, 
@@ -45,67 +58,49 @@ export const MessageInput = ({
   
   const defaultPlaceholder = placeholder || t('chat.typeMessage');
 
+  const uploadAndSend = async () => {
+    setIsUploading(true);
+    try {
+      let uploadedFiles: any[] = [];
+      if (attachments.length > 0) {
+        for (const file of attachments) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+          const filePath = `${fileName}`;
+
+          const { error: uploadError } = await supabase.storage.from('chat_attachments').upload(filePath, file);
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            toast({ title: "Upload failed", description: `Could not upload ${file.name}`, variant: "destructive" });
+            continue;
+          }
+
+          const { data: pub } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
+          uploadedFiles.push({
+            filename: file.name,
+            file_path: filePath,
+            content_type: file.type || undefined,
+            size: file.size,
+            public_url: pub.publicUrl,
+            object_url: URL.createObjectURL(file),
+          });
+        }
+      }
+      onSendMessage(message.trim(), uploadedFiles);
+      setMessage('');
+      setAttachments([]);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (message.trim() || attachments.length > 0) {
-      setIsUploading(true);
-      try {
-        let uploadedFiles = [];
-        
-        if (attachments.length > 0) {
-          for (const file of attachments) {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-            const filePath = `${fileName}`;
-
-            const { error: uploadError } = await supabase.storage
-              .from('chat_attachments')
-              .upload(filePath, file);
-
-            if (uploadError) {
-              console.error('Upload error:', uploadError);
-              toast({
-                title: "Upload failed",
-                description: `Could not upload ${file.name}`,
-                variant: "destructive",
-              });
-              continue;
-            }
-
-            const { data: pub } = supabase.storage
-              .from('chat_attachments')
-              .getPublicUrl(filePath);
-
-            uploadedFiles.push({
-              filename: file.name,
-              file_path: filePath,
-              content_type: file.type,
-              size: file.size,
-              public_url: pub.publicUrl,         // ⭐ used by optimistic UI
-              object_url: URL.createObjectURL(file), // ⭐ ultra-fast preview
-            });
-          }
-        }
-        
-        onSendMessage(message.trim(), uploadedFiles);
-        setMessage('');
-        setAttachments([]);
-        
-        // Reset textarea height
-        if (textareaRef.current) {
-          textareaRef.current.style.height = 'auto';
-        }
-      } catch (error) {
-        console.error('Error sending message:', error);
-        toast({
-          title: "Send failed",
-          description: "Failed to send message with attachments",
-          variant: "destructive",
-        });
-      } finally {
-        setIsUploading(false);
-      }
+      await uploadAndSend();
     }
   };
 
@@ -116,40 +111,28 @@ export const MessageInput = ({
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    const valid = files.filter(file => {
-      const t = file.type || '';
-      const name = file.name;
-
-      const isImage = t.startsWith('image/');
-      const isPdf = t === 'application/pdf' || /\.pdf$/i.test(name);
-      const isOffice = isOfficeMime(t) || OFFICE_EXT.test(name);
-      const isGoogleShortcut = GOOGLE_SHORTCUT_EXT.test(name);
-      const okType = isImage || isPdf || isOffice || isGoogleShortcut || t === '' /* some browsers omit type */;
-
+  const validateAndCollect = (files: File[]) => {
+    const valid: File[] = [];
+    for (const file of files) {
+      const okType = isAllowed(file);
       const okSize = file.size <= 50 * 1024 * 1024;
-
       if (!okType) {
-        toast({
-          title: "Unsupported file",
-          description: `${name} is not a supported type`,
-          variant: "destructive",
-        });
-        return false;
+        toast({ title: "Invalid file type", description: `${file.name} is not a supported file type`, variant: "destructive" });
+        continue;
       }
       if (!okSize) {
-        toast({
-          title: "File too large",
-          description: `${name} exceeds the 50MB limit`,
-          variant: "destructive",
-        });
-        return false;
+        toast({ title: "File too large", description: `${file.name} exceeds 50MB limit`, variant: "destructive" });
+        continue;
       }
-      return true;
-    });
+      valid.push(file);
+    }
+    return valid;
+  };
 
-    setAttachments(prev => [...prev, ...valid]);
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = validateAndCollect(files);
+    if (validFiles.length) setAttachments(prev => [...prev, ...validFiles]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -164,10 +147,7 @@ export const MessageInput = ({
       const end = textarea.selectionEnd;
       const currentMessage = message;
       const newMessage = currentMessage.substring(0, start) + emoji.native + currentMessage.substring(end);
-      
       setMessage(newMessage);
-      
-      // Set cursor position after emoji
       setTimeout(() => {
         textarea.focus();
         textarea.setSelectionRange(start + emoji.native.length, start + emoji.native.length);
@@ -178,15 +158,24 @@ export const MessageInput = ({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files || []);
-    e.dataTransfer.clearData();
-
-    const fakeEvt = { target: { files } } as unknown as React.ChangeEvent<HTMLInputElement>;
-    handleFileSelect(fakeEvt);
+    const files = Array.from(e.dataTransfer.files);
+    const validFiles = validateAndCollect(files);
+    if (validFiles.length) setAttachments(prev => [...prev, ...validFiles]);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+
+  // NEW: paste from clipboard (screenshots etc.)
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items || []);
+    const imageItems = items.filter(it => it.type.startsWith('image/'));
+    if (!imageItems.length) return;
+    const files = imageItems.map(it => it.getAsFile()).filter(Boolean) as File[];
+    const validFiles = validateAndCollect(files);
+    if (validFiles.length) {
+      setAttachments(prev => [...prev, ...validFiles]);
+    }
+    // do not preventDefault so text still pastes if there was any
   };
 
   // Auto-resize textarea
@@ -197,12 +186,7 @@ export const MessageInput = ({
     }
   }, [message]);
 
-  // Auto focus
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-    }
-  }, []);
+  useEffect(() => { textareaRef.current?.focus(); }, []);
 
   return (
     <div className="p-4">
@@ -215,12 +199,7 @@ export const MessageInput = ({
             </p>
             <p className="text-sm truncate">{replyingTo.content}</p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onCancelReply}
-            className="h-6 w-6 p-0 ml-2"
-          >
+          <Button variant="ghost" size="sm" onClick={onCancelReply} className="h-6 w-6 p-0 ml-2">
             <X className="h-3 w-3" />
           </Button>
         </div>
@@ -229,106 +208,51 @@ export const MessageInput = ({
       {/* File attachments preview */}
       {attachments.length > 0 && (
         <div className="mb-3 p-3 bg-muted/30 rounded-lg">
-          <div className="text-sm text-muted-foreground mb-2">
-            Attachments ({attachments.length})
-          </div>
-
+          <div className="text-sm text-muted-foreground mb-2">Attachments ({attachments.length})</div>
           <div className="flex flex-wrap gap-2">
-            {attachments.map((file, index) => {
-              const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(file.name);
-              return (
-                <div
-                  key={index}
-                  className={
-                    isImage
-                      ? "relative overflow-hidden rounded-md border bg-background"
-                      : "flex items-center gap-2 bg-background rounded px-2 py-1 text-sm border"
-                  }
+            {attachments.map((file, index) => (
+              <div key={index} className="flex items-center gap-2 bg-background rounded px-2 py-1 text-sm border max-w-[280px]">
+                {iconForName(file.name, file.type)}
+                <span className="truncate">{file.name}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeAttachment(index)}
+                  className="h-4 w-4 p-0 hover:text-destructive ml-auto"
                 >
-                  {isImage ? (
-                    <>
-                      <img
-                        src={URL.createObjectURL(file)}
-                        onLoad={e => URL.revokeObjectURL((e.target as HTMLImageElement).src)}
-                        alt={file.name}
-                        className="h-16 w-24 object-cover"
-                      />
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white px-2 py-1 text-xs truncate">
-                        {file.name} • {fmt(file.size)}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeAttachment(index)}
-                        className="absolute top-1 right-1 h-6 w-6 p-0 bg-black/40 text-white hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      {/* type-based chip */}
-                      <span className="inline-flex items-center justify-center h-5 w-5 rounded bg-muted text-muted-foreground">
-                        {OFFICE_EXT.test(file.name) || isOfficeMime(file.type) ? (
-                          <FileText className="h-3.5 w-3.5" />
-                        ) : (
-                          <FileText className="h-3.5 w-3.5" />
-                        )}
-                      </span>
-                      <span className="truncate max-w-40">{file.name}</span>
-                      <span className="text-xs text-muted-foreground">{fmt(file.size)}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeAttachment(index)}
-                        className="h-4 w-4 p-0 hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              );
-            })}
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="flex items-end gap-2">
-        <div 
-          className="flex-1 relative"
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-        >
+        <div className="flex-1 relative" onDrop={handleDrop} onDragOver={handleDragOver}>
           <Textarea
             ref={textareaRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={defaultPlaceholder}
             className="min-h-[60px] max-h-32 resize-none pr-20 py-3"
             rows={1}
             disabled={isUploading}
           />
-          
+
           {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
             multiple
-            accept="
-    image/*,
-    .pdf,
-    .doc,.docx,.gdoc,
-    .xls,.xlsx,.csv,.gsheet,
-    .ppt,.pptx,.gslides
-  "
+            accept="image/*,.pdf,.doc,.docx,.rtf,.xls,.xlsx,.csv,.ppt,.pptx"
             onChange={handleFileSelect}
             className="hidden"
           />
-          
+
           {/* Input Actions */}
           <div className="absolute right-2 bottom-3 flex items-center gap-1">
             <Button
@@ -338,10 +262,11 @@ export const MessageInput = ({
               onClick={() => fileInputRef.current?.click()}
               className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
               disabled={isUploading}
+              aria-label="Attach files"
             >
               <Paperclip className="h-4 w-4" />
             </Button>
-            
+
             <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
               <PopoverTrigger asChild>
                 <Button
@@ -356,31 +281,14 @@ export const MessageInput = ({
                   <Smile className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              
-              <PopoverContent
-                className="w-auto p-0 bg-background border-input z-[10000]"
-                align="end"
-                side="top"
-                sideOffset={8}
-              >
-                <Picker
-                  data={data}
-                  onEmojiSelect={handleEmojiSelect}
-                  theme="auto"
-                  previewPosition="none"
-                  skinTonePosition="none"
-                />
+              <PopoverContent className="w-auto p-0 bg-background border-input z-[10000]" align="end" side="top" sideOffset={8}>
+                <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" previewPosition="none" skinTonePosition="none" />
               </PopoverContent>
             </Popover>
           </div>
         </div>
-        
-        <Button
-          type="submit"
-          size="sm"
-          disabled={(!message.trim() && attachments.length === 0) || isUploading}
-          className="h-12 w-12 p-0"
-        >
+
+        <Button type="submit" size="sm" disabled={(!message.trim() && attachments.length === 0) || isUploading} className="h-12 w-12 p-0">
           <Send className="h-4 w-4" />
         </Button>
       </form>
