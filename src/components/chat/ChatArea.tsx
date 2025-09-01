@@ -510,23 +510,41 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               p_files: attachments,
             });
           }
+
+          // after files are linked and you have `msg?.id`
+          // fetch attachments for the just-created message and broadcast
+          const { data: atts } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .eq('message_id', msg.id);
+
+          const hydrated = {
+            id: msg.id,
+            content: content.trim(),
+            created_at: new Date().toISOString(),
+            sender_type: me.type as 'admin' | 'sub_user',
+            sender_name: me.name || me.email || 'Me',
+            sender_avatar_url: me.avatarUrl || undefined,
+            channel_id: activeChannelId,
+            has_attachments: !!atts?.length,
+            message_type: atts?.length ? 'file' : 'text',
+            attachments: (atts || []).map(a => ({
+              id: a.id,
+              filename: a.filename,
+              file_path: a.file_path,
+              content_type: a.content_type,
+              size: a.size,
+            })),
+          };
+
+          // 1) drop the temp
+          setMessages(prev => prev.filter(m => !m.id.startsWith('temp_')));
+          // 2) insert the real one immediately (no waiting for poll)
+          setMessages(prev => [...prev, hydrated]);
+          // 3) broadcast so other tabs/clients also paint instantly
+          window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: hydrated } }));
         }
       }
-
-      // Replace optimistic with real (we rely on realtime/poll; as a fallback, fetch once)
-      setTimeout(async () => {
-        const { data } = await supabase.rpc('get_chat_messages_for_channel', {
-          p_board_owner_id: boardOwnerId,
-          p_channel_id: activeChannelId,
-        });
-        if (!data) return;
-        setMessages(prev => {
-          const withoutTemp = prev.filter(m => m.id !== tempId);
-          // normalize + hydrate attachments for newest message
-          // (already handled by the polling/realtime listener too)
-          return withoutTemp;
-        });
-      }, 400);
     } catch (e: any) {
       // rollback optimistic if failed
       setMessages(prev => prev.filter(m => m.id !== tempId));

@@ -268,7 +268,7 @@ export const MessageInput = ({
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,.pdf,.doc,.docx"
+            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx"
             onChange={handleFileSelect}
             className="hidden"
           />
