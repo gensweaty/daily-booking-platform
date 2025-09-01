@@ -1748,6 +1748,15 @@ export type Database = {
           participant_count: number
         }[]
       }
+      get_dm_channels_for_sub_user: {
+        Args: { p_email: string; p_owner_id: string }
+        Returns: {
+          channel_id: string
+          other_sub_user_id: string
+          other_type: string
+          other_user_id: string
+        }[]
+      }
       get_new_messages_multi_channel: {
         Args: {
           p_owner_id: string

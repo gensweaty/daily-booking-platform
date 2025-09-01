@@ -472,52 +472,78 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     
     (async () => {
       try {
-        const { data: dmChannels } = await supabase
-          .from('chat_channels')
-          .select(`
-            id,
-            is_dm,
-            chat_participants(user_id, sub_user_id, user_type)
-          `)
-          .eq('owner_id', boardOwnerId)
-          .eq('is_dm', true);
+        const newChannelMemberMap = new Map();
 
-        if (dmChannels) {
-          const newChannelMemberMap = new Map();
-          
-          dmChannels.forEach((channel: any) => {
-            const participants = channel.chat_participants || [];
-            
-            // For DMs, find the OTHER participant (not me)
-            if (participants.length === 2) {
-              const myId = me.id;
-              const myType = me.type;
+        // Admin path (unchanged)
+        if (me.type === 'admin') {
+          const { data: dmChannels } = await supabase
+            .from('chat_channels')
+            .select(`
+              id,
+              is_dm,
+              chat_participants(user_id, sub_user_id, user_type)
+            `)
+            .eq('owner_id', boardOwnerId)
+            .eq('is_dm', true);
+
+          if (dmChannels) {
+            dmChannels.forEach((channel: any) => {
+              const participants = channel.chat_participants || [];
               
-              const otherParticipant = participants.find((p: any) => {
-                // Skip if this is me
-                if (myType === 'admin' && p.user_type === 'admin' && p.user_id === myId) return false;
-                if (myType === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === myId) return false;
-                return true;
-              });
-
-              if (otherParticipant) {
-                const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
-                const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
+              // For DMs, find the OTHER participant (not me)
+              if (participants.length === 2) {
+                const myId = me.id;
+                const myType = me.type;
                 
-                if (memberId && memberType) {
-                  console.log(`✅ Mapped DM channel ${channel.id} to member:`, { memberId, memberType });
-                  newChannelMemberMap.set(channel.id, { 
-                    id: memberId, 
-                    type: memberType 
-                  });
+                const otherParticipant = participants.find((p: any) => {
+                  // Skip if this is me
+                  if (myType === 'admin' && p.user_type === 'admin' && p.user_id === myId) return false;
+                  if (myType === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === myId) return false;
+                  return true;
+                });
+
+                if (otherParticipant) {
+                  const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
+                  const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
+                  
+                  if (memberId && memberType) {
+                    console.log(`✅ Mapped DM channel ${channel.id} to member:`, { memberId, memberType });
+                    newChannelMemberMap.set(channel.id, { 
+                      id: memberId, 
+                      type: memberType 
+                    });
+                  }
                 }
               }
-            }
+            });
+          }
+        } else {
+          // Sub-user path via RLS-safe RPC
+          const { data, error } = await supabase.rpc('get_dm_channels_for_sub_user', {
+            p_owner_id: boardOwnerId,
+            p_email: me.email
           });
-          
-          console.log('🗺️ Final channel-member map:', Array.from(newChannelMemberMap.entries()));
-          setChannelMemberMap(newChannelMemberMap);
+
+          if (!error && data) {
+            data.forEach((row: any) => {
+              const memberId = row.other_user_id || row.other_sub_user_id;
+              const memberType = row.other_type as 'admin' | 'sub_user';
+              
+              if (memberId && memberType) {
+                console.log(`✅ Mapped DM channel ${row.channel_id} to member:`, { memberId, memberType });
+                newChannelMemberMap.set(row.channel_id, { 
+                  id: memberId, 
+                  type: memberType 
+                });
+              }
+            });
+          } else if (error) {
+            console.error('❌ Error fetching DM channels for sub-user:', error);
+          }
         }
+        
+        console.log('🗺️ Final channel-member map:', Array.from(newChannelMemberMap.entries()));
+        setChannelMemberMap(newChannelMemberMap);
       } catch (error) {
         console.error('❌ Error building channel-member mapping:', error);
       }

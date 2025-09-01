@@ -15,7 +15,6 @@ export const ChatSidebar = () => {
     name: string; 
     type: 'admin' | 'sub_user'; 
     avatar_url?: string | null;
-    unreadCount?: number;
   }>>([]);
 
   // Load general channel with improved selection logic
@@ -254,28 +253,8 @@ export const ChatSidebar = () => {
     })();
   }, [boardOwnerId, location.pathname]);
 
-  // Enhanced unread count indicators with detailed logging
-  useEffect(() => {
-    console.log('🔄 Updating member unread count indicators...');
-    
-    setMembers(prevMembers => 
-      prevMembers.map(member => {
-        const unreadCount = getUserUnreadCount(member.id, member.type);
-        
-        if (unreadCount !== member.unreadCount) {
-          console.log(`📍 Member ${member.name} unread count changed:`, { 
-            from: member.unreadCount, 
-            to: unreadCount 
-          });
-        }
-
-        return {
-          ...member,
-          unreadCount
-        };
-      })
-    );
-  }, [getUserUnreadCount]);
+  // Updating member unread count indicators in the sidebar
+  // This has been REMOVED - badges are now computed inline at render time
 
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
@@ -345,13 +324,20 @@ export const ChatSidebar = () => {
                       {(member.name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}
-                  {member.unreadCount && member.unreadCount > 0 && (
-                    <div className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full border-2 border-background flex items-center justify-center">
-                      <span className="text-xs text-white font-bold">
-                        {member.unreadCount > 9 ? '9+' : member.unreadCount}
-                      </span>
-                    </div>
-                  )}
+                  {/* Unread badge - computed inline at render time */}
+                  {(() => {
+                    const count = getUserUnreadCount(member.id, member.type);
+                    if (count > 0) {
+                      return (
+                        <div className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full border-2 border-background flex items-center justify-center">
+                          <span className="text-xs text-white font-bold">
+                            {count > 9 ? '9+' : count}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 
                 <div className="flex-1 min-w-0 text-left">
