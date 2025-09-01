@@ -307,34 +307,40 @@ export const ChatSidebar = () => {
                     console.error('❌ Failed to start DM with:', member.name, error);
                   }
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left group border border-transparent hover:border-muted"
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
+                  "border border-transparent hover:border-muted"
+                )}
                 title={`Start conversation with ${member.name}`}
               >
-                <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
-                  {resolveAvatarUrl(member.avatar_url) ? (
-                    <img
-                      src={resolveAvatarUrl(member.avatar_url)!}
-                      alt={member.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-sm font-semibold text-foreground">
-                      {(member.name || "U").slice(0, 2).toUpperCase()}
-                    </span>
-                  )}
-                  {peerUnread > 0 && (
-                    <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-extrabold text-white shadow">
-                      {peerUnread > 9 ? '9+' : peerUnread}
-                    </span>
-                  )}
+                <div className="flex items-center gap-3">
+                  <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
+                    {resolveAvatarUrl(member.avatar_url) ? (
+                      <img
+                        src={resolveAvatarUrl(member.avatar_url)!}
+                        alt={member.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold text-foreground">
+                        {(member.name || "U").slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-medium truncate">{member.name}</p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {member.type === 'admin' ? 'Owner' : 'Team Member'}
+                    </p>
+                  </div>
                 </div>
                 
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-medium truncate">{member.name}</p>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {member.type === 'admin' ? 'Owner' : 'Team Member'}
-                  </p>
-                </div>
+                {peerUnread > 0 && (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-white">
+                    {peerUnread > 99 ? '99+' : peerUnread}
+                  </span>
+                )}
               </button>
             );
           })}
