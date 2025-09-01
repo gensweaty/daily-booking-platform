@@ -1,103 +1,458 @@
 import { useEffect, useState, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
-import { MessageCircle, Send, ChevronUp } from 'lucide-react';
+import { MessageCircle, Send } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
-import { MessageList } from './MessageList';
-import { useChatMessages } from '@/hooks/useChatMessages';
+import { resolveAvatarUrl } from './_avatar';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
+type Message = {
+  id: string;
+  content: string;
+  created_at: string;
+  sender_user_id?: string;
+  sender_sub_user_id?: string;
+  sender_type: 'admin' | 'sub_user';
+  sender_name?: string;
+  sender_avatar_url?: string;
+  channel_id: string;
+};
 
 interface ChatAreaProps {
   onMessageInputFocus?: () => void;
 }
 
 export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
-  const { me, currentChannelId, isInitialized } = useChat();
+  const { 
+    me, 
+    currentChannelId, 
+    boardOwnerId, 
+    isInitialized,
+    realtimeEnabled
+  } = useChat();
   const { toast } = useToast();
+  const location = useLocation();
   
+  const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [channelInfo, setChannelInfo] = useState<{ 
+    name: string; 
+    isDM: boolean; 
+    dmPartner?: { name: string; avatar?: string } 
+  } | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  
+  // Message cache for instant channel switching
+  const cacheRef = useRef<Map<string, Message[]>>(new Map());
 
-  const {
-    messages,
-    channels,
-    currentChannel,
-    setCurrentChannel,
-    sendMessage,
-    loading,
-    loadMoreMessages,
-    hasMore,
-    loadingMore
-  } = useChatMessages();
+  // Active channel ID (context takes precedence)
+  const activeChannelId = currentChannelId;
 
-  // Set current channel when currentChannelId changes
+  // Timeout fallback - force channel selection after 3 seconds if none exists
   useEffect(() => {
-    if (currentChannelId && channels.length > 0) {
-      const channel = channels.find(c => c.id === currentChannelId);
-      if (channel && channel !== currentChannel) {
-        setCurrentChannel(channel);
+    const timer = setTimeout(() => {
+      if (!activeChannelId && isInitialized) {
+        console.log('⏰ Timeout fallback: no channel selected after 3 seconds');
       }
-    }
-  }, [currentChannelId, channels, currentChannel, setCurrentChannel]);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [activeChannelId, isInitialized]);
 
-  // Auto-scroll to bottom on new messages
+  // Load channel info with detailed performance logging
   useEffect(() => {
-    if (!loading && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages.length, loading]);
-
-  // Handle scroll to load more messages
-  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLDivElement;
-    const isAtTop = target.scrollTop < 100; // Near top
+    let active = true;
     
-    if (isAtTop && hasMore && !loadingMore && !loading) {
-      loadMoreMessages();
+    (async () => {
+      if (!activeChannelId) {
+        if (active) setChannelInfo(null);
+        return;
+      }
+      
+      console.log('🔍 [CHAT-AREA] Step A: Loading channel info for:', activeChannelId);
+      const stepAStart = performance.now();
+      
+      const isPublicBoard = location.pathname.startsWith('/board/');
+      
+      const { data: channel } = await supabase
+        .from('chat_channels')
+        .select('id, name, is_dm, chat_participants(user_id, sub_user_id, user_type)')
+        .eq('id', activeChannelId)
+        .maybeSingle();
+
+      console.log('✅ [CHAT-AREA] Step A took:', performance.now() - stepAStart, 'ms');
+
+      if (!active || !channel) return;
+
+      const cps = (channel as any).chat_participants || [];
+      const isDM = channel.is_dm || cps.length === 2;
+      if (isDM) {
+        console.log('🔍 [CHAT-AREA] Step B: Resolving DM partner...');
+        const stepBStart = performance.now();
+        
+        // Find the OTHER participant (not me) - SIMPLIFIED
+        const myId = me?.id;
+        const myType = me?.type;
+        
+        const other = cps.find((p: any) => {
+          if (myType === 'admin' && p.user_id === myId) return false;
+          if (myType === 'sub_user' && p.sub_user_id === myId) return false;
+          return true;
+        });
+
+        if (other?.user_id) {
+          // SIMPLIFIED: Skip admin display name lookup for now
+          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: 'Admin' } });
+        } else if (other?.sub_user_id) {
+          // SIMPLIFIED: Skip sub-user lookup for now
+          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: 'Member' } });
+        } else {
+          setChannelInfo({ name: channel.name, isDM: true });
+        }
+        
+        console.log('✅ [CHAT-AREA] Step B took:', performance.now() - stepBStart, 'ms');
+      } else {
+        setChannelInfo({ name: channel.name, isDM: false });
+      }
+    })();
+    
+    return () => { active = false; };
+  }, [activeChannelId, me, location.pathname]);
+
+  // Load messages with detailed performance logging
+  useEffect(() => {
+    let active = true;
+
+    const loadMessages = async () => {
+      if (!activeChannelId || !me || !boardOwnerId || !isInitialized) {
+        console.log('⏭️ [CHAT-AREA] Skipping message load - missing requirements:', {
+          activeChannelId: !!activeChannelId,
+          me: !!me,
+          boardOwnerId: !!boardOwnerId,
+          isInitialized
+        });
+        return;
+      }
+
+      console.log('🔍 [CHAT-AREA] Step C: Loading messages...');
+      const stepCStart = performance.now();
+
+      try {
+        const onPublicBoard = location.pathname.startsWith('/board/');
+        const { data: { session } } = await supabase.auth.getSession();
+        const isAuthed = !!session?.user?.id;
+        
+        console.log('🔍 [CHAT-AREA] Message loading context:', {
+          activeChannelId,
+          me: me?.email,
+          myType: me?.type,
+          onPublicBoard,
+          isAuthed
+        });
+        
+        let data, error;
+        
+        if (onPublicBoard && me?.type === 'sub_user') {
+          console.log('📨 [CHAT-AREA] Using public RPC for sub-user');
+          const result = await supabase.rpc('list_channel_messages_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_requester_type: 'sub_user',
+            p_requester_email: me.email!,
+          });
+          data = result.data;
+          error = result.error;
+        } else {
+          console.log('📨 [CHAT-AREA] Using authenticated RPC');  
+          const result = await supabase.rpc('get_chat_messages_for_channel', {
+            p_board_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+          });
+          data = result.data;
+          error = result.error;
+        }
+
+        console.log('✅ [CHAT-AREA] Step C took:', performance.now() - stepCStart, 'ms');
+
+        if (error) {
+          console.error('❌ [CHAT-AREA] Error loading messages:', error);
+          if (active) setLoading(false);
+          return;
+        }
+
+        if (active) {
+          console.log('✅ [CHAT-AREA] Loaded', data?.length || 0, 'messages');
+          const normalizedMessages = (data || []).map(msg => ({
+            ...msg,
+            sender_type: msg.sender_type as 'admin' | 'sub_user'
+          }));
+          setMessages(normalizedMessages);
+          cacheRef.current.set(activeChannelId, normalizedMessages);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('❌ [CHAT-AREA] Error in loadMessages:', error);
+        if (active) setLoading(false);
+      }
+    };
+
+    loadMessages();
+    return () => { active = false; };
+  }, [activeChannelId, boardOwnerId, me?.id, me?.email, location.pathname, isInitialized]);
+
+  // SURGICAL FIX 3: No more "empty on switch" - prefill from cache, don't clear to []
+  useEffect(() => {
+    if (!activeChannelId) {
+      // no channel yet – remain in loader; don't render "empty"
+      setMessages([]);
+      setLoading(true);
+      return;
     }
-  };
+    const cached = cacheRef.current.get(activeChannelId);
+    if (cached?.length) {
+      console.log('📋 Using cached messages for channel:', activeChannelId, 'count:', cached.length);
+      setMessages(cached);       // instant paint
+      setLoading(false);
+    } else {
+      setLoading(true);          // wait for first fetch
+    }
+  }, [activeChannelId]);
 
-  const handleSend = async () => {
-    if (!draft.trim() || sending) return;
+  // Polling for non-authenticated users only (authenticated users use real-time)
+  useEffect(() => {
+    if (!activeChannelId || !boardOwnerId || !me) return;
+    const guardKey = `${boardOwnerId}:${me.email || me.id}`;
+    let mounted = true;
+    
+    // Check authentication status
+    const checkAndPoll = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const isAuthenticatedUser = !!session?.user?.id;
+      
+      // Skip polling only when realtime is actually enabled
+      if (realtimeEnabled) {
+        console.log('⏭️ Skipping polling - realtime is enabled');
+        return;
+      }
+      
+      console.log('📊 Starting polling for public board access');
+      
+      const poll = async () => {
+        if (!mounted) return;
+        
+        // before applying results, check if identity changed
+        const currentGuard = `${boardOwnerId}:${me.email || me.id}`;
+        if (currentGuard !== guardKey) return; // identity changed -> ignore batch
+        
+        const slug = location.pathname.split('/').pop();
+        const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+        
+        const { data } = await supabase.rpc('list_channel_messages_public', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_requester_type: 'sub_user',
+          p_requester_email: accessData.email || me.email,
+        });
+        
+        if (!mounted || !data) return;
+        
+        // SURGICAL FIX 4: Make polling increment unread + reuse the realtime pipeline
+        setMessages(prev => {
+          const prevIds = new Set(prev.map(m => m.id));
+          const newOnes = data.filter(m => !prevIds.has(m.id));
 
+          // Dispatch events so the central handler increments unread + shows badge
+          for (const m of newOnes) {
+            // Normalize public messages to include owner_id for consistency
+            window.dispatchEvent(new CustomEvent('chat-message-received', { 
+              detail: { message: { ...m, owner_id: boardOwnerId } } 
+            }));
+          }
+
+          // Usual merge
+          const byId = new Map(prev.map(m => [m.id, m]));
+          for (const m of data) {
+            byId.set(m.id, {
+              ...m,
+              sender_type: m.sender_type as 'admin' | 'sub_user'
+            });
+          }
+          return Array.from(byId.values()).sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
+        });
+      };
+
+      const intervalId = setInterval(poll, 2500);
+      poll(); // immediate poll
+      
+      return () => { 
+        clearInterval(intervalId); 
+      };
+    };
+    
+    checkAndPoll();
+    
+    return () => { 
+      mounted = false; 
+    };
+  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled]);
+
+  // Listen for real-time messages with cache updates and strict deduplication
+  useEffect(() => {
+    const handleMessage = (event: CustomEvent) => {
+      const { message } = event.detail as { message: Message };
+      const channelId = message.channel_id;
+      
+      console.log('📨 Real-time message received for channel:', channelId);
+      
+      // Update cache for this channel
+      const currentCache = cacheRef.current.get(channelId) || [];
+      const existsInCache = currentCache.some(m => m.id === message.id);
+      
+      if (!existsInCache) {
+        const updatedCache = [...currentCache, message];
+        cacheRef.current.set(channelId, updatedCache);
+        console.log('💾 Updated cache for channel:', channelId, 'total:', updatedCache.length);
+        
+        // Update UI if this is the active channel
+        if (channelId === activeChannelId) {
+          setMessages(prev => {
+            const existsInUI = prev.some(m => m.id === message.id);
+            if (existsInUI) {
+              console.log('⏭️ Skipping duplicate in UI:', message.id);
+              return prev;
+            }
+            return [...prev, message];
+          });
+        }
+      } else {
+        console.log('⏭️ Message already in cache:', message.id);
+      }
+    };
+
+    window.addEventListener('chat-message-received', handleMessage as EventListener);
+    return () => {
+      window.removeEventListener('chat-message-received', handleMessage as EventListener);
+    };
+  }, [activeChannelId]);
+
+  // Drop all cached messages when identity changes (broadcast by provider)
+  useEffect(() => {
+    const onReset = () => {
+      cacheRef.current.clear();
+      setMessages([]);
+      setLoading(false);
+    };
+    window.addEventListener('chat-reset', onReset as EventListener);
+    return () => window.removeEventListener('chat-reset', onReset as EventListener);
+  }, []);
+
+  // Auto-scroll
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  const send = async () => {
+    if (!draft.trim() || !activeChannelId || !boardOwnerId || !me) {
+      return;
+    }
+
+    // Identity guard - bail if stale closure
+    const keyNow = `${boardOwnerId}:${me.email || me.id}`;
+    if (!keyNow) return; // additional safety check
+    
     setSending(true);
+    
     try {
-      await sendMessage(draft.trim());
+      // ENHANCED: Determine sending context with better sub-user handling
+      const isOnPublicBoard = location.pathname.startsWith('/board/');
+      const { data: { session } } = await supabase.auth.getSession();
+      const isAuthenticatedUser = !!session?.user?.id;
+      
+      console.log('📤 Sending message context:', {
+        isOnPublicBoard,
+        isAuthenticatedUser,
+        meType: me?.type,
+        meId: me?.id,
+        meEmail: me?.email,
+        boardOwnerId
+      });
+      
+      // PRIORITY 1: Sub-user on public board (authenticated or not)
+      if (me?.type === 'sub_user') {
+        console.log('📤 PRIORITY: Sending message as sub-user');
+        const senderEmail = me.email;
+        if (!senderEmail) throw new Error('Missing sub-user email');
+
+        const { error } = await supabase.rpc('send_public_board_message', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_sender_email: senderEmail,
+          p_content: draft.trim(),
+        });
+        if (error) throw error;
+        
+        console.log('✅ Sub-user message sent successfully via public board RPC');
+      } else if (isAuthenticatedUser && me?.type === 'admin') {
+        // PRIORITY 2: Authenticated admin user
+        console.log('📤 Sending message as authenticated admin');
+        const { error } = await supabase.rpc('send_authenticated_message', {
+          p_channel_id: activeChannelId,
+          p_owner_id: boardOwnerId,
+          p_content: draft.trim(),
+        });
+        if (error) throw error;
+        
+        console.log('✅ Authenticated admin message sent via RPC');
+      } else {
+        // FALLBACK: Public board access
+        console.log('📤 Fallback: Sending message as public board access');
+        const slug = location.pathname.split('/').pop()!;
+        const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+        const senderEmail = me?.email || stored?.email;
+        if (!senderEmail) throw new Error('Missing sender email for public board');
+
+        const { error } = await supabase.rpc('send_public_board_message', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_sender_email: senderEmail,
+          p_content: draft.trim(),
+        });
+        if (error) throw error;
+        
+        console.log('✅ Public board message sent via RPC');
+      }
+      
+      // Clear draft after successful send
       setDraft('');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to send message',
-        variant: 'destructive'
+      
+    } catch (e: any) {
+      console.error('❌ Send error:', e);
+      toast({ 
+        title: 'Error', 
+        description: e.message || 'Failed to send', 
+        variant: 'destructive' 
       });
     } finally {
       setSending(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      send();
     }
   };
 
-  const handleReply = (messageId: string) => {
-    // Simple reply implementation - you can enhance this
-    console.log('Reply to:', messageId);
-  };
+  // No artificial timeout – render loader until we actually finish a fetch.
 
-  const handleReaction = (messageId: string, emoji: string) => {
-    // Simple reaction implementation - you can enhance this  
-    console.log('React to:', messageId, 'with:', emoji);
-  };
-
-  // Show loading state
-  if (loading && messages.length === 0) {
+  // Show loading state while authentication and data are resolving
+  if (loading || !isInitialized) {
     return (
       <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
         <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
@@ -107,7 +462,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         <div className="flex items-center justify-center h-full">
           <div className="text-center space-y-2">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="text-sm text-muted-foreground">Loading recent messages...</p>
+            <p className="text-sm text-muted-foreground">Loading chat...</p>
+            <p className="text-xs text-muted-foreground">Initializing chat system...</p>
+            {/* Add timeout hint to prevent confusion about infinite loading */}
+            <p className="text-xs text-muted-foreground/70 mt-2">
+              If this takes too long, try refreshing the page
+            </p>
           </div>
         </div>
         <div className="p-4 border-t bg-muted/30">
@@ -121,81 +481,108 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
       {/* Header */}
       <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
-        <MessageCircle className="h-5 w-5" />
-        <h2 className="font-semibold">{currentChannel?.name || 'Chat'}</h2>
-        {currentChannel?.emoji && (
-          <span className="text-sm">{currentChannel.emoji}</span>
+        {channelInfo?.isDM && channelInfo.dmPartner ? (
+          <>
+            <div className="h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center">
+              {resolveAvatarUrl(channelInfo.dmPartner.avatar) ? (
+                <img
+                  src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
+                  alt={channelInfo.dmPartner.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-xs font-medium">
+                  {(channelInfo.dmPartner.name || "U").slice(0, 2).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <h2 className="font-semibold">{channelInfo.dmPartner.name}</h2>
+            <span className="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-600">
+              Direct Message
+            </span>
+          </>
+        ) : (
+          <>
+            <MessageCircle className="h-5 w-5" />
+            <h2 className="font-semibold">{channelInfo?.name || 'General'}</h2>
+            <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
+              Channel
+            </span>
+          </>
         )}
       </div>
 
       {/* Messages */}
-      <ScrollArea 
-        className="flex-1 px-4"
-        ref={scrollAreaRef}
-        onScrollCapture={handleScroll}
-      >
-        {/* Load more button */}
-        {hasMore && (
-          <div className="flex justify-center py-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadMoreMessages}
-              disabled={loadingMore}
-              className="flex items-center gap-2"
-            >
-              {loadingMore ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <ChevronUp className="h-4 w-4" />
-                  Load older messages
-                </>
-              )}
-            </Button>
+      <div className="overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-4 space-y-4">
+            {messages.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-12">
+                {channelInfo?.isDM 
+                  ? `Start a conversation with ${channelInfo.dmPartner?.name || 'this user'}!`
+                  : `Welcome to #${channelInfo?.name || 'general'}. Start chatting with your team!`
+                }
+              </div>
+            ) : (
+              messages.map((message) => (
+                <div key={message.id} className="flex gap-3">
+                  <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {resolveAvatarUrl(message.sender_avatar_url) ? (
+                      <img 
+                        src={resolveAvatarUrl(message.sender_avatar_url)!} 
+                        alt={message.sender_name || "User"} 
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs font-medium">
+                        {(message.sender_name || "U").slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="font-medium text-sm">
+                        {message.sender_name || "Unknown"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(message.created_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap break-words">
+                      {message.content}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={bottomRef} />
           </div>
-        )}
-
-        <MessageList
-          messages={messages}
-          currentUser={me ? {
-            id: me.id,
-            type: me.type,
-            name: me.email || me.name || 'You'
-          } : null}
-          onReply={handleReply}
-          onReaction={handleReaction}
-        />
-        
-        <div ref={messagesEndRef} />
-      </ScrollArea>
+        </ScrollArea>
+      </div>
 
       {/* Input */}
-      <div className="p-4 border-t bg-muted/30">
+      <div className="p-4 border-t">
         <div className="flex gap-2">
           <Textarea
-            placeholder="Type a message..."
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={onKeyDown}
             onFocus={onMessageInputFocus}
-            className="min-h-[2.5rem] max-h-32 resize-none"
+            placeholder="Type a message..."
+            className={cn(
+              "flex-1 resize-none min-h-[36px] max-h-32",
+              "chat-textarea-mobile"
+            )}
+            rows={1}
             disabled={sending}
           />
-          <Button
-            onClick={handleSend}
+          <Button 
+            onClick={send} 
             disabled={!draft.trim() || sending}
             size="sm"
-            className="px-3"
+            className="px-3 shrink-0"
           >
-            {sending ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            <Send className="h-4 w-4" />
           </Button>
         </div>
       </div>

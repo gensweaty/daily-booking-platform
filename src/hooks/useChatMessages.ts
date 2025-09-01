@@ -32,8 +32,6 @@ export const useChatMessages = () => {
   const [channels, setChannels] = useState<ChatChannel[]>([]);
   const [currentChannel, setCurrentChannel] = useState<ChatChannel | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
 
   // Load channels
   const loadChannels = useCallback(async () => {
@@ -69,76 +67,50 @@ export const useChatMessages = () => {
     }
   }, [user?.id, currentChannel]);
 
-  // Load messages for current channel (paginated)
-  const loadMessages = useCallback(async (loadOlder = false) => {
+  // Load messages for current channel
+  const loadMessages = useCallback(async () => {
     if (!currentChannel?.id) {
       console.log('🚫 No current channel, skipping message load');
       return;
     }
 
     try {
-      if (loadOlder) {
-        setLoadingMore(true);
-      } else {
-        setLoading(true);
-        setMessages([]);
-        setHasMore(true);
-      }
+      setLoading(true);
+      console.log('📥 Loading messages for channel:', currentChannel.id);
       
-      const limit = 20;
-      const offset = loadOlder ? messages.length : 0;
-
-      console.log(`📥 Loading ${loadOlder ? 'older' : 'recent'} messages for channel:`, currentChannel.id);
-      
-      // Simplified query without joins for better performance
       const { data, error } = await supabase
         .from('chat_messages')
-        .select('*')
+        .select(`
+          *,
+          sender_user:sender_user_id(email, username),
+          sender_sub_user:sender_sub_user_id(fullname, email)
+        `)
         .eq('channel_id', currentChannel.id)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .order('created_at', { ascending: true });
 
       if (error) {
         console.error('❌ Error loading messages:', error);
         throw error;
       }
 
-      console.log(`✅ Loaded ${data?.length || 0} ${loadOlder ? 'older' : 'recent'} messages`);
+      console.log('✅ Loaded raw messages:', data);
 
-      // Add sender names based on type (simplified without joins)
-      const enrichedMessages = (data || []).map(msg => ({
+      const enrichedMessages = data?.map(msg => ({
         ...msg,
-        sender_name: msg.sender_type === 'admin' ? 'Admin' : 'Sub User'
-      }));
+        sender_name: msg.sender_type === 'admin' 
+          ? (msg.sender_user?.username || msg.sender_user?.email || 'Admin')
+          : (msg.sender_sub_user?.fullname || msg.sender_sub_user?.email || 'Sub User')
+      })) || [];
 
-      if (loadOlder) {
-        // Prepend older messages (reverse order since we got them desc)
-        setMessages(prev => [...enrichedMessages.reverse(), ...prev]);
-      } else {
-        // Set initial messages (reverse since we got them desc)
-        setMessages(enrichedMessages.reverse());
-      }
-
-      // Check if there are more messages
-      if (data && data.length < limit) {
-        setHasMore(false);
-      }
+      console.log('✅ Enriched messages:', enrichedMessages);
+      setMessages(enrichedMessages);
     } catch (error) {
       console.error('❌ Error loading messages:', error);
-      if (!loadOlder) {
-        setMessages([]);
-      }
+      setMessages([]);
     } finally {
       setLoading(false);
-      setLoadingMore(false);
     }
   }, [currentChannel?.id]);
-
-  // Load more messages (for pagination) 
-  const loadMoreMessages = useCallback(async () => {
-    if (!hasMore || loadingMore) return;
-    await loadMessages(true);
-  }, [hasMore, loadingMore, loadMessages]);
 
   // Send message
   const sendMessage = useCallback(async (content: string, replyToId?: string) => {
@@ -236,9 +208,6 @@ export const useChatMessages = () => {
     sendMessage,
     loading,
     loadChannels,
-    loadMessages,
-    loadMoreMessages,
-    hasMore,
-    loadingMore
+    loadMessages
   };
 };
