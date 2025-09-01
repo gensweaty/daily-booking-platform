@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { FileText, FileSpreadsheet, FileIcon, Image as ImageIcon, Download, ExternalLink, Presentation } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 
 type Att = {
   id?: string;
@@ -41,6 +43,9 @@ const openBlobInNewTab = (blob: Blob) => {
 export function MessageAttachments({ attachments }: { attachments: Att[] }) {
   if (!attachments?.length) return null;
 
+  // local preview state for modal popup
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+
   const downloadFile = async (a: Att) => {
     const { data, error } = await supabase.storage.from('chat_attachments').download(a.file_path);
     if (error || !data) return;
@@ -55,51 +60,67 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
   };
 
   const openDoc = async (a: Att) => {
-    const { data, error } = await supabase.storage.from('chat_attachments').download(a.file_path);
-    if (error || !data) return;
-    openBlobInNewTab(data);
+    const { data } = await supabase.storage.from('chat_attachments').download(a.file_path);
+    if (!data) return;
+    const url = URL.createObjectURL(data);
+    // open in new tab (anchor avoids popup blockers)
+    const aTag = document.createElement('a');
+    aTag.href = url;
+    aTag.target = '_blank';
+    aTag.rel = 'noopener';
+    document.body.appendChild(aTag);
+    aTag.click();
+    aTag.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
   };
 
   return (
-    <div className="mt-2 grid gap-3">
-      {attachments.map((a, i) => {
-        const isImage = a.content_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(a.filename);
-        const href = publicUrlFor(a);
+    <>
+      <div className="mt-2 grid gap-3">
+        {attachments.map((a, i) => {
+          const isImage = a.content_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(a.filename);
+          const href = publicUrlFor(a);
 
-        return (
-          <div
-            key={a.id ?? `${a.file_path}-${i}`}
-            className="group rounded-lg border bg-muted/30 overflow-hidden hover:bg-muted/50 transition w-fit min-w-[340px] max-w-[500px]"
-            title={a.filename}
-          >
-            {/* Media */}
-            {isImage ? (
-              <a href={href} target="_blank" rel="noopener noreferrer" className="block">
-                <img
-                  src={a.object_url || href}
-                  alt={a.filename}
-                  className="w-full h-auto max-h-[420px] object-contain bg-background"
-                  loading="lazy"
-                />
-              </a>
-            ) : (
-              <button type="button" onClick={() => openDoc(a)} className="w-full text-left">
-                <div className="w-full h-32 px-4 flex items-center gap-3 bg-background">
-                  {iconFor(a.content_type, a.filename)}
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{a.filename}</div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {(a.content_type || 'file').toUpperCase()}
+          return (
+            <div
+              key={a.id ?? `${a.file_path}-${i}`}
+              // ~10% wider than the original compact card, not huge
+              className="group rounded-lg border bg-muted/30 overflow-hidden hover:bg-muted/50 transition w-fit min-w-[320px] max-w-[380px]"
+              title={a.filename}
+            >
+              {/* Media */}
+              {isImage ? (
+                // CLICK = popup on the same page
+                <button
+                  type="button"
+                  onClick={() => setPreviewSrc(a.object_url || href)}
+                  className="block w-full"
+                >
+                  <img
+                    src={a.object_url || href}
+                    alt={a.filename}
+                    // modest height; no giant images in the timeline
+                    className="w-full h-auto max-h-64 object-contain bg-background"
+                    loading="lazy"
+                  />
+                </button>
+              ) : (
+                <button type="button" onClick={() => openDoc(a)} className="w-full text-left">
+                  <div className="w-full h-28 px-4 flex items-center gap-3 bg-background">
+                    {iconFor(a.content_type, a.filename)}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{a.filename}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {(a.content_type || 'file').toUpperCase()}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
-            )}
+                </button>
+              )}
 
-            {/* Footer actions */}
-            <div className="px-3 py-2 text-xs flex items-center justify-between">
-              <span className="truncate max-w-[55%]">{a.filename}</span>
-              <div className="flex items-center gap-3 whitespace-nowrap">
+              {/* Action row ONLY (no large filename block) */}
+              <div className="px-3 py-2 text-xs flex items-center justify-end gap-3">
+                {/* Open = new tab */}
                 {isImage ? (
                   <a
                     href={href}
@@ -118,6 +139,7 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
                     <ExternalLink className="h-3.5 w-3.5" /> Open
                   </button>
                 )}
+
                 <button
                   type="button"
                   onClick={() => downloadFile(a)}
@@ -127,9 +149,22 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
                 </button>
               </div>
             </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+
+      {/* Image preview modal (same-page popup) */}
+      <Dialog open={!!previewSrc} onOpenChange={() => setPreviewSrc(null)}>
+        <DialogContent className="max-w-4xl">
+          {previewSrc && (
+            <img
+              src={previewSrc}
+              alt="Preview"
+              className="w-full h-auto max-h-[80vh] object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
