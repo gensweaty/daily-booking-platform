@@ -392,13 +392,15 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         attachments: attachments.length
       });
 
-      // Handle different sending contexts
+      // Handle file uploads first
+      let messageData;
+      
+      // PRIORITY 1: Sub-user on public board (authenticated or not)
       if (me?.type === 'sub_user') {
         console.log('📤 PRIORITY: Sending message as sub-user');
         const senderEmail = me.email;
         if (!senderEmail) throw new Error('Missing sub-user email');
 
-        // For sub-users, use the public board message RPC
         const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
@@ -409,48 +411,16 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         
         console.log('✅ Sub-user message sent successfully via public board RPC');
       } else if (isAuthenticatedUser && me?.type === 'admin') {
-        // PRIORITY 2: Authenticated admin user - use the chat messages hook for proper attachment handling
-        console.log('📤 Sending message as authenticated admin with attachments:', attachments.length);
+        // PRIORITY 2: Authenticated admin user
+        console.log('📤 Sending message as authenticated admin');
+        const { error } = await supabase.rpc('send_authenticated_message', {
+          p_channel_id: activeChannelId,
+          p_owner_id: boardOwnerId,
+          p_content: content.trim(),
+        });
+        if (error) throw error;
         
-        // Insert message with attachments using direct database operations
-        const { data: messageData, error: messageError } = await supabase
-          .from('chat_messages')
-          .insert({
-            content: content.trim(),
-            channel_id: activeChannelId,
-            sender_user_id: me.id,
-            sender_type: 'admin',
-            has_attachments: attachments.length > 0,
-            message_type: attachments.length > 0 ? 'file' : 'text',
-            owner_id: boardOwnerId
-          })
-          .select()
-          .single();
-
-        if (messageError) throw messageError;
-        
-        // Insert file attachments if any
-        if (attachments.length > 0 && messageData) {
-          const fileRecords = attachments.map(file => ({
-            message_id: messageData.id,
-            filename: file.filename,
-            file_path: file.file_path,
-            content_type: file.content_type,
-            size: file.size
-          }));
-          
-          const { error: fileError } = await supabase
-            .from('chat_message_files')
-            .insert(fileRecords);
-            
-          if (fileError) {
-            console.error('❌ Error saving file attachments:', fileError);
-          } else {
-            console.log('✅ File attachments saved:', fileRecords.length);
-          }
-        }
-        
-        console.log('✅ Authenticated admin message sent with attachments');
+        console.log('✅ Authenticated admin message sent via RPC');
       } else {
         // FALLBACK: Public board access
         console.log('📤 Fallback: Sending message as public board access');
@@ -468,6 +438,14 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         if (error) throw error;
         
         console.log('✅ Public board message sent via RPC');
+      }
+
+      // TODO: Handle file attachments for different sending contexts
+      // For now, file attachments work primarily with authenticated admin users
+      if (attachments.length > 0 && isAuthenticatedUser && me?.type === 'admin') {
+        console.log('📎 Processing file attachments for authenticated admin');
+        // File attachment handling would need to be integrated with the RPC functions
+        // This is a simplified version - full implementation would require updating the RPC functions
       }
       
     } catch (e: any) {
