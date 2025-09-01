@@ -20,9 +20,7 @@ const LazyPricingSection = lazy(() =>
 );
 
 const LazyFooterSection = lazy(() => 
-  import("@/components/landing/FooterSection").then(module => ({ 
-    default: module.FooterSection 
-  }))
+  import("@/components/landing/FooterSection")
 );
 
 // Optimized loading placeholder with reduced DOM complexity
