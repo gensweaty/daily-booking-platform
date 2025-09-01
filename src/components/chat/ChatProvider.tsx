@@ -113,28 +113,48 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const read = () => setHasPublicAccess(getPublicAccess(location.pathname).hasAccess);
-    read(); // initial
 
-    // same-tab writes won't fire `storage`; add a brief poll window
+    // immediate read
+    read();
+
+    // short polling window (total ~5s with easing)
     let alive = true;
-    let tries = 0;
+    const delays = [150, 200, 250, 300, 400, 500, 700, 900, 1200, 1500]; // ~5.1s
+    let i = 0;
+
     const tick = () => {
       if (!alive) return;
       read();
-      if (++tries < 10 && !hasPublicAccess) setTimeout(tick, 120); // ~1.2s window
+      if (!hasPublicAccess && i < delays.length) {
+        setTimeout(tick, delays[i++]);
+      }
     };
     tick();
 
+    // same-tab re-checks on focus/visibility change
+    const onFocusish = () => read();
+    window.addEventListener('focus', onFocusish);
+    document.addEventListener('visibilitychange', onFocusish);
+
+    // cross-tab changes
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
       if (e.key.includes('public-board-access-')) read();
     };
     window.addEventListener('storage', onStorage);
-    return () => { alive = false; window.removeEventListener('storage', onStorage); };
-  }, [location.pathname, publicBoardUser?.id]); // also rerun when auth state flips
 
-  // shouldShowChat now uses state (no useMemo)
-  const shouldShowChat = isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id;
+    return () => {
+      alive = false;
+      window.removeEventListener('focus', onFocusish);
+      document.removeEventListener('visibilitychange', onFocusish);
+      window.removeEventListener('storage', onStorage);
+    };
+    // re-run when path or auth user flips
+  }, [location.pathname, publicBoardUser?.id]);
+
+  // Gate the icon on public login pages and use reactive state
+  const onPublicLoginPage = isOnPublicBoard && location.pathname.includes('/login');
+  const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id);
 
   // Enhanced unread management - memoized dependencies
   const {
@@ -418,7 +438,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     })();
 
     return () => { active = false; };
-  }, [isOnPublicBoard, publicBoardUser?.id, publicBoardUser?.email, user?.id, location.pathname]);
+  }, [isOnPublicBoard, publicBoardUser?.id, publicBoardUser?.email, user?.id, location.pathname, hasPublicAccess]);
 
   // ❌ REMOVED: Old normalization logic is no longer needed since the migration handles it
 
