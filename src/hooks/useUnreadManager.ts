@@ -207,44 +207,6 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean, ch
     setUnreadTotal(0);
   }, []);
 
-  // NEW: hydrate from server (SQL function) on mount/refresh
-  const hydrate = useCallback((rows: Array<{ 
-    channel_id: string; 
-    channel_unread: number; 
-    peer_id: string | null; 
-    peer_type: 'admin' | 'sub_user' | null; 
-    peer_unread: number | null;
-  }>) => {
-    const nextChannelUnreads: UnreadCounts = {};
-    const nextMemberUnreads: MemberUnreads = {};
-
-    for (const r of rows) {
-      if (r.channel_id && r.channel_unread > 0) {
-        nextChannelUnreads[r.channel_id] = (nextChannelUnreads[r.channel_id] || 0) + r.channel_unread;
-      }
-      if (r.peer_id && r.peer_type && r.peer_unread && r.peer_unread > 0) {
-        const k = `${r.peer_id}_${r.peer_type}`;
-        nextMemberUnreads[k] = (nextMemberUnreads[k] || 0) + r.peer_unread;
-      }
-    }
-
-    setChannelUnreads(nextChannelUnreads);
-    setMemberUnreads(nextMemberUnreads);
-    setUnreadTotal(Object.values(nextChannelUnreads).reduce((s, n) => s + (n as number), 0));
-  }, []);
-
-  // NEW: mark a channel as seen immediately (for DMs & General)
-  const markSeen = useCallback((channelId: string) => {
-    const now = Date.now();
-    setLastSeenTimes(prev => ({ ...prev, [channelId]: now }));
-    setChannelUnreads(prev => {
-      if (!prev[channelId]) return prev;
-      const copy = { ...prev };
-      delete copy[channelId];
-      return copy;
-    });
-  }, []);
-
   return {
     unreadTotal,
     channelUnreads,
@@ -254,7 +216,5 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean, ch
     clearUserUnread,
     getUserUnreadCount,
     clearAllUnread,
-    hydrate,       // ← export
-    markSeen,      // ← export
   };
 };

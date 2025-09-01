@@ -260,19 +260,19 @@ export const ChatSidebar = () => {
         <button
           onClick={() => generalChannelId && openChannel(generalChannelId)}
           className={cn(
-            "w-full flex items-center px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
+            "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
             currentChannelId === generalChannelId ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
           )}
         >
-          <div className="relative h-6 w-6 flex items-center justify-center rounded-full bg-muted">
-            <Hash className="h-4 w-4" />
-            {generalChannelId && (channelUnreads[generalChannelId] || 0) > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-[10px] leading-4 text-white font-bold text-center">
-                {(channelUnreads[generalChannelId] as number) > 9 ? '9+' : channelUnreads[generalChannelId]}
-              </span>
-            )}
+          <div className="flex items-center gap-2">
+            <Hash className="h-4 w-4 flex-shrink-0" />
+            <span className="font-medium">General</span>
           </div>
-          <span className="ml-2 font-medium">General</span>
+          {generalChannelId && (channelUnreads[generalChannelId] ?? 0) > 0 && (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-white">
+              {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
+            </span>
+          )}
         </button>
 
         {/* Team Members */}
@@ -307,7 +307,7 @@ export const ChatSidebar = () => {
                     console.error('❌ Failed to start DM with:', member.name, error);
                   }
                 }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group border border-transparent hover:border-muted"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left group border border-transparent hover:border-muted"
                 title={`Start conversation with ${member.name}`}
               >
                 <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
@@ -322,14 +322,11 @@ export const ChatSidebar = () => {
                       {(member.name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}
-                  {(() => {
-                    const c = getUserUnreadCount(member.id, member.type);
-                    return c > 0 ? (
-                      <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-[10px] leading-4 text-white font-bold text-center">
-                        {c > 9 ? '9+' : c}
-                      </span>
-                    ) : null;
-                  })()}
+                  {peerUnread > 0 && (
+                    <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-extrabold text-white shadow">
+                      {peerUnread > 9 ? '9+' : peerUnread}
+                    </span>
+                  )}
                 </div>
                 
                 <div className="flex-1 min-w-0 text-left">
