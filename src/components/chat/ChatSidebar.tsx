@@ -269,7 +269,7 @@ export const ChatSidebar = () => {
             <span className="font-medium">General</span>
           </div>
           {generalChannelId && (channelUnreads[generalChannelId] ?? 0) > 0 && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-white">
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
               {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
             </span>
           )}
@@ -337,7 +337,7 @@ export const ChatSidebar = () => {
                 </div>
                 
                 {peerUnread > 0 && (
-                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-white">
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
                     {peerUnread > 99 ? '99+' : peerUnread}
                   </span>
                 )}
