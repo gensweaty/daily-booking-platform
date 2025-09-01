@@ -343,7 +343,9 @@ export type Database = {
           channel_id: string
           content: string
           created_at: string | null
+          has_attachments: boolean | null
           id: string
+          message_type: string | null
           owner_id: string | null
           reply_to_id: string | null
           sender_avatar_url: string | null
@@ -357,7 +359,9 @@ export type Database = {
           channel_id: string
           content: string
           created_at?: string | null
+          has_attachments?: boolean | null
           id?: string
+          message_type?: string | null
           owner_id?: string | null
           reply_to_id?: string | null
           sender_avatar_url?: string | null
@@ -371,7 +375,9 @@ export type Database = {
           channel_id?: string
           content?: string
           created_at?: string | null
+          has_attachments?: boolean | null
           id?: string
+          message_type?: string | null
           owner_id?: string | null
           reply_to_id?: string | null
           sender_avatar_url?: string | null
@@ -1986,7 +1992,9 @@ export type Database = {
           channel_id: string
           content: string
           created_at: string | null
+          has_attachments: boolean | null
           id: string
+          message_type: string | null
           owner_id: string | null
           reply_to_id: string | null
           sender_avatar_url: string | null

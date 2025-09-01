@@ -13,6 +13,17 @@ export interface ChatMessage {
   updated_at: string;
   reply_to_id?: string;
   sender_name?: string;
+  has_attachments?: boolean;
+  message_type?: string;
+  attachments?: ChatAttachment[];
+}
+
+export interface ChatAttachment {
+  id: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
 }
 
 export interface ChatChannel {
@@ -95,14 +106,35 @@ export const useChatMessages = () => {
 
       console.log('✅ Loaded raw messages:', data);
 
-      const enrichedMessages = data?.map(msg => ({
-        ...msg,
-        sender_name: msg.sender_type === 'admin' 
-          ? (msg.sender_user?.username || msg.sender_user?.email || 'Admin')
-          : (msg.sender_sub_user?.fullname || msg.sender_sub_user?.email || 'Sub User')
-      })) || [];
+      // Get message attachments
+      const messageIds = data?.map(msg => msg.id) || [];
+      let attachmentsData = [];
+      
+      if (messageIds.length > 0) {
+        const { data: attachments, error: attachError } = await supabase
+          .from('chat_message_files')
+          .select('*')
+          .in('message_id', messageIds);
+          
+        if (attachError) {
+          console.error('❌ Error loading attachments:', attachError);
+        } else {
+          attachmentsData = attachments || [];
+        }
+      }
 
-      console.log('✅ Enriched messages:', enrichedMessages);
+      const enrichedMessages = data?.map(msg => {
+        const messageAttachments = attachmentsData.filter(att => att.message_id === msg.id);
+        return {
+          ...msg,
+          sender_name: msg.sender_type === 'admin' 
+            ? (msg.sender_user?.username || msg.sender_user?.email || 'Admin')
+            : (msg.sender_sub_user?.fullname || msg.sender_sub_user?.email || 'Sub User'),
+          attachments: messageAttachments
+        };
+      }) || [];
+
+      console.log('✅ Enriched messages with attachments:', enrichedMessages);
       setMessages(enrichedMessages);
     } catch (error) {
       console.error('❌ Error loading messages:', error);
@@ -113,12 +145,13 @@ export const useChatMessages = () => {
   }, [currentChannel?.id]);
 
   // Send message
-  const sendMessage = useCallback(async (content: string, replyToId?: string) => {
-    if (!currentChannel?.id || !user?.id || !content.trim()) {
+  const sendMessage = useCallback(async (content: string, attachments: any[] = [], replyToId?: string) => {
+    if (!currentChannel?.id || !user?.id || (!content.trim() && attachments.length === 0)) {
       console.log('❌ Cannot send message:', { 
         channelId: currentChannel?.id, 
         userId: user?.id, 
-        content: content?.trim() 
+        content: content?.trim(),
+        attachments: attachments.length
       });
       return;
     }
@@ -126,27 +159,54 @@ export const useChatMessages = () => {
     console.log('📤 Sending message:', { 
       content: content.trim(), 
       channelId: currentChannel.id,
-      userId: user.id 
+      userId: user.id,
+      attachments: attachments.length
     });
 
     try {
-      const { data, error } = await supabase
+      // Insert message
+      const { data: messageData, error } = await supabase
         .from('chat_messages')
         .insert({
           content: content.trim(),
           channel_id: currentChannel.id,
           sender_user_id: user.id,
           sender_type: 'admin',
-          reply_to_id: replyToId || null
+          reply_to_id: replyToId || null,
+          has_attachments: attachments.length > 0,
+          message_type: attachments.length > 0 ? 'file' : 'text'
         })
-        .select();
+        .select()
+        .single();
 
       if (error) {
         console.error('❌ Database error sending message:', error);
         throw error;
       }
       
-      console.log('✅ Message sent successfully:', data);
+      console.log('✅ Message sent successfully:', messageData);
+      
+      // Insert file attachments if any
+      if (attachments.length > 0 && messageData) {
+        const fileRecords = attachments.map(file => ({
+          message_id: messageData.id,
+          filename: file.filename,
+          file_path: file.file_path,
+          content_type: file.content_type,
+          size: file.size
+        }));
+        
+        const { error: fileError } = await supabase
+          .from('chat_message_files')
+          .insert(fileRecords);
+          
+        if (fileError) {
+          console.error('❌ Error saving file attachments:', fileError);
+        } else {
+          console.log('✅ File attachments saved:', fileRecords.length);
+        }
+      }
+      
       // Force reload messages to ensure UI updates
       await loadMessages();
     } catch (error) {

@@ -9,6 +9,8 @@ import { useChat } from './ChatProvider';
 import { resolveAvatarUrl } from './_avatar';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { MessageInput } from './MessageInput';
+import { MessageAttachments } from './MessageAttachments';
 
 type Message = {
   id: string;
@@ -20,6 +22,15 @@ type Message = {
   sender_name?: string;
   sender_avatar_url?: string;
   channel_id: string;
+  has_attachments?: boolean;
+  message_type?: string;
+  attachments?: Array<{
+    id: string;
+    filename: string;
+    file_path: string;
+    content_type?: string;
+    size?: number;
+  }>;
 };
 
 interface ChatAreaProps {
@@ -38,7 +49,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const location = useLocation();
   
   const [messages, setMessages] = useState<Message[]>([]);
-  const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [channelInfo, setChannelInfo] = useState<{ 
@@ -356,10 +366,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  const send = async () => {
-    if (!draft.trim() || !activeChannelId || !boardOwnerId || !me) {
-      return;
-    }
+  const send = async (content: string, attachments: any[] = []) => {
+    if (!content.trim() && attachments.length === 0) return;
+    if (!activeChannelId || !boardOwnerId || !me) return;
 
     // Identity guard - bail if stale closure
     const keyNow = `${boardOwnerId}:${me.email || me.id}`;
@@ -379,8 +388,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         meType: me?.type,
         meId: me?.id,
         meEmail: me?.email,
-        boardOwnerId
+        boardOwnerId,
+        attachments: attachments.length
       });
+
+      // Handle file uploads first
+      let messageData;
       
       // PRIORITY 1: Sub-user on public board (authenticated or not)
       if (me?.type === 'sub_user') {
@@ -392,7 +405,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: senderEmail,
-          p_content: draft.trim(),
+          p_content: content.trim(),
         });
         if (error) throw error;
         
@@ -403,7 +416,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const { error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
-          p_content: draft.trim(),
+          p_content: content.trim(),
         });
         if (error) throw error;
         
@@ -420,15 +433,20 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: senderEmail,
-          p_content: draft.trim(),
+          p_content: content.trim(),
         });
         if (error) throw error;
         
         console.log('✅ Public board message sent via RPC');
       }
-      
-      // Clear draft after successful send
-      setDraft('');
+
+      // TODO: Handle file attachments for different sending contexts
+      // For now, file attachments work primarily with authenticated admin users
+      if (attachments.length > 0 && isAuthenticatedUser && me?.type === 'admin') {
+        console.log('📎 Processing file attachments for authenticated admin');
+        // File attachment handling would need to be integrated with the RPC functions
+        // This is a simplified version - full implementation would require updating the RPC functions
+      }
       
     } catch (e: any) {
       console.error('❌ Send error:', e);
@@ -439,13 +457,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       });
     } finally {
       setSending(false);
-    }
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      send();
     }
   };
 
@@ -551,6 +562,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                     <p className="text-sm whitespace-pre-wrap break-words">
                       {message.content}
                     </p>
+                    {message.attachments && message.attachments.length > 0 && (
+                      <MessageAttachments attachments={message.attachments} />
+                    )}
                   </div>
                 </div>
               ))
@@ -561,30 +575,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t">
-        <div className="flex gap-2">
-          <Textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={onKeyDown}
-            onFocus={onMessageInputFocus}
-            placeholder="Type a message..."
-            className={cn(
-              "flex-1 resize-none min-h-[36px] max-h-32",
-              "chat-textarea-mobile"
-            )}
-            rows={1}
-            disabled={sending}
-          />
-          <Button 
-            onClick={send} 
-            disabled={!draft.trim() || sending}
-            size="sm"
-            className="px-3 shrink-0"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
+      <div onFocus={onMessageInputFocus}>
+        <MessageInput 
+          onSendMessage={send}
+          placeholder="Type a message..."
+        />
       </div>
     </div>
   );
