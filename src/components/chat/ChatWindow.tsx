@@ -8,6 +8,8 @@ import { ChatArea } from './ChatArea';
 import { useChat } from './ChatProvider';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LanguageText } from '@/components/shared/LanguageText';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import './mobile-chat.css';
 
 interface ChatWindowProps {
   isOpen: boolean;
@@ -23,56 +25,81 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   
   const cardRef = useRef<HTMLDivElement>(null);
   const { isInitialized } = useChat();
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   // Set state on mount - minimized on first open for desktop, maximized for mobile
   useEffect(() => {
-    if (typeof window === 'undefined' || !isOpen) return;
-    const isMobile = window.innerWidth <= 768;
+    if (!isOpen) return;
     if (isMobile) {
       setWindowState('maximized');
       setIsSidebarCollapsed(true);
     } else {
       setWindowState('minimized');
     }
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
 
-  // Handle window resize
+  // Mobile keyboard detection and height tracking
   useEffect(() => {
-    const handleResize = () => {
-      if (typeof window !== 'undefined') {
-        const isMobile = window.innerWidth <= 768;
-        if (isMobile) {
-          setWindowState('maximized');
-          setIsSidebarCollapsed(true);
-        }
+    if (!isMobile || typeof window === 'undefined') return;
+
+    const handleKeyboardShow = () => {
+      // Use visual viewport if available (modern browsers)
+      if ('visualViewport' in window && (window as any).visualViewport) {
+        const viewport = (window as any).visualViewport;
+        const updateHeight = () => {
+          if (viewport && viewport.height) {
+            const keyboardHeight = window.innerHeight - viewport.height;
+            setKeyboardHeight(Math.max(0, keyboardHeight));
+          }
+        };
+        
+        viewport.addEventListener('resize', updateHeight);
+        updateHeight();
+        
+        return () => viewport.removeEventListener('resize', updateHeight);
+      } else {
+        // Fallback for older browsers
+        const initialHeight = window.innerHeight;
+        const handleResize = () => {
+          const currentHeight = window.innerHeight;
+          const keyboardHeight = Math.max(0, initialHeight - currentHeight);
+          setKeyboardHeight(keyboardHeight);
+        };
+        
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
       }
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    return handleKeyboardShow();
+  }, [isMobile]);
+
+  // Auto-close sidebar on mobile when typing
+  const handleMobileSidebarAutoClose = () => {
+    if (isMobile && !isSidebarCollapsed) {
+      setIsSidebarCollapsed(true);
+    }
+  };
 
 
   const toggleMinimize = () => {
-    if (window.innerWidth <= 768) return; // No minimize on mobile
+    if (isMobile) return; // No minimize on mobile
     setWindowState(prev => prev === 'minimized' ? 'normal' : 'minimized');
   };
 
   const toggleMaximize = () => {
-    const isMobile = window.innerWidth <= 768;
     if (isMobile) return; // Mobile always stays maximized
-    
     setWindowState(prev => prev === 'maximized' ? 'normal' : 'maximized');
   };
 
   const getWindowStyle = (): React.CSSProperties => {
-    const isMobile = window.innerWidth <= 768;
-    
     if (isMobile) {
       return {
         inset: 0,
         width: '100vw',
-        height: '100vh'
+        height: '100dvh', // Use dynamic viewport height for mobile
+        paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : '0'
       };
     }
     
@@ -87,7 +114,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         return {
           ...baseStyle,
           width: 'min(350px, calc(100vw - 16px))',
-          height: '56px' // Increased to accommodate title bar properly
+          height: '56px'
         };
       case 'maximized':
         return {
@@ -110,9 +137,10 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     <Card
       ref={cardRef}
       className={cn(
-        "fixed bg-background border shadow-lg pointer-events-auto transition-all duration-300 z-[9998]",
+        "fixed bg-background border shadow-lg pointer-events-auto z-[9998]",
         "grid grid-rows-[auto,1fr] overflow-hidden",
-        windowState === 'maximized' ? 'rounded-none' : 'rounded-lg'
+        windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
+        isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-all duration-300'
       )}
       style={getWindowStyle()}
     >
@@ -128,7 +156,10 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
               variant="ghost"
               size="sm"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="h-6 w-6 p-0 shrink-0"
+              className={cn(
+                "h-6 w-6 p-0 shrink-0",
+                isMobile && "chat-mobile-button"
+              )}
               title="Toggle Sidebar"
             >
               <Menu className="h-3 w-3" />
@@ -140,7 +171,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         </div>
         
         <div className="flex items-center gap-1 shrink-0">
-          {window.innerWidth > 768 && (
+          {!isMobile && (
             <>
               <Button
                 variant="ghost"
@@ -185,21 +216,27 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         <div className="grid grid-cols-[auto,1fr] overflow-hidden min-h-0">
           {/* Sidebar */}
           <div className={cn(
-            "border-r transition-all duration-200 overflow-hidden bg-muted/20",
-            isSidebarCollapsed ? "w-0" : "w-64"
+            "border-r overflow-hidden bg-muted/20",
+            isSidebarCollapsed ? "w-0" : "w-64",
+            isMobile ? "chat-mobile-transition" : "transition-all duration-200"
           )}>
             {!isInitialized ? (
               <div className="flex items-center justify-center h-full w-64">
                 <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
               </div>
             ) : (
-              <ChatSidebar />
+              <ChatSidebar 
+                onChannelSelect={handleMobileSidebarAutoClose}
+                onDMStart={handleMobileSidebarAutoClose}
+              />
             )}
           </div>
           
           {/* Main Chat Area */}
           <div className="min-w-0 overflow-hidden">
-            <ChatArea />
+            <ChatArea 
+              onMessageInputFocus={handleMobileSidebarAutoClose}
+            />
           </div>
         </div>
       )}

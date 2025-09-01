@@ -11,7 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
-export const ChatSidebar = () => {
+interface ChatSidebarProps {
+  onChannelSelect?: () => void;
+  onDMStart?: () => void;
+}
+
+export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {}) => {
   const { t } = useLanguage();
   const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
   const location = useLocation();
@@ -264,7 +269,12 @@ export const ChatSidebar = () => {
       <div className="space-y-2">
         {/* General Channel */}
         <button
-          onClick={() => generalChannelId && openChannel(generalChannelId)}
+          onClick={() => {
+            if (generalChannelId) {
+              openChannel(generalChannelId);
+              onChannelSelect?.();
+            }
+          }}
           className={cn(
             "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
             currentChannelId === generalChannelId ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
@@ -310,6 +320,7 @@ export const ChatSidebar = () => {
                   
                   try {
                     await startDM(member.id, member.type);
+                    onDMStart?.();
                     console.log('✅ DM started successfully with:', member.name);
                   } catch (error) {
                     console.error('❌ Failed to start DM with:', member.name, error);

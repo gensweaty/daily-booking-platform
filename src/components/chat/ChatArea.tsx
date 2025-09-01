@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
 import { resolveAvatarUrl } from './_avatar';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 type Message = {
   id: string;
@@ -21,7 +22,11 @@ type Message = {
   channel_id: string;
 };
 
-export const ChatArea = () => {
+interface ChatAreaProps {
+  onMessageInputFocus?: () => void;
+}
+
+export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const { 
     me, 
     currentChannelId, 
@@ -592,8 +597,12 @@ export const ChatArea = () => {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
+            onFocus={onMessageInputFocus}
             placeholder="Type a message..."
-            className="flex-1 resize-none min-h-[36px] max-h-32"
+            className={cn(
+              "flex-1 resize-none min-h-[36px] max-h-32",
+              "chat-textarea-mobile"
+            )}
             rows={1}
             disabled={sending}
           />
