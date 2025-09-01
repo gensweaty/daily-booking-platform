@@ -505,7 +505,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     markSeen(channelId);            // immediately set last seen & clear bubble
     setIsOpen(true);
     
-    // Mark channel as read on server
+    // Mark channel as read on server for proper sync
     if (boardOwnerId && me?.type && me?.id) {
       try {
         await supabase.rpc('mark_channel_read', {
@@ -515,10 +515,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           p_channel_id: channelId,
         });
       } catch (error) {
-        console.error('❌ Error marking channel as read:', error);
+        console.error('❌ Error marking channel as read on server:', error);
       }
     }
-  }, [boardOwnerId, me, markSeen]);
+  }, [markSeen, boardOwnerId, me]);
 
   // Initialize user identity and board owner - DETERMINISTIC for sub-users
   useEffect(() => {
@@ -747,8 +747,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('✅ Canonical DM channel created/found:', channelId);
       setCurrentChannelId(channelId as string);
       markSeen(channelId as string);
-      ensureDmPeerForChannel(channelId as string);
       setIsOpen(true);
+
+      // Also store the DM channel mapping for badge aggregation
+      setChannelMemberMap(prev => {
+        const next = new Map(prev);
+        next.set(channelId as string, { id: otherId, type: otherType });
+        return next;
+      });
 
       // Mark DM channel as read on server
       if (channelId) {

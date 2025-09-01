@@ -240,6 +240,23 @@ export const ChatSidebar = () => {
         
         setMembers(teamMembers);
         
+        // Proactively build DM channel mappings for each team member
+        const membersToMap = teamMembers.filter(m => !(me && m.id === me.id && m.type === me.type));
+        if (membersToMap.length > 0) {
+          console.log('🔗 Building DM channel mappings for team members:', membersToMap.length);
+          
+          // Create a promise for each member but don't wait for them
+          membersToMap.forEach(async (member) => {
+            try {
+              // Use the startDM function to create channel mapping without opening
+              console.log('🔗 Creating DM channel for:', member.name);
+              await startDM(member.id, member.type);
+            } catch (error) {
+              console.error('❌ Failed to create DM mapping for member:', member, error);
+            }
+          });
+        }
+        
       } catch (error) {
         console.error('❌ Error loading team members:', error);
         // Fallback: at least show the admin
@@ -251,7 +268,7 @@ export const ChatSidebar = () => {
         }]);
       }
     })();
-  }, [boardOwnerId, location.pathname]);
+  }, [boardOwnerId, location.pathname, me, startDM]);
 
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
