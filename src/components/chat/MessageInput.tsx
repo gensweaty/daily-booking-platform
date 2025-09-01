@@ -1,5 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Smile, X, FileText, Image as ImageIcon } from 'lucide-react';
+
+// helper for size
+const fmt = (n: number) => (n >= 1024*1024 ? `${(n/1024/1024).toFixed(1)} MB` : `${(n/1024).toFixed(0)} KB`);
+
+const OFFICE_EXT = /\.(docx?|xlsx?|csv|pptx?)$/i;
+const GOOGLE_SHORTCUT_EXT = /\.(gdoc|gsheet|gslides)$/i; // local shortcuts still uploadable
+const isOfficeMime = (t: string) =>
+  t.startsWith('application/vnd.openxmlformats-officedocument') ||
+  t.startsWith('application/vnd.ms-') ||
+  t.startsWith('application/vnd.ms') ||
+  t.startsWith('application/vnd.google-apps');
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -107,39 +118,39 @@ export const MessageInput = ({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    const validFiles = files.filter(file => {
-      // Allow images and documents
-      const isImage = file.type.startsWith('image/');
-      const isDocument = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type);
-      const isValidSize = file.size <= 50 * 1024 * 1024; // 50MB max
-      
-      if (!isImage && !isDocument) {
+    const valid = files.filter(file => {
+      const t = file.type || '';
+      const name = file.name;
+
+      const isImage = t.startsWith('image/');
+      const isPdf = t === 'application/pdf' || /\.pdf$/i.test(name);
+      const isOffice = isOfficeMime(t) || OFFICE_EXT.test(name);
+      const isGoogleShortcut = GOOGLE_SHORTCUT_EXT.test(name);
+      const okType = isImage || isPdf || isOffice || isGoogleShortcut || t === '' /* some browsers omit type */;
+
+      const okSize = file.size <= 50 * 1024 * 1024;
+
+      if (!okType) {
         toast({
-          title: "Invalid file type",
-          description: `${file.name} is not a supported file type`,
+          title: "Unsupported file",
+          description: `${name} is not a supported type`,
           variant: "destructive",
         });
         return false;
       }
-      
-      if (!isValidSize) {
+      if (!okSize) {
         toast({
           title: "File too large",
-          description: `${file.name} exceeds 50MB limit`,
+          description: `${name} exceeds the 50MB limit`,
           variant: "destructive",
         });
         return false;
       }
-      
       return true;
     });
-    
-    setAttachments(prev => [...prev, ...validFiles]);
-    
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+
+    setAttachments(prev => [...prev, ...valid]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const removeAttachment = (index: number) => {
@@ -167,14 +178,11 @@ export const MessageInput = ({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
-    const validFiles = files.filter(file => {
-      const isImage = file.type.startsWith('image/');
-      const isDocument = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type);
-      return (isImage || isDocument) && file.size <= 50 * 1024 * 1024;
-    });
-    
-    setAttachments(prev => [...prev, ...validFiles]);
+    const files = Array.from(e.dataTransfer.files || []);
+    e.dataTransfer.clearData();
+
+    const fakeEvt = { target: { files } } as unknown as React.ChangeEvent<HTMLInputElement>;
+    handleFileSelect(fakeEvt);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -221,27 +229,69 @@ export const MessageInput = ({
       {/* File attachments preview */}
       {attachments.length > 0 && (
         <div className="mb-3 p-3 bg-muted/30 rounded-lg">
-          <div className="text-sm text-muted-foreground mb-2">Attachments ({attachments.length})</div>
+          <div className="text-sm text-muted-foreground mb-2">
+            Attachments ({attachments.length})
+          </div>
+
           <div className="flex flex-wrap gap-2">
-            {attachments.map((file, index) => (
-              <div key={index} className="flex items-center gap-2 bg-background rounded px-2 py-1 text-sm border">
-                {file.type.startsWith('image/') ? (
-                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className="truncate max-w-32">{file.name}</span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeAttachment(index)}
-                  className="h-4 w-4 p-0 hover:text-destructive"
+            {attachments.map((file, index) => {
+              const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(file.name);
+              return (
+                <div
+                  key={index}
+                  className={
+                    isImage
+                      ? "relative overflow-hidden rounded-md border bg-background"
+                      : "flex items-center gap-2 bg-background rounded px-2 py-1 text-sm border"
+                  }
                 >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
+                  {isImage ? (
+                    <>
+                      <img
+                        src={URL.createObjectURL(file)}
+                        onLoad={e => URL.revokeObjectURL((e.target as HTMLImageElement).src)}
+                        alt={file.name}
+                        className="h-16 w-24 object-cover"
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white px-2 py-1 text-xs truncate">
+                        {file.name} • {fmt(file.size)}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeAttachment(index)}
+                        className="absolute top-1 right-1 h-6 w-6 p-0 bg-black/40 text-white hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      {/* type-based chip */}
+                      <span className="inline-flex items-center justify-center h-5 w-5 rounded bg-muted text-muted-foreground">
+                        {OFFICE_EXT.test(file.name) || isOfficeMime(file.type) ? (
+                          <FileText className="h-3.5 w-3.5" />
+                        ) : (
+                          <FileText className="h-3.5 w-3.5" />
+                        )}
+                      </span>
+                      <span className="truncate max-w-40">{file.name}</span>
+                      <span className="text-xs text-muted-foreground">{fmt(file.size)}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeAttachment(index)}
+                        className="h-4 w-4 p-0 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -268,7 +318,13 @@ export const MessageInput = ({
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx"
+            accept="
+    image/*,
+    .pdf,
+    .doc,.docx,.gdoc,
+    .xls,.xlsx,.csv,.gsheet,
+    .ppt,.pptx,.gslides
+  "
             onChange={handleFileSelect}
             className="hidden"
           />

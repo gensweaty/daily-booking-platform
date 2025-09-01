@@ -21,14 +21,25 @@ const iconFor = (ct?: string, name?: string) => {
 
 const publicUrlFor = (a: Att) => a.public_url ?? supabase.storage.from('chat_attachments').getPublicUrl(a.file_path).data.publicUrl;
 
+// NEW: utils to format sizes (optional nice touch)
+const formatSize = (n?: number) =>
+  typeof n === 'number' ? `${(n / (1024 * 1024)).toFixed(1)} MB` : '';
+
 export function MessageAttachments({ attachments }: { attachments: Att[] }) {
   if (!attachments?.length) return null;
 
-  // helper: robust download that avoids ad-blocked public URL navigations
+  // robust download (blob) — unchanged, just shared blob helper below
   const downloadFile = async (a: Att) => {
     const { data, error } = await supabase.storage.from('chat_attachments').download(a.file_path);
     if (error || !data) return;
-    const blobUrl = URL.createObjectURL(data);
+
+    // ensure correct type for the downloaded blob
+    const blob =
+      data.type && data.type !== 'application/octet-stream'
+        ? data
+        : new Blob([await data.arrayBuffer()], { type: a.content_type || 'application/octet-stream' });
+
+    const blobUrl = URL.createObjectURL(blob);
     const aTag = document.createElement('a');
     aTag.href = blobUrl;
     aTag.download = a.filename || 'download';
@@ -38,13 +49,20 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
   };
 
-  // helper: open non-image docs in a new tab using blob (also bypasses blockers)
+  // OPEN in new tab with a correctly typed Blob (PDFs render inline)
   const openDoc = async (a: Att) => {
     const { data, error } = await supabase.storage.from('chat_attachments').download(a.file_path);
     if (error || !data) return;
-    const blobUrl = URL.createObjectURL(data);
+
+    const blob =
+      data.type && data.type !== 'application/octet-stream'
+        ? data
+        : new Blob([await data.arrayBuffer()], { type: a.content_type || 'application/octet-stream' });
+
+    const blobUrl = URL.createObjectURL(blob);
     window.open(blobUrl, '_blank', 'noopener,noreferrer');
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000); // give the tab time
+    // let the new tab live for a bit before revoking
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
   };
 
   return (
@@ -62,26 +80,22 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
             {/* Media */}
             {isImage ? (
               <a href={href} target="_blank" rel="noopener noreferrer" className="block">
-                {/* Natural aspect ratio, long & wide, capped height so timeline stays neat */}
+                {/* show image proportionally (no forced aspect) */}
                 <img
                   src={a.object_url || href}
                   alt={a.filename}
-                  className="w-full h-auto max-h-72 object-contain bg-background"
+                  className="w-full h-auto max-h-80 object-contain bg-background"
                   loading="lazy"
                 />
               </a>
             ) : (
-              <button
-                type="button"
-                onClick={() => openDoc(a)}
-                className="w-full text-left"
-              >
+              <button type="button" onClick={() => openDoc(a)} className="w-full text-left">
                 <div className="w-full h-28 md:h-32 px-4 flex items-center gap-3 bg-background">
                   {iconFor(a.content_type, a.filename)}
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">{a.filename}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      {(a.content_type || 'file').toUpperCase()}
+                      {(a.content_type || 'file').toUpperCase()} {formatSize(a.size)}
                     </div>
                   </div>
                 </div>
@@ -99,7 +113,8 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 hover:underline"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" /> Open
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><path d="M14 3h7v7" stroke="currentColor" strokeWidth="2"/><path d="M10 14L21 3" stroke="currentColor" strokeWidth="2"/><path d="M21 14v7h-7" stroke="currentColor" strokeWidth="2"/><path d="M3 10l11 11" stroke="currentColor" strokeWidth="2"/></svg>
+                    Open
                   </a>
                 ) : (
                   <button
@@ -107,7 +122,8 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
                     onClick={() => openDoc(a)}
                     className="inline-flex items-center gap-1 hover:underline"
                   >
-                    <ExternalLink className="h-3.5 w-3.5" /> Open
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><path d="M14 3h7v7" stroke="currentColor" strokeWidth="2"/><path d="M10 14L21 3" stroke="currentColor" strokeWidth="2"/><path d="M21 14v7h-7" stroke="currentColor" strokeWidth="2"/><path d="M3 10l11 11" stroke="currentColor" strokeWidth="2"/></svg>
+                    Open
                   </button>
                 )}
                 <button
@@ -115,7 +131,8 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
                   onClick={() => downloadFile(a)}
                   className="inline-flex items-center gap-1 hover:underline"
                 >
-                  <Download className="h-3.5 w-3.5" /> Download
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"><path d="M12 3v12" stroke="currentColor" strokeWidth="2"/><path d="M7 10l5 5 5-5" stroke="currentColor" strokeWidth="2"/><path d="M5 21h14" stroke="currentColor" strokeWidth="2"/></svg>
+                  Download
                 </button>
               </div>
             </div>
