@@ -142,6 +142,8 @@ export const MessageInput = ({
   };
 
   const handleEmojiSelect = (emoji: any) => {
+    console.log('🎭 Emoji selected:', emoji);
+    
     if (textareaRef.current) {
       const textarea = textareaRef.current;
       const start = textarea.selectionStart;
@@ -293,11 +295,11 @@ export const MessageInput = ({
                   <Smile className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-background border-input" align="end" side="top">
+              <PopoverContent className="w-auto p-0" align="end" side="top">
                 <Picker
                   data={data}
                   onEmojiSelect={handleEmojiSelect}
-                  theme="auto"
+                  theme="light"
                   previewPosition="none"
                   skinTonePosition="none"
                 />
