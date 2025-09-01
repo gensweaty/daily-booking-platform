@@ -197,12 +197,40 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
         if (active) {
           console.log('✅ [CHAT-AREA] Loaded', data?.length || 0, 'messages');
-          const normalizedMessages = (data || []).map(msg => ({
-            ...msg,
-            sender_type: msg.sender_type as 'admin' | 'sub_user'
+          const normalized = (data || []).map((m: any) => ({
+            ...m,
+            sender_type: m.sender_type as 'admin' | 'sub_user'
           }));
-          setMessages(normalizedMessages);
-          cacheRef.current.set(activeChannelId, normalizedMessages);
+
+          // Fetch attachments for these messages
+          const ids = normalized.map(m => m.id);
+          let byMsg: Record<string, any[]> = {};
+          if (ids.length) {
+            const { data: atts, error: attErr } = await supabase
+              .from('chat_message_files')
+              .select('*')
+              .in('message_id', ids);
+            if (!attErr && atts) {
+              byMsg = atts.reduce((acc: any, a: any) => {
+                (acc[a.message_id] ||= []).push({
+                  id: a.id,
+                  filename: a.filename,
+                  file_path: a.file_path,
+                  content_type: a.content_type,
+                  size: a.size,
+                });
+                return acc;
+              }, {});
+            }
+          }
+
+          const withAtts = normalized.map(m => ({
+            ...m,
+            attachments: byMsg[m.id] || [],
+          }));
+
+          setMessages(withAtts);
+          cacheRef.current.set(activeChannelId, withAtts);
           setLoading(false);
         }
       } catch (error) {
@@ -313,11 +341,26 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   // Listen for real-time messages with cache updates and strict deduplication
   useEffect(() => {
-    const handleMessage = (event: CustomEvent) => {
-      const { message } = event.detail as { message: Message };
+    const handleMessage = async (event: CustomEvent) => {
+      let { message } = event.detail as { message: Message };
       const channelId = message.channel_id;
       
       console.log('📨 Real-time message received for channel:', channelId);
+      
+      // Fetch attachments if message has them
+      if (message.has_attachments) {
+        const { data: atts } = await supabase
+          .from('chat_message_files')
+          .select('*')
+          .eq('message_id', message.id);
+        message = { ...message, attachments: (atts || []).map(a => ({
+          id: a.id,
+          filename: a.filename,
+          file_path: a.file_path,
+          content_type: a.content_type,
+          size: a.size,
+        }))};
+      }
       
       // Update cache for this channel
       const currentCache = cacheRef.current.get(channelId) || [];
@@ -370,65 +413,35 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     if (!content.trim() && attachments.length === 0) return;
     if (!activeChannelId || !boardOwnerId || !me) return;
 
-    // Identity guard - bail if stale closure
-    const keyNow = `${boardOwnerId}:${me.email || me.id}`;
-    if (!keyNow) return; // additional safety check
-    
     setSending(true);
-    
     try {
-      // ENHANCED: Determine sending context with better sub-user handling
       const isOnPublicBoard = location.pathname.startsWith('/board/');
       const { data: { session } } = await supabase.auth.getSession();
-      const isAuthenticatedUser = !!session?.user?.id;
-      
-      console.log('📤 Sending message context:', {
-        isOnPublicBoard,
-        isAuthenticatedUser,
-        meType: me?.type,
-        meId: me?.id,
-        meEmail: me?.email,
-        boardOwnerId,
-        attachments: attachments.length
-      });
+      const isAuthed = !!session?.user?.id;
 
-      // Handle file uploads first
-      let messageData;
-      
-      // PRIORITY 1: Sub-user on public board (authenticated or not)
+      console.log('📤 Sending message with attachments:', attachments.length);
+
+      // 1) Create the message (current code path)
       if (me?.type === 'sub_user') {
-        console.log('📤 PRIORITY: Sending message as sub-user');
-        const senderEmail = me.email;
-        if (!senderEmail) throw new Error('Missing sub-user email');
-
         const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
-          p_sender_email: senderEmail,
+          p_sender_email: me.email!,
           p_content: content.trim(),
         });
         if (error) throw error;
-        
-        console.log('✅ Sub-user message sent successfully via public board RPC');
-      } else if (isAuthenticatedUser && me?.type === 'admin') {
-        // PRIORITY 2: Authenticated admin user
-        console.log('📤 Sending message as authenticated admin');
+      } else if (isAuthed && me?.type === 'admin') {
         const { error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
           p_content: content.trim(),
         });
         if (error) throw error;
-        
-        console.log('✅ Authenticated admin message sent via RPC');
       } else {
-        // FALLBACK: Public board access
-        console.log('📤 Fallback: Sending message as public board access');
+        // fallback unauth public
         const slug = location.pathname.split('/').pop()!;
         const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
         const senderEmail = me?.email || stored?.email;
-        if (!senderEmail) throw new Error('Missing sender email for public board');
-
         const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
@@ -436,24 +449,67 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_content: content.trim(),
         });
         if (error) throw error;
-        
-        console.log('✅ Public board message sent via RPC');
       }
 
-      // TODO: Handle file attachments for different sending contexts
-      // For now, file attachments work primarily with authenticated admin users
-      if (attachments.length > 0 && isAuthenticatedUser && me?.type === 'admin') {
-        console.log('📎 Processing file attachments for authenticated admin');
-        // File attachment handling would need to be integrated with the RPC functions
-        // This is a simplified version - full implementation would require updating the RPC functions
+      // 2) If there are attachments, link them to the message
+      if (attachments.length > 0) {
+        if (me?.type === 'admin' && isAuthed) {
+          // Find the latest message I just sent in this channel
+          const { data: msg } = await supabase
+            .from('chat_messages')
+            .select('id')
+            .eq('channel_id', activeChannelId)
+            .eq('sender_user_id', me.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (msg?.id) {
+            const rows = attachments.map(a => ({
+              message_id: msg.id,
+              filename: a.filename,
+              file_path: a.file_path,
+              content_type: a.content_type,
+              size: a.size,
+            }));
+
+            const { error: insErr } = await supabase
+              .from('chat_message_files')
+              .insert(rows);
+            if (insErr) throw insErr;
+
+            // mark message as having attachments
+            await supabase
+              .from('chat_messages')
+              .update({ has_attachments: true, message_type: 'file' })
+              .eq('id', msg.id);
+          }
+        } else {
+          // Public board / sub_user case uses security-definer RPC
+          const { error: attachErr } = await supabase.rpc('attach_files_to_message_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_sender_email: me.email!,
+            p_files: attachments,
+          });
+          if (attachErr) {
+            console.error('attach_files_to_message_public failed', attachErr);
+          }
+        }
       }
-      
+
+      // reload so UI shows the files
+      cacheRef.current.delete(activeChannelId);
+      // small delay to avoid racing the DB
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 10);
     } catch (e: any) {
       console.error('❌ Send error:', e);
-      toast({ 
-        title: 'Error', 
-        description: e.message || 'Failed to send', 
-        variant: 'destructive' 
+      toast({
+        title: 'Error',
+        description: e.message || 'Failed to send',
+        variant: 'destructive',
       });
     } finally {
       setSending(false);

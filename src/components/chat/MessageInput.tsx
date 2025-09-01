@@ -289,11 +289,19 @@ export const MessageInput = ({
                   size="sm"
                   className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                   disabled={isUploading}
+                  onClick={() => setShowEmojiPicker(v => !v)}
+                  aria-label="Insert emoji"
                 >
                   <Smile className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-background border-input" align="end" side="top">
+              
+              <PopoverContent
+                className="w-auto p-0 bg-background border-input z-[10000]"
+                align="end"
+                side="top"
+                sideOffset={8}
+              >
                 <Picker
                   data={data}
                   onEmojiSelect={handleEmojiSelect}

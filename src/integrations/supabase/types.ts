@@ -1584,6 +1584,15 @@ export type Database = {
         Args: { p_subscription_type: string; p_user_id: string }
         Returns: Json
       }
+      attach_files_to_message_public: {
+        Args: {
+          p_channel_id: string
+          p_files: Json
+          p_owner_id: string
+          p_sender_email: string
+        }
+        Returns: undefined
+      }
       canonical_participant_key: {
         Args: { p_id: string; p_type: string }
         Returns: string
@@ -1738,15 +1747,14 @@ export type Database = {
           channel_id: string
           content: string
           created_at: string
+          has_attachments: boolean
           id: string
-          owner_id: string
-          reply_to_id: string
+          message_type: string
           sender_avatar_url: string
           sender_name: string
           sender_sub_user_id: string
           sender_type: string
           sender_user_id: string
-          updated_at: string
         }[]
       }
       get_default_channel_for_board: {
@@ -1978,7 +1986,7 @@ export type Database = {
       }
       send_authenticated_message: {
         Args: { p_channel_id: string; p_content: string; p_owner_id: string }
-        Returns: Json
+        Returns: undefined
       }
       send_chat_message: {
         Args: {
