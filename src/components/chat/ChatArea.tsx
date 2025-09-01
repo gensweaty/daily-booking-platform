@@ -143,8 +143,13 @@ export const ChatArea = () => {
         return;
       }
 
-      try {
+      // Don't show loading if we have cached messages - makes switching instant
+      const hasCachedMessages = cacheRef.current.get(activeChannelId)?.length > 0;
+      if (!hasCachedMessages) {
         setLoading(true);
+      }
+
+      try {
         
         // SURGICAL FIX 2: Pick correct RPC based on location and user type
         const onPublicBoard = location.pathname.startsWith('/board/');
@@ -180,10 +185,13 @@ export const ChatArea = () => {
 
           if (active) {
             console.log('✅ Loaded', data?.length || 0, 'messages via public RPC');
-            setMessages((data || []).map(msg => ({
+            const normalizedMessages = (data || []).map(msg => ({
               ...msg,
               sender_type: msg.sender_type as 'admin' | 'sub_user'
-            })));
+            }));
+            setMessages(normalizedMessages);
+            // Always update cache with fresh data
+            cacheRef.current.set(activeChannelId, normalizedMessages);
             setLoading(false);
           }
         } else {
@@ -202,10 +210,13 @@ export const ChatArea = () => {
 
           if (active) {
             console.log('✅ Loaded', data?.length || 0, 'messages via authenticated RPC');
-            setMessages((data || []).map(msg => ({
+            const normalizedMessages = (data || []).map(msg => ({
               ...msg,
               sender_type: msg.sender_type as 'admin' | 'sub_user'
-            })));
+            }));
+            setMessages(normalizedMessages);
+            // Always update cache with fresh data
+            cacheRef.current.set(activeChannelId, normalizedMessages);
             setLoading(false);
           }
         }

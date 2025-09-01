@@ -63,7 +63,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [hasSubUsers, setHasSubUsers] = useState(false);
   
   // Chat ready state and pending open queue
-  const chatReady = !!boardOwnerId && !!me;
+  const chatReady = !!boardOwnerId && !!me && isInitialized;
   const [pendingOpen, setPendingOpen] = useState(false);
 
   // Portal root - memoized to prevent re-creation
@@ -320,6 +320,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Chat control functions - memoized to prevent re-renders
   const open = useCallback(() => {
+    if (!shouldShowChat) return;
+    
     if (!chatReady) { 
       setPendingOpen(true); 
       return; 
@@ -329,11 +331,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentChannelId && defaultChannelId) {
       setCurrentChannelId(defaultChannelId);
     }
-  }, [chatReady, currentChannelId, defaultChannelId]);
+  }, [shouldShowChat, chatReady, currentChannelId, defaultChannelId]);
 
   const close = useCallback(() => setIsOpen(false), []);
 
   const toggle = useCallback(() => {
+    if (!shouldShowChat) return;
+    
     setIsOpen(prev => {
       const next = !prev;
       if (next && !chatReady) {
@@ -345,7 +349,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       }
       return next;
     });
-  }, [chatReady, currentChannelId, defaultChannelId]);
+  }, [shouldShowChat, chatReady, currentChannelId, defaultChannelId]);
 
   const openChannel = useCallback((channelId: string) => {
     setCurrentChannelId(channelId);
@@ -820,7 +824,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               onClick={toggle} 
               isOpen={isOpen} 
               unreadCount={unreadTotal}
-              isPending={!chatReady}
+              isPending={pendingOpen || !isInitialized}
             />
           )}
           {isOpen && (
