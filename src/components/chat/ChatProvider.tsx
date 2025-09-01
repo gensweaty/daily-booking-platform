@@ -111,26 +111,37 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  // NEW: reactive public access detection with faster same-tab polling
-  const [hasPublicAccess, setHasPublicAccess] = useState(false);
+  // Initialize hasPublicAccess synchronously for immediate first render
+  const [hasPublicAccess, setHasPublicAccess] = useState<boolean>(() => {
+    // Sync read for the very first render
+    try { 
+      return getPublicAccess(window.location.pathname).hasAccess; 
+    } catch { 
+      return false; 
+    }
+  });
+
+  // Guarantee the next render after a route change also has the right value
+  React.useLayoutEffect(() => {
+    try { 
+      setHasPublicAccess(getPublicAccess(location.pathname).hasAccess); 
+    } catch { 
+      setHasPublicAccess(false); 
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     const read = () => setHasPublicAccess(getPublicAccess(location.pathname).hasAccess);
 
-    // immediate read
-    read();
-
-    // aggressive same-tab polling for first few seconds (50ms, 100ms, 150ms...)
+    // Keep fast polling + focus/visibility + storage listeners
     let alive = true;
-    const fastDelays = [50, 100, 150, 200, 250, 300, 400, 500, 700, 1000]; // ~3.6s total
+    const fastDelays = [50, 100, 150, 200, 250, 300, 400, 500, 700, 1000];
     let i = 0;
-
-    const tick = () => {
-      if (!alive) return;
-      read();
-      if (!hasPublicAccess && i < fastDelays.length) {
-        setTimeout(tick, fastDelays[i++]);
-      }
+    
+    const tick = () => { 
+      if (!alive) return; 
+      read(); 
+      if (i < fastDelays.length) setTimeout(tick, fastDelays[i++]); 
     };
     tick();
 
@@ -141,16 +152,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
     // cross-tab changes
     const onStorage = (e: StorageEvent) => {
-      if (!e.key) return;
-      if (e.key.includes('public-board-access-')) read();
+      if (e.key?.includes('public-board-access-')) read();
     };
     window.addEventListener('storage', onStorage);
 
     // custom event for immediate same-tab detection
-    const onCustomEvent = (e: CustomEvent) => {
-      if (e.detail?.slug && location.pathname.includes(e.detail.slug)) {
-        read();
-      }
+    const onCustomEvent = (e: any) => {
+      if (e?.detail?.slug && location.pathname.includes(e.detail.slug)) read();
     };
     window.addEventListener('public-board-access-updated', onCustomEvent as EventListener);
 
@@ -161,7 +169,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('public-board-access-updated', onCustomEvent as EventListener);
     };
-    // re-run when path or auth user flips
   }, [location.pathname, publicBoardUser?.id]);
 
   // Gate the icon on public login pages and show immediately on localStorage access
