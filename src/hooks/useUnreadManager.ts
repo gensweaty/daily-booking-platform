@@ -8,9 +8,14 @@ interface LastSeenTimes {
   [channelId: string]: number;
 }
 
-export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) => {
+interface MemberUnreads {
+  [memberKey: string]: number; // memberKey format: "userId_userType"
+}
+
+export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean, channelMemberMap?: Map<string, { id: string; type: 'admin' | 'sub_user' }>) => {
   const [unreadTotal, setUnreadTotal] = useState(0);
   const [channelUnreads, setChannelUnreads] = useState<UnreadCounts>({});
+  const [memberUnreads, setMemberUnreads] = useState<MemberUnreads>({});
   const [lastSeenTimes, setLastSeenTimes] = useState<LastSeenTimes>({});
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -21,14 +26,15 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) =>
     const slug = isPublicBoard ? currentPath.split('/').pop() : 'dashboard';
     return {
       unreadKey: `sb:${slug}:unread`,
-      lastSeenKey: `sb:${slug}:lastSeen`
+      lastSeenKey: `sb:${slug}:lastSeen`,
+      memberUnreadKey: `sb:${slug}:memberUnread`
     };
   };
 
   // Load from localStorage
   useEffect(() => {
     console.log('📊 useUnreadManager: Loading from localStorage');
-    const { unreadKey, lastSeenKey } = getStorageKeys();
+    const { unreadKey, lastSeenKey, memberUnreadKey } = getStorageKeys();
     
     // Load unread counts
     const savedUnread = localStorage.getItem(unreadKey);
@@ -43,6 +49,19 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) =>
         console.error('Failed to load unread counts:', error);
         setChannelUnreads({});
         setUnreadTotal(0);
+      }
+    }
+    
+    // Load member unread counts
+    const savedMemberUnread = localStorage.getItem(memberUnreadKey);
+    if (savedMemberUnread) {
+      try {
+        const counts: MemberUnreads = JSON.parse(savedMemberUnread);
+        console.log('📊 Loaded member unread counts:', { memberUnreadKey, counts });
+        setMemberUnreads(counts);
+      } catch (error) {
+        console.error('Failed to load member unread counts:', error);
+        setMemberUnreads({});
       }
     }
     
@@ -65,15 +84,18 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) =>
   // Save to localStorage
   useEffect(() => {
     if (isInitialized) {
-      const { unreadKey, lastSeenKey } = getStorageKeys();
+      const { unreadKey, lastSeenKey, memberUnreadKey } = getStorageKeys();
       
       console.log('💾 Saving unread counts:', { unreadKey, channelUnreads });
       localStorage.setItem(unreadKey, JSON.stringify(channelUnreads));
       
+      console.log('💾 Saving member unread counts:', { memberUnreadKey, memberUnreads });
+      localStorage.setItem(memberUnreadKey, JSON.stringify(memberUnreads));
+      
       console.log('💾 Saving last seen times:', { lastSeenKey, lastSeenTimes });
       localStorage.setItem(lastSeenKey, JSON.stringify(lastSeenTimes));
     }
-  }, [channelUnreads, lastSeenTimes, isInitialized]);
+  }, [channelUnreads, memberUnreads, lastSeenTimes, isInitialized]);
 
   // Update lastSeenAt when chat is open on a channel
   useEffect(() => {
@@ -96,6 +118,25 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) =>
       }
     }
   }, [isOpen, currentChannelId, channelUnreads]);
+
+  // Update member unreads when channel unreads change
+  useEffect(() => {
+    if (!channelMemberMap) return;
+    
+    const newMemberUnreads: MemberUnreads = {};
+    
+    // Aggregate channel unreads by member
+    channelMemberMap.forEach((member, channelId) => {
+      const unreadCount = channelUnreads[channelId] || 0;
+      if (unreadCount > 0) {
+        const memberKey = `${member.id}_${member.type}`;
+        newMemberUnreads[memberKey] = (newMemberUnreads[memberKey] || 0) + unreadCount;
+      }
+    });
+    
+    console.log('📊 Updated member unreads:', { channelUnreads, newMemberUnreads });
+    setMemberUnreads(newMemberUnreads);
+  }, [channelUnreads, channelMemberMap]);
 
   // Update total when channel unreads change
   useEffect(() => {
@@ -129,17 +170,51 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean) =>
     });
   }, []);
 
+  const clearUserUnread = useCallback((userId: string, userType: 'admin' | 'sub_user') => {
+    const memberKey = `${userId}_${userType}`;
+    console.log('🧹 Clearing unread for member:', memberKey);
+    
+    // Clear all channels for this member
+    if (channelMemberMap) {
+      channelMemberMap.forEach((member, channelId) => {
+        if (member.id === userId && member.type === userType) {
+          setChannelUnreads(prev => {
+            const updated = { ...prev };
+            delete updated[channelId];
+            return updated;
+          });
+        }
+      });
+    }
+    
+    // Clear member unread count
+    setMemberUnreads(prev => {
+      const updated = { ...prev };
+      delete updated[memberKey];
+      return updated;
+    });
+  }, [channelMemberMap]);
+
+  const getUserUnreadCount = useCallback((userId: string, userType: 'admin' | 'sub_user'): number => {
+    const memberKey = `${userId}_${userType}`;
+    return memberUnreads[memberKey] || 0;
+  }, [memberUnreads]);
+
   const clearAllUnread = useCallback(() => {
     console.log('🧹 Clearing all unread counts');
     setChannelUnreads({});
+    setMemberUnreads({});
     setUnreadTotal(0);
   }, []);
 
   return {
     unreadTotal,
     channelUnreads,
+    memberUnreads,
     incrementUnread,
     clearChannelUnread,
+    clearUserUnread,
+    getUserUnreadCount,
     clearAllUnread,
   };
 };

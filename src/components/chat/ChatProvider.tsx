@@ -34,6 +34,7 @@ type ChatCtx = {
   startDM: (otherId: string, otherType: "admin" | "sub_user") => void;
   unreadTotal: number;
   channelUnreads: { [channelId: string]: number };
+  getUserUnreadCount: (userId: string, userType: 'admin' | 'sub_user') => number;
   boardOwnerId: string | null;
   connectionStatus: string;
   realtimeEnabled: boolean;
@@ -165,12 +166,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const onPublicLoginPage = isOnPublicBoard && location.pathname.includes('/login');
   const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id);
 
-  // Enhanced unread management - memoized dependencies
+  // Enhanced unread management - memoized dependencies  
   const {
     unreadTotal,
     channelUnreads,
+    memberUnreads,
     incrementUnread,
     clearChannelUnread,
+    clearUserUnread,
+    getUserUnreadCount,
     clearAllUnread,
   } = useUnreadManager(currentChannelId, isOpen);
 
@@ -477,6 +481,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('🔍 Using canonical find_or_create_dm RPC for:', { me, otherId, otherType });
 
+      // Clear unread count for this user before opening DM
+      clearUserUnread(otherId, otherType);
+
       // Single canonical path for both dashboard and public boards
       const { data: channelId, error } = await supabase.rpc('find_or_create_dm', {
         p_owner_id: boardOwnerId,
@@ -508,7 +515,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         variant: 'destructive',
       });
     }
-  }, [boardOwnerId, me, toast]);
+  }, [boardOwnerId, me, toast, clearUserUnread]);
 
   // Context value - memoized to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
@@ -525,10 +532,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     startDM,
     unreadTotal,
     channelUnreads,
+    getUserUnreadCount,
     boardOwnerId,
     connectionStatus,
     realtimeEnabled,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, boardOwnerId, connectionStatus, realtimeEnabled]);
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, boardOwnerId, connectionStatus, realtimeEnabled]);
 
   return (
     <ChatContext.Provider value={contextValue}>

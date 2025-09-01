@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { resolveAvatarUrl } from './_avatar';
 
 export const ChatSidebar = () => {
-  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads } = useChat();
+  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount } = useChat();
   const location = useLocation();
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   const [channelMemberMap, setChannelMemberMap] = useState<Map<string, { id: string; type: 'admin' | 'sub_user' }>>(new Map());
@@ -16,7 +16,7 @@ export const ChatSidebar = () => {
     name: string; 
     type: 'admin' | 'sub_user'; 
     avatar_url?: string | null;
-    hasUnread?: boolean;
+    unreadCount?: number;
   }>>([]);
 
   // Load general channel with improved selection logic
@@ -336,41 +336,28 @@ export const ChatSidebar = () => {
     })();
   }, [boardOwnerId, me, channelUnreads]);
 
-  // Enhanced unread indicators with detailed logging
+  // Enhanced unread count indicators with detailed logging
   useEffect(() => {
-    console.log('🔄 Updating member unread indicators...');
-    console.log('💬 Channel unreads:', channelUnreads);
-    console.log('🗺️ Channel member map:', Array.from(channelMemberMap.entries()));
+    console.log('🔄 Updating member unread count indicators...');
     
     setMembers(prevMembers => 
       prevMembers.map(member => {
-        // Find channels where this member has unread messages
-        const hasUnread = Array.from(channelMemberMap.entries()).some(([channelId, channelMember]) => {
-          const isMatch = channelMember.id === member.id && channelMember.type === member.type;
-          const unreadCount = channelUnreads[channelId] || 0;
-          const hasUnreadMessages = unreadCount > 0;
-          
-          if (isMatch && hasUnreadMessages) {
-            console.log(`🔴 Member ${member.name} has ${unreadCount} unread messages in channel ${channelId}`);
-          }
-          
-          return isMatch && hasUnreadMessages;
-        });
-
-        if (hasUnread !== member.hasUnread) {
-          console.log(`📍 Member ${member.name} unread status changed:`, { 
-            from: member.hasUnread, 
-            to: hasUnread 
+        const unreadCount = getUserUnreadCount(member.id, member.type);
+        
+        if (unreadCount !== member.unreadCount) {
+          console.log(`📍 Member ${member.name} unread count changed:`, { 
+            from: member.unreadCount, 
+            to: unreadCount 
           });
         }
 
         return {
           ...member,
-          hasUnread
+          unreadCount
         };
       })
     );
-  }, [channelUnreads, channelMemberMap]);
+  }, [getUserUnreadCount]);
 
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
@@ -440,9 +427,11 @@ export const ChatSidebar = () => {
                       {(member.name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}
-                  {member.hasUnread && (
-                    <div className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full border-2 border-background flex items-center justify-center">
-                      <div className="h-1.5 w-1.5 bg-white rounded-full animate-pulse" />
+                  {member.unreadCount && member.unreadCount > 0 && (
+                    <div className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full border-2 border-background flex items-center justify-center">
+                      <span className="text-xs text-white font-bold">
+                        {member.unreadCount > 9 ? '9+' : member.unreadCount}
+                      </span>
                     </div>
                   )}
                 </div>
