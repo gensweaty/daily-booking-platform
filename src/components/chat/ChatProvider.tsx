@@ -47,6 +47,26 @@ export const useChat = () => {
   return ctx;
 };
 
+// Helper to read localStorage access
+const getPublicAccess = (path: string) => {
+  try {
+    const slug = path.split('/').pop()!;
+    const raw = localStorage.getItem(`public-board-access-${slug}`);
+    if (!raw) return { hasAccess: false } as const;
+    const parsed = JSON.parse(raw);
+    const hasAccess = !!(parsed?.token && parsed?.email && parsed?.fullName && parsed?.boardOwnerId);
+    return {
+      hasAccess,
+      slug,
+      email: parsed?.email as string | undefined,
+      fullName: parsed?.fullName as string | undefined,
+      storedOwnerId: parsed?.boardOwnerId as string | undefined,
+    } as const;
+  } catch {
+    return { hasAccess: false } as const;
+  }
+};
+
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
   const location = useLocation();
@@ -88,13 +108,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  // Determine if chat should be shown - FIXED: Only show after sub-user is authenticated
+  const { hasAccess: hasPublicAccess } = useMemo(
+    () => getPublicAccess(location.pathname),
+    [location.pathname]
+  );
+
+  // Determine if chat should be shown - check both auth and localStorage
   const shouldShowChat = useMemo(() => {
-    // Public board => only after sub-user is authenticated
-    if (isOnPublicBoard) return !!publicBoardUser?.id;
-    // Internal dashboard => only for authenticated admins
-    return !!user?.id;
-  }, [isOnPublicBoard, publicBoardUser?.id, user?.id]);
+    return isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id;
+  }, [isOnPublicBoard, publicBoardUser?.id, hasPublicAccess, user?.id]);
 
   console.log('🔍 ChatProvider render:', {
     hasSubUsers,
@@ -258,62 +280,69 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     (async () => {
       setIsInitialized(false);
 
-      // 1) Resolve board owner from slug always
+      // Resolve board owner from slug
       const slug = location.pathname.split('/').pop()!;
-      const { data: pb } = await supabase
-        .from('public_boards')
-        .select('user_id')
-        .eq('slug', slug)
-        .maybeSingle();
-
+      const { data: pb } = await supabase.from('public_boards')
+        .select('user_id').eq('slug', slug).maybeSingle();
       const ownerId = pb?.user_id || null;
       if (active) setBoardOwnerId(ownerId);
 
-      // 2) PUBLIC BOARD: if sub-user is logged in via PublicBoardAuth, use that identity immediately
-      if (isOnPublicBoard && publicBoardUser?.id && ownerId) {
-        // try to resolve the sub_user row to get the id (nice to have, not strictly required to load msgs)
-        const email = publicBoardUser.email?.trim().toLowerCase();
-        let subUserId: string | null = null;
-        if (email) {
-          const { data: su } = await supabase
-            .from('sub_users')
-            .select('id, fullname, avatar_url, email')
-            .eq('board_owner_id', ownerId)
-            .ilike('email', email)
-            .maybeSingle();
-          subUserId = su?.id || null;
+      // PUBLIC BOARD: identity from PublicBoardAuth OR localStorage
+      const { hasAccess, email: lsEmail, fullName: lsName, storedOwnerId } = getPublicAccess(location.pathname);
+
+      if (isOnPublicBoard && ownerId) {
+        if (publicBoardUser?.id) {
+          // Fast path: authenticated sub-user
+          const email = publicBoardUser.email?.trim().toLowerCase();
+          let suId: string | null = null;
+          if (email) {
+            const { data: su } = await supabase.from('sub_users')
+              .select('id, fullname, avatar_url').eq('board_owner_id', ownerId)
+              .ilike('email', email).maybeSingle();
+            suId = su?.id || null;
+          }
+          if (active) {
+            setMe({
+              id: suId || publicBoardUser.id,
+              type: 'sub_user',
+              name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
+              email: publicBoardUser.email || undefined,
+              avatarUrl: undefined,
+            });
+            setIsInitialized(true);           // ← important
+          }
+          return;
         }
 
-        const meCandidate: Me = {
-          id: subUserId || publicBoardUser.id, // fall back to auth id if DB row not found yet
-          type: 'sub_user',
-          name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
-          email: publicBoardUser.email || undefined,
-          avatarUrl: undefined,
-        };
-
-        if (active) {
-          setMe(meCandidate);
-          setIsInitialized(true); // ← do not delay; ChatArea will fetch messages right away
+        if (hasAccess && storedOwnerId === ownerId) {
+          // Fallback: LS token user
+          let suId: string | null = null;
+          if (lsEmail) {
+            const { data: su } = await supabase.from('sub_users')
+              .select('id, fullname, avatar_url').eq('board_owner_id', ownerId)
+              .ilike('email', lsEmail.trim().toLowerCase()).maybeSingle();
+            suId = su?.id || null;
+          }
+          if (active) {
+            setMe({
+              id: suId || `temp-${ownerId}`,   // temporary id if row not found yet
+              type: 'sub_user',
+              name: lsName || (lsEmail?.split('@')[0] ?? 'Member'),
+              email: lsEmail,
+              avatarUrl: undefined,
+            });
+            setIsInitialized(true);           // ← important
+          }
+          return;
         }
-
-        // Also preselect default channel as soon as owner is known
-        if (ownerId) {
-          const { data } = await supabase.rpc('get_default_channel_for_board', { p_board_owner_id: ownerId });
-          const id = data?.[0]?.id as string | undefined;
-          if (active && id && !currentChannelId) setCurrentChannelId(id);
-        }
-
-        return;
       }
 
-      // 3) INTERNAL DASHBOARD (admin)
+      // INTERNAL dashboard (admin) — unchanged
       if (!isOnPublicBoard && user?.id) {
+        const { data: profile } = await supabase
+          .from('profiles').select('id, username, avatar_url').eq('id', user.id).maybeSingle();
         if (active) {
           setBoardOwnerId(user.id);
-          const { data: profile } = await supabase
-            .from('profiles').select('id, username, avatar_url').eq('id', user.id).maybeSingle();
-
           setMe({
             id: user.id,
             type: 'admin',
@@ -328,7 +357,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // 4) Fallback: no identity (icon won't be visible anyway due to shouldShowChat)
       if (active) {
         setMe(null);
         setIsInitialized(true);
@@ -336,7 +364,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     })();
 
     return () => { active = false; };
-  }, [isOnPublicBoard, publicBoardUser?.id, publicBoardUser?.email, user?.id, location.pathname, currentChannelId]);
+  }, [isOnPublicBoard, publicBoardUser?.id, publicBoardUser?.email, user?.id, location.pathname]);
 
   // ❌ REMOVED: Old normalization logic is no longer needed since the migration handles it
 
