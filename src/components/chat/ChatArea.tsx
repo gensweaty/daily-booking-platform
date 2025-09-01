@@ -413,15 +413,44 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     if (!content.trim() && attachments.length === 0) return;
     if (!activeChannelId || !boardOwnerId || !me) return;
 
+    // --- OPTIMISTIC UI: build a temporary message and paint immediately
+    const tempId = `temp_${Date.now()}`;
+    const optimisticAtts = attachments.map((a: any) => {
+      // prefer provided public_url (from MessageInput), else derive
+      const { data } = supabase.storage.from('chat_attachments').getPublicUrl(a.file_path);
+      return {
+        id: `tmp_${Math.random().toString(36).slice(2)}`,
+        filename: a.filename,
+        file_path: a.file_path,
+        content_type: a.content_type,
+        size: a.size,
+        public_url: a.public_url || data.publicUrl,
+        object_url: a.object_url, // fast blob preview for images
+      };
+    });
+
+    const optimisticMessage: Message = {
+      id: tempId,
+      content: content,
+      created_at: new Date().toISOString(),
+      sender_type: me.type as 'admin' | 'sub_user',
+      sender_name: me.name || me.email || 'Me',
+      sender_avatar_url: me.avatarUrl || undefined,
+      channel_id: activeChannelId,
+      has_attachments: optimisticAtts.length > 0,
+      message_type: optimisticAtts.length ? 'file' : 'text',
+      attachments: optimisticAtts,
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+
     setSending(true);
     try {
-      const isOnPublicBoard = location.pathname.startsWith('/board/');
+      // send text
       const { data: { session } } = await supabase.auth.getSession();
       const isAuthed = !!session?.user?.id;
 
-      console.log('📤 Sending message with attachments:', attachments.length);
-
-      // 1) Create the message (current code path)
       if (me?.type === 'sub_user') {
         const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
@@ -438,7 +467,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         });
         if (error) throw error;
       } else {
-        // fallback unauth public
         const slug = location.pathname.split('/').pop()!;
         const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
         const senderEmail = me?.email || stored?.email;
@@ -451,20 +479,18 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         if (error) throw error;
       }
 
-      // 2) If there are attachments, link them to the message
+      // link files to the just-sent message on the server
       if (attachments.length > 0) {
-        if (me?.type === 'admin' && isAuthed) {
-          // Find the latest message I just sent in this channel
-          const { data: msg } = await supabase
-            .from('chat_messages')
-            .select('id')
-            .eq('channel_id', activeChannelId)
-            .eq('sender_user_id', me.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+        const { data: msg } = await supabase
+          .from('chat_messages')
+          .select('id')
+          .eq('channel_id', activeChannelId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-          if (msg?.id) {
+        if (msg?.id) {
+          if (me?.type === 'admin' && isAuthed) {
             const rows = attachments.map(a => ({
               message_id: msg.id,
               filename: a.filename,
@@ -472,39 +498,38 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               content_type: a.content_type,
               size: a.size,
             }));
-
-            const { error: insErr } = await supabase
-              .from('chat_message_files')
-              .insert(rows);
-            if (insErr) throw insErr;
-
-            // mark message as having attachments
-            await supabase
-              .from('chat_messages')
+            await supabase.from('chat_message_files').insert(rows);
+            await supabase.from('chat_messages')
               .update({ has_attachments: true, message_type: 'file' })
               .eq('id', msg.id);
-          }
-        } else {
-          // Public board / sub_user case uses security-definer RPC
-          const { error: attachErr } = await supabase.rpc('attach_files_to_message_public', {
-            p_owner_id: boardOwnerId,
-            p_channel_id: activeChannelId,
-            p_sender_email: me.email!,
-            p_files: attachments,
-          });
-          if (attachErr) {
-            console.error('attach_files_to_message_public failed', attachErr);
+          } else {
+            await supabase.rpc('attach_files_to_message_public', {
+              p_owner_id: boardOwnerId,
+              p_channel_id: activeChannelId,
+              p_sender_email: me.email!,
+              p_files: attachments,
+            });
           }
         }
       }
 
-      // reload so UI shows the files
-      cacheRef.current.delete(activeChannelId);
-      // small delay to avoid racing the DB
-      setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 10);
+      // Replace optimistic with real (we rely on realtime/poll; as a fallback, fetch once)
+      setTimeout(async () => {
+        const { data } = await supabase.rpc('get_chat_messages_for_channel', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+        });
+        if (!data) return;
+        setMessages(prev => {
+          const withoutTemp = prev.filter(m => m.id !== tempId);
+          // normalize + hydrate attachments for newest message
+          // (already handled by the polling/realtime listener too)
+          return withoutTemp;
+        });
+      }, 400);
     } catch (e: any) {
+      // rollback optimistic if failed
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       console.error('❌ Send error:', e);
       toast({
         title: 'Error',

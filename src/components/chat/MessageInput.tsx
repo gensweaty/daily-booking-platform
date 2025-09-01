@@ -42,7 +42,6 @@ export const MessageInput = ({
       try {
         let uploadedFiles = [];
         
-        // Upload files if any
         if (attachments.length > 0) {
           for (const file of attachments) {
             const fileExt = file.name.split('.').pop();
@@ -54,20 +53,26 @@ export const MessageInput = ({
               .upload(filePath, file);
 
             if (uploadError) {
-              console.error('File upload error:', uploadError);
+              console.error('Upload error:', uploadError);
               toast({
                 title: "Upload failed",
-                description: `Failed to upload ${file.name}`,
+                description: `Could not upload ${file.name}`,
                 variant: "destructive",
               });
               continue;
             }
 
+            const { data: pub } = supabase.storage
+              .from('chat_attachments')
+              .getPublicUrl(filePath);
+
             uploadedFiles.push({
               filename: file.name,
               file_path: filePath,
               content_type: file.type,
-              size: file.size
+              size: file.size,
+              public_url: pub.publicUrl,         // ⭐ used by optimistic UI
+              object_url: URL.createObjectURL(file), // ⭐ ultra-fast preview
             });
           }
         }

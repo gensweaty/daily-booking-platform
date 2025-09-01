@@ -1,147 +1,76 @@
-import { useState } from 'react';
-import { FileText, Image as ImageIcon, Download, Eye } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChatAttachment } from '@/hooks/useChatMessages';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { FileText, FileSpreadsheet, FileIcon, Image as ImageIcon } from 'lucide-react';
 
-interface MessageAttachmentsProps {
-  attachments: ChatAttachment[];
-}
+type Att = {
+  id?: string;
+  filename: string;
+  file_path: string;
+  content_type?: string;
+  size?: number;
+  /** optional, passed by optimistic UI */
+  public_url?: string;
+  /** optional, for very first paint */
+  object_url?: string;
+};
 
-export const MessageAttachments = ({ attachments }: MessageAttachmentsProps) => {
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const { toast } = useToast();
+const getIcon = (ct?: string, name?: string) => {
+  if (ct?.startsWith('image/')) return <ImageIcon className="h-4 w-4" />;
+  if (ct === 'application/pdf') return <FileText className="h-4 w-4" />;
+  if (ct?.includes('spreadsheet') || /\.(xlsx|xls|csv)$/i.test(name ?? '')) return <FileSpreadsheet className="h-4 w-4" />;
+  if (ct?.includes('word') || /\.(docx?|rtf)$/i.test(name ?? '')) return <FileText className="h-4 w-4" />;
+  return <FileIcon className="h-4 w-4" />;
+};
 
-  const getFileIcon = (contentType?: string) => {
-    if (contentType?.startsWith('image/')) {
-      return <ImageIcon className="h-4 w-4" />;
-    }
-    return <FileText className="h-4 w-4" />;
-  };
+const urlFor = (a: Att) => {
+  if (a.public_url) return a.public_url;
+  const { data } = supabase.storage.from('chat_attachments').getPublicUrl(a.file_path);
+  return data.publicUrl;
+};
 
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '';
-    const mb = bytes / (1024 * 1024);
-    if (mb < 1) {
-      return `${Math.round(bytes / 1024)}KB`;
-    }
-    return `${mb.toFixed(1)}MB`;
-  };
-
-  const handlePreview = async (attachment: ChatAttachment) => {
-    if (!attachment.content_type?.startsWith('image/')) return;
-
-    try {
-      const { data } = supabase.storage
-        .from('chat_attachments')
-        .getPublicUrl(attachment.file_path);
-
-      if (data?.publicUrl) {
-        setPreviewImage(data.publicUrl);
-        setPreviewOpen(true);
-      }
-    } catch (error) {
-      console.error('Error getting preview URL:', error);
-      toast({
-        title: "Preview failed",
-        description: "Could not load image preview",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDownload = async (attachment: ChatAttachment) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from('chat_attachments')
-        .download(attachment.file_path);
-
-      if (error) throw error;
-
-      const blob = new Blob([data]);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = attachment.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      toast({
-        title: "Download failed",
-        description: "Could not download file",
-        variant: "destructive",
-      });
-    }
-  };
-
-  if (!attachments.length) return null;
+export function MessageAttachments({ attachments }: { attachments: Att[] }) {
+  if (!attachments?.length) return null;
 
   return (
-    <>
-      <div className="mt-2 space-y-2">
-        {attachments.map((attachment) => (
-          <div
-            key={attachment.id}
-            className="flex items-center gap-2 p-2 bg-muted/50 rounded border max-w-xs"
-          >
-            <div className="text-muted-foreground">
-              {getFileIcon(attachment.content_type)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{attachment.filename}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatFileSize(attachment.size)}
-              </p>
-            </div>
-            <div className="flex gap-1">
-              {attachment.content_type?.startsWith('image/') && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handlePreview(attachment)}
-                  className="h-6 w-6 p-0"
-                  title="Preview"
-                >
-                  <Eye className="h-3 w-3" />
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleDownload(attachment)}
-                className="h-6 w-6 p-0"
-                title="Download"
-              >
-                <Download className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+      {attachments.map((a, i) => {
+        const isImage = a.content_type?.startsWith('image/');
+        const href = urlFor(a);
 
-      {/* Image Preview Dialog */}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Image Preview</DialogTitle>
-          </DialogHeader>
-          {previewImage && (
-            <div className="flex justify-center">
-              <img
-                src={previewImage}
-                alt="Preview"
-                className="max-w-full max-h-[70vh] object-contain rounded"
-              />
+        return (
+          <a
+            key={a.id ?? `${a.file_path}-${i}`}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group rounded-lg border bg-muted/30 overflow-hidden hover:bg-muted/50 transition"
+            title={a.filename}
+          >
+            {/* Long, wide thumbnail like your 2nd screenshot */}
+            <div className="aspect-[3/1] w-full bg-background flex items-center justify-center overflow-hidden">
+              {isImage ? (
+                <img
+                  src={a.object_url || href}
+                  alt={a.filename}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-foreground/80">
+                  {getIcon(a.content_type, a.filename)}
+                  <span className="truncate max-w-[75%]">{a.filename}</span>
+                </div>
+              )}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+            {/* Footer row */}
+            <div className="px-3 py-2 text-xs flex items-center justify-between">
+              <span className="truncate">{a.filename}</span>
+              <span className="text-muted-foreground">
+                {a.content_type?.split('/')[1]?.toUpperCase() || 'FILE'}
+              </span>
+            </div>
+          </a>
+        );
+      })}
+    </div>
   );
-};
+}
