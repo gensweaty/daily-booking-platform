@@ -69,7 +69,7 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
         return (
           <div
             key={a.id ?? `${a.file_path}-${i}`}
-            className="group rounded-lg border bg-muted/30 overflow-hidden hover:bg-muted/50 transition w-fit min-w-[360px] max-w-[560px]"
+            className="group rounded-lg border bg-muted/30 overflow-hidden hover:bg-muted/50 transition w-fit min-w-[340px] max-w-[500px]"
             title={a.filename}
           >
             {/* Media */}
@@ -98,7 +98,7 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
 
             {/* Footer actions */}
             <div className="px-3 py-2 text-xs flex items-center justify-between">
-              <span className="truncate">{a.filename}</span>
+              <span className="truncate max-w-[55%]">{a.filename}</span>
               <div className="flex items-center gap-3 whitespace-nowrap">
                 {isImage ? (
                   <a

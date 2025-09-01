@@ -53,12 +53,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
   const activeChannelId = currentChannelId;
 
-  // small helper to always show a good display name
-  const displayName = (fallbackEmail?: string) =>
-    (me?.name?.trim() ||
-     (me as any)?.full_name?.trim() ||
-     (fallbackEmail ? fallbackEmail.split('@')[0] : '') ||
-     'Me');
+  // helper for clean display names
+  const nameFor = (m: Message) =>
+    (m.sender_name && m.sender_name.trim())
+    || (me?.name?.trim() || (me as any)?.full_name?.trim())
+    || 'User';
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -267,6 +266,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     if (!content.trim() && attachments.length === 0) return;
     if (!activeChannelId || !boardOwnerId || !me) return;
 
+    // --- optimistic paint
     const tempId = `temp_${Date.now()}`;
     const optimisticAtts = attachments.map((a: any) => {
       const { data } = supabase.storage.from('chat_attachments').getPublicUrl(a.file_path);
@@ -286,55 +286,34 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       content: content,
       created_at: new Date().toISOString(),
       sender_type: me.type as 'admin' | 'sub_user',
-      sender_name: displayName(me?.email || undefined),
+      sender_name: (me.name || (me as any)?.full_name || 'Me'),
       sender_avatar_url: me.avatarUrl || undefined,
       channel_id: activeChannelId,
       has_attachments: optimisticAtts.length > 0,
       message_type: optimisticAtts.length ? 'file' : 'text',
       attachments: optimisticAtts,
     };
+
     setMessages(prev => [...prev, optimisticMessage]);
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
 
-    const hydrateAndReplace = async () => {
-      // fetch the latest message for this channel and use it as the "real" one
+    // helper: fetch the latest message id the server just created
+    const fetchLatestMessage = async () => {
       const { data: msg } = await supabase
         .from('chat_messages')
-        .select('id, created_at, content, channel_id, has_attachments, message_type, sender_type, sender_user_id, sender_sub_user_id')
+        .select('id, created_at, content, channel_id, has_attachments, message_type, sender_type, sender_user_id, sender_sub_user_id, sender_name')
         .eq('channel_id', activeChannelId)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-
-      if (!msg?.id) return;
-
-      let attachmentsForMsg: any[] = [];
-      if (msg.has_attachments) {
-        const { data: atts } = await supabase.from('chat_message_files').select('*').eq('message_id', msg.id);
-        attachmentsForMsg = (atts || []).map(a => ({
-          id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
-        }));
-      }
-
-      const hydrated: Message = {
-        ...msg,
-        sender_type: msg.sender_type as 'admin' | 'sub_user',
-        sender_name: displayName(me?.email || undefined),
-        sender_avatar_url: me.avatarUrl || undefined,
-        attachments: attachmentsForMsg,
-      };
-
-      setMessages(prev => {
-        const withoutTemp = prev.filter(m => m.id !== tempId);
-        return [...withoutTemp, hydrated];
-      });
-      window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: hydrated } }));
+      return msg || null;
     };
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const isAuthed = !!session?.user?.id;
 
+      // 1) send the text
       if (me?.type === 'sub_user') {
         const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
@@ -363,17 +342,72 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         if (error) throw error;
       }
 
+      // 2) get the just-created message
+      const real = await fetchLatestMessage();
+      if (!real?.id) return;
+
+      // 3) link files to that message (this is the step that was missing)
       if (attachments.length > 0) {
-        // server linking happens via RPC/insert; hydrate real message now
-        await hydrateAndReplace();
-      } else {
-        // IMPORTANT: also hydrate for text-only messages to avoid the temp+real double
-        await hydrateAndReplace();
+        if (me?.type === 'admin' && isAuthed) {
+          const rows = attachments.map(a => ({
+            message_id: real.id,
+            filename: a.filename,
+            file_path: a.file_path,
+            content_type: a.content_type,
+            size: a.size,
+          }));
+          await supabase.from('chat_message_files').insert(rows);
+          await supabase.from('chat_messages')
+            .update({ has_attachments: true, message_type: 'file' })
+            .eq('id', real.id);
+        } else {
+          await supabase.rpc('attach_files_to_message_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_sender_email: me.email!,
+            p_files: attachments,
+          });
+        }
       }
+
+      // 4) hydrate with attachments + friendly display name fallback
+      let atts: any[] = [];
+      if (attachments.length > 0) {
+        const { data: linked } = await supabase
+          .from('chat_message_files')
+          .select('*')
+          .eq('message_id', real.id);
+        atts = (linked || []).map(a => ({
+          id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
+        }));
+      }
+
+      const hydrated: Message = {
+        ...real,
+        sender_type: real.sender_type as 'admin' | 'sub_user',
+        sender_name: (real.sender_name && real.sender_name.trim())
+          || (me.name || (me as any)?.full_name || 'Me'),
+        sender_avatar_url: me.avatarUrl || undefined,
+        attachments: atts,
+      };
+
+      // 5) replace optimistic; also guard against duplicates by id
+      setMessages(prev => {
+        const withoutTemp = prev.filter(m => m.id !== tempId && m.id !== real.id);
+        return [...withoutTemp, hydrated];
+      });
+
+      // dispatch once so other views update; id-based guards will avoid dupes
+      window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: hydrated } }));
     } catch (e: any) {
+      // rollback optimistic
       setMessages(prev => prev.filter(m => m.id !== tempId));
       console.error('❌ Send error:', e);
-      toast({ title: 'Error', description: e.message || 'Failed to send', variant: 'destructive' });
+      toast({
+        title: 'Error',
+        description: e.message || 'Failed to send',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -432,14 +466,14 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                       />
                     ) : (
                       <span className="text-xs font-medium">
-                        {(message.sender_name || displayName()).slice(0, 2).toUpperCase()}
+                        {(nameFor(message) || "U").slice(0, 2).toUpperCase()}
                       </span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 mb-1">
                       <span className="font-medium text-sm">
-                        {message.sender_name || displayName()}
+                        {nameFor(message)}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {new Date(message.created_at).toLocaleTimeString()}
