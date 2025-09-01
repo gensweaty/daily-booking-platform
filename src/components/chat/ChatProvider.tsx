@@ -89,15 +89,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  // Determine if chat should be shown - FIXED: consider ChatProvider's own me state
+  // Determine if chat should be shown - FIXED: Always show icon on public boards
   const shouldShowChat = useMemo(() => {
-    if (isOnPublicBoard) {
-      // Show if we have a valid sub-user from PublicBoardAuth OR if ChatProvider resolved a user
-      return publicBoardUser?.id != null || (isInitialized && me?.id != null);
-    }
-    // Show for authenticated admin users on dashboard
-    return user?.id != null;
-  }, [user?.id, isOnPublicBoard, publicBoardUser?.id, isInitialized, me?.id]);
+    // External board: icon is always visible; the window can show a loader
+    if (isOnPublicBoard) return true;
+    // Internal dashboard: only for authenticated admins
+    return !!user?.id;
+  }, [isOnPublicBoard, user?.id]);
 
   console.log('🔍 ChatProvider render:', {
     hasSubUsers,
@@ -408,28 +406,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // On public boards, wait for auth resolution
-      if (isOnPublicBoard && publicBoardUser === undefined) {
-        console.log('⏳ Waiting for public board auth to resolve');
-        if (active) {
-          clearTimeout(initTimeout);
-          setIsInitialized(true);
-        }
-        return; // Don't initialize yet
-      }
-
-      // Clear stale identity when switching contexts or logging out
-      if (isOnPublicBoard && !publicBoardUser?.id) {
-        console.log('🧹 Clearing stale identity - user logged out or no valid auth');
-        if (active) {
-          setMe(null);
-          setBoardOwnerId(null);
-          setIsOpen(false); // Close chat if open
-          clearTimeout(initTimeout);
-          setIsInitialized(true);
-        }
-        return;
-      }
+      // REMOVED: Early return branches that blocked identity resolution
+      // We now always try to resolve identities from slug → owner → (session | localStorage)
 
       try {
         // SURGICAL FIX 1: Always resolve board owner from URL slug first
