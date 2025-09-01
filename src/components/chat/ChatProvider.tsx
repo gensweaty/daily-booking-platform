@@ -305,8 +305,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }));
   }, [boardOwnerId, me, isOpen, currentChannelId, incrementUnread, showNotification]);
 
-  // Real-time setup - FIXED: enable for authenticated users regardless of route
-  const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!user?.id;
+  // Real-time setup - FIXED: enable for both admin and authenticated public board users
+  const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!me?.id;
   const { connectionStatus } = useEnhancedRealtimeChat({
     onNewMessage: handleNewMessage,
     userId: me?.id,
@@ -341,6 +341,40 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       setCurrentChannelId(defaultChannelId);
     }
   }, [defaultChannelId, currentChannelId]);
+
+  // Polling fallback for public board users when real-time is unavailable
+  useEffect(() => {
+    if (!isOnPublicBoard || !me || !boardOwnerId || isOpen || !defaultChannelId) return;
+    
+    console.log('🔄 Starting message polling for public board user');
+    let lastPollTime = Date.now();
+    
+    const pollForMessages = async () => {
+      try {
+        const { data: messages } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('owner_id', boardOwnerId)
+          .gte('created_at', new Date(lastPollTime).toISOString())
+          .order('created_at', { ascending: true });
+        
+        if (messages && messages.length > 0) {
+          console.log(`📬 Polling found ${messages.length} new messages`);
+          messages.forEach(message => handleNewMessage(message));
+          lastPollTime = Date.now();
+        }
+      } catch (error) {
+        console.error('❌ Polling error:', error);
+      }
+    };
+    
+    const pollInterval = setInterval(pollForMessages, 15000); // Poll every 15 seconds
+    
+    return () => {
+      console.log('🛑 Stopping message polling');
+      clearInterval(pollInterval);
+    };
+  }, [isOnPublicBoard, me, boardOwnerId, isOpen, defaultChannelId, handleNewMessage]);
 
   // Chat control functions - Open window immediately, no pending logic
   const open = useCallback(() => {
