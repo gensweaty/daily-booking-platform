@@ -361,15 +361,22 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     enabled: realtimeEnabled,
   });
 
-  // Simple default channel fetch - no caching overhead
+  // Default channel with logging
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
   useEffect(() => {
     if (!boardOwnerId) return;
     
+    console.log('🔍 [CHAT] Fetching default channel for board owner:', boardOwnerId);
+    const channelStart = performance.now();
+    
     supabase.rpc('get_default_channel_for_board', { p_board_owner_id: boardOwnerId })
       .then(({ data, error }) => {
+        console.log('✅ [CHAT] Default channel fetch took:', performance.now() - channelStart, 'ms');
         if (!error && data?.[0]?.id) {
           setDefaultChannelId(data[0].id as string);
+          console.log('🎯 [CHAT] Default channel set:', data[0].id);
+        } else {
+          console.log('⚠️ [CHAT] No default channel found');
         }
       });
   }, [boardOwnerId]);
@@ -458,54 +465,65 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [boardOwnerId, me, clearChannel, refreshUnread]);
 
-  // FAST LOADING: Simplified initialization with minimal queries
+  // FAST LOADING: Detailed logging to identify bottleneck
   useEffect(() => {
     let active = true;
+    const startTime = performance.now();
+    console.log('🚀 [CHAT] Starting initialization at', startTime);
 
     (async () => {
       setIsInitialized(false);
 
-      // Fast path: Only resolve what's absolutely needed for chat to show
+      // Step 1: Resolve board owner
+      console.log('🔍 [CHAT] Step 1: Resolving board owner...');
+      const step1Start = performance.now();
+      
       const slug = location.pathname.split('/').pop()!;
-      const resolvedBoardOwnerId = isOnPublicBoard ? 
-        (await supabase.from('public_boards').select('user_id').eq('slug', slug).maybeSingle()).data?.user_id :
-        user?.id;
+      let resolvedBoardOwnerId;
+      
+      if (isOnPublicBoard) {
+        const { data } = await supabase.from('public_boards').select('user_id').eq('slug', slug).maybeSingle();
+        resolvedBoardOwnerId = data?.user_id;
+      } else {
+        resolvedBoardOwnerId = user?.id;
+      }
+      
+      console.log('✅ [CHAT] Step 1 complete in', performance.now() - step1Start, 'ms. Board owner:', resolvedBoardOwnerId);
         
       if (!active || !resolvedBoardOwnerId) {
+        console.log('❌ [CHAT] No board owner, stopping initialization');
         setIsInitialized(true);
         return;
       }
 
       setBoardOwnerId(resolvedBoardOwnerId);
       
-      // Handle user identity with minimal data
+      // Step 2: Set user identity
+      console.log('🔍 [CHAT] Step 2: Setting user identity...');
+      const step2Start = performance.now();
+      
       if (!isOnPublicBoard && user) {
-        // Admin user - minimal profile fetch
-        const { data: profile } = await supabase.from('profiles')
-          .select('username, avatar_url').eq('id', user.id).maybeSingle();
-
-        if (active) {
-          setMe({
-            id: user.id,
-            type: 'admin',
-            name: profile?.username?.startsWith('user_') ? 
-              (user.email?.split('@')[0] || 'Admin') : 
-              (profile?.username || 'Admin'),
-            email: user.email,
-            avatarUrl: resolveAvatarUrl(profile?.avatar_url),
-          });
-        }
+        // Admin user - skip profile fetch for now, use basic data
+        console.log('👤 [CHAT] Admin user detected, using basic data');
+        setMe({
+          id: user.id,
+          type: 'admin',
+          name: user.email?.split('@')[0] || 'Admin',
+          email: user.email,
+        });
+        console.log('✅ [CHAT] Step 2 complete in', performance.now() - step2Start, 'ms');
       } else if (isOnPublicBoard) {
         if (publicBoardUser?.id) {
-          // Authenticated sub-user
+          console.log('👤 [CHAT] Public board user detected');
           setMe({
             id: publicBoardUser.id,
             type: 'sub_user',
             name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
             email: publicBoardUser.email,
           });
+          console.log('✅ [CHAT] Step 2 complete in', performance.now() - step2Start, 'ms');
         } else if (hasPublicAccess) {
-          // Public access
+          console.log('👤 [CHAT] Public access user detected');
           const access = getPublicAccess(location.pathname);
           if (access.hasAccess && access.storedOwnerId === resolvedBoardOwnerId) {
             setMe({
@@ -514,11 +532,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               name: access.fullName,
               email: access.email,
             });
+            console.log('✅ [CHAT] Step 2 complete in', performance.now() - step2Start, 'ms');
           }
         }
       }
 
-      if (active) setIsInitialized(true);
+      if (active) {
+        console.log('🎯 [CHAT] Setting initialized to true');
+        setIsInitialized(true);
+        console.log('🏁 [CHAT] Total initialization time:', performance.now() - startTime, 'ms');
+      }
     })();
 
     return () => { active = false; };

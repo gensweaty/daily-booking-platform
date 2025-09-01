@@ -64,7 +64,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => clearTimeout(timer);
   }, [activeChannelId, isInitialized]);
 
-  // Load channel info
+  // Load channel info with detailed performance logging
   useEffect(() => {
     let active = true;
     
@@ -74,6 +74,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         return;
       }
       
+      console.log('🔍 [CHAT-AREA] Step A: Loading channel info for:', activeChannelId);
+      const stepAStart = performance.now();
+      
       const isPublicBoard = location.pathname.startsWith('/board/');
       
       const { data: channel } = await supabase
@@ -82,49 +85,37 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         .eq('id', activeChannelId)
         .maybeSingle();
 
+      console.log('✅ [CHAT-AREA] Step A took:', performance.now() - stepAStart, 'ms');
+
       if (!active || !channel) return;
 
       const cps = (channel as any).chat_participants || [];
       const isDM = channel.is_dm || cps.length === 2;
       if (isDM) {
-        // Find the OTHER participant (not me)
-        console.log('🔍 Finding DM partner from participants:', { cps, me });
+        console.log('🔍 [CHAT-AREA] Step B: Resolving DM partner...');
+        const stepBStart = performance.now();
+        
+        // Find the OTHER participant (not me) - SIMPLIFIED
         const myId = me?.id;
         const myType = me?.type;
         
         const other = cps.find((p: any) => {
-          // Skip if this is me
           if (myType === 'admin' && p.user_id === myId) return false;
           if (myType === 'sub_user' && p.sub_user_id === myId) return false;
-          // Return the other participant
           return true;
         });
 
-        console.log('🔍 Found DM partner participant:', other);
-
         if (other?.user_id) {
-          // Use the new admin display helper function
-          const { data: adminName } = await supabase
-            .rpc('get_admin_display_name', { p_user_id: other.user_id });
-          
-          const { data: profile } = await supabase
-            .from('profiles').select('avatar_url').eq('id', other.user_id).maybeSingle();
-            
-          console.log('✅ Admin DM partner resolved:', { displayName: adminName });
-          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: adminName || 'Admin', avatar: profile?.avatar_url } });
+          // SIMPLIFIED: Skip admin display name lookup for now
+          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: 'Admin' } });
         } else if (other?.sub_user_id) {
-          const { data: su } = await supabase
-            .from('sub_users').select('fullname, avatar_url, email').eq('id', other.sub_user_id).maybeSingle();
-          
-          // Enhanced name resolution for sub-users
-          const subUserName = su?.fullname || su?.email?.split('@')[0] || 'Member';
-          
-          console.log('✅ Sub-user DM partner resolved:', { fullname: su?.fullname, email: su?.email, displayName: subUserName });
-          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: subUserName, avatar: su?.avatar_url || undefined } });
+          // SIMPLIFIED: Skip sub-user lookup for now
+          setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: 'Member' } });
         } else {
-          console.log('❌ No valid DM partner found');
           setChannelInfo({ name: channel.name, isDM: true });
         }
+        
+        console.log('✅ [CHAT-AREA] Step B took:', performance.now() - stepBStart, 'ms');
       } else {
         setChannelInfo({ name: channel.name, isDM: false });
       }
@@ -133,106 +124,85 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => { active = false; };
   }, [activeChannelId, me, location.pathname]);
 
-  // Load messages for the active channel - ENHANCED with loading states
+  // Load messages with detailed performance logging
   useEffect(() => {
     let active = true;
 
     const loadMessages = async () => {
       if (!activeChannelId || !me || !boardOwnerId || !isInitialized) {
-        console.log('⏭️ Skipping message load - missing requirements:', {
+        console.log('⏭️ [CHAT-AREA] Skipping message load - missing requirements:', {
           activeChannelId: !!activeChannelId,
           me: !!me,
           boardOwnerId: !!boardOwnerId,
           isInitialized
         });
-        // stay in "Loading..." until the prerequisites are met
         return;
       }
 
-      // loader is set in the channel-change effect; no need to flip here
+      console.log('🔍 [CHAT-AREA] Step C: Loading messages...');
+      const stepCStart = performance.now();
 
       try {
-        
-        // SURGICAL FIX 2: Pick correct RPC based on location and user type
         const onPublicBoard = location.pathname.startsWith('/board/');
         const { data: { session } } = await supabase.auth.getSession();
         const isAuthed = !!session?.user?.id;
         
-        console.log('🔍 Loading messages context:', {
+        console.log('🔍 [CHAT-AREA] Message loading context:', {
           activeChannelId,
-          boardOwnerId,
           me: me?.email,
-          myId: me?.id,
           myType: me?.type,
           onPublicBoard,
-          isAuthed,
-          route: location.pathname
+          isAuthed
         });
         
-        // If we're on a public board AND me.type === 'sub_user', always use the public safe RPC
+        let data, error;
+        
         if (onPublicBoard && me?.type === 'sub_user') {
-          console.log('📨 Using public RPC for sub-user on public board');
-          const { data, error } = await supabase.rpc('list_channel_messages_public', {
+          console.log('📨 [CHAT-AREA] Using public RPC for sub-user');
+          const result = await supabase.rpc('list_channel_messages_public', {
             p_owner_id: boardOwnerId,
             p_channel_id: activeChannelId,
             p_requester_type: 'sub_user',
             p_requester_email: me.email!,
           });
-
-          if (error) {
-            console.error('❌ Error loading messages via public RPC:', error);
-            if (active) setLoading(false);
-            return;
-          }
-
-          if (active) {
-            console.log('✅ Loaded', data?.length || 0, 'messages via public RPC');
-            const normalizedMessages = (data || []).map(msg => ({
-              ...msg,
-              sender_type: msg.sender_type as 'admin' | 'sub_user'
-            }));
-            setMessages(normalizedMessages);
-            // Always update cache with fresh data
-            cacheRef.current.set(activeChannelId, normalizedMessages);
-            setLoading(false);
-          }
+          data = result.data;
+          error = result.error;
         } else {
-          // Admin on dashboard/public, or any authenticated admin
-          console.log('📨 Using authenticated RPC for admin user');  
-          const { data, error } = await supabase.rpc('get_chat_messages_for_channel', {
+          console.log('📨 [CHAT-AREA] Using authenticated RPC');  
+          const result = await supabase.rpc('get_chat_messages_for_channel', {
             p_board_owner_id: boardOwnerId,
             p_channel_id: activeChannelId,
           });
+          data = result.data;
+          error = result.error;
+        }
 
-          if (error) {
-            console.error('❌ Error loading messages via authenticated RPC:', error);
-            if (active) setLoading(false);
-            return;
-          }
+        console.log('✅ [CHAT-AREA] Step C took:', performance.now() - stepCStart, 'ms');
 
-          if (active) {
-            console.log('✅ Loaded', data?.length || 0, 'messages via authenticated RPC');
-            const normalizedMessages = (data || []).map(msg => ({
-              ...msg,
-              sender_type: msg.sender_type as 'admin' | 'sub_user'
-            }));
-            setMessages(normalizedMessages);
-            // Always update cache with fresh data
-            cacheRef.current.set(activeChannelId, normalizedMessages);
-            setLoading(false);
-          }
+        if (error) {
+          console.error('❌ [CHAT-AREA] Error loading messages:', error);
+          if (active) setLoading(false);
+          return;
+        }
+
+        if (active) {
+          console.log('✅ [CHAT-AREA] Loaded', data?.length || 0, 'messages');
+          const normalizedMessages = (data || []).map(msg => ({
+            ...msg,
+            sender_type: msg.sender_type as 'admin' | 'sub_user'
+          }));
+          setMessages(normalizedMessages);
+          cacheRef.current.set(activeChannelId, normalizedMessages);
+          setLoading(false);
         }
       } catch (error) {
-        console.error('❌ Error in loadMessages:', error);
+        console.error('❌ [CHAT-AREA] Error in loadMessages:', error);
         if (active) setLoading(false);
       }
     };
 
     loadMessages();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, location.pathname, isInitialized]);
 
   // SURGICAL FIX 3: No more "empty on switch" - prefill from cache, don't clear to []
