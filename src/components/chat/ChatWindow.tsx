@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatArea } from './ChatArea';
 import { useChat } from './ChatProvider';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { LanguageText } from '@/components/shared/LanguageText';
 
 interface ChatWindowProps {
   isOpen: boolean;
@@ -15,6 +17,7 @@ interface ChatWindowProps {
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
+  const { t } = useLanguage();
   const [windowState, setWindowState] = useState<WindowState>('normal');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -131,7 +134,9 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
               <Menu className="h-3 w-3" />
             </Button>
           )}
-          <span className="font-medium text-sm truncate">Team Chat</span>
+          <span className="font-medium text-sm truncate">
+            <LanguageText>{t('chat.teamChat')}</LanguageText>
+          </span>
         </div>
         
         <div className="flex items-center gap-1 shrink-0">

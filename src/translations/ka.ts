@@ -720,4 +720,15 @@ export const translations: TranslationType = {
     november: "ნოემბერი",
     december: "დეკემბერი"
   },
+  chat: {
+    teamChat: "გუნდის ჩატი",
+    general: "ზოგადი",
+    teamMembers: "გუნდის წევრები",
+    owner: "მფლობელი",
+    teamMember: "გუნდის წევრი",
+    directMessage: "პირადი მესიჯი",
+    typeMessage: "დაწერეთ მესიჯი...",
+    noTeamMembers: "გუნდის წევრები ვერ მოიძებნა",
+    loading: "იტვირთება..."
+  }
 };

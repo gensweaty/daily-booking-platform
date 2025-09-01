@@ -719,5 +719,16 @@ export const translations: TranslationType = {
     october: "Octubre",
     november: "Noviembre",
     december: "Diciembre"
+  },
+  chat: {
+    teamChat: "Chat del Equipo",
+    general: "General",
+    teamMembers: "Miembros del Equipo",
+    owner: "Propietario",
+    teamMember: "Miembro del Equipo",
+    directMessage: "Mensaje Directo",
+    typeMessage: "Escribe un mensaje...",
+    noTeamMembers: "No se encontraron miembros del equipo",
+    loading: "Cargando..."
   }
 };

@@ -3,6 +3,7 @@ import { Send, Paperclip, Smile, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ChatMessage } from '@/hooks/useChatMessages';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface MessageInputProps {
   onSendMessage: (content: string) => void;
@@ -13,12 +14,15 @@ interface MessageInputProps {
 
 export const MessageInput = ({ 
   onSendMessage, 
-  placeholder = "Type a message...",
+  placeholder,
   replyingTo,
   onCancelReply
 }: MessageInputProps) => {
+  const { t } = useLanguage();
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  const defaultPlaceholder = placeholder || t('chat.typeMessage');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +89,7 @@ export const MessageInput = ({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={defaultPlaceholder}
             className="min-h-[40px] max-h-32 resize-none pr-20 py-2.5"
             rows={1}
           />

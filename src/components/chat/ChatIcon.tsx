@@ -1,6 +1,8 @@
 import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { LanguageText } from '@/components/shared/LanguageText';
 
 interface ChatIconProps {
   onClick: () => void;
@@ -10,6 +12,7 @@ interface ChatIconProps {
 }
 
 export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false }: ChatIconProps) => {
+  const { t } = useLanguage();
   console.log('🎯 ChatIcon rendering:', { isOpen, unreadCount, isPending });
   
   return (
@@ -42,7 +45,9 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false }
         ) : (
           <MessageCircle className="h-4 w-4" />
         )}
-        <span>{isPending ? 'Loading...' : 'Team Chat'}</span>
+        <span>
+          <LanguageText>{isPending ? t('chat.loading') : t('chat.teamChat')}</LanguageText>
+        </span>
         
         {unreadCount > 0 && !isPending && (
           <div className="absolute -top-2 -right-2 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-background">

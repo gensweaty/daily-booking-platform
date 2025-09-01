@@ -721,4 +721,15 @@ export interface TranslationType {
     attachments: string;
     addAttachment: string;
   };
+  chat: {
+    teamChat: string;
+    general: string;
+    teamMembers: string;
+    owner: string;
+    teamMember: string;
+    directMessage: string;
+    typeMessage: string;
+    noTeamMembers: string;
+    loading: string;
+  };
 }

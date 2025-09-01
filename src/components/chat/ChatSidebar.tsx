@@ -5,8 +5,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
 import { cn } from '@/lib/utils';
 import { resolveAvatarUrl } from './_avatar';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { LanguageText } from '@/components/shared/LanguageText';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 export const ChatSidebar = () => {
+  const { t } = useLanguage();
   const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
   const location = useLocation();
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
@@ -266,7 +272,9 @@ export const ChatSidebar = () => {
         >
           <div className="flex items-center gap-2">
             <Hash className="h-4 w-4 flex-shrink-0" />
-            <span className="font-medium">General</span>
+            <span className="font-medium">
+              <LanguageText>{t('chat.general')}</LanguageText>
+            </span>
           </div>
           {generalChannelId && (channelUnreads[generalChannelId] ?? 0) > 0 && (
             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
@@ -278,7 +286,7 @@ export const ChatSidebar = () => {
         {/* Team Members */}
         <div className="pt-4">
           <p className="text-xs font-medium text-muted-foreground mb-2 px-2 uppercase tracking-wide">
-            Team Members
+            <LanguageText>{t('chat.teamMembers')}</LanguageText>
           </p>
           
           {members.map((member) => {
@@ -331,7 +339,9 @@ export const ChatSidebar = () => {
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-sm font-medium truncate">{member.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">
-                      {member.type === 'admin' ? 'Owner' : 'Team Member'}
+                      <LanguageText>
+                        {member.type === 'admin' ? t('chat.owner') : t('chat.teamMember')}
+                      </LanguageText>
                     </p>
                   </div>
                 </div>
@@ -347,7 +357,7 @@ export const ChatSidebar = () => {
           
           {members.length === 0 && (
             <div className="text-center text-xs text-muted-foreground py-4">
-              No team members found
+              <LanguageText>{t('chat.noTeamMembers')}</LanguageText>
             </div>
           )}
         </div>

@@ -719,5 +719,16 @@ export const translations: TranslationType = {
     deleteSuccess: "Comment deleted successfully",
     attachments: "Attachments",
     addAttachment: "Add Attachment"
+  },
+  chat: {
+    teamChat: "Team Chat",
+    general: "General",
+    teamMembers: "Team Members",
+    owner: "Owner",
+    teamMember: "Team Member",
+    directMessage: "Direct Message",
+    typeMessage: "Type a message...",
+    noTeamMembers: "No team members found",
+    loading: "Loading..."
   }
 };
