@@ -85,8 +85,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [hasSubUsers, setHasSubUsers] = useState(false);
   const [channelMemberMap, setChannelMemberMap] = useState<Map<string, { id: string; type: 'admin' | 'sub_user' }>>(new Map());
   
-  // Chat ready state - removed pendingOpen logic
-  const chatReady = !!boardOwnerId && !!me && isInitialized;
+  // OPTIMIZATION 5: Progressive loading - show chat faster
+  const chatReady = !!boardOwnerId && !!me; // Removed isInitialized requirement for faster UI
 
   // Portal root - memoized to prevent re-creation
   const portalRoot = useMemo(() => {
@@ -361,10 +361,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     enabled: realtimeEnabled,
   });
 
-  // Track default channel for public boards (so we can poll something when closed)
+  // OPTIMIZATION 4: Optimized default channel tracking with caching
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
   useEffect(() => {
     if (!boardOwnerId) return;
+    
+    // Check cache first
+    const cacheKey = `default-channel-${boardOwnerId}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    
+    if (cached) {
+      console.log('📋 Using cached default channel:', cached);
+      setDefaultChannelId(cached);
+      return;
+    }
     
     console.log('🔍 Fetching default channel for board owner:', boardOwnerId);
     supabase.rpc('get_default_channel_for_board', { p_board_owner_id: boardOwnerId })
@@ -373,7 +383,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('❌ Error fetching default channel:', error);
         } else if (data?.[0]?.id) {
           console.log('✅ Found default channel:', data[0].id, 'name:', data[0].name);
-          setDefaultChannelId(data[0].id as string);
+          const channelId = data[0].id as string;
+          setDefaultChannelId(channelId);
+          // Cache for 5 minutes
+          sessionStorage.setItem(cacheKey, channelId);
+          setTimeout(() => sessionStorage.removeItem(cacheKey), 5 * 60 * 1000);
         } else {
           console.log('⚠️ No default channel found for board owner:', boardOwnerId);
         }
@@ -464,7 +478,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [boardOwnerId, me, clearChannel, refreshUnread]);
 
-  // Initialize user identity and board owner - DETERMINISTIC for sub-users
+  // Initialize user identity and board owner - OPTIMIZED with parallel queries
   useEffect(() => {
     let active = true;
 
@@ -473,176 +487,194 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Resolve board owner from slug
       const slug = location.pathname.split('/').pop()!;
-      const { data: pb } = await supabase.from('public_boards')
-        .select('user_id').eq('slug', slug).maybeSingle();
-      const ownerId = pb?.user_id || null;
-      if (active) setBoardOwnerId(ownerId);
-
-      // PUBLIC BOARD: identity from PublicBoardAuth OR localStorage
-      const { hasAccess, email: lsEmail, fullName: lsName, storedOwnerId } = getPublicAccess(location.pathname);
-
-      if (isOnPublicBoard && ownerId) {
-        if (publicBoardUser?.id) {
-          // Fast path: authenticated sub-user
-          const email = publicBoardUser.email?.trim().toLowerCase();
-          let suId: string | null = null;
-          if (email) {
-            const { data: su } = await supabase.from('sub_users')
-              .select('id, fullname, avatar_url').eq('board_owner_id', ownerId)
-              .ilike('email', email).maybeSingle();
-            suId = su?.id || null;
-          }
-          if (active) {
-            setMe({
-              id: suId || publicBoardUser.id,
-              type: 'sub_user',
-              name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
-              email: publicBoardUser.email || undefined,
-              avatarUrl: undefined,
-            });
-            setIsInitialized(true);           // ← important
-          }
-          return;
-        }
-
-        if (hasAccess && storedOwnerId === ownerId) {
-          // Fallback: LS token user
-          let suId: string | null = null;
-          if (lsEmail) {
-            const { data: su } = await supabase.from('sub_users')
-              .select('id, fullname, avatar_url').eq('board_owner_id', ownerId)
-              .ilike('email', lsEmail.trim().toLowerCase()).maybeSingle();
-            suId = su?.id || null;
-          }
-          if (active) {
-            setMe({
-              id: suId || `temp-${ownerId}`,   // temporary id if row not found yet
-              type: 'sub_user',
-              name: lsName || (lsEmail?.split('@')[0] ?? 'Member'),
-              email: lsEmail,
-              avatarUrl: undefined,
-            });
-            setIsInitialized(true);           // ← important
-          }
-          return;
-        }
+      
+      // OPTIMIZATION 1: Parallel query setup based on context
+      const queries = [];
+      
+      if (isOnPublicBoard) {
+        queries.push(
+          supabase.from('public_boards')
+            .select('user_id').eq('slug', slug).maybeSingle()
+        );
       }
 
-      // INTERNAL dashboard (admin) — unchanged
-      if (!isOnPublicBoard && user?.id) {
-        const { data: profile } = await supabase
-          .from('profiles').select('id, username, avatar_url').eq('id', user.id).maybeSingle();
-        if (active) {
-          setBoardOwnerId(user.id);
-          setMe({
-            id: user.id,
-            type: 'admin',
-            name: profile?.username?.startsWith('user_')
-              ? (user.email?.split('@')[0] || 'Admin')
-              : (profile?.username || 'Admin'),
-            email: user.email || undefined,
-            avatarUrl: resolveAvatarUrl(profile?.avatar_url),
-          });
-          setIsInitialized(true);
-        }
+      // Execute initial queries in parallel
+      const results = await Promise.allSettled(queries);
+      
+      if (!active) return;
+
+      const resolvedBoardOwnerId = isOnPublicBoard 
+        ? (results[0] as any)?.value?.data?.user_id 
+        : user?.id;
+        
+      if (!resolvedBoardOwnerId) {
+        console.log('❌ No board owner resolved');
+        setIsInitialized(true);
         return;
       }
 
-      if (active) {
-        setMe(null);
-        setIsInitialized(true);
+      setBoardOwnerId(resolvedBoardOwnerId);
+      
+      // OPTIMIZATION 2: Parallel user data fetching
+      const userDataQueries = [];
+      
+      // Handle admin users (simple case)
+      if (!isOnPublicBoard && user) {
+        userDataQueries.push(
+          supabase.from('profiles')
+            .select('id, username, avatar_url')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase.from('sub_users')
+            .select('id')
+            .eq('board_owner_id', user.id)
+            .limit(1)
+        );
       }
+
+      // Handle public board users
+      if (isOnPublicBoard && publicBoardUser?.id) {
+        userDataQueries.push(
+          supabase.from('sub_users')
+            .select('id, fullname, avatar_url')
+            .eq('id', publicBoardUser.id)
+            .maybeSingle()
+        );
+      }
+
+      // Execute user data queries in parallel
+      const userResults = userDataQueries.length > 0 
+        ? await Promise.allSettled(userDataQueries)
+        : [];
+
+      if (!active) return;
+
+      // Process results based on context
+      if (!isOnPublicBoard && user) {
+        const profileResult = userResults[0] as any;
+        const subUsersResult = userResults[1] as any;
+        
+        const profile = profileResult?.value?.data;
+        const hasSubUsers = (subUsersResult?.value?.data || []).length > 0;
+
+        setMe({
+          id: user.id,
+          type: 'admin',
+          name: profile?.username?.startsWith('user_')
+            ? (user.email?.split('@')[0] || 'Admin')
+            : (profile?.username || 'Admin'),
+          email: user.email,
+          avatarUrl: resolveAvatarUrl(profile?.avatar_url),
+        });
+        
+        setHasSubUsers(hasSubUsers);
+        setIsInitialized(true);
+      } else if (isOnPublicBoard) {
+        if (publicBoardUser?.id && userResults.length > 0) {
+          // Authenticated sub-user
+          const profileResult = userResults[0] as any;
+          const profile = profileResult?.value?.data;
+
+          setMe({
+            id: profile?.id || publicBoardUser.id,
+            type: 'sub_user',
+            name: profile?.fullname || publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
+            email: publicBoardUser.email,
+            avatarUrl: resolveAvatarUrl(profile?.avatar_url),
+          });
+          setHasSubUsers(true);
+          setIsInitialized(true);
+        } else if (hasPublicAccess) {
+          // Public access via localStorage
+          const access = getPublicAccess(location.pathname);
+          if (access.hasAccess && access.fullName && access.email && access.storedOwnerId === resolvedBoardOwnerId) {
+            setMe({
+              id: `guest-${access.email}`,
+              type: 'sub_user',
+              name: access.fullName,
+              email: access.email,
+            });
+            setHasSubUsers(true);
+            setIsInitialized(true);
+          }
+        }
+      }
+
+      if (!active) return;
+      if (!me) setIsInitialized(true);
     })();
 
     return () => { active = false; };
-  }, [isOnPublicBoard, publicBoardUser?.id, publicBoardUser?.email, user?.id, location.pathname, hasPublicAccess]);
+  }, [isOnPublicBoard, user?.id, publicBoardUser?.id, publicBoardUser?.email, hasPublicAccess, location.pathname]);
 
   // ❌ REMOVED: Old normalization logic is no longer needed since the migration handles it
 
-  // Map DM channels to their members for unread tracking
+  // OPTIMIZATION 3: Parallel channel mapping fetch
   useEffect(() => {
     if (!boardOwnerId || !me) return;
 
-    console.log('🔄 Building channel-member mapping...');
-    
-    (async () => {
+    const fetchChannelMemberMap = async () => {
       try {
-        const newChannelMemberMap = new Map();
-
-        // Admin path (unchanged)
-        if (me.type === 'admin') {
-          const { data: dmChannels } = await supabase
-            .from('chat_channels')
-            .select(`
-              id,
-              is_dm,
-              chat_participants(user_id, sub_user_id, user_type)
-            `)
+        // Parallel queries for channels and DMs
+        const [channelsData, dmData] = await Promise.all([
+          supabase.from('chat_channels')
+            .select('id, name, emoji, is_dm, chat_participants(user_id, sub_user_id, user_type)')
             .eq('owner_id', boardOwnerId)
-            .eq('is_dm', true);
+            .eq('is_dm', true),
+          me.type === 'sub_user' ? 
+            supabase.rpc('get_dm_channels_for_sub_user', {
+              p_owner_id: boardOwnerId,
+              p_email: me.email
+            }) : Promise.resolve({ data: null })
+        ]);
 
-          if (dmChannels) {
-            dmChannels.forEach((channel: any) => {
-              const participants = channel.chat_participants || [];
-              
-              // For DMs, find the OTHER participant (not me)
-              if (participants.length === 2) {
-                const myId = me.id;
-                const myType = me.type;
+        const newMap = new Map<string, { id: string; type: 'admin' | 'sub_user' }>();
+
+        // Handle admin DM channels
+        if (me.type === 'admin' && channelsData.data) {
+          channelsData.data.forEach((channel: any) => {
+            const participants = channel.chat_participants || [];
+            
+            // For DMs, find the OTHER participant (not me)
+            if (participants.length === 2) {
+              const otherParticipant = participants.find((p: any) => {
+                // Skip if this is me
+                if (me.type === 'admin' && p.user_type === 'admin' && p.user_id === me.id) return false;
+                if (me.type === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === me.id) return false;
+                return true;
+              });
+
+              if (otherParticipant) {
+                const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
+                const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
                 
-                const otherParticipant = participants.find((p: any) => {
-                  // Skip if this is me
-                  if (myType === 'admin' && p.user_type === 'admin' && p.user_id === myId) return false;
-                  if (myType === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === myId) return false;
-                  return true;
-                });
-
-                if (otherParticipant) {
-                  const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
-                  const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
-                  
-                  if (memberId && memberType) {
-                    console.log(`✅ Mapped DM channel ${channel.id} to member:`, { memberId, memberType });
-                    newChannelMemberMap.set(channel.id, { 
-                      id: memberId, 
-                      type: memberType 
-                    });
-                  }
+                if (memberId && memberType) {
+                  newMap.set(channel.id, { id: memberId, type: memberType });
                 }
               }
-            });
-          }
-        } else {
-          // Sub-user path via RLS-safe RPC
-          const { data, error } = await supabase.rpc('get_dm_channels_for_sub_user', {
-            p_owner_id: boardOwnerId,
-            p_email: me.email
+            }
           });
-
-          if (!error && data) {
-            data.forEach((row: any) => {
-              const memberId = row.other_user_id || row.other_sub_user_id;
-              const memberType = row.other_type as 'admin' | 'sub_user';
-              
-              if (memberId && memberType) {
-                console.log(`✅ Mapped DM channel ${row.channel_id} to member:`, { memberId, memberType });
-                newChannelMemberMap.set(row.channel_id, { 
-                  id: memberId, 
-                  type: memberType 
-                });
-              }
-            });
-          } else if (error) {
-            console.error('❌ Error fetching DM channels for sub-user:', error);
-          }
         }
-        
-        console.log('🗺️ Final channel-member map:', Array.from(newChannelMemberMap.entries()));
-        setChannelMemberMap(newChannelMemberMap);
+
+        // Handle sub-user DM channels
+        if (me.type === 'sub_user' && dmData.data) {
+          dmData.data.forEach((row: any) => {
+            const memberId = row.other_user_id || row.other_sub_user_id;
+            const memberType = row.other_type as 'admin' | 'sub_user';
+            
+            if (memberId && memberType) {
+              newMap.set(row.channel_id, { id: memberId, type: memberType });
+            }
+          });
+        }
+
+        setChannelMemberMap(newMap);
       } catch (error) {
-        console.error('❌ Error building channel-member mapping:', error);
+        console.error('❌ Error fetching channel member mapping:', error);
       }
-    })();
+    };
+
+    fetchChannelMemberMap();
   }, [boardOwnerId, me]);
 
   // Check for sub-users (always allow chat to show)
