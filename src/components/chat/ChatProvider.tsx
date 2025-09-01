@@ -89,15 +89,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  // Determine if chat should be shown - FIXED: strict authentication gate
+  // Determine if chat should be shown - FIXED: consider ChatProvider's own me state
   const shouldShowChat = useMemo(() => {
     if (isOnPublicBoard) {
-      // Only show if we have a valid authenticated sub-user (not undefined, not null)
-      return publicBoardUser?.id != null;
+      // Show if we have a valid sub-user from PublicBoardAuth OR if ChatProvider resolved a user
+      return publicBoardUser?.id != null || (isInitialized && me?.id != null);
     }
     // Show for authenticated admin users on dashboard
     return user?.id != null;
-  }, [user?.id, isOnPublicBoard, publicBoardUser?.id]);
+  }, [user?.id, isOnPublicBoard, publicBoardUser?.id, isInitialized, me?.id]);
 
   console.log('🔍 ChatProvider render:', {
     hasSubUsers,
