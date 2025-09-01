@@ -152,9 +152,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     // re-run when path or auth user flips
   }, [location.pathname, publicBoardUser?.id]);
 
-  // Gate the icon on public login pages and use reactive state
+  // Gate the icon on public login pages and use resolved chat identity
   const onPublicLoginPage = isOnPublicBoard && location.pathname.includes('/login');
-  const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id);
+  const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (isInitialized && !!boardOwnerId && !!me) : !!user?.id);
 
   // Enhanced unread management - memoized dependencies
   const {
@@ -525,7 +525,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     <ChatContext.Provider value={contextValue}>
       {children}
       {shouldShowChat && portalRoot && createPortal(
-        <>
+        <div key={identityKey}>
           {!isOpen && (
             <ChatIcon 
               onClick={toggle} 
@@ -538,7 +538,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           {isOpen && (
             <ChatWindow isOpen={isOpen} onClose={close} />
           )}
-        </>,
+        </div>,
         portalRoot
       )}
     </ChatContext.Provider>
