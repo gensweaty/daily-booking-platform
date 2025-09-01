@@ -7,10 +7,9 @@ import { cn } from '@/lib/utils';
 import { resolveAvatarUrl } from './_avatar';
 
 export const ChatSidebar = () => {
-  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount } = useChat();
+  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
   const location = useLocation();
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
-  const [channelMemberMap, setChannelMemberMap] = useState<Map<string, { id: string; type: 'admin' | 'sub_user' }>>(new Map());
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
@@ -254,87 +253,6 @@ export const ChatSidebar = () => {
       }
     })();
   }, [boardOwnerId, location.pathname]);
-
-  // Enhanced DM channel mapping - proper PEER-TO-PEER identification
-  useEffect(() => {
-    if (!boardOwnerId || !channelUnreads || !me) return;
-
-    console.log('🔄 Building enhanced PEER-TO-PEER channel-member mapping...');
-    
-    (async () => {
-      try {
-        const { data: dmChannels } = await supabase
-          .from('chat_channels')
-          .select(`
-            id,
-            is_dm,
-            participants,
-            chat_participants(user_id, sub_user_id, user_type)
-          `)
-          .eq('owner_id', boardOwnerId)
-          .eq('is_dm', true);
-
-        if (dmChannels) {
-          const newChannelMemberMap = new Map();
-          
-          dmChannels.forEach((channel: any) => {
-            const participants = channel.chat_participants || [];
-            console.log(`🔍 Processing PEER-TO-PEER DM channel ${channel.id}:`, {
-              participantCount: participants.length,
-              participants: participants.map((p: any) => ({
-                userId: p.user_id,
-                subUserId: p.sub_user_id,
-                userType: p.user_type
-              }))
-            });
-            
-            // For PEER-TO-PEER DMs, we expect exactly 2 participants
-            if (participants.length !== 2) {
-              console.log(`⏭️ Skipping channel ${channel.id} - not exactly 2 participants (has ${participants.length})`);
-              return;
-            }
-
-            // Find the OTHER participant (not me)
-            const myId = me.id;
-            const myType = me.type;
-            
-            const otherParticipant = participants.find((p: any) => {
-              // Skip if this is me
-              if (myType === 'admin' && p.user_type === 'admin' && p.user_id === myId) return false;
-              if (myType === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === myId) return false;
-              // Return the other participant
-              return true;
-            });
-
-            if (otherParticipant) {
-              const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
-              const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
-              
-              if (memberId && memberType) {
-                console.log(`✅ Mapped PEER-TO-PEER DM channel ${channel.id} to member:`, { 
-                  memberId, 
-                  memberType,
-                  unreadCount: channelUnreads[channel.id] || 0
-                });
-                
-                newChannelMemberMap.set(channel.id, { 
-                  id: memberId, 
-                  type: memberType 
-                });
-              }
-            } else {
-              console.log(`❌ Could not identify other participant in PEER-TO-PEER DM ${channel.id}`);
-            }
-          });
-          
-          console.log('🗺️ Final PEER-TO-PEER channel-member map:', Array.from(newChannelMemberMap.entries()));
-          setChannelMemberMap(newChannelMemberMap);
-        }
-      } catch (error) {
-        console.error('❌ Error loading PEER-TO-PEER channel-member mapping:', error);
-      }
-    })();
-  }, [boardOwnerId, me, channelUnreads]);
 
   // Enhanced unread count indicators with detailed logging
   useEffect(() => {

@@ -35,6 +35,7 @@ type ChatCtx = {
   unreadTotal: number;
   channelUnreads: { [channelId: string]: number };
   getUserUnreadCount: (userId: string, userType: 'admin' | 'sub_user') => number;
+  channelMemberMap: Map<string, { id: string; type: 'admin' | 'sub_user' }>;
   boardOwnerId: string | null;
   connectionStatus: string;
   realtimeEnabled: boolean;
@@ -82,6 +83,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [boardOwnerId, setBoardOwnerId] = useState<string | null>(null);
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [hasSubUsers, setHasSubUsers] = useState(false);
+  const [channelMemberMap, setChannelMemberMap] = useState<Map<string, { id: string; type: 'admin' | 'sub_user' }>>(new Map());
   
   // Chat ready state - removed pendingOpen logic
   const chatReady = !!boardOwnerId && !!me && isInitialized;
@@ -176,7 +178,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     clearUserUnread,
     getUserUnreadCount,
     clearAllUnread,
-  } = useUnreadManager(currentChannelId, isOpen);
+  } = useUnreadManager(currentChannelId, isOpen, channelMemberMap);
 
   // NEW: identity key + hard reset when it changes
   const identityKey = useMemo(() => {
@@ -455,6 +457,66 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // ❌ REMOVED: Old normalization logic is no longer needed since the migration handles it
 
+  // Map DM channels to their members for unread tracking
+  useEffect(() => {
+    if (!boardOwnerId || !me) return;
+
+    console.log('🔄 Building channel-member mapping...');
+    
+    (async () => {
+      try {
+        const { data: dmChannels } = await supabase
+          .from('chat_channels')
+          .select(`
+            id,
+            is_dm,
+            chat_participants(user_id, sub_user_id, user_type)
+          `)
+          .eq('owner_id', boardOwnerId)
+          .eq('is_dm', true);
+
+        if (dmChannels) {
+          const newChannelMemberMap = new Map();
+          
+          dmChannels.forEach((channel: any) => {
+            const participants = channel.chat_participants || [];
+            
+            // For DMs, find the OTHER participant (not me)
+            if (participants.length === 2) {
+              const myId = me.id;
+              const myType = me.type;
+              
+              const otherParticipant = participants.find((p: any) => {
+                // Skip if this is me
+                if (myType === 'admin' && p.user_type === 'admin' && p.user_id === myId) return false;
+                if (myType === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === myId) return false;
+                return true;
+              });
+
+              if (otherParticipant) {
+                const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
+                const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
+                
+                if (memberId && memberType) {
+                  console.log(`✅ Mapped DM channel ${channel.id} to member:`, { memberId, memberType });
+                  newChannelMemberMap.set(channel.id, { 
+                    id: memberId, 
+                    type: memberType 
+                  });
+                }
+              }
+            }
+          });
+          
+          console.log('🗺️ Final channel-member map:', Array.from(newChannelMemberMap.entries()));
+          setChannelMemberMap(newChannelMemberMap);
+        }
+      } catch (error) {
+        console.error('❌ Error building channel-member mapping:', error);
+      }
+    })();
+  }, [boardOwnerId, me]);
+
   // Check for sub-users (always allow chat to show)
   useEffect(() => {
     if (boardOwnerId) {
@@ -470,8 +532,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       setHasSubUsers(false);
     }
   }, [boardOwnerId]);
-
-  // C.5 Replace both DM creators with the canonical RPC
   const startDM = useCallback(async (otherId: string, otherType: "admin" | "sub_user") => {
     if (!boardOwnerId || !me) {
       console.log('❌ Cannot start DM - missing prerequisites');
@@ -533,10 +593,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     unreadTotal,
     channelUnreads,
     getUserUnreadCount,
+    channelMemberMap,
     boardOwnerId,
     connectionStatus,
     realtimeEnabled,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, boardOwnerId, connectionStatus, realtimeEnabled]);
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled]);
 
   return (
     <ChatContext.Provider value={contextValue}>
