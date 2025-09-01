@@ -62,9 +62,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [hasSubUsers, setHasSubUsers] = useState(false);
   
-  // Chat ready state and pending open queue
+  // Chat ready state - removed pendingOpen logic
   const chatReady = !!boardOwnerId && !!me && isInitialized;
-  const [pendingOpen, setPendingOpen] = useState(false);
 
   // Portal root - memoized to prevent re-creation
   const portalRoot = useMemo(() => {
@@ -89,13 +88,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  // Determine if chat should be shown - FIXED: Always show icon on public boards
+  // Determine if chat should be shown - FIXED: Only show after sub-user is authenticated
   const shouldShowChat = useMemo(() => {
-    // External board: icon is always visible; the window can show a loader
-    if (isOnPublicBoard) return true;
-    // Internal dashboard: only for authenticated admins
+    // Public board => only after sub-user is authenticated
+    if (isOnPublicBoard) return !!publicBoardUser?.id;
+    // Internal dashboard => only for authenticated admins
     return !!user?.id;
-  }, [isOnPublicBoard, user?.id]);
+  }, [isOnPublicBoard, publicBoardUser?.id, user?.id]);
 
   console.log('🔍 ChatProvider render:', {
     hasSubUsers,
@@ -225,142 +224,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [defaultChannelId, currentChannelId]);
 
-  // Handle pending open when chat becomes ready
-  useEffect(() => {
-    if (chatReady && pendingOpen) {
-      console.log('🚀 Opening chat (was pending). currentChannelId:', currentChannelId, 'defaultChannelId:', defaultChannelId);
-      setPendingOpen(false);
-      setIsOpen(true);
-      if (!currentChannelId && defaultChannelId) {
-        console.log('📋 Auto-selecting default channel from pending:', defaultChannelId);
-        setCurrentChannelId(defaultChannelId);
-      }
-    }
-  }, [chatReady, pendingOpen, currentChannelId, defaultChannelId]);
-
-  // Background polling when realtime is OFF and chat is CLOSED (external board)
-  useEffect(() => {
-    if (realtimeEnabled || !boardOwnerId || !me?.email) return;
-
-    let stopped = false;
-    const lastPerChannel = new Map<string, number>(); // channelId -> last ts
-    let channels: string[] = [];
-
-    const refreshChannels = async () => {
-      const { data } = await supabase.rpc('list_channels_for_sub_user_public', {
-        p_owner_id: boardOwnerId,
-        p_email: me.email
-      });
-      channels = (data || []).map((r: any) => r.channel_id);
-    };
-
-    const pollAll = async () => {
-      if (!channels.length) await refreshChannels();
-      for (const channelId of channels) {
-        if (stopped) break;
-        const { data } = await supabase.rpc('list_channel_messages_public', {
-          p_owner_id: boardOwnerId,
-          p_channel_id: channelId,
-          p_requester_type: 'sub_user',
-          p_requester_email: me.email,
-        });
-        if (!data) continue;
-
-        const last = lastPerChannel.get(channelId) || 0;
-        const fresh = data.filter((m: any) => +new Date(m.created_at) > last);
-        if (fresh.length) {
-          lastPerChannel.set(
-            channelId, Math.max(...fresh.map((m: any) => +new Date(m.created_at)))
-          );
-          for (const m of fresh) {
-            window.dispatchEvent(new CustomEvent('chat-message-received', {
-              detail: { message: { ...m, owner_id: boardOwnerId } }
-            }));
-          }
-        }
-      }
-    };
-
-    const refreshId = setInterval(refreshChannels, 20_000); // channel list isn't volatile
-    const pollId = setInterval(pollAll, 2500);
-    refreshChannels(); 
-    pollAll();
-
-    return () => { 
-      stopped = true; 
-      clearInterval(refreshId); 
-      clearInterval(pollId); 
-    };
-  }, [realtimeEnabled, boardOwnerId, me?.email]);
-
-  // STEP 1: Bridge polling events into central pipeline (only when Realtime is disabled)
-  useEffect(() => {
-    if (realtimeEnabled) return; // internal board: let Realtime drive everything
-
-    const bridge = (ev: Event) => {
-      const e = ev as CustomEvent;
-      const msg = e.detail?.message;
-      if (msg) {
-        // Route polled messages through the same handler
-        handleNewMessage(msg);
-      }
-    };
-
-    console.log('🌉 Setting up polling bridge for sub-users');
-    window.addEventListener('chat-message-received', bridge as EventListener);
-    return () => window.removeEventListener('chat-message-received', bridge as EventListener);
-  }, [realtimeEnabled, handleNewMessage]);
-
-  // Request notification permission and preload audio on mount
-  useEffect(() => {
-    if (shouldShowChat) {
-      console.log('🔔 Requesting notification permission and preloading audio...');
-      
-      // Request notification permission
-      requestPermission().then((granted) => {
-        console.log('🔔 Notification permission:', granted ? 'granted' : 'denied');
-      });
-      
-      // Preload notification sound
-      import('@/utils/audioManager').then(({ preloadNotificationSound }) => {
-        preloadNotificationSound();
-      });
-    }
-  }, [shouldShowChat, requestPermission]);
-
-  // Chat control functions - memoized to prevent re-renders
+  // Chat control functions - Open window immediately, no pending logic
   const open = useCallback(() => {
     if (!shouldShowChat) return;
-    if (!chatReady) {            // queue opening and keep the icon spinning
-      console.log('⏳ Chat not ready, queuing open. chatReady:', chatReady, 'boardOwnerId:', !!boardOwnerId, 'me:', !!me, 'isInitialized:', isInitialized);
-      setPendingOpen(true);
-      return;
-    }
-    console.log('🚀 Opening chat immediately. currentChannelId:', currentChannelId, 'defaultChannelId:', defaultChannelId);
     setIsOpen(true);
-    if (!currentChannelId && defaultChannelId) {
-      console.log('📋 Auto-selecting default channel on open:', defaultChannelId);
-      setCurrentChannelId(defaultChannelId);
-    }
-  }, [shouldShowChat, chatReady, currentChannelId, defaultChannelId, boardOwnerId, me, isInitialized]);
+    // Ensure a channel exists as soon as the window appears (if we already know it)
+    if (!currentChannelId && defaultChannelId) setCurrentChannelId(defaultChannelId);
+  }, [shouldShowChat, currentChannelId, defaultChannelId]);
 
   const close = useCallback(() => setIsOpen(false), []);
 
   const toggle = useCallback(() => {
     if (!shouldShowChat) return;
-    if (!isOpen) {
-      if (!chatReady) {          // do not open yet; just queue
-        setPendingOpen(true);
-        return;
-      }
-      if (!currentChannelId && defaultChannelId) {
+    setIsOpen(prev => {
+      const next = !prev;
+      if (next && !currentChannelId && defaultChannelId) {
         setCurrentChannelId(defaultChannelId);
       }
-      setIsOpen(true);
-    } else {
-      setIsOpen(false);
-    }
-  }, [shouldShowChat, isOpen, chatReady, currentChannelId, defaultChannelId]);
+      return next;
+    });
+  }, [shouldShowChat, currentChannelId, defaultChannelId]);
 
   const openChannel = useCallback((channelId: string) => {
     setCurrentChannelId(channelId);
@@ -368,421 +251,92 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     setIsOpen(true);
   }, [clearChannelUnread]);
 
-  // Initialize user identity and board owner - ENHANCED with loading states and timeout
+  // Initialize user identity and board owner - DETERMINISTIC for sub-users
   useEffect(() => {
     let active = true;
-    let initTimeout: NodeJS.Timeout;
-    
+
     (async () => {
-      console.log('🔍 Initializing chat for:', { 
-        user: user?.email, 
-        userId: user?.id,
-        shouldShowChat, 
-        path: location.pathname,
-        isOnPublicBoard,
-        effectiveUser: effectiveUser?.email,
-        publicBoardUser: publicBoardUser?.email,
-        publicBoardUserLoading: publicBoardUser === undefined
-      });
-      
-      // Set loading state initially
       setIsInitialized(false);
-      
-      // Timeout to prevent infinite loading
-      initTimeout = setTimeout(() => {
-        if (active) {
-          console.log('⚠️ ChatProvider: Initialization timeout - forcing completion');
-          setIsInitialized(true);
+
+      // 1) Resolve board owner from slug always
+      const slug = location.pathname.split('/').pop()!;
+      const { data: pb } = await supabase
+        .from('public_boards')
+        .select('user_id')
+        .eq('slug', slug)
+        .maybeSingle();
+
+      const ownerId = pb?.user_id || null;
+      if (active) setBoardOwnerId(ownerId);
+
+      // 2) PUBLIC BOARD: if sub-user is logged in via PublicBoardAuth, use that identity immediately
+      if (isOnPublicBoard && publicBoardUser?.id && ownerId) {
+        // try to resolve the sub_user row to get the id (nice to have, not strictly required to load msgs)
+        const email = publicBoardUser.email?.trim().toLowerCase();
+        let subUserId: string | null = null;
+        if (email) {
+          const { data: su } = await supabase
+            .from('sub_users')
+            .select('id, fullname, avatar_url, email')
+            .eq('board_owner_id', ownerId)
+            .ilike('email', email)
+            .maybeSingle();
+          subUserId = su?.id || null;
         }
-      }, 8000);
-      
-      if (!shouldShowChat) {
+
+        const meCandidate: Me = {
+          id: subUserId || publicBoardUser.id, // fall back to auth id if DB row not found yet
+          type: 'sub_user',
+          name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
+          email: publicBoardUser.email || undefined,
+          avatarUrl: undefined,
+        };
+
         if (active) {
-          setMe(null);
-          setBoardOwnerId(null);
-          clearTimeout(initTimeout);
+          setMe(meCandidate);
+          setIsInitialized(true); // ← do not delay; ChatArea will fetch messages right away
+        }
+
+        // Also preselect default channel as soon as owner is known
+        if (ownerId) {
+          const { data } = await supabase.rpc('get_default_channel_for_board', { p_board_owner_id: ownerId });
+          const id = data?.[0]?.id as string | undefined;
+          if (active && id && !currentChannelId) setCurrentChannelId(id);
+        }
+
+        return;
+      }
+
+      // 3) INTERNAL DASHBOARD (admin)
+      if (!isOnPublicBoard && user?.id) {
+        if (active) {
+          setBoardOwnerId(user.id);
+          const { data: profile } = await supabase
+            .from('profiles').select('id, username, avatar_url').eq('id', user.id).maybeSingle();
+
+          setMe({
+            id: user.id,
+            type: 'admin',
+            name: profile?.username?.startsWith('user_')
+              ? (user.email?.split('@')[0] || 'Admin')
+              : (profile?.username || 'Admin'),
+            email: user.email || undefined,
+            avatarUrl: resolveAvatarUrl(profile?.avatar_url),
+          });
           setIsInitialized(true);
         }
         return;
       }
 
-      // REMOVED: Early return branches that blocked identity resolution
-      // We now always try to resolve identities from slug → owner → (session | localStorage)
-
-      try {
-        // SURGICAL FIX 1: Always resolve board owner from URL slug first
-        if (isOnPublicBoard) {
-          const slug = location.pathname.split('/').pop()!;
-          const { data: pb } = await supabase
-            .from('public_boards')
-            .select('user_id')
-            .eq('slug', slug)
-            .maybeSingle();
-
-          if (pb?.user_id) {
-            // Set board owner IMMEDIATELY so the rest of chat can proceed
-            if (active) setBoardOwnerId(pb.user_id);
-            console.log('✅ Board owner resolved from slug:', pb.user_id);
-            
-            // Now determine "who am I"
-            // If there's a Supabase session with an email → look up in sub_users
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user?.email) {
-              console.log('🔍 Looking up authenticated user in sub_users table');
-              const { data: subUser } = await supabase
-                .from("sub_users")
-                .select("id, fullname, avatar_url, email")
-                .eq("board_owner_id", pb.user_id)
-                .ilike("email", session.user.email.trim().toLowerCase())
-                .maybeSingle();
-              
-              if (subUser?.id) {
-                const subUserIdentity = {
-                  id: subUser.id,
-                  type: "sub_user" as const, 
-                  name: subUser.fullname || session.user.email.split('@')[0],
-                  email: session.user.email,
-                  avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-                };
-                
-                console.log('🎉 SUCCESS: Using authenticated sub-user identity:', subUserIdentity);
-                
-                if (active) {
-                  setMe(subUserIdentity);
-                  clearTimeout(initTimeout);
-                  setIsInitialized(true);
-                }
-                return;
-              }
-            }
-            
-            // Fallback to localStorage token flow
-            const storedData = localStorage.getItem(`public-board-access-${slug}`);
-            if (storedData) {
-              try {
-                const parsedData = JSON.parse(storedData);
-                const { fullName: storedFullName, email: storedEmail } = parsedData;
-                
-                if (storedFullName && storedEmail) {
-                  // Try to find the sub-user record
-                  const { data: subUser } = await supabase
-                    .from("sub_users")
-                    .select("id, fullname, avatar_url, email")
-                    .eq("board_owner_id", pb.user_id)
-                    .ilike("email", storedEmail.trim().toLowerCase())
-                    .maybeSingle();
-                  
-                  if (subUser?.id) {
-                    const subUserIdentity = {
-                      id: subUser.id,
-                      type: "sub_user" as const, 
-                      name: subUser.fullname || storedFullName,
-                      email: storedEmail,
-                      avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-                    };
-                    
-                    console.log('🎉 SUCCESS: Using localStorage sub-user identity:', subUserIdentity);
-                    
-                    if (active) {
-                      setMe(subUserIdentity);
-                      clearTimeout(initTimeout);
-                      setIsInitialized(true);
-                    }
-                    return;
-                  }
-                }
-              } catch (error) {
-                console.error('❌ Error using localStorage context:', error);
-              }
-            }
-          }
-        }
-        
-        // Handle regular PUBLIC BOARD ACCESS (guests without authentication)
-        if (isOnPublicBoard && !publicBoardUser?.id) {
-          console.log('🔍 Public board access detected');
-          
-          const pathParts = location.pathname.split('/');
-          const slug = pathParts[pathParts.length - 1];
-          
-          // Check if we have local storage access data for this board
-          const storedData = localStorage.getItem(`public-board-access-${slug}`);
-          if (storedData) {
-            try {
-              const parsedData = JSON.parse(storedData);
-              const { token, fullName: storedFullName, email: storedEmail, boardOwnerId: storedBoardOwnerId } = parsedData;
-              
-              console.log('🔍 PUBLIC BOARD: Parsing stored access data:', { 
-                hasToken: !!token,
-                storedFullName, 
-                storedEmail,
-                storedBoardOwnerId 
-              });
-              
-              if (token && storedFullName && storedBoardOwnerId && storedEmail) {
-                console.log('✅ Found stored public board access - searching for sub-user record');
-                
-                // Enhanced sub-user lookup with multiple strategies
-                console.log('🔍 Strategy 1: Exact email match');
-                let { data: subUser, error: subUserError } = await supabase
-                  .from("sub_users")
-                  .select("id, fullname, avatar_url, email")
-                  .eq("board_owner_id", storedBoardOwnerId)
-                  .ilike("email", storedEmail.trim().toLowerCase())
-                  .maybeSingle();
-                
-                if (subUserError) {
-                  console.error('❌ Strategy 1 error:', subUserError);
-                }
-                
-                // Strategy 2: If no exact match, try searching by name
-                if (!subUser?.id) {
-                  console.log('🔍 Strategy 2: Searching by name');
-                  const { data: nameMatch } = await supabase
-                    .from("sub_users")
-                    .select("id, fullname, avatar_url, email")
-                    .eq("board_owner_id", storedBoardOwnerId)
-                    .ilike("fullname", storedFullName.trim())
-                    .maybeSingle();
-                  
-                  if (nameMatch?.id) {
-                    console.log('✅ Found sub-user by name match:', nameMatch);
-                    subUser = nameMatch;
-                  }
-                }
-                
-                // Strategy 3: List all sub-users for this board to debug
-                if (!subUser?.id) {
-                  console.log('🔍 Strategy 3: Debugging - listing all sub-users for board');
-                  const { data: allSubUsers } = await supabase
-                    .from("sub_users")
-                    .select("id, fullname, avatar_url, email")
-                    .eq("board_owner_id", storedBoardOwnerId);
-                  
-                  console.log('🔍 All sub-users for board:', allSubUsers?.map(u => ({
-                    id: u.id,
-                    email: u.email,
-                    fullname: u.fullname,
-                    emailMatch: u.email?.toLowerCase() === storedEmail.toLowerCase(),
-                    nameMatch: u.fullname?.toLowerCase() === storedFullName.toLowerCase()
-                  })));
-                  
-                  // Try to find any matching user from the list
-                  const potentialMatch = allSubUsers?.find(u => 
-                    u.email?.toLowerCase().includes(storedEmail.toLowerCase()) ||
-                    u.fullname?.toLowerCase().includes(storedFullName.toLowerCase()) ||
-                    storedEmail.toLowerCase().includes(u.email?.toLowerCase() || '') ||
-                    storedFullName.toLowerCase().includes(u.fullname?.toLowerCase() || '')
-                  );
-                  
-                  if (potentialMatch) {
-                    console.log('✅ Found potential match via fuzzy search:', potentialMatch);
-                    subUser = potentialMatch;
-                  }
-                }
-                
-                if (subUser?.id) {
-                  console.log('✅ SUCCESS: Found sub-user record for PUBLIC BOARD:', { 
-                    id: subUser.id, 
-                    name: subUser.fullname,
-                    email: subUser.email,
-                    avatarUrl: subUser.avatar_url,
-                    boardOwnerId: storedBoardOwnerId 
-                  });
-                  
-                  const subUserIdentity = {
-                    id: subUser.id,
-                    type: "sub_user" as const, 
-                    name: subUser.fullname || storedFullName,
-                    email: storedEmail,
-                    avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-                  };
-                  
-                  console.log('🔧 Creating sub-user identity for PUBLIC BOARD:', subUserIdentity);
-                  
-                  if (active) {
-                    setBoardOwnerId(storedBoardOwnerId);
-                    setMe(subUserIdentity);
-                    clearTimeout(initTimeout);
-                    setIsInitialized(true);
-                    console.log('🎉 PUBLIC BOARD: Chat initialized for sub-user with identity:', subUserIdentity);
-                  }
-                  return;
-                } else {
-                  console.log('❌ FAILED: Sub-user record not found in database');
-                  console.log('💡 Searched for email:', storedEmail, 'and name:', storedFullName);
-                  console.log('💡 Chat functionality requires a valid sub-user database record');
-                  
-                  // Initialize without chat functionality
-                  if (active) {
-                    setBoardOwnerId(storedBoardOwnerId);
-                    setMe(null); // No chat access without database record
-                    clearTimeout(initTimeout);
-                    setIsInitialized(true);
-                  }
-                  return;
-                }
-              }
-            } catch (error) {
-              console.error('❌ Error parsing stored access data:', error);
-            }
-          }
-          
-          console.log('⚠️ No valid public board access found');
-        }
-        
-        // Handle authenticated users - FIXED: On public boards, prioritize sub-user context
-        if (user?.id) {
-          console.log('🔍 Checking authenticated user:', { 
-            email: user.email, 
-            userId: user.id,
-            path: location.pathname,
-            isOnPublicBoard 
-          });
-          
-          // CRITICAL FIX: On public boards, check sub-user context FIRST
-          if (isOnPublicBoard) {
-            const slug = location.pathname.split('/').pop()!;
-            const { data: pb } = await supabase
-              .from('public_boards')
-              .select('user_id')
-              .eq('slug', slug)
-              .maybeSingle();
-
-            if (pb?.user_id && user.email) {
-              console.log('🔍 Public board - checking if authenticated user is a sub-user');
-              const { data: subUser } = await supabase
-                .from("sub_users")
-                .select("id, fullname, avatar_url, email")
-                .eq("board_owner_id", pb.user_id)
-                .ilike("email", user.email.trim().toLowerCase())
-                .maybeSingle();
-              
-              if (subUser?.id) {
-                const subUserIdentity = {
-                  id: subUser.id,
-                  type: "sub_user" as const, 
-                  name: subUser.fullname || user.email.split('@')[0],
-                  email: user.email,
-                  avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-                };
-                
-                console.log('🎉 SUCCESS: Public board sub-user authenticated:', subUserIdentity);
-                
-                if (active) {
-                  setBoardOwnerId(pb.user_id);
-                  setMe(subUserIdentity);
-                  clearTimeout(initTimeout);
-                  setIsInitialized(true);
-                }
-                return;
-              }
-            }
-          }
-          
-          // Try admin (only if not resolved as sub-user above)
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", user.id)
-            .maybeSingle();
-          
-          console.log('🔍 Profile query result:', { 
-            profile, 
-            profileError: profileError?.message,
-            hasProfile: !!profile 
-          });
-          
-          if (active && profile) {
-            console.log('✅ AUTHENTICATED ADMIN detected:', profile.username);
-            
-            // Use email local part if username is auto-generated
-            const displayName = profile.username?.startsWith('user_') 
-              ? (user.email?.split('@')[0] || 'Admin')
-              : (profile.username || 'Admin');
-            
-            setBoardOwnerId(user.id);
-            setMe({
-              id: profile.id,
-              type: "admin",
-              name: displayName,
-              email: user.email || undefined,
-              avatarUrl: resolveAvatarUrl(profile.avatar_url)
-            });
-            clearTimeout(initTimeout);
-            setIsInitialized(true);
-            console.log('🎉 AUTHENTICATED ADMIN: Chat initialized with full features');
-            return;
-          }
-          
-          // Try sub-user by email match (case-insensitive) - only for non-public boards
-          if (!isOnPublicBoard) {
-            const userEmail = user.email?.toLowerCase();
-            if (userEmail) {
-              console.log('🔍 Looking for authenticated sub-user with email:', userEmail);
-              
-              const { data: subUser, error: subUserError } = await supabase
-                .from("sub_users")
-                .select("*")
-                .ilike("email", userEmail)
-                .maybeSingle();
-
-              if (subUserError) {
-                console.log('⚠️ Sub-user query error:', subUserError);
-              }
-
-              if (active && subUser) {
-                console.log('✅ AUTHENTICATED SUB-USER detected:', { 
-                  id: subUser.id,
-                  fullname: subUser.fullname, 
-                  email: subUser.email,
-                  boardOwnerId: subUser.board_owner_id 
-                });
-                
-                setBoardOwnerId(subUser.board_owner_id);
-                setMe({
-                  id: subUser.id,
-                  type: "sub_user",
-                  name: subUser.fullname || "Member",
-                  email: subUser.email,
-                  avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-                });
-                clearTimeout(initTimeout);
-                setIsInitialized(true);
-                console.log('🎉 AUTHENTICATED SUB-USER: Chat initialized with full features');
-                return;
-              }
-            }
-          }
-          
-          console.log('❌ Authenticated user not found in profiles or sub_users - this should not happen for valid accounts');
-        }
-        
-        // No valid user found
-        console.log('❌ No valid user identity found');
-        if (active) {
-          setMe(null);
-          setBoardOwnerId(null);
-          clearTimeout(initTimeout);
-          setIsInitialized(true);
-        }
-        
-      } catch (error) {
-        console.error('❌ Error initializing chat:', error);
-        if (active) {
-          setMe(null);
-          setBoardOwnerId(null);
-          clearTimeout(initTimeout);
-          setIsInitialized(true);
-        }
+      // 4) Fallback: no identity (icon won't be visible anyway due to shouldShowChat)
+      if (active) {
+        setMe(null);
+        setIsInitialized(true);
       }
     })();
 
-    return () => { 
-      active = false;
-      if (initTimeout) clearTimeout(initTimeout);
-    };
-  }, [user?.id, user?.email, shouldShowChat, location.pathname, isOnPublicBoard, publicBoardUser]);
+    return () => { active = false; };
+  }, [isOnPublicBoard, publicBoardUser?.id, publicBoardUser?.email, user?.id, location.pathname, currentChannelId]);
 
   // ❌ REMOVED: Old normalization logic is no longer needed since the migration handles it
 
@@ -875,8 +429,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               onClick={toggle} 
               isOpen={isOpen} 
               unreadCount={unreadTotal}
-              // show spinner only before the window opens
-              isPending={(pendingOpen || !isInitialized) && !isOpen}
+              // No more spinner loop on the icon
+              isPending={false}
             />
           )}
           {isOpen && (
