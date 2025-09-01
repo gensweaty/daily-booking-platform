@@ -263,19 +263,26 @@ export const ChatSidebar = () => {
         <button
           onClick={() => generalChannelId && openChannel(generalChannelId)}
           className={cn(
-            "w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-colors text-left relative",
-            currentChannelId === generalChannelId ? "bg-primary/10 text-primary" : ""
+            "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
+            currentChannelId === generalChannelId ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
           )}
         >
-          <Hash className="h-4 w-4" />
-          <span className="font-medium">General</span>
-          {generalChannelId && channelUnreads[generalChannelId] > 0 && (
-            <div className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full border-2 border-background flex items-center justify-center">
-              <span className="text-xs text-white font-bold">
-                {channelUnreads[generalChannelId] > 9 ? '9+' : channelUnreads[generalChannelId]}
-              </span>
-            </div>
-          )}
+          <Hash className="h-4 w-4 flex-shrink-0" />
+          <span className="font-medium flex-1">General</span>
+          {(() => {
+            const unreadCount = generalChannelId ? channelUnreads[generalChannelId] || 0 : 0;
+            console.log('🔔 General channel unread count:', unreadCount, 'channelId:', generalChannelId);
+            if (unreadCount > 0) {
+              return (
+                <div className="ml-auto h-5 w-5 bg-destructive rounded-full flex items-center justify-center shadow-sm">
+                  <span className="text-xs text-white font-bold leading-none">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                </div>
+              );
+            }
+            return null;
+          })()}
         </button>
 
         {/* Team Members */}
@@ -309,10 +316,10 @@ export const ChatSidebar = () => {
                     console.error('❌ Failed to start DM with:', member.name, error);
                   }
                 }}
-                className="w-full flex items-center gap-2 px-2 py-2 rounded-md hover:bg-muted/50 transition-all text-left group"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left group border border-transparent hover:border-muted"
                 title={`Start conversation with ${member.name}`}
               >
-                <div className="relative h-6 w-6 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
+                <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-transparent group-hover:ring-primary/20 transition-all">
                   {resolveAvatarUrl(member.avatar_url) ? (
                     <img
                       src={resolveAvatarUrl(member.avatar_url)!}
@@ -320,24 +327,10 @@ export const ChatSidebar = () => {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="text-xs font-medium text-foreground">
+                    <span className="text-sm font-semibold text-foreground">
                       {(member.name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}
-                  {/* Unread badge - computed inline at render time */}
-                  {(() => {
-                    const count = getUserUnreadCount(member.id, member.type);
-                    if (count > 0) {
-                      return (
-                        <div className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full border-2 border-background flex items-center justify-center">
-                          <span className="text-xs text-white font-bold">
-                            {count > 9 ? '9+' : count}
-                          </span>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
                 </div>
                 
                 <div className="flex-1 min-w-0 text-left">
@@ -346,6 +339,22 @@ export const ChatSidebar = () => {
                     {member.type === 'admin' ? 'Owner' : 'Team Member'}
                   </p>
                 </div>
+
+                {/* Unread badge - computed inline at render time and positioned at the end */}
+                {(() => {
+                  const count = getUserUnreadCount(member.id, member.type);
+                  console.log('🔔 DM unread count for', member.name, ':', count);
+                  if (count > 0) {
+                    return (
+                      <div className="ml-auto h-5 w-5 bg-destructive rounded-full flex items-center justify-center shadow-sm">
+                        <span className="text-xs text-white font-bold leading-none">
+                          {count > 9 ? '9+' : count}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
               </button>
             );
           })}
