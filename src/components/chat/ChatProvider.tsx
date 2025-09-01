@@ -89,14 +89,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  // Determine if chat should be shown - FIXED: prioritize sub-user context on public boards
+  // Determine if chat should be shown - FIXED: strict authentication gate
   const shouldShowChat = useMemo(() => {
-    // If on public board with sub-user context, always show chat
-    if (isOnPublicBoard && publicBoardUser?.id) return true;
-    // Show chat for authenticated users (admin) when NOT in sub-user context
-    if (user?.id && (!isOnPublicBoard || !publicBoardUser?.id)) return true;
-    // Show chat on public boards as fallback
-    return isOnPublicBoard;
+    if (isOnPublicBoard) {
+      // Only show if we have a valid authenticated sub-user (not undefined, not null)
+      return publicBoardUser?.id != null;
+    }
+    // Show for authenticated admin users on dashboard
+    return user?.id != null;
   }, [user?.id, isOnPublicBoard, publicBoardUser?.id]);
 
   console.log('🔍 ChatProvider render:', {
@@ -408,10 +408,27 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      // Fixed: Simplified auth wait - no broken polling mechanism
+      // On public boards, wait for auth resolution
       if (isOnPublicBoard && publicBoardUser === undefined) {
-        console.log('⏳ Public board auth not ready yet, initializing anyway to prevent infinite loading');
-        // Don't wait - let the initialization proceed and handle auth later
+        console.log('⏳ Waiting for public board auth to resolve');
+        if (active) {
+          clearTimeout(initTimeout);
+          setIsInitialized(true);
+        }
+        return; // Don't initialize yet
+      }
+
+      // Clear stale identity when switching contexts or logging out
+      if (isOnPublicBoard && !publicBoardUser?.id) {
+        console.log('🧹 Clearing stale identity - user logged out or no valid auth');
+        if (active) {
+          setMe(null);
+          setBoardOwnerId(null);
+          setIsOpen(false); // Close chat if open
+          clearTimeout(initTimeout);
+          setIsInitialized(true);
+        }
+        return;
       }
 
       try {
