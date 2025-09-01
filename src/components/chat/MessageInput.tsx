@@ -86,6 +86,13 @@ export const MessageInput = ({
           });
         }
       }
+
+      // If user only tried to send files and all uploads failed, abort
+      if (!message.trim() && attachments.length > 0 && uploadedFiles.length === 0) {
+        setIsUploading(false);
+        return;
+      }
+
       onSendMessage(message.trim(), uploadedFiles);
       setMessage('');
       setAttachments([]);

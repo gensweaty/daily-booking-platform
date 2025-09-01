@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Hash } from 'lucide-react';
+import { Hash, MessageSquare } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
@@ -21,6 +21,13 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
   const location = useLocation();
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
+  const [dmChannels, setDmChannels] = useState<Array<{
+    id: string;
+    name: string;
+    partner_name: string;
+    partner_avatar?: string;
+    partner_type: 'admin' | 'sub_user';
+  }>>([]);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
@@ -264,6 +271,89 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     })();
   }, [boardOwnerId, location.pathname]);
 
+  // Load DM channels with proper filtering for sub-users
+  useEffect(() => {
+    if (!boardOwnerId || !me) return;
+    
+    (async () => {
+      try {
+        const { data: channels } = await supabase
+          .from('chat_channels')
+          .select(`
+            id, name, is_dm,
+            chat_participants ( user_id, sub_user_id, user_type )
+          `)
+          .eq('owner_id', boardOwnerId)
+          .eq('is_dm', true);
+
+        if (!channels) {
+          setDmChannels([]);
+          return;
+        }
+
+        const isSub = me?.type === 'sub_user';
+        const mySubId = me?.id;
+
+        const validDMs = channels.filter(ch => {
+          const ps = ch.chat_participants ?? [];
+          if (!isSub) return true; // admins see all DMs
+
+          // For sub-users: only show DMs with exactly 2 participants (admin + this sub-user)
+          const hasAdmin = ps.some(p => p.user_type === 'admin' && p.user_id);
+          const hasMe = ps.some(p => p.sub_user_id === mySubId);
+          return ps.length === 2 && hasAdmin && hasMe;
+        });
+
+        const dmList = await Promise.all(
+          validDMs.map(async ch => {
+            const ps = ch.chat_participants ?? [];
+            const other = isSub 
+              ? ps.find((p: any) => p.user_type === 'admin')
+              : ps.find((p: any) => p.user_type === 'sub_user');
+
+            let partnerName = 'Direct Message';
+            let partnerAvatar = '';
+            let partnerType: 'admin' | 'sub_user' = 'admin';
+
+            if (other) {
+              partnerType = other.user_type as 'admin' | 'sub_user';
+              if (other.user_type === 'admin' && other.user_id) {
+                const { data: profile } = await supabase
+                  .from('profiles')
+                  .select('username, avatar_url')
+                  .eq('id', other.user_id)
+                  .maybeSingle();
+                partnerName = profile?.username?.startsWith('user_') ? 'Admin' : (profile?.username || 'Admin');
+                partnerAvatar = profile?.avatar_url || '';
+              } else if (other.user_type === 'sub_user' && other.sub_user_id) {
+                const { data: subUser } = await supabase
+                  .from('sub_users')
+                  .select('fullname, avatar_url')
+                  .eq('id', other.sub_user_id)
+                  .maybeSingle();
+                partnerName = subUser?.fullname || 'Member';
+                partnerAvatar = subUser?.avatar_url || '';
+              }
+            }
+
+            return {
+              id: ch.id,
+              name: ch.name,
+              partner_name: partnerName,
+              partner_avatar: partnerAvatar,
+              partner_type: partnerType
+            };
+          })
+        );
+
+        setDmChannels(dmList);
+      } catch (error) {
+        console.error('Error loading DM channels:', error);
+        setDmChannels([]);
+      }
+    })();
+  }, [boardOwnerId, me?.id, me?.type]);
+
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
@@ -292,6 +382,50 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             </span>
           )}
         </button>
+
+        {/* DM Channels */}
+        {dmChannels.length > 0 && (
+          <div className="pt-4">
+            <p className="text-xs font-medium text-muted-foreground mb-2 px-2 uppercase tracking-wide">
+              Direct Messages
+            </p>
+            {dmChannels.map((dm) => (
+              <button
+                key={dm.id}
+                onClick={() => {
+                  openChannel(dm.id);
+                  onChannelSelect?.();
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
+                  currentChannelId === dm.id ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="relative h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                    {resolveAvatarUrl(dm.partner_avatar) ? (
+                      <img
+                        src={resolveAvatarUrl(dm.partner_avatar)!}
+                        alt={dm.partner_name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-sm font-semibold">
+                        {dm.partner_name.slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-medium text-sm truncate">{dm.partner_name}</span>
+                </div>
+                {(channelUnreads[dm.id] ?? 0) > 0 && (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                    {(channelUnreads[dm.id] ?? 0) > 99 ? '99+' : channelUnreads[dm.id]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Team Members */}
         <div className="pt-4">

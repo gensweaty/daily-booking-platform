@@ -85,7 +85,7 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
             <div
               key={a.id ?? `${a.file_path}-${i}`}
               // ~10% wider than the original compact card, not huge
-              className="group rounded-lg border bg-muted/30 overflow-hidden hover:bg-muted/50 transition w-fit min-w-[320px] max-w-[380px]"
+              className="group rounded-lg border bg-muted/30 overflow-hidden hover:bg-muted/50 transition w-fit min-w-[288px] max-w-[342px]"
               title={a.filename}
             >
               {/* Media */}
@@ -119,7 +119,7 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
               )}
 
               {/* Action row ONLY (no large filename block) */}
-              <div className="px-3 py-2 text-xs flex items-center justify-end gap-3">
+              <div className="px-3 py-2 text-xs flex items-center justify-start gap-3">
                 {/* Open = new tab */}
                 {isImage ? (
                   <a

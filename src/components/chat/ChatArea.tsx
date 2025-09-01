@@ -329,18 +329,18 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_content: content.trim(),
         });
         if (error) throw error;
-      } else {
-        const slug = location.pathname.split('/').pop()!;
-        const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-        const senderEmail = me?.email || stored?.email;
-        const { error } = await supabase.rpc('send_public_board_message', {
-          p_board_owner_id: boardOwnerId,
-          p_channel_id: activeChannelId,
-          p_sender_email: senderEmail,
-          p_content: content.trim(),
-        });
-        if (error) throw error;
-      }
+    } else {
+      const slug = location.pathname.split('/').pop()!;
+      const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+      const senderEmail = me?.email || stored?.email;
+      const { error } = await supabase.rpc('send_public_board_message', {
+        p_board_owner_id: boardOwnerId,
+        p_channel_id: activeChannelId,
+        p_sender_email: senderEmail,
+        p_content: content.trim(),
+      });
+      if (error) throw error;
+    }
 
       // 2) get the just-created message
       const real = await fetchLatestMessage();
@@ -361,10 +361,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             .update({ has_attachments: true, message_type: 'file' })
             .eq('id', real.id);
       } else {
-        // use the same fallback email as text sending
+        // Use the same fallback email as text sending
         const slug = location.pathname.split('/').pop()!;
         const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-        const senderEmail = stored?.email || me.email;
+        const senderEmail = me?.email || stored?.email;
 
         await supabase.rpc('attach_files_to_message_public', {
           p_owner_id: boardOwnerId,
