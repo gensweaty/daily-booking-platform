@@ -108,7 +108,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
   const effectiveUser = isOnPublicBoard ? publicBoardUser : user;
 
-  // NEW: reactive public access detection
+  // NEW: reactive public access detection with faster same-tab polling
   const [hasPublicAccess, setHasPublicAccess] = useState(false);
 
   useEffect(() => {
@@ -117,16 +117,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     // immediate read
     read();
 
-    // short polling window (total ~5s with easing)
+    // aggressive same-tab polling for first few seconds (50ms, 100ms, 150ms...)
     let alive = true;
-    const delays = [150, 200, 250, 300, 400, 500, 700, 900, 1200, 1500]; // ~5.1s
+    const fastDelays = [50, 100, 150, 200, 250, 300, 400, 500, 700, 1000]; // ~3.6s total
     let i = 0;
 
     const tick = () => {
       if (!alive) return;
       read();
-      if (!hasPublicAccess && i < delays.length) {
-        setTimeout(tick, delays[i++]);
+      if (!hasPublicAccess && i < fastDelays.length) {
+        setTimeout(tick, fastDelays[i++]);
       }
     };
     tick();
@@ -143,18 +143,27 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     };
     window.addEventListener('storage', onStorage);
 
+    // custom event for immediate same-tab detection
+    const onCustomEvent = (e: CustomEvent) => {
+      if (e.detail?.slug && location.pathname.includes(e.detail.slug)) {
+        read();
+      }
+    };
+    window.addEventListener('public-board-access-updated', onCustomEvent as EventListener);
+
     return () => {
       alive = false;
       window.removeEventListener('focus', onFocusish);
       document.removeEventListener('visibilitychange', onFocusish);
       window.removeEventListener('storage', onStorage);
+      window.removeEventListener('public-board-access-updated', onCustomEvent as EventListener);
     };
     // re-run when path or auth user flips
   }, [location.pathname, publicBoardUser?.id]);
 
-  // Gate the icon on public login pages and use resolved chat identity
+  // Gate the icon on public login pages and show immediately on localStorage access
   const onPublicLoginPage = isOnPublicBoard && location.pathname.includes('/login');
-  const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (isInitialized && !!boardOwnerId && !!me) : !!user?.id);
+  const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id);
 
   // Enhanced unread management - memoized dependencies
   const {

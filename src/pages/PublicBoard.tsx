@@ -147,6 +147,9 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
               email: storedEmail,
               boardOwnerId: boardData?.user_id,
             }));
+
+            // Dispatch custom event for immediate same-tab detection
+            window.dispatchEvent(new CustomEvent('public-board-access-updated', { detail: { slug } }));
           } catch (error) {
             console.error('Error updating session timestamp:', error);
           }
@@ -274,6 +277,9 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
           email: normalizedEmail,
           boardOwnerId: tokenInfo.user_id,
         }));
+
+        // Dispatch custom event for immediate same-tab detection
+        window.dispatchEvent(new CustomEvent('public-board-access-updated', { detail: { slug } }));
       } else {
         // Invalid or expired token - clear storage and show auth form
         localStorage.removeItem(`public-board-access-${slug}`);
@@ -379,6 +385,9 @@ const handleLogin = async () => {
         email: normalizedEmail,
         boardOwnerId: boardData.user_id,
       }));
+
+      // Dispatch custom event for immediate same-tab detection
+      window.dispatchEvent(new CustomEvent('public-board-access-updated', { detail: { slug } }));
 
       setAccessToken(token);
       setIsAuthenticated(true);
@@ -559,6 +568,9 @@ const handleRegister = async () => {
         email: normalizedEmail,
         boardOwnerId: boardData.user_id,
       }));
+
+      // Dispatch custom event for immediate same-tab detection
+      window.dispatchEvent(new CustomEvent('public-board-access-updated', { detail: { slug } }));
       setAccessToken(token);
       setIsAuthenticated(true);
       setEmail(normalizedEmail);
