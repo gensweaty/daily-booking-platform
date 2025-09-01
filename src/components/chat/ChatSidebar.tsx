@@ -253,9 +253,6 @@ export const ChatSidebar = () => {
     })();
   }, [boardOwnerId, location.pathname]);
 
-  // Updating member unread count indicators in the sidebar
-  // This has been REMOVED - badges are now computed inline at render time
-
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
@@ -263,26 +260,19 @@ export const ChatSidebar = () => {
         <button
           onClick={() => generalChannelId && openChannel(generalChannelId)}
           className={cn(
-            "w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
+            "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
             currentChannelId === generalChannelId ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
           )}
         >
-          <Hash className="h-4 w-4 flex-shrink-0" />
-          <span className="font-medium flex-1">General</span>
-          {(() => {
-            const unreadCount = generalChannelId ? channelUnreads[generalChannelId] || 0 : 0;
-            console.log('🔔 General channel unread count:', unreadCount, 'channelId:', generalChannelId);
-            if (unreadCount > 0) {
-              return (
-                <div className="ml-auto h-5 w-5 bg-destructive rounded-full flex items-center justify-center shadow-sm">
-                  <span className="text-xs text-white font-bold leading-none">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                </div>
-              );
-            }
-            return null;
-          })()}
+          <div className="flex items-center gap-2">
+            <Hash className="h-4 w-4 flex-shrink-0" />
+            <span className="font-medium">General</span>
+          </div>
+          {generalChannelId && (channelUnreads[generalChannelId] ?? 0) > 0 && (
+            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-white">
+              {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
+            </span>
+          )}
         </button>
 
         {/* Team Members */}
@@ -293,6 +283,7 @@ export const ChatSidebar = () => {
           
           {members.map((member) => {
             const isMe = !!me && member.id === me.id && member.type === me.type;
+            const peerUnread = getUserUnreadCount(member.id, member.type);
             
             if (isMe) {
               return null;
@@ -331,6 +322,11 @@ export const ChatSidebar = () => {
                       {(member.name || "U").slice(0, 2).toUpperCase()}
                     </span>
                   )}
+                  {peerUnread > 0 && (
+                    <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[9px] font-extrabold text-white shadow">
+                      {peerUnread > 9 ? '9+' : peerUnread}
+                    </span>
+                  )}
                 </div>
                 
                 <div className="flex-1 min-w-0 text-left">
@@ -339,22 +335,6 @@ export const ChatSidebar = () => {
                     {member.type === 'admin' ? 'Owner' : 'Team Member'}
                   </p>
                 </div>
-
-                {/* Unread badge - computed inline at render time and positioned at the end */}
-                {(() => {
-                  const count = getUserUnreadCount(member.id, member.type);
-                  console.log('🔔 DM unread count for', member.name, ':', count);
-                  if (count > 0) {
-                    return (
-                      <div className="ml-auto h-5 w-5 bg-destructive rounded-full flex items-center justify-center shadow-sm">
-                        <span className="text-xs text-white font-bold leading-none">
-                          {count > 9 ? '9+' : count}
-                        </span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
               </button>
             );
           })}

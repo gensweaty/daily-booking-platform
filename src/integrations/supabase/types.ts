@@ -410,6 +410,7 @@ export type Database = {
           channel_id: string
           id: string
           joined_at: string | null
+          last_read_at: string
           sub_user_id: string | null
           user_id: string | null
           user_type: string
@@ -418,6 +419,7 @@ export type Database = {
           channel_id: string
           id?: string
           joined_at?: string | null
+          last_read_at?: string
           sub_user_id?: string | null
           user_id?: string | null
           user_type: string
@@ -426,6 +428,7 @@ export type Database = {
           channel_id?: string
           id?: string
           joined_at?: string | null
+          last_read_at?: string
           sub_user_id?: string | null
           user_id?: string | null
           user_type?: string
@@ -1938,6 +1941,15 @@ export type Database = {
         }
         Returns: string
       }
+      mark_channel_read: {
+        Args: {
+          p_channel_id: string
+          p_owner_id: string
+          p_viewer_id: string
+          p_viewer_type: string
+        }
+        Returns: undefined
+      }
       save_event_with_persons: {
         Args:
           | {
@@ -2002,6 +2014,16 @@ export type Database = {
           p_sender_email: string
         }
         Returns: string
+      }
+      unread_counters: {
+        Args: { p_owner_id: string; p_viewer_id: string; p_viewer_type: string }
+        Returns: {
+          channel_id: string
+          channel_unread: number
+          peer_id: string
+          peer_type: string
+          peer_unread: number
+        }[]
       }
       validate_and_use_redeem_code: {
         Args: { p_code: string; p_user_id: string }
