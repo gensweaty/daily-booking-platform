@@ -204,15 +204,25 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
   useEffect(() => {
     if (!boardOwnerId) return;
+    
+    console.log('🔍 Fetching default channel for board owner:', boardOwnerId);
     supabase.rpc('get_default_channel_for_board', { p_board_owner_id: boardOwnerId })
       .then(({ data, error }) => {
-        if (!error && data?.[0]?.id) setDefaultChannelId(data[0].id as string);
+        if (error) {
+          console.error('❌ Error fetching default channel:', error);
+        } else if (data?.[0]?.id) {
+          console.log('✅ Found default channel:', data[0].id, 'name:', data[0].name);
+          setDefaultChannelId(data[0].id as string);
+        } else {
+          console.log('⚠️ No default channel found for board owner:', boardOwnerId);
+        }
       });
   }, [boardOwnerId]);
 
   // If we learn the default channel later, auto-select it when nothing is selected yet
   useEffect(() => {
     if (!currentChannelId && defaultChannelId) {
+      console.log('🎯 Auto-selecting default channel:', defaultChannelId);
       setCurrentChannelId(defaultChannelId);
     }
   }, [defaultChannelId, currentChannelId]);
@@ -220,9 +230,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Handle pending open when chat becomes ready
   useEffect(() => {
     if (chatReady && pendingOpen) {
+      console.log('🚀 Opening chat (was pending). currentChannelId:', currentChannelId, 'defaultChannelId:', defaultChannelId);
       setPendingOpen(false);
       setIsOpen(true);
       if (!currentChannelId && defaultChannelId) {
+        console.log('📋 Auto-selecting default channel from pending:', defaultChannelId);
         setCurrentChannelId(defaultChannelId);
       }
     }
@@ -322,14 +334,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const open = useCallback(() => {
     if (!shouldShowChat) return;
     if (!chatReady) {            // queue opening and keep the icon spinning
+      console.log('⏳ Chat not ready, queuing open. chatReady:', chatReady, 'boardOwnerId:', !!boardOwnerId, 'me:', !!me, 'isInitialized:', isInitialized);
       setPendingOpen(true);
       return;
     }
+    console.log('🚀 Opening chat immediately. currentChannelId:', currentChannelId, 'defaultChannelId:', defaultChannelId);
     setIsOpen(true);
     if (!currentChannelId && defaultChannelId) {
+      console.log('📋 Auto-selecting default channel on open:', defaultChannelId);
       setCurrentChannelId(defaultChannelId);
     }
-  }, [shouldShowChat, chatReady, currentChannelId, defaultChannelId]);
+  }, [shouldShowChat, chatReady, currentChannelId, defaultChannelId, boardOwnerId, me, isInitialized]);
 
   const close = useCallback(() => setIsOpen(false), []);
 
