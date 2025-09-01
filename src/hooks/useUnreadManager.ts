@@ -207,7 +207,7 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean, ch
     setUnreadTotal(0);
   }, []);
 
-  // NEW: hydrate from server (SQL function) on mount/refresh - MERGE with localStorage
+  // NEW: hydrate from server (SQL function) on mount/refresh
   const hydrate = useCallback((rows: Array<{ 
     channel_id: string; 
     channel_unread: number; 
@@ -215,38 +215,22 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean, ch
     peer_type: 'admin' | 'sub_user' | null; 
     peer_unread: number | null;
   }>) => {
-    console.log('🔄 Hydrating unread counts from server:', rows);
+    const nextChannelUnreads: UnreadCounts = {};
+    const nextMemberUnreads: MemberUnreads = {};
 
-    setChannelUnreads(prev => {
-      const nextChannelUnreads: UnreadCounts = { ...prev };
-      
-      for (const r of rows) {
-        if (r.channel_id && r.channel_unread > 0) {
-          const currentCount = prev[r.channel_id] || 0;
-          const serverCount = r.channel_unread;
-          // Only use server count if it's higher than localStorage (handles refresh case)
-          nextChannelUnreads[r.channel_id] = Math.max(currentCount, serverCount);
-        }
+    for (const r of rows) {
+      if (r.channel_id && r.channel_unread > 0) {
+        nextChannelUnreads[r.channel_id] = (nextChannelUnreads[r.channel_id] || 0) + r.channel_unread;
       }
-      
-      return nextChannelUnreads;
-    });
+      if (r.peer_id && r.peer_type && r.peer_unread && r.peer_unread > 0) {
+        const k = `${r.peer_id}_${r.peer_type}`;
+        nextMemberUnreads[k] = (nextMemberUnreads[k] || 0) + r.peer_unread;
+      }
+    }
 
-    setMemberUnreads(prev => {
-      const nextMemberUnreads: MemberUnreads = { ...prev };
-      
-      for (const r of rows) {
-        if (r.peer_id && r.peer_type && r.peer_unread && r.peer_unread > 0) {
-          const k = `${r.peer_id}_${r.peer_type}`;
-          const currentCount = prev[k] || 0;
-          const serverCount = r.peer_unread;
-          // Only use server count if it's higher than localStorage
-          nextMemberUnreads[k] = Math.max(currentCount, serverCount);
-        }
-      }
-      
-      return nextMemberUnreads;
-    });
+    setChannelUnreads(nextChannelUnreads);
+    setMemberUnreads(nextMemberUnreads);
+    setUnreadTotal(Object.values(nextChannelUnreads).reduce((s, n) => s + (n as number), 0));
   }, []);
 
   // NEW: mark a channel as seen immediately (for DMs & General)
