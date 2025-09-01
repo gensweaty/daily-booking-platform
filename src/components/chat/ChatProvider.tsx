@@ -653,15 +653,56 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('⚠️ No valid public board access found');
         }
         
-        // Handle authenticated users (admin and sub-users) - PRIORITY: Check authenticated users first
+        // Handle authenticated users - FIXED: On public boards, prioritize sub-user context
         if (user?.id) {
           console.log('🔍 Checking authenticated user:', { 
             email: user.email, 
             userId: user.id,
-            path: location.pathname 
+            path: location.pathname,
+            isOnPublicBoard 
           });
           
-          // Try admin first - check profiles table
+          // CRITICAL FIX: On public boards, check sub-user context FIRST
+          if (isOnPublicBoard) {
+            const slug = location.pathname.split('/').pop()!;
+            const { data: pb } = await supabase
+              .from('public_boards')
+              .select('user_id')
+              .eq('slug', slug)
+              .maybeSingle();
+
+            if (pb?.user_id && user.email) {
+              console.log('🔍 Public board - checking if authenticated user is a sub-user');
+              const { data: subUser } = await supabase
+                .from("sub_users")
+                .select("id, fullname, avatar_url, email")
+                .eq("board_owner_id", pb.user_id)
+                .ilike("email", user.email.trim().toLowerCase())
+                .maybeSingle();
+              
+              if (subUser?.id) {
+                const subUserIdentity = {
+                  id: subUser.id,
+                  type: "sub_user" as const, 
+                  name: subUser.fullname || user.email.split('@')[0],
+                  email: user.email,
+                  avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+                };
+                
+                console.log('🎉 SUCCESS: Public board sub-user authenticated:', subUserIdentity);
+                
+                if (active) {
+                  setBoardOwnerId(pb.user_id);
+                  setMe(subUserIdentity);
+                  clearTimeout(initTimeout);
+                  setIsInitialized(true);
+                }
+                return;
+              }
+            }
+          }
+          
+          // Try admin (only if not resolved as sub-user above)
           const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("*")
@@ -696,41 +737,43 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
           
-          // Try sub-user by email match (case-insensitive)
-          const userEmail = user.email?.toLowerCase();
-          if (userEmail) {
-            console.log('🔍 Looking for authenticated sub-user with email:', userEmail);
-            
-            const { data: subUser, error: subUserError } = await supabase
-              .from("sub_users")
-              .select("*")
-              .ilike("email", userEmail)
-              .maybeSingle();
-
-            if (subUserError) {
-              console.log('⚠️ Sub-user query error:', subUserError);
-            }
-
-            if (active && subUser) {
-              console.log('✅ AUTHENTICATED SUB-USER detected:', { 
-                id: subUser.id,
-                fullname: subUser.fullname, 
-                email: subUser.email,
-                boardOwnerId: subUser.board_owner_id 
-              });
+          // Try sub-user by email match (case-insensitive) - only for non-public boards
+          if (!isOnPublicBoard) {
+            const userEmail = user.email?.toLowerCase();
+            if (userEmail) {
+              console.log('🔍 Looking for authenticated sub-user with email:', userEmail);
               
-              setBoardOwnerId(subUser.board_owner_id);
-              setMe({
-                id: subUser.id,
-                type: "sub_user",
-                name: subUser.fullname || "Member",
-                email: subUser.email,
-                avatarUrl: resolveAvatarUrl(subUser.avatar_url)
-              });
-              clearTimeout(initTimeout);
-              setIsInitialized(true);
-              console.log('🎉 AUTHENTICATED SUB-USER: Chat initialized with full features');
-              return;
+              const { data: subUser, error: subUserError } = await supabase
+                .from("sub_users")
+                .select("*")
+                .ilike("email", userEmail)
+                .maybeSingle();
+
+              if (subUserError) {
+                console.log('⚠️ Sub-user query error:', subUserError);
+              }
+
+              if (active && subUser) {
+                console.log('✅ AUTHENTICATED SUB-USER detected:', { 
+                  id: subUser.id,
+                  fullname: subUser.fullname, 
+                  email: subUser.email,
+                  boardOwnerId: subUser.board_owner_id 
+                });
+                
+                setBoardOwnerId(subUser.board_owner_id);
+                setMe({
+                  id: subUser.id,
+                  type: "sub_user",
+                  name: subUser.fullname || "Member",
+                  email: subUser.email,
+                  avatarUrl: resolveAvatarUrl(subUser.avatar_url)
+                });
+                clearTimeout(initTimeout);
+                setIsInitialized(true);
+                console.log('🎉 AUTHENTICATED SUB-USER: Chat initialized with full features');
+                return;
+              }
             }
           }
           
