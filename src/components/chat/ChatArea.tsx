@@ -360,19 +360,14 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           await supabase.from('chat_messages')
             .update({ has_attachments: true, message_type: 'file' })
             .eq('id', real.id);
-      } else {
-        // use the same fallback email as text sending
-        const slug = location.pathname.split('/').pop()!;
-        const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-        const senderEmail = stored?.email || me.email;
-
-        await supabase.rpc('attach_files_to_message_public', {
-          p_owner_id: boardOwnerId,
-          p_channel_id: activeChannelId,
-          p_sender_email: senderEmail,
-          p_files: attachments,
-        });
-      }
+        } else {
+          await supabase.rpc('attach_files_to_message_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_sender_email: me.email!,
+            p_files: attachments,
+          });
+        }
       }
 
       // 4) hydrate with attachments + friendly display name fallback
