@@ -85,8 +85,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [hasSubUsers, setHasSubUsers] = useState(false);
   const [channelMemberMap, setChannelMemberMap] = useState<Map<string, { id: string; type: 'admin' | 'sub_user' }>>(new Map());
   
-  // OPTIMIZATION 5: Progressive loading - show chat faster
-  const chatReady = !!boardOwnerId && !!me; // Removed isInitialized requirement for faster UI
+  // Show chat window when ready - minimal requirements
+  const chatReady = !!boardOwnerId && !!me && isInitialized;
 
   // Portal root - memoized to prevent re-creation
   const portalRoot = useMemo(() => {
@@ -361,35 +361,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     enabled: realtimeEnabled,
   });
 
-  // OPTIMIZATION 4: Optimized default channel tracking with caching
+  // Simple default channel fetch - no caching overhead
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
   useEffect(() => {
     if (!boardOwnerId) return;
     
-    // Check cache first
-    const cacheKey = `default-channel-${boardOwnerId}`;
-    const cached = sessionStorage.getItem(cacheKey);
-    
-    if (cached) {
-      console.log('📋 Using cached default channel:', cached);
-      setDefaultChannelId(cached);
-      return;
-    }
-    
-    console.log('🔍 Fetching default channel for board owner:', boardOwnerId);
     supabase.rpc('get_default_channel_for_board', { p_board_owner_id: boardOwnerId })
       .then(({ data, error }) => {
-        if (error) {
-          console.error('❌ Error fetching default channel:', error);
-        } else if (data?.[0]?.id) {
-          console.log('✅ Found default channel:', data[0].id, 'name:', data[0].name);
-          const channelId = data[0].id as string;
-          setDefaultChannelId(channelId);
-          // Cache for 5 minutes
-          sessionStorage.setItem(cacheKey, channelId);
-          setTimeout(() => sessionStorage.removeItem(cacheKey), 5 * 60 * 1000);
-        } else {
-          console.log('⚠️ No default channel found for board owner:', boardOwnerId);
+        if (!error && data?.[0]?.id) {
+          setDefaultChannelId(data[0].id as string);
         }
       });
   }, [boardOwnerId]);
@@ -478,204 +458,115 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [boardOwnerId, me, clearChannel, refreshUnread]);
 
-  // Initialize user identity and board owner - OPTIMIZED with parallel queries
+  // FAST LOADING: Simplified initialization with minimal queries
   useEffect(() => {
     let active = true;
 
     (async () => {
       setIsInitialized(false);
 
-      // Resolve board owner from slug
+      // Fast path: Only resolve what's absolutely needed for chat to show
       const slug = location.pathname.split('/').pop()!;
-      
-      // OPTIMIZATION 1: Parallel query setup based on context
-      const queries = [];
-      
-      if (isOnPublicBoard) {
-        queries.push(
-          supabase.from('public_boards')
-            .select('user_id').eq('slug', slug).maybeSingle()
-        );
-      }
-
-      // Execute initial queries in parallel
-      const results = await Promise.allSettled(queries);
-      
-      if (!active) return;
-
-      const resolvedBoardOwnerId = isOnPublicBoard 
-        ? (results[0] as any)?.value?.data?.user_id 
-        : user?.id;
+      const resolvedBoardOwnerId = isOnPublicBoard ? 
+        (await supabase.from('public_boards').select('user_id').eq('slug', slug).maybeSingle()).data?.user_id :
+        user?.id;
         
-      if (!resolvedBoardOwnerId) {
-        console.log('❌ No board owner resolved');
+      if (!active || !resolvedBoardOwnerId) {
         setIsInitialized(true);
         return;
       }
 
       setBoardOwnerId(resolvedBoardOwnerId);
       
-      // OPTIMIZATION 2: Parallel user data fetching
-      const userDataQueries = [];
-      
-      // Handle admin users (simple case)
+      // Handle user identity with minimal data
       if (!isOnPublicBoard && user) {
-        userDataQueries.push(
-          supabase.from('profiles')
-            .select('id, username, avatar_url')
-            .eq('id', user.id)
-            .maybeSingle(),
-          supabase.from('sub_users')
-            .select('id')
-            .eq('board_owner_id', user.id)
-            .limit(1)
-        );
-      }
+        // Admin user - minimal profile fetch
+        const { data: profile } = await supabase.from('profiles')
+          .select('username, avatar_url').eq('id', user.id).maybeSingle();
 
-      // Handle public board users
-      if (isOnPublicBoard && publicBoardUser?.id) {
-        userDataQueries.push(
-          supabase.from('sub_users')
-            .select('id, fullname, avatar_url')
-            .eq('id', publicBoardUser.id)
-            .maybeSingle()
-        );
-      }
-
-      // Execute user data queries in parallel
-      const userResults = userDataQueries.length > 0 
-        ? await Promise.allSettled(userDataQueries)
-        : [];
-
-      if (!active) return;
-
-      // Process results based on context
-      if (!isOnPublicBoard && user) {
-        const profileResult = userResults[0] as any;
-        const subUsersResult = userResults[1] as any;
-        
-        const profile = profileResult?.value?.data;
-        const hasSubUsers = (subUsersResult?.value?.data || []).length > 0;
-
-        setMe({
-          id: user.id,
-          type: 'admin',
-          name: profile?.username?.startsWith('user_')
-            ? (user.email?.split('@')[0] || 'Admin')
-            : (profile?.username || 'Admin'),
-          email: user.email,
-          avatarUrl: resolveAvatarUrl(profile?.avatar_url),
-        });
-        
-        setHasSubUsers(hasSubUsers);
-        setIsInitialized(true);
-      } else if (isOnPublicBoard) {
-        if (publicBoardUser?.id && userResults.length > 0) {
-          // Authenticated sub-user
-          const profileResult = userResults[0] as any;
-          const profile = profileResult?.value?.data;
-
+        if (active) {
           setMe({
-            id: profile?.id || publicBoardUser.id,
-            type: 'sub_user',
-            name: profile?.fullname || publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
-            email: publicBoardUser.email,
+            id: user.id,
+            type: 'admin',
+            name: profile?.username?.startsWith('user_') ? 
+              (user.email?.split('@')[0] || 'Admin') : 
+              (profile?.username || 'Admin'),
+            email: user.email,
             avatarUrl: resolveAvatarUrl(profile?.avatar_url),
           });
-          setHasSubUsers(true);
-          setIsInitialized(true);
+        }
+      } else if (isOnPublicBoard) {
+        if (publicBoardUser?.id) {
+          // Authenticated sub-user
+          setMe({
+            id: publicBoardUser.id,
+            type: 'sub_user',
+            name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
+            email: publicBoardUser.email,
+          });
         } else if (hasPublicAccess) {
-          // Public access via localStorage
+          // Public access
           const access = getPublicAccess(location.pathname);
-          if (access.hasAccess && access.fullName && access.email && access.storedOwnerId === resolvedBoardOwnerId) {
+          if (access.hasAccess && access.storedOwnerId === resolvedBoardOwnerId) {
             setMe({
               id: `guest-${access.email}`,
               type: 'sub_user',
               name: access.fullName,
               email: access.email,
             });
-            setHasSubUsers(true);
-            setIsInitialized(true);
           }
         }
       }
 
-      if (!active) return;
-      if (!me) setIsInitialized(true);
+      if (active) setIsInitialized(true);
     })();
 
     return () => { active = false; };
-  }, [isOnPublicBoard, user?.id, publicBoardUser?.id, publicBoardUser?.email, hasPublicAccess, location.pathname]);
+  }, [isOnPublicBoard, user?.id, publicBoardUser?.id, hasPublicAccess, location.pathname]);
 
   // ❌ REMOVED: Old normalization logic is no longer needed since the migration handles it
 
-  // OPTIMIZATION 3: Parallel channel mapping fetch
+  // Simple channel mapping - only when needed
   useEffect(() => {
-    if (!boardOwnerId || !me) return;
+    if (!boardOwnerId || !me || !isOpen) return; // Only fetch when chat is actually opened
 
     const fetchChannelMemberMap = async () => {
       try {
-        // Parallel queries for channels and DMs
-        const [channelsData, dmData] = await Promise.all([
-          supabase.from('chat_channels')
-            .select('id, name, emoji, is_dm, chat_participants(user_id, sub_user_id, user_type)')
-            .eq('owner_id', boardOwnerId)
-            .eq('is_dm', true),
-          me.type === 'sub_user' ? 
-            supabase.rpc('get_dm_channels_for_sub_user', {
-              p_owner_id: boardOwnerId,
-              p_email: me.email
-            }) : Promise.resolve({ data: null })
-        ]);
-
         const newMap = new Map<string, { id: string; type: 'admin' | 'sub_user' }>();
 
-        // Handle admin DM channels
-        if (me.type === 'admin' && channelsData.data) {
-          channelsData.data.forEach((channel: any) => {
+        if (me.type === 'admin') {
+          // Simple admin path - just DM channels
+          const { data: dmChannels } = await supabase
+            .from('chat_channels')
+            .select('id, chat_participants(user_id, sub_user_id, user_type)')
+            .eq('owner_id', boardOwnerId)
+            .eq('is_dm', true);
+
+          dmChannels?.forEach((channel: any) => {
             const participants = channel.chat_participants || [];
-            
-            // For DMs, find the OTHER participant (not me)
-            if (participants.length === 2) {
-              const otherParticipant = participants.find((p: any) => {
-                // Skip if this is me
-                if (me.type === 'admin' && p.user_type === 'admin' && p.user_id === me.id) return false;
-                if (me.type === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === me.id) return false;
-                return true;
-              });
+            const otherParticipant = participants.find((p: any) => 
+              !(p.user_type === 'admin' && p.user_id === me.id)
+            );
 
-              if (otherParticipant) {
-                const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
-                const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
-                
-                if (memberId && memberType) {
-                  newMap.set(channel.id, { id: memberId, type: memberType });
-                }
+            if (otherParticipant) {
+              const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
+              const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
+              
+              if (memberId && memberType) {
+                newMap.set(channel.id, { id: memberId, type: memberType });
               }
-            }
-          });
-        }
-
-        // Handle sub-user DM channels
-        if (me.type === 'sub_user' && dmData.data) {
-          dmData.data.forEach((row: any) => {
-            const memberId = row.other_user_id || row.other_sub_user_id;
-            const memberType = row.other_type as 'admin' | 'sub_user';
-            
-            if (memberId && memberType) {
-              newMap.set(row.channel_id, { id: memberId, type: memberType });
             }
           });
         }
 
         setChannelMemberMap(newMap);
       } catch (error) {
-        console.error('❌ Error fetching channel member mapping:', error);
+        console.error('❌ Error fetching channel mapping:', error);
       }
     };
 
     fetchChannelMemberMap();
-  }, [boardOwnerId, me]);
+  }, [boardOwnerId, me, isOpen]); // Only when chat opens
 
   // Check for sub-users (always allow chat to show)
   useEffect(() => {
