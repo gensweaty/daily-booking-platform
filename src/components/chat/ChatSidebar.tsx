@@ -12,22 +12,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { getEffectivePublicEmail } from '@/utils/chatEmail';
 
-// helper for extracting channel ID from RPC returns  
-const extractChannelId = (data: any): string | null => {
-  if (!data) return null;
-  if (typeof data === 'string') return data;
-  if (typeof data === 'object') {
-    if ('id' in data && data.id) return data.id as string;
-    if ('channel_id' in data && data.channel_id) return data.channel_id as string;
-  }
-  if (Array.isArray(data) && data.length) {
-    const first = data[0];
-    if (first?.id) return first.id as string;
-    if (first?.channel_id) return first.channel_id as string;
-  }
-  return null;
-};
-
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
   onDMStart?: () => void;
@@ -35,7 +19,7 @@ interface ChatSidebarProps {
 
 export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {}) => {
   const { t } = useLanguage();
-  const { me, boardOwnerId, currentChannelId, verifyAndSetChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
+  const { me, boardOwnerId, currentChannelId, verifyAndSetChannel, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
   const location = useLocation();
   const isPublicBoard = location.pathname.startsWith('/board/');
   const onPublicBoard = location.pathname.startsWith('/board/');
@@ -67,43 +51,42 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     avatar_url?: string | null;
   }>>([]);
 
-  // Load channels (public board sub-user: only show General)
+  // Load channels for sub-users (no duplicates)
   useEffect(() => {
     let active = true;
     (async () => {
       if (!boardOwnerId) return;
 
-      if (onPublicBoard && isSubUser) {
-        // ✅ SAFETY: Do NOT list DMs for sub-users here.
-        // We only show the default public channel ("General") in this section,
-        // so clicks never hit inaccessible DM channel ids.
-        const { data: channelData, error } = await supabase.rpc(
-          'get_default_channel_for_board',
-          { p_board_owner_id: boardOwnerId }
-        );
+      if (onPublicBoard && isSubUser && effectiveEmail) {
+        // ✅ Public list that already respects sub-user access
+        const { data, error } = await supabase.rpc('get_user_participating_channels', {
+          p_owner_id: boardOwnerId,
+          p_user_email: effectiveEmail,
+          p_user_type: 'sub_user',
+        });
         if (!active || error) return;
 
-        if (channelData && channelData.length > 0) {
-          const channel = channelData[0];
-          setChannels([{
-            id: channel.id,
-            name: channel.name || 'General',
-            display_name: channel.name || 'General',
-            is_dm: false,
-          }]);
-        } else {
-          setChannels([]); // no general found (unlikely), keep empty
-        }
+        // Defensive: de-dupe by id and fix DM label once
+        const byId = new Map<string, any>();
+        for (const ch of (data || [])) byId.set(ch.channel_id, ch);
+        setChannels(Array.from(byId.values()).map(ch => ({
+          id: ch.channel_id,
+          name: ch.channel_name || 'General',
+          is_dm: !!ch.is_dm,
+          // Avoid "DM: DM: ..."
+          display_name: ch.is_dm ? `DM: ${ch.partner_name || 'Member'}` : (ch.channel_name || 'General'),
+          partner_name: ch.partner_name,
+        })));
         return;
       }
 
-      // Dashboard/admin: unchanged (still just General for now)
-      const { data: channelData, error } = await supabase.rpc(
-        'get_default_channel_for_board',
-        { p_board_owner_id: boardOwnerId }
-      );
+      // existing internal/admin list (unchanged) - for now just load General
+      const { data: channelData, error } = await supabase.rpc('get_default_channel_for_board', {
+        p_board_owner_id: boardOwnerId
+      });
+      
       if (!active || error) return;
-
+      
       if (channelData && channelData.length > 0) {
         const channel = channelData[0];
         setChannels([{
@@ -112,12 +95,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           display_name: channel.name || 'General',
           is_dm: false,
         }]);
-      } else {
-        setChannels([]);
       }
     })();
     return () => { active = false; };
-  }, [boardOwnerId, onPublicBoard, isSubUser]);
+  }, [boardOwnerId, effectiveEmail, me?.id, me?.type, onPublicBoard, isSubUser]);
 
   // Load team members with enhanced logic
   useEffect(() => {
@@ -346,25 +327,21 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   
                   try {
                     if (isPublicBoard && (me as any)?.type === 'sub_user') {
-                      // Create/ensure DM for the current sub-user -> member
+                      // Public board sub-user path: use public RPC and sender email
                       const senderEmail = effectiveEmail;
                       if (!senderEmail) throw new Error('Missing sender email for public DM');
-
-                  const { data, error } = await supabase.rpc('start_public_board_dm', {
-                    p_board_owner_id: boardOwnerId!,
-                    p_other_id: member.id,
-                    p_other_type: member.type,
-                    p_sender_email: effectiveEmail!,
-                  });
-
-                  if (error) throw error;
-
-                  const newChannelId = extractChannelId(data);
-                  if (!newChannelId) throw new Error('No channel id returned');
-
-                  await verifyAndSetChannel(newChannelId);
-                  onDMStart?.();
-                  console.log('✅ Public DM started with:', member.name);
+                      const { data: channelId, error } = await supabase.rpc('start_public_board_dm', {
+                        p_board_owner_id: boardOwnerId!,
+                        p_other_id: member.id,
+                        p_other_type: member.type,
+                        p_sender_email: senderEmail,
+                      });
+                      if (!error && channelId) {
+                        openChannel(channelId as string);   // switch immediately
+                        await verifyAndSetChannel(channelId as string); // confirm; will succeed now
+                      }
+                      onDMStart?.();
+                      console.log('✅ Public DM started successfully with:', member.name);
                     } else {
                       // Internal/authenticated path unchanged
                       await startDM(member.id, member.type);

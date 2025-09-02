@@ -64,22 +64,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     || (me?.name?.trim() || (me as any)?.full_name?.trim())
     || 'User';
 
-  // helper for extracting channel ID from RPC returns
-  const extractChannelId = (data: any): string | null => {
-    if (!data) return null;
-    if (typeof data === 'string') return data;
-    if (typeof data === 'object') {
-      if ('id' in data && data.id) return data.id as string;
-      if ('channel_id' in data && data.channel_id) return data.channel_id as string;
-    }
-    if (Array.isArray(data) && data.length) {
-      const first = data[0];
-      if (first?.id) return first.id as string;
-      if (first?.channel_id) return first.channel_id as string;
-    }
-    return null;
-  };
-
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!activeChannelId && isInitialized) {
@@ -101,12 +85,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_requester_email: effectiveEmail,
         });
         if (active && hdr?.length) {
-          const row = hdr[0];
-          const isDm = !!row.is_dm;
           setChannelInfo({
-            name: isDm ? (row.partner_name || 'Direct Message') : (row.name || 'General'),
-            isDM: isDm,
-            dmPartner: isDm ? { name: row.partner_name, avatar: row.partner_avatar_url } : undefined,
+            name: hdr[0].name || 'General',
+            isDM: !!hdr[0].is_dm,
+            dmPartner: hdr[0].is_dm ? { name: hdr[0].partner_name, avatar: hdr[0].partner_avatar_url } : undefined,
           });
         }
         return;
@@ -121,12 +103,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_viewer_type: me.type,
         });
         if (active && hdrInt?.length) {
-          const row = hdrInt[0];
-          const isDm = !!row.is_dm;
           setChannelInfo({
-            name: isDm ? (row.partner_name || 'Direct Message') : (row.name || 'General'),
-            isDM: isDm,
-            dmPartner: isDm ? { name: row.partner_name, avatar: row.partner_avatar_url } : undefined,
+            name: hdrInt[0].name || 'General',
+            isDM: !!hdrInt[0].is_dm,
+            dmPartner: hdrInt[0].is_dm ? { name: hdrInt[0].partner_name, avatar: hdrInt[0].partner_avatar_url } : undefined,
           });
           return;
         }
