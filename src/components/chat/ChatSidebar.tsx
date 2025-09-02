@@ -28,6 +28,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     catch { return {}; }
   }, [location.pathname, isPublicBoard]);
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
+  const [participatingChannels, setParticipatingChannels] = useState<Array<{
+    id: string;
+    name: string;
+    isDM: boolean;
+  }>>([]);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
@@ -271,6 +276,63 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     })();
   }, [boardOwnerId, location.pathname]);
 
+  // Load participating channels for sub-users on public boards
+  useEffect(() => {
+    if (!boardOwnerId || !me || !isPublicBoard || (me as any)?.type !== 'sub_user') {
+      setParticipatingChannels([]);
+      return;
+    }
+
+    const senderEmail = (me as any)?.email || publicAccess?.external_user_email || publicAccess?.email;
+    if (!senderEmail) {
+      console.log('❌ No sender email for loading participating channels');
+      setParticipatingChannels([]);
+      return;
+    }
+
+    console.log('🔍 Loading participating channels for sub-user:', senderEmail);
+
+    (async () => {
+      try {
+        const { data: channelData, error } = await supabase.rpc('get_user_participating_channels', {
+          p_owner_id: boardOwnerId,
+          p_user_email: senderEmail,
+          p_user_type: 'sub_user'
+        });
+
+        if (error) {
+          console.error('❌ Error loading participating channels:', error);
+          setParticipatingChannels([]);
+          return;
+        }
+
+        if (channelData && channelData.length > 0) {
+          console.log('✅ Participating channels loaded:', channelData.length, 'channels');
+          
+          const mappedChannels = channelData.map((channel: any) => ({
+            id: channel.channel_id,
+            name: channel.channel_name || 'Unnamed Channel',
+            isDM: !!channel.is_dm
+          }));
+
+          // Filter out the General channel as it's displayed separately
+          const nonGeneralChannels = mappedChannels.filter(ch => 
+            ch.name !== 'General' && !ch.name.toLowerCase().includes('general')
+          );
+
+          setParticipatingChannels(nonGeneralChannels);
+          console.log('✅ Filtered participating channels:', nonGeneralChannels);
+        } else {
+          console.log('ℹ️ No participating channels found for sub-user');
+          setParticipatingChannels([]);
+        }
+      } catch (error) {
+        console.error('❌ Error loading participating channels:', error);
+        setParticipatingChannels([]);
+      }
+    })();
+  }, [boardOwnerId, me, isPublicBoard, publicAccess?.external_user_email, publicAccess?.email]);
+
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
@@ -299,6 +361,47 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             </span>
           )}
         </button>
+
+        {/* Participating Channels (DMs for sub-users on public boards) */}
+        {isPublicBoard && (me as any)?.type === 'sub_user' && participatingChannels.length > 0 && (
+          <div className="pt-4">
+            <p className="text-xs font-medium text-muted-foreground mb-2 px-2 uppercase tracking-wide">
+              <LanguageText>{t('chat.directMessages') || 'Direct Messages'}</LanguageText>
+            </p>
+            
+            {participatingChannels.map((channel) => (
+              <button
+                key={channel.id}
+                onClick={() => {
+                  openChannel(channel.id);
+                  onChannelSelect?.();
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
+                  currentChannelId === channel.id ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {channel.isDM ? (
+                    <div className="h-4 w-4 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs">💬</span>
+                    </div>
+                  ) : (
+                    <Hash className="h-4 w-4 flex-shrink-0" />
+                  )}
+                  <span className="font-medium truncate">
+                    {channel.isDM ? `DM: ${channel.name}` : channel.name}
+                  </span>
+                </div>
+                {(channelUnreads[channel.id] ?? 0) > 0 && (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                    {(channelUnreads[channel.id] ?? 0) > 99 ? '99+' : channelUnreads[channel.id]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Team Members */}
         <div className="pt-4">
