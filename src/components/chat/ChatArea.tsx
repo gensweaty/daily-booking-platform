@@ -83,6 +83,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         if (active && hdr?.length) {
           const row = hdr[0];
           const isDm = !!row.is_dm;
+          console.log('🔍 Public header data:', { isDm, partner_name: row.partner_name, name: row.name, row });
           setChannelInfo({
             name: isDm ? (row.partner_name || 'Direct Message') : (row.name || 'General'),
             isDM: isDm,
@@ -103,6 +104,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         if (active && hdrInt?.length) {
           const row = hdrInt[0];
           const isDm = !!row.is_dm;
+          console.log('🔍 Internal header data:', { isDm, partner_name: row.partner_name, name: row.name, row });
           setChannelInfo({
             name: isDm ? (row.partner_name || 'Direct Message') : (row.name || 'General'),
             isDM: isDm,
@@ -546,8 +548,24 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   return (
     <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
       {/* Header */}
-      <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
-        <MessageCircle className="h-5 w-5" />
+      <div className="flex items-center gap-3 p-4 border-b bg-muted/30">
+        {channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
+          <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+            <img
+              src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
+              alt={channelInfo.dmPartner.name}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        ) : channelInfo?.isDM ? (
+          <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-semibold text-foreground">
+              {(channelInfo?.dmPartner?.name || "U").slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+        ) : (
+          <MessageCircle className="h-5 w-5" />
+        )}
         <h2 className="font-semibold">
           {channelInfo?.isDM
             ? (channelInfo?.dmPartner?.name || 'Direct Message')
