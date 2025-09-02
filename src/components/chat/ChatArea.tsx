@@ -70,31 +70,34 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   ): { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } } | null => {
     if (!msgs?.length) return null;
 
-    const myType = meObj?.type;                // 'admin' | 'sub_user'
-    const myId   = meObj?.id;
+    const myType = meObj?.type as 'admin' | 'sub_user' | undefined;
+    const myId   = meObj?.id as string | undefined;
 
-    // Walk newest → oldest to pick the other participant if possible
+    // newest → oldest
     for (let i = msgs.length - 1; i >= 0; i--) {
       const m = msgs[i];
-      const senderId   = m.sender_type === 'admin' ? m.sender_user_id : m.sender_sub_user_id;
-      const senderType = m.sender_type;
+      const msgSenderId   = m.sender_type === 'admin' ? m.sender_user_id : m.sender_sub_user_id;
+      const msgSenderType = m.sender_type;
 
-      // Skip messages sent by me (when we can match by id & type)
-      const isMeById = myId && senderId && myType === senderType && senderId === myId;
-      if (isMeById) continue;
+      // Prefer "the other participant"
+      const isMeById   = !!myId && !!msgSenderId && myId === msgSenderId && myType === msgSenderType;
+      const isLikelyOther =
+        !isMeById &&
+        (
+          // if we know my type, prefer the opposite type first
+          (myType ? msgSenderType !== myType : true) ||
+          // or same type but different id
+          (!!myId && !!msgSenderId && msgSenderId !== myId)
+        );
 
-      const partnerName   = (m.sender_name && m.sender_name.trim()) || null;
-      const partnerAvatar = m.sender_avatar_url || undefined;
-
-      if (partnerName) {
-        return {
-          name: partnerName,
-          isDM: true,
-          dmPartner: { name: partnerName, avatar: partnerAvatar },
-        };
+      if (isLikelyOther) {
+        const partnerName   = (m.sender_name && m.sender_name.trim()) || undefined;
+        const partnerAvatar = m.sender_avatar_url || undefined;
+        if (partnerName) {
+          return { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } };
+        }
       }
     }
-
     return null;
   };
 
@@ -213,7 +216,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       }
     })();
     return () => { active = false; };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.type, me?.id, location.pathname, channelInfo]);
+  }, [activeChannelId, boardOwnerId, me?.email, me?.type, me?.id, location.pathname]);
 
   useEffect(() => {
     let active = true;
@@ -232,7 +235,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             p_owner_id: boardOwnerId,
             p_channel_id: activeChannelId,
             p_requester_type: 'sub_user',
-            p_requester_email: me.email!,
+            p_requester_email: effectiveEmail!,
           });
           data = result.data;
           error = result.error;
@@ -315,6 +318,18 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => { active = false; };
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
+  // NEW EFFECT: Infer DM header after messages load
+  useEffect(() => {
+    if (!activeChannelId) return;
+    if (!messages?.length) return;
+
+    // If we don't have DM header yet or it still shows as a channel, try to infer
+    if (!channelInfo || !channelInfo.isDM || !channelInfo.dmPartner?.name) {
+      const inferred = inferDMHeaderFromMessages(messages, me);
+      if (inferred) setChannelInfo(inferred);
+    }
+  }, [messages, activeChannelId]);  // ← intentionally NOT depending on channelInfo
+
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); setLoading(true); return; }
     const cached = cacheRef.current.get(activeChannelId);
@@ -339,7 +354,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         p_owner_id: boardOwnerId,
         p_channel_id: activeChannelId,
         p_requester_type: 'sub_user',
-        p_requester_email: accessData.email || me.email,
+        p_requester_email: effectiveEmail!,
       });
       if (!mounted || !data) return;
 
