@@ -2072,12 +2072,19 @@ export type Database = {
         }[]
       }
       start_public_board_dm: {
-        Args: {
-          p_board_owner_id: string
-          p_other_id: string
-          p_other_type: string
-          p_sender_email: string
-        }
+        Args:
+          | {
+              p_board_owner_id: string
+              p_other_id: string
+              p_other_type: string
+              p_sender_email: string
+            }
+          | {
+              p_board_owner_id: string
+              p_sender_email: string
+              p_target_id: string
+              p_target_type: string
+            }
         Returns: string
       }
       unread_counters: {
