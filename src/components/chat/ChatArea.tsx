@@ -548,7 +548,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       {/* Header */}
       <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
         <MessageCircle className="h-5 w-5" />
-        <h2 className="font-semibold">{channelInfo?.name || 'General'}</h2>
+        <h2 className="font-semibold">
+          {channelInfo?.isDM
+            ? (channelInfo?.dmPartner?.name || 'Direct Message')
+            : (channelInfo?.name || 'General')}
+        </h2>
         <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
           {channelInfo?.isDM ? 'Direct Message' : 'Channel'}
         </span>

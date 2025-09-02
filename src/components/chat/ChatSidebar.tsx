@@ -400,9 +400,6 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       const { data, error } = await supabase.rpc('start_public_board_dm', {
                         p_board_owner_id: boardOwnerId,
                         p_sender_email: senderEmail,
-                        // Send both parameter name styles to be future-proof
-                        p_other_type: member.type,
-                        p_other_id: member.id,
                         p_target_type: member.type,
                         p_target_id: member.id,
                       });
