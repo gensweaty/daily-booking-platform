@@ -345,14 +345,26 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                         || publicAccess?.external_user_email
                         || publicAccess?.email;
                       if (!senderEmail) throw new Error('Missing sender email for public DM');
+                      
                       const { data: channelId, error } = await supabase.rpc('start_public_board_dm', {
                         p_board_owner_id: boardOwnerId!,
                         p_other_id: member.id,
                         p_other_type: member.type,
                         p_sender_email: senderEmail,
                       });
-                      if (error || !channelId) throw error || new Error('No channel id returned');
-                      openChannel(channelId as string);
+                      
+                      if (error) {
+                        console.error('❌ RPC error:', error);
+                        throw error;
+                      }
+                      
+                      if (!channelId) {
+                        console.error('❌ No channel ID returned from RPC');
+                        throw new Error('No channel id returned');
+                      }
+                      
+                      console.log('🎯 Opening DM channel:', channelId, 'with member:', member.name);
+                      await openChannel(channelId as string);
                       onDMStart?.();
                       console.log('✅ Public DM started successfully with:', member.name);
                     } else {

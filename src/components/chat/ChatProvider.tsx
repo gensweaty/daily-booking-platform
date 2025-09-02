@@ -451,16 +451,29 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     // Mark channel as read on server and clear local unread
     if (boardOwnerId && me?.type && me?.id) {
       try {
-        await supabase.rpc('mark_channel_read', {
-          p_owner_id: boardOwnerId,
-          p_viewer_type: me.type,
-          p_viewer_id: me.id,
-          p_channel_id: channelId,
-        });
-        clearChannel(channelId);
-        refreshUnread();
+        // Check if me.id is a valid UUID for mark_channel_read
+        const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id);
+        
+        if (isValidUUID) {
+          await supabase.rpc('mark_channel_read', {
+            p_owner_id: boardOwnerId,
+            p_viewer_type: me.type,
+            p_viewer_id: me.id,
+            p_channel_id: channelId,
+          });
+          clearChannel(channelId);
+          refreshUnread();
+        } else {
+          console.log('📧 [CHAT] Skipping mark_channel_read for email-based ID:', me.id);
+          // For public board users with email IDs, just clear local unread
+          clearChannel(channelId);
+          refreshUnread();
+        }
       } catch (error) {
         console.error('❌ Error marking channel as read:', error);
+        // Still clear local unread on error
+        clearChannel(channelId);
+        refreshUnread();
       }
     }
   }, [boardOwnerId, me, clearChannel, refreshUnread]);
@@ -514,13 +527,44 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('✅ [CHAT] Step 2 complete in', performance.now() - step2Start, 'ms');
       } else if (isOnPublicBoard) {
         if (publicBoardUser?.id) {
-          console.log('👤 [CHAT] Public board user detected');
-          setMe({
-            id: publicBoardUser.id,
-            type: 'sub_user',
-            name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
-            email: publicBoardUser.email,
-          });
+          console.log('👤 [CHAT] Public board user detected, resolving UUID...');
+          
+          try {
+            // Resolve the actual sub-user UUID from the database
+            const { data: subUser, error: subUserError } = await supabase
+              .from('sub_users')
+              .select('id, email, fullname, avatar_url')
+              .eq('board_owner_id', resolvedBoardOwnerId)
+              .eq('email', publicBoardUser.email)
+              .maybeSingle();
+            
+            if (!subUserError && subUser) {
+              console.log('✅ [CHAT] Resolved sub-user UUID:', subUser.id);
+              setMe({
+                id: subUser.id, // Use actual UUID from database
+                type: 'sub_user',
+                name: subUser.fullname || publicBoardUser.fullName || 'Member',
+                email: publicBoardUser.email,
+                avatarUrl: subUser.avatar_url || undefined,
+              });
+            } else {
+              console.log('⚠️ [CHAT] Using email as fallback ID');
+              setMe({
+                id: publicBoardUser.id, // Keep original (email) as fallback
+                type: 'sub_user',
+                name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
+                email: publicBoardUser.email,
+              });
+            }
+          } catch (error) {
+            console.error('❌ [CHAT] Error resolving sub-user UUID:', error);
+            setMe({
+              id: publicBoardUser.id, // Fallback to original
+              type: 'sub_user',
+              name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
+              email: publicBoardUser.email,
+            });
+          }
           console.log('✅ [CHAT] Step 2 complete in', performance.now() - step2Start, 'ms');
         } else if (hasPublicAccess) {
           console.log('👤 [CHAT] Public access user detected');

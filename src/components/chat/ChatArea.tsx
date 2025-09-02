@@ -81,10 +81,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_requester_email: me.email,
         });
         if (active && hdr?.length) {
+          const row = hdr[0];
+          const isDm = !!row.is_dm;
           setChannelInfo({
-            name: hdr[0].name || 'General',
-            isDM: !!hdr[0].is_dm,
-            dmPartner: hdr[0].is_dm ? { name: hdr[0].partner_name, avatar: hdr[0].partner_avatar_url } : undefined,
+            name: isDm ? (row.partner_name || 'Direct Message') : (row.name || 'General'),
+            isDM: isDm,
+            dmPartner: isDm ? { name: row.partner_name, avatar: row.partner_avatar_url } : undefined,
           });
         }
         return;
@@ -99,10 +101,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_viewer_type: me.type,
         });
         if (active && hdrInt?.length) {
+          const row = hdrInt[0];
+          const isDm = !!row.is_dm;
           setChannelInfo({
-            name: hdrInt[0].name || 'General',
-            isDM: !!hdrInt[0].is_dm,
-            dmPartner: hdrInt[0].is_dm ? { name: hdrInt[0].partner_name, avatar: hdrInt[0].partner_avatar_url } : undefined,
+            name: isDm ? (row.partner_name || 'Direct Message') : (row.name || 'General'),
+            isDM: isDm,
+            dmPartner: isDm ? { name: row.partner_name, avatar: row.partner_avatar_url } : undefined,
           });
           return;
         }
