@@ -11,6 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
+type SideChannel = { 
+  id: string; 
+  name: string; 
+  isDM: boolean; 
+};
+
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
   onDMStart?: () => void;
@@ -18,7 +24,7 @@ interface ChatSidebarProps {
 
 export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {}) => {
   const { t } = useLanguage();
-  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
+  const { me, boardOwnerId, currentChannelId, setCurrentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
   const location = useLocation();
   const isPublicBoard = location.pathname.startsWith('/board/');
   const publicAccess = useMemo(() => {
@@ -28,12 +34,15 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     catch { return {}; }
   }, [location.pathname, isPublicBoard]);
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
+  const [channels, setChannels] = useState<SideChannel[]>([]);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
     type: 'admin' | 'sub_user'; 
     avatar_url?: string | null;
   }>>([]);
+
+  const onPublic = isPublicBoard && (me as any)?.type === 'sub_user';
 
   // Load general channel with improved selection logic
   useEffect(() => {
@@ -121,6 +130,45 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
       }
     })();
   }, [boardOwnerId, location.pathname]);
+
+  // Load channels for public sub-users
+  useEffect(() => {
+    if (!boardOwnerId || !me) return;
+
+    (async () => {
+      try {
+        // PUBLIC external board path — list my channels by email + type
+        if (onPublic && (me as any)?.email) {
+          console.log('🔍 Loading participating channels for public sub-user:', (me as any).email);
+          const { data, error } = await supabase.rpc('get_user_participating_channels', {
+            p_owner_id: boardOwnerId,
+            p_user_email: (me as any).email,
+            p_user_type: 'sub_user',
+          });
+          if (error) {
+            console.error('❌ Error loading participating channels:', error);
+            return;
+          }
+
+          const channelList = (data || []).map((r: any) => ({
+            id: r.channel_id,
+            name: r.channel_name || 'General',
+            isDM: !!r.is_dm,
+          }));
+          
+          console.log('✅ Loaded participating channels:', channelList);
+          setChannels(channelList);
+          return;
+        }
+
+        // For internal/authenticated users, we rely on existing General channel logic
+        setChannels([]);
+      } catch (error) {
+        console.error('❌ Error loading channels:', error);
+        setChannels([]);
+      }
+    })();
+  }, [boardOwnerId, onPublic, (me as any)?.email]);
 
   // Load team members with enhanced logic
   useEffect(() => {
@@ -274,31 +322,63 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
-        {/* General Channel */}
-        <button
-          onClick={() => {
-            if (generalChannelId) {
-              openChannel(generalChannelId);
-              onChannelSelect?.();
-            }
-          }}
-          className={cn(
-            "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
-            currentChannelId === generalChannelId ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <Hash className="h-4 w-4 flex-shrink-0" />
-            <span className="font-medium">
-              <LanguageText>{t('chat.general')}</LanguageText>
-            </span>
+        {/* Channels - Show participating channels for public sub-users or General for others */}
+        {onPublic && channels.length > 0 ? (
+          // Public sub-user: Show all participating channels
+          <div className="space-y-1">
+            {channels.map(channel => (
+              <button
+                key={channel.id}
+                onClick={() => {
+                  setCurrentChannelId(channel.id);
+                  onChannelSelect?.();
+                }}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
+                  currentChannelId === channel.id ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <Hash className="h-4 w-4 flex-shrink-0" />
+                  <span className="font-medium">
+                    {channel.isDM ? `DM: ${channel.name}` : channel.name}
+                  </span>
+                </div>
+                {(channelUnreads[channel.id] ?? 0) > 0 && (
+                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                    {(channelUnreads[channel.id] ?? 0) > 99 ? '99+' : channelUnreads[channel.id]}
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
-          {generalChannelId && (channelUnreads[generalChannelId] ?? 0) > 0 && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
-              {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
-            </span>
-          )}
-        </button>
+        ) : (
+          // Regular users: Show General channel
+          <button
+            onClick={() => {
+              if (generalChannelId) {
+                openChannel(generalChannelId);
+                onChannelSelect?.();
+              }
+            }}
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
+              currentChannelId === generalChannelId ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <Hash className="h-4 w-4 flex-shrink-0" />
+              <span className="font-medium">
+                <LanguageText>{t('chat.general')}</LanguageText>
+              </span>
+            </div>
+            {generalChannelId && (channelUnreads[generalChannelId] ?? 0) > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
+              </span>
+            )}
+          </button>
+        )}
 
         {/* Team Members */}
         <div className="pt-4">
