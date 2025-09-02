@@ -300,9 +300,26 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           </p>
           
           {members.map((member) => {
-            const isMe = !!me && member.id === me.id && member.type === me.type;
+            // Enhanced sub-user identification for external boards
+            const isPublicBoard = location.pathname.startsWith('/board/');
+            let isMe = false;
+            
+            if (me) {
+              if (isPublicBoard && me.type === 'sub_user') {
+                // For external board sub-users, match by name or email
+                isMe = member.type === 'sub_user' && (
+                  (me.name && me.name === member.name) ||
+                  (me.email && me.email === member.name) // member.name could be the email
+                );
+              } else {
+                // Standard ID and type matching for internal boards
+                isMe = member.id === me.id && member.type === me.type;
+              }
+            }
+            
             const peerUnread = getUserUnreadCount(member.id, member.type);
             
+            // Hide current user from the list
             if (isMe) {
               return null;
             }
