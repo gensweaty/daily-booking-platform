@@ -12,6 +12,22 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { getEffectivePublicEmail } from '@/utils/chatEmail';
 
+// helper for extracting channel ID from RPC returns  
+const extractChannelId = (data: any): string | null => {
+  if (!data) return null;
+  if (typeof data === 'string') return data;
+  if (typeof data === 'object') {
+    if ('id' in data && data.id) return data.id as string;
+    if ('channel_id' in data && data.channel_id) return data.channel_id as string;
+  }
+  if (Array.isArray(data) && data.length) {
+    const first = data[0];
+    if (first?.id) return first.id as string;
+    if (first?.channel_id) return first.channel_id as string;
+  }
+  return null;
+};
+
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
   onDMStart?: () => void;
@@ -334,21 +350,21 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       const senderEmail = effectiveEmail;
                       if (!senderEmail) throw new Error('Missing sender email for public DM');
 
-                      const { data: channelId, error } = await supabase.rpc('start_public_board_dm', {
-                        p_board_owner_id: boardOwnerId!,
-                        p_other_id: member.id,
-                        p_other_type: member.type,
-                        p_sender_email: senderEmail,
-                      });
+                  const { data, error } = await supabase.rpc('start_public_board_dm', {
+                    p_board_owner_id: boardOwnerId!,
+                    p_other_id: member.id,
+                    p_other_type: member.type,
+                    p_sender_email: effectiveEmail!,
+                  });
 
-                      if (error || !channelId) {
-                        throw error || new Error('No channel id returned');
-                      }
+                  if (error) throw error;
 
-                      // 🔒 Verify access & open exactly once (no duplicate calls)
-                      await verifyAndSetChannel(channelId as string);
-                      onDMStart?.();
-                      console.log('✅ Public DM started with:', member.name);
+                  const newChannelId = extractChannelId(data);
+                  if (!newChannelId) throw new Error('No channel id returned');
+
+                  await verifyAndSetChannel(newChannelId);
+                  onDMStart?.();
+                  console.log('✅ Public DM started with:', member.name);
                     } else {
                       // Internal/authenticated path unchanged
                       await startDM(member.id, member.type);

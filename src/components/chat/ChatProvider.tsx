@@ -597,6 +597,22 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return () => { active = false; };
   }, [isOnPublicBoard, user?.id, publicBoardUser?.id, hasPublicAccess, location.pathname]);
 
+  // helper for extracting channel ID from RPC returns
+  const extractChannelId = (data: any): string | null => {
+    if (!data) return null;
+    if (typeof data === 'string') return data;
+    if (typeof data === 'object') {
+      if ('id' in data && data.id) return data.id as string;
+      if ('channel_id' in data && data.channel_id) return data.channel_id as string;
+    }
+    if (Array.isArray(data) && data.length) {
+      const first = data[0];
+      if (first?.id) return first.id as string;
+      if (first?.channel_id) return first.channel_id as string;
+    }
+    return null;
+  };
+
   // ❌ REMOVED: Old normalization logic is no longer needed since the migration handles it
 
   // Simple channel mapping - only when needed
@@ -665,8 +681,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('🔍 Using canonical find_or_create_dm RPC for:', { me, otherId, otherType });
 
-      // Single canonical path for both dashboard and public boards
-      const { data: channelId, error } = await supabase.rpc('find_or_create_dm', {
+      const { data, error } = await supabase.rpc('find_or_create_dm', {
         p_owner_id: boardOwnerId,
         p_a_type: me.type,
         p_a_id: me.id,
@@ -684,25 +699,30 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      console.log('✅ Canonical DM channel created/found:', channelId);
-      setCurrentChannelId(channelId as string);
+      const newChannelId = extractChannelId(data);
+      if (!newChannelId) {
+        console.error('find_or_create_dm returned no id:', data);
+        toast({ title: 'Error', description: 'Could not open DM', variant: 'destructive' });
+        return;
+      }
+
+      console.log('✅ Canonical DM channel created/found:', newChannelId);
+      setCurrentChannelId(newChannelId);
       setIsOpen(true);
 
       // Mark DM channel as read on server and clear local unread
-      if (channelId) {
-        try {
-          await supabase.rpc('mark_channel_read', {
-            p_owner_id: boardOwnerId,
-            p_viewer_type: me.type,
-            p_viewer_id: me.id,
-            p_channel_id: channelId as string,
-          });
-          clearChannel(channelId as string);
-          clearPeer(otherId, otherType);
-          refreshUnread();
-        } catch (error) {
-          console.error('❌ Error marking DM as read:', error);
-        }
+      try {
+        await supabase.rpc('mark_channel_read', {
+          p_owner_id: boardOwnerId,
+          p_viewer_type: me.type,
+          p_viewer_id: me.id,
+          p_channel_id: newChannelId,
+        });
+        clearChannel(newChannelId);
+        clearPeer(otherId, otherType);
+        refreshUnread();
+      } catch (error) {
+        console.error('❌ Error marking DM as read:', error);
       }
 
     } catch (error: any) {
