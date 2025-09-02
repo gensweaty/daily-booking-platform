@@ -1745,6 +1745,20 @@ export type Database = {
           email: string
         }[]
       }
+      get_channel_header_internal: {
+        Args: {
+          p_channel_id: string
+          p_owner_id: string
+          p_viewer_id: string
+          p_viewer_type: string
+        }
+        Returns: {
+          is_dm: boolean
+          name: string
+          partner_avatar_url: string
+          partner_name: string
+        }[]
+      }
       get_channel_header_public: {
         Args: {
           p_channel_id: string

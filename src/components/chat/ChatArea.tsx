@@ -80,35 +80,36 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_channel_id: activeChannelId,
           p_requester_email: me.email,
         });
-        if (active && hdr && hdr.length) {
+        if (active && hdr?.length) {
           setChannelInfo({
             name: hdr[0].name || 'General',
             isDM: !!hdr[0].is_dm,
             dmPartner: hdr[0].is_dm ? { name: hdr[0].partner_name, avatar: hdr[0].partner_avatar_url } : undefined,
           });
+        }
+        return;
+      }
+
+      // Internal/admin or authenticated viewer
+      if (boardOwnerId && me?.id && me?.type) {
+        const { data: hdrInt } = await supabase.rpc('get_channel_header_internal', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_viewer_id: me.id,
+          p_viewer_type: me.type,
+        });
+        if (active && hdrInt?.length) {
+          setChannelInfo({
+            name: hdrInt[0].name || 'General',
+            isDM: !!hdrInt[0].is_dm,
+            dmPartner: hdrInt[0].is_dm ? { name: hdrInt[0].partner_name, avatar: hdrInt[0].partner_avatar_url } : undefined,
+          });
           return;
         }
       }
-
-      const { data: channel } = await supabase
-        .from('chat_channels')
-        .select('id, name, is_dm, chat_participants(user_id, sub_user_id, user_type)')
-        .eq('id', activeChannelId)
-        .maybeSingle();
-
-      if (!active || !channel) return;
-
-      const cps = (channel as any).chat_participants || [];
-      const isDM = channel.is_dm || cps.length === 2;
-      if (isDM) {
-        // Keep simple until we wire proper name lookups per org schema
-        setChannelInfo({ name: channel.name, isDM: true, dmPartner: { name: 'Member' } });
-      } else {
-        setChannelInfo({ name: channel.name, isDM: false });
-      }
     })();
     return () => { active = false; };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.type, location.pathname]);
+  }, [activeChannelId, boardOwnerId, me?.email, me?.type, me?.id, location.pathname]);
 
   useEffect(() => {
     let active = true;
