@@ -243,6 +243,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const prevIds = new Set(prev.map(m => m.id));
         const byId = new Map(prev.map(m => [m.id, m]));
         for (const m of data) {
+          // Only emit for truly new ids; Map.set below already overwrites to latest snapshot
           if (!prevIds.has(m.id)) {
             window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: { ...m, owner_id: boardOwnerId } } }));
           }
@@ -396,12 +397,14 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           attachments: atts,
         };
 
-        // replace optimistic temp with hydrated (by tempId)
+        // replace optimistic AND any pre-fetched "real" stub with the hydrated one
         setMessages(prev => {
-          const withoutTemp = prev.filter(m => m.id !== tempId);
-          return [...withoutTemp, hydrated];
+          const withoutTempOrReal = prev.filter(
+            m => m.id !== tempId && m.id !== messageId
+          );
+          return [...withoutTempOrReal, hydrated];
         });
-        window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: hydrated } }));
+        // No-op: local state is already updated; poller/realtime will converge
         return;
       }
 
