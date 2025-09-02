@@ -8,6 +8,7 @@ import { resolveAvatarUrl } from './_avatar';
 import { useToast } from '@/hooks/use-toast';
 import { MessageInput } from './MessageInput';
 import { MessageAttachments } from './MessageAttachments';
+import { getEffectivePublicEmail } from '@/utils/chatEmail';
 
 type Message = {
   id: string;
@@ -41,6 +42,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const { toast } = useToast();
   const location = useLocation();
 
+  // Compute effective email using the same logic as ChatSidebar
+  const effectiveEmail = getEffectivePublicEmail(location.pathname, me?.email);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [channelInfo, setChannelInfo] = useState<{ 
@@ -58,6 +62,41 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     (m.sender_name && m.sender_name.trim())
     || (me?.name?.trim() || (me as any)?.full_name?.trim())
     || 'User';
+
+  // Helper to infer DM header from cached messages when RPCs don't work
+  const inferDMHeaderFromMessages = (
+    msgs: Message[],
+    meObj: any
+  ): { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } } | null => {
+    if (!msgs?.length) return null;
+
+    const myType = meObj?.type;                // 'admin' | 'sub_user'
+    const myId   = meObj?.id;
+
+    // Walk newest → oldest to pick the other participant if possible
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      const senderId   = m.sender_type === 'admin' ? m.sender_user_id : m.sender_sub_user_id;
+      const senderType = m.sender_type;
+
+      // Skip messages sent by me (when we can match by id & type)
+      const isMeById = myId && senderId && myType === senderType && senderId === myId;
+      if (isMeById) continue;
+
+      const partnerName   = (m.sender_name && m.sender_name.trim()) || null;
+      const partnerAvatar = m.sender_avatar_url || undefined;
+
+      if (partnerName) {
+        return {
+          name: partnerName,
+          isDM: true,
+          dmPartner: { name: partnerName, avatar: partnerAvatar },
+        };
+      }
+    }
+
+    return null;
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -86,20 +125,20 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         return; 
       }
 
-      const onPublic = location.pathname.startsWith('/board/') && me?.type === 'sub_user';
+      const onPublic = location.pathname.startsWith('/board/');
       console.log('🔍 Route check:', { onPublic, pathname: location.pathname, meType: me?.type });
       
-      if (onPublic && boardOwnerId && me?.email) {
+      if (onPublic && boardOwnerId && effectiveEmail) {
         console.log('🔍 Calling get_channel_header_public with:', {
           p_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
-          p_requester_email: me.email,
+          p_requester_email: effectiveEmail,
         });
         
         const { data: hdr, error } = await supabase.rpc('get_channel_header_public', {
           p_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
-          p_requester_email: me.email,
+          p_requester_email: effectiveEmail,   // ← was me.email
         });
         
         console.log('🔍 Public header response:', { data: hdr, error });
@@ -113,8 +152,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             isDM: isDm,
             dmPartner: isDm ? { name: row.partner_name, avatar: row.partner_avatar_url } : undefined,
           });
+          return;
         }
-        return;
       }
 
       // Internal/admin or authenticated viewer
@@ -152,7 +191,18 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         console.log('🔍 Missing required data for internal header:', { boardOwnerId, me_id: me?.id, me_type: me?.type });
       }
       
-      // Fallback
+      // Try to infer DM header from cached messages if RPCs didn't set channelInfo
+      if (active && !channelInfo) {
+        const cached = cacheRef.current.get(activeChannelId) || [];
+        const inferred = inferDMHeaderFromMessages(cached, me);
+        if (inferred) {
+          console.log('🔍 Inferred DM header from messages:', inferred);
+          setChannelInfo(inferred);
+          return;
+        }
+      }
+      
+      // Final fallback
       console.log('🔍 Using fallback channel info');
       if (active) {
         setChannelInfo({
@@ -163,7 +213,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       }
     })();
     return () => { active = false; };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.type, me?.id, location.pathname]);
+  }, [activeChannelId, boardOwnerId, me?.email, me?.type, me?.id, location.pathname, channelInfo]);
 
   useEffect(() => {
     let active = true;
