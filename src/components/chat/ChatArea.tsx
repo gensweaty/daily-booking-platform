@@ -259,15 +259,30 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled]);
 
   useEffect(() => {
+    const onPublicBoard = location.pathname.startsWith('/board/');
+    const isSubUser = me?.type === 'sub_user';
+
     const handleMessage = async (event: CustomEvent) => {
       let { message } = event.detail as { message: Message };
       const channelId = message.channel_id;
 
       if (message.has_attachments) {
-        const { data: atts } = await supabase.from('chat_message_files').select('*').eq('message_id', message.id);
-        message = { ...message, attachments: (atts || []).map(a => ({
-          id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
-        }))};
+        if (onPublicBoard && isSubUser) {
+          // ✅ RLS-safe attachment listing for public board
+          const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+            p_message_ids: [message.id],
+          });
+          message = { ...message, attachments: (attRows || []).map(a => ({ ...a })) };
+        } else {
+          // existing internal/admin path (unchanged)
+          const { data: atts } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .eq('message_id', message.id);
+          message = { ...message, attachments: (atts || []).map(a => ({
+            id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
+          })) };
+        }
       }
 
       const currentCache = cacheRef.current.get(channelId) || [];
@@ -287,7 +302,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
     window.addEventListener('chat-message-received', handleMessage as EventListener);
     return () => window.removeEventListener('chat-message-received', handleMessage as EventListener);
-  }, [activeChannelId]);
+  }, [activeChannelId, location.pathname, me?.type]);
 
   useEffect(() => {
     const onReset = () => {

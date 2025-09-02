@@ -18,16 +18,26 @@ interface ChatSidebarProps {
 
 export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {}) => {
   const { t } = useLanguage();
-  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
+  const { me, boardOwnerId, currentChannelId, verifyAndSetChannel, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
   const location = useLocation();
   const isPublicBoard = location.pathname.startsWith('/board/');
+  const onPublicBoard = location.pathname.startsWith('/board/');
+  const isSubUser = me?.type === 'sub_user';
+  
   const publicAccess = useMemo(() => {
     if (!isPublicBoard) return {};
     const slug = location.pathname.split('/').pop()!;
     try { return JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}') || {}; }
     catch { return {}; }
   }, [location.pathname, isPublicBoard]);
-  const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
+  
+  const [channels, setChannels] = useState<Array<{ 
+    id: string; 
+    name: string; 
+    display_name: string;
+    is_dm: boolean;
+    partner_name?: string;
+  }>>([]);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
@@ -35,92 +45,54 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     avatar_url?: string | null;
   }>>([]);
 
-  // Load general channel with improved selection logic
+  // Load channels for sub-users (no duplicates)
   useEffect(() => {
-    if (!boardOwnerId) return;
-    
+    let active = true;
     (async () => {
-      console.log('🔍 Loading General channel for board owner:', boardOwnerId);
+      if (!boardOwnerId) return;
+
+      if (onPublicBoard && isSubUser && me?.email) {
+        // ✅ Public list that already respects sub-user access
+        const { data, error } = await supabase.rpc('get_user_participating_channels', {
+          p_owner_id: boardOwnerId,
+          p_user_email: me.email,
+          p_user_type: 'sub_user',
+        });
+        if (!active || error) return;
+
+        // Defensive: de-dupe by id and fix DM label once
+        const byId = new Map<string, any>();
+        for (const ch of (data || [])) byId.set(ch.channel_id, ch);
+        setChannels(Array.from(byId.values()).map(ch => ({
+          id: ch.channel_id,
+          name: ch.channel_name || 'General',
+          is_dm: !!ch.is_dm,
+          // Avoid "DM: DM: ..."
+          display_name: ch.is_dm ? `DM: ${ch.partner_name || 'Member'}` : (ch.channel_name || 'General'),
+          partner_name: ch.partner_name,
+        })));
+        return;
+      }
+
+      // existing internal/admin list (unchanged) - for now just load General
+      const { data: channelData, error } = await supabase.rpc('get_default_channel_for_board', {
+        p_board_owner_id: boardOwnerId
+      });
       
-      try {
-        // Use service function for public boards to bypass RLS
-        const isPublicBoard = location.pathname.startsWith('/board/');
-        
-        if (isPublicBoard) {
-          console.log('🔍 Using service function for public board channel');
-          const { data: channelData, error } = await supabase.rpc('get_default_channel_for_board', {
-            p_board_owner_id: boardOwnerId
-          });
-          
-          if (error) {
-            console.error('❌ Error loading channel via service function:', error);
-            return;
-          }
-          
-          if (channelData && channelData.length > 0) {
-            const channel = channelData[0];
-            console.log('✅ Found General channel via service function:', {
-              id: channel.id,
-              name: channel.name,
-              participantCount: channel.participant_count
-            });
-            setGeneralChannelId(channel.id);
-            return;
-          }
-        }
-        
-        // Fallback to regular query for authenticated users
-        const { data: channelsWithParticipants, error: participantsError } = await supabase
-          .from('chat_channels')
-          .select(`
-            id, 
-            name,
-            created_at,
-            chat_participants(id)
-          `)
-          .eq('owner_id', boardOwnerId)
-          .eq('is_default', true)
-          .eq('name', 'General')
-          .order('created_at', { ascending: true });
-        
-        if (participantsError) {
-          console.error('❌ Error loading General channels:', participantsError);
-          return;
-        }
-        
-        if (channelsWithParticipants && channelsWithParticipants.length > 0) {
-          const sortedChannels = channelsWithParticipants.sort((a, b) => {
-            const aParticipants = (a.chat_participants as any[])?.length || 0;
-            const bParticipants = (b.chat_participants as any[])?.length || 0;
-            
-            if (aParticipants !== bParticipants) {
-              return bParticipants - aParticipants;
-            }
-            
-            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-          });
-          
-          const selectedChannel = sortedChannels[0];
-          const participantCount = (selectedChannel.chat_participants as any[])?.length || 0;
-          
-          console.log('✅ Selected General channel:', {
-            id: selectedChannel.id,
-            participantCount,
-            createdAt: selectedChannel.created_at,
-            totalChannels: channelsWithParticipants.length
-          });
-          
-          setGeneralChannelId(selectedChannel.id);
-          return;
-        }
-        
-        console.log('⚠️ No General channels found');
-        
-      } catch (error) {
-        console.error('❌ Unexpected error loading General channel:', error);
+      if (!active || error) return;
+      
+      if (channelData && channelData.length > 0) {
+        const channel = channelData[0];
+        setChannels([{
+          id: channel.id,
+          name: channel.name || 'General',
+          display_name: channel.name || 'General',
+          is_dm: false,
+        }]);
       }
     })();
-  }, [boardOwnerId, location.pathname]);
+    return () => { active = false; };
+  }, [boardOwnerId, me?.email, me?.id, me?.type, onPublicBoard, isSubUser]);
 
   // Load team members with enhanced logic
   useEffect(() => {
@@ -271,34 +243,44 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     })();
   }, [boardOwnerId, location.pathname]);
 
+  // Channel selection handler
+  const handleSelect = (id: string) => {
+    // Don't preemptively reject; let verifyAndSetChannel handle it
+    verifyAndSetChannel(id);
+    onChannelSelect?.();
+  };
+
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
-        {/* General Channel */}
-        <button
-          onClick={() => {
-            if (generalChannelId) {
-              openChannel(generalChannelId);
-              onChannelSelect?.();
-            }
-          }}
-          className={cn(
-            "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
-            currentChannelId === generalChannelId ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
-          )}
-        >
-          <div className="flex items-center gap-2">
-            <Hash className="h-4 w-4 flex-shrink-0" />
-            <span className="font-medium">
-              <LanguageText>{t('chat.general')}</LanguageText>
-            </span>
-          </div>
-          {generalChannelId && (channelUnreads[generalChannelId] ?? 0) > 0 && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
-              {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
-            </span>
-          )}
-        </button>
+        {/* Channels */}
+        {channels.map(ch => (
+          <button
+            key={ch.id}
+            onClick={() => handleSelect(ch.id)}
+            className={cn(
+              "w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left relative group",
+              currentChannelId === ch.id ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <Hash className="h-4 w-4 flex-shrink-0" />
+              <span className="font-medium truncate">
+                {ch.display_name}
+              </span>
+              {!ch.is_dm && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-emerald-600/10 text-emerald-600 rounded">
+                  Channel
+                </span>
+              )}
+            </div>
+            {(channelUnreads[ch.id] ?? 0) > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                {(channelUnreads[ch.id] ?? 0) > 99 ? '99+' : channelUnreads[ch.id]}
+              </span>
+            )}
+          </button>
+        ))}
 
         {/* Team Members */}
         <div className="pt-4">

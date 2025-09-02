@@ -30,6 +30,7 @@ type ChatCtx = {
   me: Me | null;
   currentChannelId: string | null;
   setCurrentChannelId: (id: string | null) => void;
+  verifyAndSetChannel: (id: string) => Promise<void>;
   openChannel: (id: string) => void;
   startDM: (otherId: string, otherType: "admin" | "sub_user") => void;
   unreadTotal: number;
@@ -444,26 +445,68 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     });
   }, [shouldShowChat, currentChannelId, defaultChannelId]);
 
-  const openChannel = useCallback(async (channelId: string) => {
-    setCurrentChannelId(channelId);
-    setIsOpen(true);
+  // Channel verification - prevents forced fallback to General
+  const verifyAndSetChannel = useCallback(async (nextId: string) => {
+    if (!nextId || !boardOwnerId || !me) return;
     
-    // Mark channel as read on server and clear local unread
-    if (boardOwnerId && me?.type && me?.id) {
-      try {
-        await supabase.rpc('mark_channel_read', {
+    const onPublicBoard = location.pathname.startsWith('/board/');
+    const isSubUser = me?.type === 'sub_user';
+
+    try {
+      if (onPublicBoard && isSubUser && me?.email) {
+        // ✅ use public header RPC to validate sub-user access to this channel
+        const { data: hdr, error } = await supabase.rpc('get_channel_header_public', {
           p_owner_id: boardOwnerId,
-          p_viewer_type: me.type,
-          p_viewer_id: me.id,
-          p_channel_id: channelId,
+          p_channel_id: nextId,
+          p_requester_email: me.email,
         });
-        clearChannel(channelId);
-        refreshUnread();
-      } catch (error) {
-        console.error('❌ Error marking channel as read:', error);
+        if (error || !hdr?.length) return; // silently ignore invalid channel
+        setCurrentChannelId(nextId);       // accept selection
+        setIsOpen(true);
+
+        // Mark channel as read
+        try {
+          await supabase.rpc('mark_channel_read', {
+            p_owner_id: boardOwnerId,
+            p_viewer_type: me.type,
+            p_viewer_id: me.id,
+            p_channel_id: nextId,
+          });
+          clearChannel(nextId);
+          refreshUnread();
+        } catch (error) {
+          console.error('❌ Error marking channel as read:', error);
+        }
+        return;
       }
+
+      // existing internal/admin path (unchanged)
+      setCurrentChannelId(nextId);
+      setIsOpen(true);
+      
+      // Mark channel as read on server and clear local unread
+      if (me?.type && me?.id) {
+        try {
+          await supabase.rpc('mark_channel_read', {
+            p_owner_id: boardOwnerId,
+            p_viewer_type: me.type,
+            p_viewer_id: me.id,
+            p_channel_id: nextId,
+          });
+          clearChannel(nextId);
+          refreshUnread();
+        } catch (error) {
+          console.error('❌ Error marking channel as read:', error);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Channel verification failed:', error);
     }
-  }, [boardOwnerId, me, clearChannel, refreshUnread]);
+  }, [boardOwnerId, me, location.pathname, clearChannel, refreshUnread]);
+
+  const openChannel = useCallback(async (channelId: string) => {
+    await verifyAndSetChannel(channelId);
+  }, [verifyAndSetChannel]);
 
   // FAST LOADING: Detailed logging to identify bottleneck
   useEffect(() => {
@@ -676,6 +719,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     me,
     currentChannelId,
     setCurrentChannelId,
+    verifyAndSetChannel,
     openChannel,
     startDM,
     unreadTotal,
@@ -685,7 +729,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     boardOwnerId,
     connectionStatus,
     realtimeEnabled,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled]);
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, verifyAndSetChannel, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled]);
 
   return (
     <ChatContext.Provider value={contextValue}>
