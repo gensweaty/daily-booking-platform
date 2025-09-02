@@ -10,6 +10,7 @@ import { LanguageText } from '@/components/shared/LanguageText';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
@@ -18,6 +19,7 @@ interface ChatSidebarProps {
 
 export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {}) => {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
   const location = useLocation();
   const isPublicBoard = location.pathname.startsWith('/board/');
@@ -338,13 +340,6 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   });
                   
                   try {
-                    console.log('🖱️ Starting DM with:', { 
-                      member, 
-                      currentUser: me,
-                      boardOwnerId,
-                      isPublicBoard: location.pathname.startsWith('/board/')
-                    });
-                    
                     if (isPublicBoard && (me as any)?.type === 'sub_user') {
                       // Public board sub-user path: use public RPC and sender email
                       console.log('🔍 Public board sub-user DM creation starting...');
@@ -357,10 +352,26 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       console.log('🔍 Sender email resolved:', senderEmail);
                       console.log('🔍 Public access data:', publicAccess);
                       console.log('🔍 Me object:', me);
-                        
-                      if (!senderEmail) {
-                        console.error('❌ Missing sender email for public DM');
-                        throw new Error('Missing sender email for public DM');
+                      
+                      // Enhanced parameter validation
+                      if (!boardOwnerId) {
+                        console.error('❌ Missing board owner ID for public DM');
+                        throw new Error('Board owner not found. Please refresh and try again.');
+                      }
+                      
+                      if (!senderEmail || typeof senderEmail !== 'string' || !senderEmail.includes('@')) {
+                        console.error('❌ Invalid sender email for public DM:', senderEmail);
+                        throw new Error('Your email could not be verified. Please refresh and try again.');
+                      }
+                      
+                      if (!member.id || typeof member.id !== 'string') {
+                        console.error('❌ Invalid member ID for public DM:', member.id);
+                        throw new Error('Invalid team member selected. Please try again.');
+                      }
+                      
+                      if (!member.type || !['admin', 'sub_user'].includes(member.type)) {
+                        console.error('❌ Invalid member type for public DM:', member.type);
+                        throw new Error('Invalid team member type. Please try again.');
                       }
                       
                       console.log('🔍 Calling start_public_board_dm with params:', {
@@ -371,26 +382,42 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       });
                       
                       const { data: channelId, error } = await supabase.rpc('start_public_board_dm', {
-                        p_board_owner_id: boardOwnerId!,
+                        p_board_owner_id: boardOwnerId,
                         p_other_id: member.id,
                         p_other_type: member.type,
                         p_sender_email: senderEmail,
                       });
                       
                       if (error) {
-                        console.error('❌ RPC error:', error);
-                        throw error;
+                        console.error('❌ RPC error starting public DM:', error);
+                        // Provide specific error messages based on common issues
+                        if (error.message?.includes('Unknown public sub-user')) {
+                          throw new Error('Your account is not authorized for this board. Please contact the board owner.');
+                        } else if (error.message?.includes('Invalid channel')) {
+                          throw new Error('Cannot create chat channel. Please try again later.');
+                        } else if (error.message?.includes('not found')) {
+                          throw new Error('The selected team member is no longer available. Please refresh and try again.');
+                        } else {
+                          throw new Error(`Chat setup failed: ${error.message || 'Unknown error'}`);
+                        }
                       }
                       
-                      if (!channelId) {
-                        console.error('❌ No channel ID returned from RPC');
-                        throw new Error('No channel id returned');
+                      if (!channelId || typeof channelId !== 'string') {
+                        console.error('❌ Invalid channel ID returned from public DM creation:', channelId);
+                        throw new Error('Failed to create chat channel. Please try again.');
                       }
                       
-                      console.log('🎯 Opening DM channel:', channelId, 'with member:', member.name);
-                      await openChannel(channelId as string);
-                      onDMStart?.();
-                      console.log('✅ Public DM started successfully with:', member.name);
+                      console.log('✅ Public DM channel created:', channelId);
+                      
+                      // Robust channel opening with validation
+                      try {
+                        await openChannel(channelId);
+                        onDMStart?.();
+                        console.log('✅ Public DM started successfully with:', member.name);
+                      } catch (channelError) {
+                        console.error('❌ Failed to open channel:', channelError);
+                        throw new Error('Chat channel created but could not be opened. Please refresh and try again.');
+                      }
                     } else {
                       console.log('🔍 Using internal/authenticated DM path');
                       // Internal/authenticated path unchanged
@@ -400,8 +427,16 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     }
                   } catch (error) {
                     console.error('❌ Failed to start DM with:', member.name, error);
-                    // Show user-friendly error
-                    alert(`Failed to start chat with ${member.name}. Please try again.`);
+                    
+                    // Show specific error messages to help users understand what went wrong
+                    const errorMessage = error instanceof Error ? error.message : `Failed to start chat with ${member.name}. Please try again.`;
+                    
+                    // Use toast for better UX instead of alert
+                    toast({
+                      variant: "destructive",
+                      title: "Chat Error",
+                      description: errorMessage,
+                    });
                   }
                 }}
                 className={cn(
