@@ -8,6 +8,7 @@ import { resolveAvatarUrl } from './_avatar';
 import { useToast } from '@/hooks/use-toast';
 import { MessageInput } from './MessageInput';
 import { MessageAttachments } from './MessageAttachments';
+import { getEffectivePublicEmail } from '@/utils/chatEmail';
 
 type Message = {
   id: string;
@@ -52,6 +53,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
   const activeChannelId = currentChannelId;
+  
+  const effectiveEmail = getEffectivePublicEmail(location.pathname, me?.email);
+  const onPublicBoard = location.pathname.startsWith('/board/');
+  const isSubUser = me?.type === 'sub_user';
 
   // helper for clean display names
   const nameFor = (m: Message) =>
@@ -73,12 +78,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     (async () => {
       if (!activeChannelId) { if (active) setChannelInfo(null); return; }
 
-      const onPublic = location.pathname.startsWith('/board/') && me?.type === 'sub_user';
-      if (onPublic && boardOwnerId && me?.email) {
+      if (onPublicBoard && isSubUser && effectiveEmail) {
         const { data: hdr } = await supabase.rpc('get_channel_header_public', {
           p_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
-          p_requester_email: me.email,
+          p_requester_email: effectiveEmail,
         });
         if (active && hdr?.length) {
           setChannelInfo({
@@ -109,7 +113,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       }
     })();
     return () => { active = false; };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.type, me?.id, location.pathname]);
+  }, [activeChannelId, boardOwnerId, effectiveEmail, me?.type, me?.id, location.pathname]);
 
   useEffect(() => {
     let active = true;
@@ -123,12 +127,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const isAuthed = !!session?.user?.id;
 
         let data, error;
-        if (onPublicBoard && me?.type === 'sub_user') {
+        if (onPublicBoard && isSubUser && effectiveEmail) {
           const result = await supabase.rpc('list_channel_messages_public', {
             p_owner_id: boardOwnerId,
             p_channel_id: activeChannelId,
             p_requester_type: 'sub_user',
-            p_requester_email: me.email!,
+            p_requester_email: effectiveEmail,
           });
           data = result.data;
           error = result.error;
@@ -155,7 +159,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           const ids = normalized.map(m => m.id);
           let byMsg: Record<string, any[]> = {};
           if (ids.length) {
-            if (onPublicBoard && me?.type === 'sub_user') {
+            if (onPublicBoard && isSubUser) {
               // RLS-safe path for sub-users on external board
               const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
                 p_message_ids: ids
@@ -209,7 +213,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
     loadMessages();
     return () => { active = false; };
-  }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
+  }, [activeChannelId, boardOwnerId, me?.id, effectiveEmail, isInitialized, location.pathname]);
 
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); setLoading(true); return; }
@@ -235,7 +239,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         p_owner_id: boardOwnerId,
         p_channel_id: activeChannelId,
         p_requester_type: 'sub_user',
-        p_requester_email: accessData.email || me.email,
+        p_requester_email: effectiveEmail || me.email,
       });
       if (!mounted || !data) return;
 
@@ -256,12 +260,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     const id = setInterval(poll, 2500);
     poll();
     return () => { mounted = false; clearInterval(id); };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled]);
+  }, [activeChannelId, boardOwnerId, effectiveEmail, me?.id, location.pathname, realtimeEnabled]);
 
   useEffect(() => {
-    const onPublicBoard = location.pathname.startsWith('/board/');
-    const isSubUser = me?.type === 'sub_user';
-
     const handleMessage = async (event: CustomEvent) => {
       let { message } = event.detail as { message: Message };
       const channelId = message.channel_id;
@@ -372,11 +373,16 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const onPublicBoard = location.pathname.startsWith('/board/');
 
       // New flow for public board sub-users
-      if (onPublicBoard && me?.type === 'sub_user') {
+      if (onPublicBoard && isSubUser) {
+        if (!effectiveEmail) {
+          toast({ title: "You need to log in to the board chat", variant: "destructive" });
+          return;
+        }
+        
         const { data: created, error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
-          p_sender_email: me.email!,
+          p_sender_email: effectiveEmail,
           p_content: body,
         });
         if (error) throw error;
@@ -433,13 +439,15 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         if (error) throw error;
       } else {
         // Fallback public flow
-        const slug = location.pathname.split('/').pop()!;
-        const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-        const senderEmail = me?.email || stored?.email;
+        if (!effectiveEmail) {
+          toast({ title: "You need to log in to the board chat", variant: "destructive" });
+          return;
+        }
+        
         const { error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
-          p_sender_email: senderEmail,
+          p_sender_email: effectiveEmail,
           p_content: body,
         });
         if (error) throw error;
@@ -464,14 +472,15 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             .update({ has_attachments: true, message_type: 'file' })
             .eq('id', real.id);
         } else {
-          const slug = location.pathname.split('/').pop()!;
-          const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-          const senderEmail = stored?.email || me.email;
+          if (!effectiveEmail) {
+            toast({ title: "You need to log in to the board chat", variant: "destructive" });
+            return;
+          }
 
           await supabase.rpc('attach_files_to_message_public', {
             p_owner_id: boardOwnerId,
             p_channel_id: activeChannelId,
-            p_sender_email: senderEmail,
+            p_sender_email: effectiveEmail,
             p_files: attachments,
           });
         }

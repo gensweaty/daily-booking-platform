@@ -10,6 +10,7 @@ import { LanguageText } from '@/components/shared/LanguageText';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { getEffectivePublicEmail } from '@/utils/chatEmail';
 
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
@@ -30,6 +31,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     try { return JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}') || {}; }
     catch { return {}; }
   }, [location.pathname, isPublicBoard]);
+
+  const effectiveEmail = useMemo(
+    () => getEffectivePublicEmail(location.pathname, me?.email),
+    [location.pathname, me?.email]
+  );
   
   const [channels, setChannels] = useState<Array<{ 
     id: string; 
@@ -51,11 +57,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     (async () => {
       if (!boardOwnerId) return;
 
-      if (onPublicBoard && isSubUser && me?.email) {
+      if (onPublicBoard && isSubUser && effectiveEmail) {
         // ✅ Public list that already respects sub-user access
         const { data, error } = await supabase.rpc('get_user_participating_channels', {
           p_owner_id: boardOwnerId,
-          p_user_email: me.email,
+          p_user_email: effectiveEmail,
           p_user_type: 'sub_user',
         });
         if (!active || error) return;
@@ -92,7 +98,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
       }
     })();
     return () => { active = false; };
-  }, [boardOwnerId, me?.email, me?.id, me?.type, onPublicBoard, isSubUser]);
+  }, [boardOwnerId, effectiveEmail, me?.id, me?.type, onPublicBoard, isSubUser]);
 
   // Load team members with enhanced logic
   useEffect(() => {
@@ -322,10 +328,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   try {
                     if (isPublicBoard && (me as any)?.type === 'sub_user') {
                       // Public board sub-user path: use public RPC and sender email
-                      const senderEmail =
-                        (me as any)?.email
-                        || publicAccess?.external_user_email
-                        || publicAccess?.email;
+                      const senderEmail = effectiveEmail;
                       if (!senderEmail) throw new Error('Missing sender email for public DM');
                       const { data: channelId, error } = await supabase.rpc('start_public_board_dm', {
                         p_board_owner_id: boardOwnerId!,
@@ -333,8 +336,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                         p_other_type: member.type,
                         p_sender_email: senderEmail,
                       });
-                      if (error || !channelId) throw error || new Error('No channel id returned');
-                      openChannel(channelId as string);
+                      if (!error && channelId) {
+                        openChannel(channelId as string);   // switch immediately
+                        await verifyAndSetChannel(channelId as string); // confirm; will succeed now
+                      }
                       onDMStart?.();
                       console.log('✅ Public DM started successfully with:', member.name);
                     } else {

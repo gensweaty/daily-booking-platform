@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
+import { getEffectivePublicEmail } from '@/utils/chatEmail';
 
 type Me = { 
   id: string; 
@@ -453,12 +454,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     const isSubUser = me?.type === 'sub_user';
 
     try {
-      if (onPublicBoard && isSubUser && me?.email) {
+      if (onPublicBoard && isSubUser) {
+        const effectiveEmail = getEffectivePublicEmail(location.pathname, me?.email);
+        if (!effectiveEmail) {
+          toast({ title: "You need to log in to the board chat", variant: "destructive" });
+          return;
+        }
+        
         // ✅ use public header RPC to validate sub-user access to this channel
         const { data: hdr, error } = await supabase.rpc('get_channel_header_public', {
           p_owner_id: boardOwnerId,
           p_channel_id: nextId,
-          p_requester_email: me.email,
+          p_requester_email: effectiveEmail,
         });
         if (error || !hdr?.length) return; // silently ignore invalid channel
         setCurrentChannelId(nextId);       // accept selection
@@ -473,19 +480,22 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             p_channel_id: nextId,
           });
           clearChannel(nextId);
-          refreshUnread();
-        } catch (error) {
-          console.error('❌ Error marking channel as read:', error);
-        }
+        } catch {}
         return;
       }
 
       // existing internal/admin path (unchanged)
-      setCurrentChannelId(nextId);
-      setIsOpen(true);
-      
-      // Mark channel as read on server and clear local unread
-      if (me?.type && me?.id) {
+      const { data: hdrInt, error: e2 } = await supabase.rpc('get_channel_header_internal', {
+        p_owner_id: boardOwnerId,
+        p_channel_id: nextId,
+        p_viewer_id: me?.id,
+        p_viewer_type: me?.type,
+      });
+      if (!e2 && hdrInt?.length) {
+        setCurrentChannelId(nextId);
+        setIsOpen(true);
+        
+        // Mark channel as read
         try {
           await supabase.rpc('mark_channel_read', {
             p_owner_id: boardOwnerId,
@@ -494,15 +504,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             p_channel_id: nextId,
           });
           clearChannel(nextId);
-          refreshUnread();
-        } catch (error) {
-          console.error('❌ Error marking channel as read:', error);
-        }
+        } catch {}
       }
-    } catch (error) {
-      console.error('❌ Channel verification failed:', error);
+    } catch (err) {
+      console.error('Channel verification failed:', err);
     }
-  }, [boardOwnerId, me, location.pathname, clearChannel, refreshUnread]);
+  }, [boardOwnerId, me, location.pathname, clearChannel, toast]);
 
   const openChannel = useCallback(async (channelId: string) => {
     await verifyAndSetChannel(channelId);
