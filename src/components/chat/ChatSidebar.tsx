@@ -338,13 +338,37 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   });
                   
                   try {
+                    console.log('🖱️ Starting DM with:', { 
+                      member, 
+                      currentUser: me,
+                      boardOwnerId,
+                      isPublicBoard: location.pathname.startsWith('/board/')
+                    });
+                    
                     if (isPublicBoard && (me as any)?.type === 'sub_user') {
                       // Public board sub-user path: use public RPC and sender email
+                      console.log('🔍 Public board sub-user DM creation starting...');
+                      
                       const senderEmail =
                         (me as any)?.email
                         || publicAccess?.external_user_email
                         || publicAccess?.email;
-                      if (!senderEmail) throw new Error('Missing sender email for public DM');
+                        
+                      console.log('🔍 Sender email resolved:', senderEmail);
+                      console.log('🔍 Public access data:', publicAccess);
+                      console.log('🔍 Me object:', me);
+                        
+                      if (!senderEmail) {
+                        console.error('❌ Missing sender email for public DM');
+                        throw new Error('Missing sender email for public DM');
+                      }
+                      
+                      console.log('🔍 Calling start_public_board_dm with params:', {
+                        p_board_owner_id: boardOwnerId,
+                        p_other_id: member.id,
+                        p_other_type: member.type,
+                        p_sender_email: senderEmail,
+                      });
                       
                       const { data: channelId, error } = await supabase.rpc('start_public_board_dm', {
                         p_board_owner_id: boardOwnerId!,
@@ -368,6 +392,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       onDMStart?.();
                       console.log('✅ Public DM started successfully with:', member.name);
                     } else {
+                      console.log('🔍 Using internal/authenticated DM path');
                       // Internal/authenticated path unchanged
                       await startDM(member.id, member.type);
                       onDMStart?.();
@@ -375,6 +400,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     }
                   } catch (error) {
                     console.error('❌ Failed to start DM with:', member.name, error);
+                    // Show user-friendly error
+                    alert(`Failed to start chat with ${member.name}. Please try again.`);
                   }
                 }}
                 className={cn(
