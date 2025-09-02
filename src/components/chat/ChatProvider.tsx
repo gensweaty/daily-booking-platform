@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
-import { getEffectivePublicEmail } from '@/utils/chatEmail';
 
 type Me = { 
   id: string; 
@@ -31,7 +30,6 @@ type ChatCtx = {
   me: Me | null;
   currentChannelId: string | null;
   setCurrentChannelId: (id: string | null) => void;
-  verifyAndSetChannel: (id: string) => Promise<void>;
   openChannel: (id: string) => void;
   startDM: (otherId: string, otherType: "admin" | "sub_user") => void;
   unreadTotal: number;
@@ -446,74 +444,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     });
   }, [shouldShowChat, currentChannelId, defaultChannelId]);
 
-  // Channel verification - prevents forced fallback to General
-  const verifyAndSetChannel = useCallback(async (nextId: string) => {
-    if (!nextId || !boardOwnerId || !me) return;
-    
-    const onPublicBoard = location.pathname.startsWith('/board/');
-    const isSubUser = me?.type === 'sub_user';
-
-    try {
-      if (onPublicBoard && isSubUser) {
-        const effectiveEmail = getEffectivePublicEmail(location.pathname, me?.email);
-        if (!effectiveEmail) {
-          toast({ title: "You need to log in to the board chat", variant: "destructive" });
-          return;
-        }
-        
-        // ✅ use public header RPC to validate sub-user access to this channel
-        const { data: hdr, error } = await supabase.rpc('get_channel_header_public', {
-          p_owner_id: boardOwnerId,
-          p_channel_id: nextId,
-          p_requester_email: effectiveEmail,
-        });
-        if (error || !hdr?.length) return; // silently ignore invalid channel
-        setCurrentChannelId(nextId);       // accept selection
-        setIsOpen(true);
-
-        // Mark channel as read
-        try {
-          await supabase.rpc('mark_channel_read', {
-            p_owner_id: boardOwnerId,
-            p_viewer_type: me.type,
-            p_viewer_id: me.id,
-            p_channel_id: nextId,
-          });
-          clearChannel(nextId);
-        } catch {}
-        return;
-      }
-
-      // existing internal/admin path (unchanged)
-      const { data: hdrInt, error: e2 } = await supabase.rpc('get_channel_header_internal', {
-        p_owner_id: boardOwnerId,
-        p_channel_id: nextId,
-        p_viewer_id: me?.id,
-        p_viewer_type: me?.type,
-      });
-      if (!e2 && hdrInt?.length) {
-        setCurrentChannelId(nextId);
-        setIsOpen(true);
-        
-        // Mark channel as read
-        try {
-          await supabase.rpc('mark_channel_read', {
-            p_owner_id: boardOwnerId,
-            p_viewer_type: me.type,
-            p_viewer_id: me.id,
-            p_channel_id: nextId,
-          });
-          clearChannel(nextId);
-        } catch {}
-      }
-    } catch (err) {
-      console.error('Channel verification failed:', err);
-    }
-  }, [boardOwnerId, me, location.pathname, clearChannel, toast]);
-
   const openChannel = useCallback(async (channelId: string) => {
-    await verifyAndSetChannel(channelId);
-  }, [verifyAndSetChannel]);
+    setCurrentChannelId(channelId);
+    setIsOpen(true);
+    
+    // Mark channel as read on server and clear local unread
+    if (boardOwnerId && me?.type && me?.id) {
+      try {
+        await supabase.rpc('mark_channel_read', {
+          p_owner_id: boardOwnerId,
+          p_viewer_type: me.type,
+          p_viewer_id: me.id,
+          p_channel_id: channelId,
+        });
+        clearChannel(channelId);
+        refreshUnread();
+      } catch (error) {
+        console.error('❌ Error marking channel as read:', error);
+      }
+    }
+  }, [boardOwnerId, me, clearChannel, refreshUnread]);
 
   // FAST LOADING: Detailed logging to identify bottleneck
   useEffect(() => {
@@ -726,7 +676,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     me,
     currentChannelId,
     setCurrentChannelId,
-    verifyAndSetChannel,
     openChannel,
     startDM,
     unreadTotal,
@@ -736,7 +685,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     boardOwnerId,
     connectionStatus,
     realtimeEnabled,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, verifyAndSetChannel, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled]);
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled]);
 
   return (
     <ChatContext.Provider value={contextValue}>
