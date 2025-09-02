@@ -71,15 +71,39 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   useEffect(() => {
     let active = true;
     (async () => {
-      if (!activeChannelId) { if (active) setChannelInfo(null); return; }
+      console.log('🔍 ChatArea header effect triggered:', { 
+        activeChannelId, 
+        boardOwnerId, 
+        me_email: me?.email, 
+        me_type: me?.type, 
+        me_id: me?.id, 
+        pathname: location.pathname 
+      });
+      
+      if (!activeChannelId) { 
+        console.log('🔍 No active channel, clearing channel info');
+        if (active) setChannelInfo(null); 
+        return; 
+      }
 
       const onPublic = location.pathname.startsWith('/board/') && me?.type === 'sub_user';
+      console.log('🔍 Route check:', { onPublic, pathname: location.pathname, meType: me?.type });
+      
       if (onPublic && boardOwnerId && me?.email) {
-        const { data: hdr } = await supabase.rpc('get_channel_header_public', {
+        console.log('🔍 Calling get_channel_header_public with:', {
           p_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_requester_email: me.email,
         });
+        
+        const { data: hdr, error } = await supabase.rpc('get_channel_header_public', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_requester_email: me.email,
+        });
+        
+        console.log('🔍 Public header response:', { data: hdr, error });
+        
         if (active && hdr?.length) {
           const row = hdr[0];
           const isDm = !!row.is_dm;
@@ -95,12 +119,22 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       // Internal/admin or authenticated viewer
       if (boardOwnerId && me?.id && me?.type) {
-        const { data: hdrInt } = await supabase.rpc('get_channel_header_internal', {
+        console.log('🔍 Calling get_channel_header_internal with:', {
           p_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_viewer_id: me.id,
           p_viewer_type: me.type,
         });
+        
+        const { data: hdrInt, error } = await supabase.rpc('get_channel_header_internal', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_viewer_id: me.id,
+          p_viewer_type: me.type,
+        });
+        
+        console.log('🔍 Internal header response:', { data: hdrInt, error });
+        
         if (active && hdrInt?.length) {
           const row = hdrInt[0];
           const isDm = !!row.is_dm;
@@ -111,7 +145,21 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             dmPartner: isDm ? { name: row.partner_name, avatar: row.partner_avatar_url } : undefined,
           });
           return;
+        } else {
+          console.log('🔍 No internal header data returned or error occurred');
         }
+      } else {
+        console.log('🔍 Missing required data for internal header:', { boardOwnerId, me_id: me?.id, me_type: me?.type });
+      }
+      
+      // Fallback
+      console.log('🔍 Using fallback channel info');
+      if (active) {
+        setChannelInfo({
+          name: 'General',
+          isDM: false,
+          dmPartner: undefined,
+        });
       }
     })();
     return () => { active = false; };
