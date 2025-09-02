@@ -1593,6 +1593,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      attach_files_to_message_public_by_id: {
+        Args: { p_files: Json; p_message_id: string; p_owner_id: string }
+        Returns: undefined
+      }
       canonical_participant_key: {
         Args: { p_id: string; p_type: string }
         Returns: string
@@ -1739,6 +1743,19 @@ export type Database = {
         Args: { business_id_param: string }
         Returns: {
           email: string
+        }[]
+      }
+      get_channel_header_public: {
+        Args: {
+          p_channel_id: string
+          p_owner_id: string
+          p_requester_email: string
+        }
+        Returns: {
+          is_dm: boolean
+          name: string
+          partner_avatar_url: string
+          partner_name: string
         }[]
       }
       get_chat_messages_for_channel: {
@@ -1932,7 +1949,9 @@ export type Database = {
           channel_id: string
           content: string
           created_at: string
+          has_attachments: boolean
           id: string
+          message_type: string
           sender_avatar_url: string
           sender_name: string
           sender_sub_user_id: string
@@ -2031,7 +2050,12 @@ export type Database = {
           p_content: string
           p_sender_email: string
         }
-        Returns: Json
+        Returns: {
+          created_at: string
+          id: string
+          sender_avatar_url: string
+          sender_name: string
+        }[]
       }
       start_public_board_dm: {
         Args: {

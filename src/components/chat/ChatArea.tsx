@@ -73,6 +73,23 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     (async () => {
       if (!activeChannelId) { if (active) setChannelInfo(null); return; }
 
+      const onPublic = location.pathname.startsWith('/board/') && me?.type === 'sub_user';
+      if (onPublic && boardOwnerId && me?.email) {
+        const { data: hdr } = await supabase.rpc('get_channel_header_public', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_requester_email: me.email,
+        });
+        if (active && hdr && hdr.length) {
+          setChannelInfo({
+            name: hdr[0].name || 'General',
+            isDM: !!hdr[0].is_dm,
+            dmPartner: hdr[0].is_dm ? { name: hdr[0].partner_name, avatar: hdr[0].partner_avatar_url } : undefined,
+          });
+          return;
+        }
+      }
+
       const { data: channel } = await supabase
         .from('chat_channels')
         .select('id, name, is_dm, chat_participants(user_id, sub_user_id, user_type)')
@@ -91,7 +108,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       }
     })();
     return () => { active = false; };
-  }, [activeChannelId]);
+  }, [activeChannelId, boardOwnerId, me?.email, me?.type, location.pathname]);
 
   useEffect(() => {
     let active = true;
@@ -335,24 +352,68 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const isAuthed = !!session?.user?.id;
+      const onPublicBoard = location.pathname.startsWith('/board/');
 
-      // 1) send the text
-      if (me?.type === 'sub_user') {
-        const { error } = await supabase.rpc('send_public_board_message', {
+      // New flow for public board sub-users
+      if (onPublicBoard && me?.type === 'sub_user') {
+        const { data: created, error } = await supabase.rpc('send_public_board_message', {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: me.email!,
-          p_content: body, // Use body instead of content.trim()
+          p_content: body,
         });
         if (error) throw error;
-      } else if (isAuthed && me?.type === 'admin') {
+
+        const messageId = created?.[0]?.id;
+        if (attachments.length && messageId) {
+          await supabase.rpc('attach_files_to_message_public_by_id', {
+            p_owner_id: boardOwnerId,
+            p_message_id: messageId,
+            p_files: attachments,
+          });
+        }
+
+        // get linked files via RLS-safe list
+        let atts: any[] = [];
+        if (attachments.length && messageId) {
+          const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+            p_message_ids: [messageId],
+          });
+          atts = (attRows || []).map(a => ({ ...a }));
+        }
+
+        const hydrated: Message = {
+          id: messageId,
+          content: body,
+          created_at: created?.[0]?.created_at || new Date().toISOString(),
+          sender_type: 'sub_user',
+          sender_name: created?.[0]?.sender_name || me.name || (me as any)?.full_name || 'Me',
+          sender_avatar_url: created?.[0]?.sender_avatar_url || me.avatarUrl,
+          channel_id: activeChannelId,
+          has_attachments: atts.length > 0,
+          message_type: atts.length ? 'file' : 'text',
+          attachments: atts,
+        };
+
+        // replace optimistic temp with hydrated (by tempId)
+        setMessages(prev => {
+          const withoutTemp = prev.filter(m => m.id !== tempId);
+          return [...withoutTemp, hydrated];
+        });
+        window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: hydrated } }));
+        return;
+      }
+
+      // Original flow for authenticated users
+      if (isAuthed && me?.type === 'admin') {
         const { error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
-          p_content: body, // Use body instead of content.trim()
+          p_content: body,
         });
         if (error) throw error;
       } else {
+        // Fallback public flow
         const slug = location.pathname.split('/').pop()!;
         const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
         const senderEmail = me?.email || stored?.email;
@@ -360,16 +421,16 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: senderEmail,
-          p_content: body, // Use body instead of content.trim()
+          p_content: body,
         });
         if (error) throw error;
       }
 
-      // 2) get the just-created message
+      // get the just-created message
       const real = await fetchLatestMessage();
       if (!real?.id) return;
 
-      // 3) link files to that message (this is the step that was missing)
+      // link files to that message
       if (attachments.length > 0) {
         if (me?.type === 'admin' && isAuthed) {
           const rows = attachments.map(a => ({
@@ -383,22 +444,21 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           await supabase.from('chat_messages')
             .update({ has_attachments: true, message_type: 'file' })
             .eq('id', real.id);
-      } else {
-        // use the same fallback email as text sending
-        const slug = location.pathname.split('/').pop()!;
-        const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-        const senderEmail = stored?.email || me.email;
+        } else {
+          const slug = location.pathname.split('/').pop()!;
+          const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+          const senderEmail = stored?.email || me.email;
 
-        await supabase.rpc('attach_files_to_message_public', {
-          p_owner_id: boardOwnerId,
-          p_channel_id: activeChannelId,
-          p_sender_email: senderEmail,
-          p_files: attachments,
-        });
-      }
+          await supabase.rpc('attach_files_to_message_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_sender_email: senderEmail,
+            p_files: attachments,
+          });
+        }
       }
 
-      // 4) hydrate with attachments + friendly display name fallback
+      // hydrate with attachments
       let atts: any[] = [];
       if (attachments.length > 0) {
         if (me?.type === 'sub_user' && location.pathname.startsWith('/board/')) {
@@ -434,7 +494,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         attachments: atts,
       };
 
-      // 5) replace optimistic; also guard against duplicates by id
+      // replace optimistic; also guard against duplicates by id
       setMessages(prev => {
         const withoutTemp = prev.filter(m => m.id !== tempId && m.id !== real.id);
         return [...withoutTemp, hydrated];
