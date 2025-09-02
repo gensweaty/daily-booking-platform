@@ -324,7 +324,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     const fetchLatestMessage = async () => {
       const { data: msg } = await supabase
         .from('chat_messages')
-        .select('id, created_at, content, channel_id, has_attachments, message_type, sender_type, sender_user_id, sender_sub_user_id, sender_name')
+        .select('id, created_at, content, channel_id, has_attachments, message_type, sender_type, sender_user_id, sender_sub_user_id, sender_name, sender_avatar_url')
         .eq('channel_id', activeChannelId)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -427,7 +427,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         sender_type: real.sender_type as 'admin' | 'sub_user',
         sender_name: (real.sender_name && real.sender_name.trim())
           || (me.name || (me as any)?.full_name || 'Me'),
-        sender_avatar_url: me.avatarUrl || undefined,
+        // Prefer what DB saved for sender avatar; only fall back to local
+        sender_avatar_url: (real as any).sender_avatar_url
+          ?? me.avatarUrl
+          ?? undefined,
         attachments: atts,
       };
 

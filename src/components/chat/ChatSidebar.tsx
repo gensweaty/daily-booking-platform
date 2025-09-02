@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Hash } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +20,13 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   const { t } = useLanguage();
   const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap } = useChat();
   const location = useLocation();
+  const isPublicBoard = location.pathname.startsWith('/board/');
+  const publicAccess = useMemo(() => {
+    if (!isPublicBoard) return {};
+    const slug = location.pathname.split('/').pop()!;
+    try { return JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}') || {}; }
+    catch { return {}; }
+  }, [location.pathname, isPublicBoard]);
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
@@ -300,7 +307,17 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           </p>
           
           {members.map((member) => {
-            const isMe = !!me && member.id === me.id && member.type === me.type;
+            // Robust "is me" detection
+            let isMe = !!me && member.id === (me as any)?.id && member.type === (me as any)?.type;
+            if (isPublicBoard && (me as any)?.type === 'sub_user') {
+              const myName = (me as any)?.name || publicAccess?.external_user_name;
+              const myEmail = (me as any)?.email || publicAccess?.external_user_email;
+              if (member.type === 'sub_user') {
+                // hide if names match OR if member.name is the email we stored earlier
+                if (member.name && myName && member.name.trim() === String(myName).trim()) isMe = true;
+                if (!isMe && member.name && myEmail && member.name.trim() === String(myEmail).trim()) isMe = true;
+              }
+            }
             
             const peerUnread = getUserUnreadCount(member.id, member.type);
             
@@ -321,9 +338,29 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   });
                   
                   try {
-                    await startDM(member.id, member.type);
-                    onDMStart?.();
-                    console.log('✅ DM started successfully with:', member.name);
+                    if (isPublicBoard && (me as any)?.type === 'sub_user') {
+                      // Public board sub-user path: use public RPC and sender email
+                      const senderEmail =
+                        (me as any)?.email
+                        || publicAccess?.external_user_email
+                        || publicAccess?.email;
+                      if (!senderEmail) throw new Error('Missing sender email for public DM');
+                      const { data: channelId, error } = await supabase.rpc('start_public_board_dm', {
+                        p_board_owner_id: boardOwnerId!,
+                        p_other_id: member.id,
+                        p_other_type: member.type,
+                        p_sender_email: senderEmail,
+                      });
+                      if (error || !channelId) throw error || new Error('No channel id returned');
+                      openChannel(channelId as string);
+                      onDMStart?.();
+                      console.log('✅ Public DM started successfully with:', member.name);
+                    } else {
+                      // Internal/authenticated path unchanged
+                      await startDM(member.id, member.type);
+                      onDMStart?.();
+                      console.log('✅ DM started successfully with:', member.name);
+                    }
                   } catch (error) {
                     console.error('❌ Failed to start DM with:', member.name, error);
                   }
