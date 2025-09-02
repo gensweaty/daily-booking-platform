@@ -137,21 +137,41 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           const ids = normalized.map(m => m.id);
           let byMsg: Record<string, any[]> = {};
           if (ids.length) {
-            const { data: atts } = await supabase
-              .from('chat_message_files')
-              .select('*')
-              .in('message_id', ids);
-            if (atts) {
-              byMsg = atts.reduce((acc: any, a: any) => {
-                (acc[a.message_id] ||= []).push({
-                  id: a.id,
-                  filename: a.filename,
-                  file_path: a.file_path,
-                  content_type: a.content_type,
-                  size: a.size,
-                });
-                return acc;
-              }, {});
+            if (onPublicBoard && me?.type === 'sub_user') {
+              // RLS-safe path for sub-users on external board
+              const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+                p_message_ids: ids
+              });
+              if (attRows) {
+                byMsg = attRows.reduce((acc: any, a: any) => {
+                  (acc[a.message_id] ||= []).push({
+                    id: a.id,
+                    filename: a.filename,
+                    file_path: a.file_path,
+                    content_type: a.content_type,
+                    size: a.size,
+                  });
+                  return acc;
+                }, {});
+              }
+            } else {
+              // existing direct select for authenticated
+              const { data: atts } = await supabase
+                .from('chat_message_files')
+                .select('*')
+                .in('message_id', ids);
+              if (atts) {
+                byMsg = atts.reduce((acc: any, a: any) => {
+                  (acc[a.message_id] ||= []).push({
+                    id: a.id,
+                    filename: a.filename,
+                    file_path: a.file_path,
+                    content_type: a.content_type,
+                    size: a.size,
+                  });
+                  return acc;
+                }, {});
+              }
             }
           }
 
@@ -266,6 +286,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     if (!content.trim() && attachments.length === 0) return;
     if (!activeChannelId || !boardOwnerId || !me) return;
 
+    // Ensure message body is never empty (use single space when files only)
+    const body = content.trim().length > 0 ? content.trim() : ' ';
+
     // --- optimistic paint
     const tempId = `temp_${Date.now()}`;
     const optimisticAtts = attachments.map((a: any) => {
@@ -283,7 +306,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
     const optimisticMessage: Message = {
       id: tempId,
-      content: content,
+      content: body,
       created_at: new Date().toISOString(),
       sender_type: me.type as 'admin' | 'sub_user',
       sender_name: (me.name || (me as any)?.full_name || 'Me'),
@@ -319,14 +342,14 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: me.email!,
-          p_content: content.trim(),
+          p_content: body, // Use body instead of content.trim()
         });
         if (error) throw error;
       } else if (isAuthed && me?.type === 'admin') {
         const { error } = await supabase.rpc('send_authenticated_message', {
           p_channel_id: activeChannelId,
           p_owner_id: boardOwnerId,
-          p_content: content.trim(),
+          p_content: body, // Use body instead of content.trim()
         });
         if (error) throw error;
       } else {
@@ -337,7 +360,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           p_board_owner_id: boardOwnerId,
           p_channel_id: activeChannelId,
           p_sender_email: senderEmail,
-          p_content: content.trim(),
+          p_content: body, // Use body instead of content.trim()
         });
         if (error) throw error;
       }
@@ -378,13 +401,25 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       // 4) hydrate with attachments + friendly display name fallback
       let atts: any[] = [];
       if (attachments.length > 0) {
-        const { data: linked } = await supabase
-          .from('chat_message_files')
-          .select('*')
-          .eq('message_id', real.id);
-        atts = (linked || []).map(a => ({
-          id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
-        }));
+        if (me?.type === 'sub_user' && location.pathname.startsWith('/board/')) {
+          // Use RLS-safe RPC for sub-users on external board
+          const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+            p_message_ids: [real.id]
+          });
+          atts = (attRows || []).map(a => ({
+            id: a.id, filename: a.filename, file_path: a.file_path,
+            content_type: a.content_type, size: a.size,
+          }));
+        } else {
+          // Direct select for authenticated users
+          const { data: linked } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .eq('message_id', real.id);
+          atts = (linked || []).map(a => ({
+            id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
+          }));
+        }
       }
 
       const hydrated: Message = {

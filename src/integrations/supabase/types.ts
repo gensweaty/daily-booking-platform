@@ -1946,6 +1946,17 @@ export type Database = {
           channel_id: string
         }[]
       }
+      list_files_for_messages_public: {
+        Args: { p_message_ids: string[] }
+        Returns: {
+          content_type: string
+          file_path: string
+          filename: string
+          id: string
+          message_id: string
+          size: number
+        }[]
+      }
       make_dm_pair_key: {
         Args: {
           p_a_id: string
