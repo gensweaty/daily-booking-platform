@@ -381,12 +381,33 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                         p_sender_email: senderEmail,
                       });
                       
-                      const { data: channelId, error } = await supabase.rpc('start_public_board_dm', {
+                      // Helper function to extract channel ID from various return formats
+                      const extractChannelId = (data: any): string | null => {
+                        if (!data) return null;
+                        if (typeof data === 'string') return data;
+                        if (Array.isArray(data) && data.length) {
+                          const f = data[0]; 
+                          if (f?.id) return f.id; 
+                          if (f?.channel_id) return f.channel_id;
+                        }
+                        if (typeof data === 'object') {
+                          if ('id' in data && data.id) return data.id as string;
+                          if ('channel_id' in data && data.channel_id) return data.channel_id as string;
+                        }
+                        return null;
+                      };
+
+                      const { data, error } = await supabase.rpc('start_public_board_dm', {
                         p_board_owner_id: boardOwnerId,
-                        p_other_id: member.id,
-                        p_other_type: member.type,
                         p_sender_email: senderEmail,
+                        // Send both parameter name styles to be future-proof
+                        p_other_type: member.type,
+                        p_other_id: member.id,
+                        p_target_type: member.type,
+                        p_target_id: member.id,
                       });
+                      
+                      const channelId = extractChannelId(data);
                       
                       if (error) {
                         console.error('❌ RPC error starting public DM:', error);
