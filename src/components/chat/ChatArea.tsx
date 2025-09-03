@@ -129,7 +129,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         // DM: fetch both participants and pick the OTHER one
         const { data: parts } = await supabase
           .from('chat_participants')
-          .select('participant_type, user_id, sub_user_id')
+          .select('user_type, user_id, sub_user_id')
           .eq('channel_id', activeChannelId);
         if (!parts || parts.length === 0) return;
 
@@ -138,12 +138,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const other = parts.find(p => {
           if (myType === 'admin') {
             // I am admin => "other" is either a sub_user or another admin with different id
-            return (p.participant_type === 'sub_user') ||
-                   (p.participant_type === 'admin' && p.user_id !== myId);
+            return (p.user_type === 'sub_user') ||
+                   (p.user_type === 'admin' && p.user_id !== myId);
           } else if (myType === 'sub_user') {
             // I am sub_user => "other" is either an admin or a different sub_user
-            return (p.participant_type === 'admin') ||
-                   (p.participant_type === 'sub_user' && p.sub_user_id !== myId);
+            return (p.user_type === 'admin') ||
+                   (p.user_type === 'sub_user' && p.sub_user_id !== myId);
           }
           return false;
         });
@@ -153,7 +153,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         let partnerName = 'Direct Message';
         let partnerAvatar: string | undefined;
 
-        if (other.participant_type === 'admin' && other.user_id) {
+        if (other.user_type === 'admin' && other.user_id) {
           const { data: prof } = await supabase
             .from('profiles')
             .select('username, avatar_url')
@@ -161,7 +161,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             .maybeSingle();
           partnerName   = normalizeAdminName(prof?.username) || 'Admin';
           partnerAvatar = prof?.avatar_url || undefined;
-        } else if (other.participant_type === 'sub_user' && other.sub_user_id) {
+        } else if (other.user_type === 'sub_user' && other.sub_user_id) {
           const { data: su } = await supabase
             .from('sub_users')
             .select('fullname, email, avatar_url')
