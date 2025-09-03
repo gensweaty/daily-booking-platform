@@ -303,3 +303,5 @@ export const PricingSection = () => {
     </section>
   );
 };
+
+export default PricingSection;

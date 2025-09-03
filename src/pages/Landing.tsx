@@ -6,18 +6,9 @@ import { cn } from "@/lib/utils";
 import { lazy, Suspense, memo, useEffect, useState, useMemo } from "react";
 import "@/components/landing/animations.css";
 
-// Fixed lazy loading - properly convert named exports to default exports
-const LazyFeatureSection = lazy(() => 
-  import("@/components/landing/FeatureSection").then(module => ({ 
-    default: module.FeatureSection 
-  }))
-);
-
-const LazyPricingSection = lazy(() => 
-  import("@/components/landing/PricingSection").then(module => ({ 
-    default: module.PricingSection 
-  }))
-);
+// Simplified lazy loading with proper default exports
+const LazyFeatureSection = lazy(() => import("@/components/landing/FeatureSection"));
+const LazyPricingSection = lazy(() => import("@/components/landing/PricingSection"));
 
 const LazyFooterSection = lazy(() => 
   import("@/components/landing/FooterSection")

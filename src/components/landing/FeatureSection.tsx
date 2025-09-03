@@ -97,3 +97,5 @@ export const FeatureSection = () => {
       </div>
     </section>;
 };
+
+export default FeatureSection;
