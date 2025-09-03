@@ -280,6 +280,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         <button
           onClick={() => {
             if (generalChannelId) {
+              // Clear selected member for General channel
+              window.dispatchEvent(new CustomEvent('chat-member-selected', {
+                detail: { member: null }
+              }));
               openChannel(generalChannelId);
               onChannelSelect?.();
             }
