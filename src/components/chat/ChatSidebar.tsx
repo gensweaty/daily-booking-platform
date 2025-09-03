@@ -280,9 +280,14 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         <button
           onClick={() => {
             if (generalChannelId) {
-              // Clear selected member for General channel
-              window.dispatchEvent(new CustomEvent('chat-member-selected', {
-                detail: { member: null }
+              // Tell the header explicitly: this is a Channel called "General"
+              window.dispatchEvent(new CustomEvent('chat-header', {
+                detail: {
+                  channelId: generalChannelId,
+                  isDM: false,
+                  title: 'General',
+                  avatar: null
+                }
               }));
               openChannel(generalChannelId);
               onChannelSelect?.();
@@ -435,6 +440,14 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       try {
                         await openChannel(channelId);
                         onDMStart?.();
+                        window.dispatchEvent(new CustomEvent('chat-header', {
+                          detail: {
+                            channelId,
+                            isDM: true,
+                            title: member.name,
+                            avatar: member.avatar_url
+                          }
+                        }));
                         console.log('✅ Public DM started successfully with:', member.name);
                       } catch (channelError) {
                         console.error('❌ Failed to open channel:', channelError);
@@ -445,10 +458,14 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       // Internal/authenticated path unchanged
                       await startDM(member.id, member.type);
                       onDMStart?.();
-                      // hint ChatArea about the partner so header appears instantly
-                      window.dispatchEvent(new CustomEvent('chat-dm-partner', {
-                        // channelId is optional; ChatArea will accept if it knows it's a DM
-                        detail: { partner: { name: member.name, avatar: member.avatar_url } }
+                      // Tell the header explicitly who this DM is with
+                      window.dispatchEvent(new CustomEvent('chat-header', {
+                        detail: {
+                          // channelId might not be known synchronously; header accepts missing channelId
+                          isDM: true,
+                          title: member.name,
+                          avatar: member.avatar_url
+                        }
                       }));
                       console.log('✅ DM started successfully with:', member.name);
                     }

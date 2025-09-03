@@ -127,7 +127,56 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => clearTimeout(timer);
   }, [activeChannelId, isInitialized]);
 
-  // RPC-based header logic removed - now using sidebar member selection for headers
+  // Fallback header logic (RPCs) — only if the sidebar hasn't set it yet
+  useEffect(() => {
+    if (channelInfo) return;             // sidebar already told us
+    if (!activeChannelId) return;
+
+    (async () => {
+      const onPublic = location.pathname.startsWith('/board/');
+      if (onPublic && boardOwnerId && effectiveEmail) {
+        const { data: hdr } = await supabase.rpc('get_channel_header_public', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_requester_email: effectiveEmail,
+        });
+        const row = hdr?.[0];
+        if (row) {
+          if (row.is_dm) {
+            setChannelInfo({
+              name: row.partner_name || 'Direct Message',
+              isDM: true,
+              dmPartner: { name: row.partner_name, avatar: row.partner_avatar_url }
+            });
+          } else {
+            setChannelInfo({ name: row.name || 'General', isDM: false });
+          }
+          return;
+        }
+      } else if (boardOwnerId && me?.id && me?.type) {
+        const { data: hdrInt } = await supabase.rpc('get_channel_header_internal', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_viewer_id: me.id,
+          p_viewer_type: me.type,
+        });
+        const row = hdrInt?.[0];
+        if (row) {
+          if (row.is_dm) {
+            setChannelInfo({
+              name: row.partner_name || 'Direct Message',
+              isDM: true,
+              dmPartner: { name: row.partner_name, avatar: row.partner_avatar_url }
+            });
+          } else {
+            setChannelInfo({ name: row.name || 'General', isDM: false });
+          }
+          return;
+        }
+      }
+      // If still nothing, we leave it null; UI will show "General" below or we may infer from messages later.
+    })();
+  }, [channelInfo, activeChannelId, boardOwnerId, me?.id, me?.type, effectiveEmail, location.pathname]);
 
   useEffect(() => {
     let active = true;
@@ -229,16 +278,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => { active = false; };
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
-  // NEW EFFECT — upgrades header from messages once they load
+  // LAST-RESORT fallback — infer DM from messages only if we still have no header
   useEffect(() => {
-    if (!activeChannelId || !messages?.length) return;
-
-    // If it's still "General" or empty, infer the DM partner from messages
-    if (!channelInfo || !channelInfo.isDM || !channelInfo.dmPartner?.name) {
-      const inferred = inferDMHeaderFromMessages(messages, me);
-      if (inferred) setChannelInfo(inferred);
-    }
-  }, [messages, activeChannelId]); // note: no channelInfo in deps
+    if (!activeChannelId || !messages?.length || channelInfo) return;
+    const inferred = inferDMHeaderFromMessages(messages, me);
+    if (inferred) setChannelInfo(inferred);
+  }, [messages, activeChannelId, channelInfo]);
 
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); setLoading(true); return; }
@@ -328,15 +373,21 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => window.removeEventListener('chat-reset', onReset as EventListener);
   }, []);
 
-  // Listen for instant DM partner hints
+  // Listen for unified header hints from the sidebar (works for General and DM)
   useEffect(() => {
     const handler = (e: any) => {
-      const { channelId, partner } = e.detail || {};
-      if (!channelId || channelId !== activeChannelId || !partner?.name) return;
-      setChannelInfo({ name: partner.name, isDM: true, dmPartner: partner });
+      const { channelId, isDM, title, avatar } = e.detail || {};
+      // If a channelId is provided and it doesn't match the active one, ignore.
+      if (channelId && channelId !== activeChannelId) return;
+      if (isDM) {
+        if (!title) return; // must have a name for DM
+        setChannelInfo({ name: title, isDM: true, dmPartner: { name: title, avatar } });
+      } else {
+        setChannelInfo({ name: title || 'General', isDM: false });
+      }
     };
-    window.addEventListener('chat-dm-partner', handler as EventListener);
-    return () => window.removeEventListener('chat-dm-partner', handler as EventListener);
+    window.addEventListener('chat-header', handler as EventListener);
+    return () => window.removeEventListener('chat-header', handler as EventListener);
   }, [activeChannelId]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
