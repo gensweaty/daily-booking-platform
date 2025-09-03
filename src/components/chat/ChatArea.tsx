@@ -148,18 +148,35 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       const myType = me?.type;
       const myId   = me?.id;
+      let myUUID = myId; // Default to original ID
+      
+      // For sub-users on public boards, we might need to resolve by email if ID is email-based
+      if (myType === 'sub_user' && isPublic && me?.email && myId?.includes('@')) {
+        console.log('🔍 Resolving sub-user UUID by email for public board:', me.email);
+        const { data: subUser } = await supabase
+          .from('sub_users')
+          .select('id')
+          .eq('board_owner_id', boardOwnerId)
+          .eq('email', me.email)
+          .maybeSingle();
+        if (subUser?.id) {
+          myUUID = subUser.id;
+          console.log('✅ Resolved sub-user UUID:', myUUID);
+        }
+      }
+      
       const other = parts.find(p => {
         if (myType === 'admin') {
           return (p.user_type === 'sub_user') ||
-                 (p.user_type === 'admin' && p.user_id !== myId);
+                 (p.user_type === 'admin' && p.user_id !== myUUID);
         } else if (myType === 'sub_user') {
           return (p.user_type === 'admin') ||
-                 (p.user_type === 'sub_user' && p.sub_user_id !== myId);
+                 (p.user_type === 'sub_user' && p.sub_user_id !== myUUID);
         }
         return false;
       });
       
-      console.log('👤 Found other participant:', other);
+      console.log('👤 Found other participant:', other, 'using myUUID:', myUUID);
       if (!other) {
         console.log('❌ No other participant found, fallback to General');
         const info = { name: 'General', isDM: false } as const;
