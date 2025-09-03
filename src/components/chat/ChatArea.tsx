@@ -45,6 +45,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   // Compute effective email using the same logic as ChatSidebar
   const effectiveEmail = getEffectivePublicEmail(location.pathname, me?.email);
 
+  // Know if the active channel is a DM (internal only)
+  const isPublic = location.pathname.startsWith('/board/');
+  const [channelMeta, setChannelMeta] = useState<{ name?: string | null; is_dm?: boolean | null } | null>(null);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [channelInfo, setChannelInfo] = useState<{ 
