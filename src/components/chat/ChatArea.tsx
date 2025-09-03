@@ -109,7 +109,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         return;
       }
 
-      // 2) Use participant-based resolution for BOTH internal and public boards
+      // 2) Use participant-based resolution for internal boards, special handling for public boards
       // What kind of channel is this?
       const { data: ch, error: chErr } = await supabase
         .from('chat_channels')
@@ -129,64 +129,92 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         return;
       }
 
-      // DM: fetch both participants and pick the OTHER one
+      // DM: Different resolution for internal vs public boards
       console.log('🔍 Resolving DM header for channel:', activeChannelId, 'me:', { type: me?.type, id: me?.id });
-      const { data: parts } = await supabase
-        .from('chat_participants')
-        .select('user_type, user_id, sub_user_id')
-        .eq('channel_id', activeChannelId);
       
-      console.log('👥 Found participants:', parts);
-      if (!parts || parts.length === 0) return;
+      if (!isPublic) {
+        // INTERNAL boards: Use direct participant matching
+        const { data: parts } = await supabase
+          .from('chat_participants')
+          .select('user_type, user_id, sub_user_id')
+          .eq('channel_id', activeChannelId);
+        
+        console.log('👥 Found participants (internal):', parts);
+        if (!parts || parts.length === 0) return;
 
-      const myType = me?.type;
-      const myId   = me?.id;
-      const other = parts.find(p => {
-        if (myType === 'admin') {
-          // I am admin => "other" is either a sub_user or another admin with different id
-          return (p.user_type === 'sub_user') ||
-                 (p.user_type === 'admin' && p.user_id !== myId);
-        } else if (myType === 'sub_user') {
-          // I am sub_user => "other" is either an admin or a different sub_user
-          return (p.user_type === 'admin') ||
-                 (p.user_type === 'sub_user' && p.sub_user_id !== myId);
+        const myType = me?.type;
+        const myId   = me?.id;
+        const other = parts.find(p => {
+          if (myType === 'admin') {
+            return (p.user_type === 'sub_user') ||
+                   (p.user_type === 'admin' && p.user_id !== myId);
+          } else if (myType === 'sub_user') {
+            return (p.user_type === 'admin') ||
+                   (p.user_type === 'sub_user' && p.sub_user_id !== myId);
+          }
+          return false;
+        });
+        
+        console.log('👤 Found other participant (internal):', other);
+        if (!other) return;
+
+        // Fetch partner profile
+        let partnerName = 'Direct Message';
+        let partnerAvatar: string | undefined;
+
+        if (other.user_type === 'admin' && other.user_id) {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', other.user_id)
+            .maybeSingle();
+          partnerName   = normalizeAdminName(prof?.username) || 'Admin';
+          partnerAvatar = prof?.avatar_url || undefined;
+        } else if (other.user_type === 'sub_user' && other.sub_user_id) {
+          const { data: su } = await supabase
+            .from('sub_users')
+            .select('fullname, email, avatar_url')
+            .eq('id', other.sub_user_id)
+            .maybeSingle();
+          partnerName   = (su?.fullname && su.fullname.trim()) || su?.email || 'Member';
+          partnerAvatar = su?.avatar_url || undefined;
         }
-        return false;
-      });
-      
-      console.log('👤 Found other participant:', other);
-      if (!other) return;
 
-      // Fetch partner profile
-      let partnerName = 'Direct Message';
-      let partnerAvatar: string | undefined;
-
-      if (other.user_type === 'admin' && other.user_id) {
-        console.log('🔍 Fetching admin profile for:', other.user_id);
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('username, avatar_url')
-          .eq('id', other.user_id)
-          .maybeSingle();
-        console.log('👤 Admin profile:', prof);
-        partnerName   = normalizeAdminName(prof?.username) || 'Admin';
-        partnerAvatar = prof?.avatar_url || undefined;
-      } else if (other.user_type === 'sub_user' && other.sub_user_id) {
-        console.log('🔍 Fetching sub-user profile for:', other.sub_user_id);
-        const { data: su } = await supabase
-          .from('sub_users')
-          .select('fullname, email, avatar_url')
-          .eq('id', other.sub_user_id)
-          .maybeSingle();
-        console.log('👤 Sub-user profile:', su);
-        partnerName   = (su?.fullname && su.fullname.trim()) || su?.email || 'Member';
-        partnerAvatar = su?.avatar_url || undefined;
+        console.log('✅ Resolved DM header (internal):', { partnerName, partnerAvatar });
+        const info = { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+      } else {
+        // PUBLIC boards: Use the RPC which handles the complex participant resolution
+        try {
+          const { data: hdr } = await supabase.rpc('get_channel_header_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_requester_email: effectiveEmail!,
+          });
+          console.log('🔍 Public header RPC result:', hdr);
+          const row = hdr?.[0];
+          if (row?.is_dm) {
+            const partnerName   = (row.partner_name && String(row.partner_name).trim()) || 'Direct Message';
+            const partnerAvatar = row.partner_avatar_url || undefined;
+            console.log('✅ Resolved DM header (public):', { partnerName, partnerAvatar });
+            const info = { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } } as const;
+            headerCacheRef.current.set(activeChannelId, info);
+            setChannelInfo(info);
+            return;
+          }
+          // Safety: if RPC says not DM but it's not General id, force "General"
+          const info = { name: 'General', isDM: false } as const;
+          headerCacheRef.current.set(activeChannelId, info);
+          setChannelInfo(info);
+        } catch (error) {
+          console.error('❌ Public header RPC failed:', error);
+          // As a last resort on public, show "General" rather than a wrong name
+          const info = { name: 'General', isDM: false } as const;
+          headerCacheRef.current.set(activeChannelId, info);
+          setChannelInfo(info);
+        }
       }
-
-      console.log('✅ Resolved DM header:', { partnerName, partnerAvatar });
-      const info = { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } } as const;
-      headerCacheRef.current.set(activeChannelId, info);
-      setChannelInfo(info);
     };
     resolveHeader();
   }, [activeChannelId, boardOwnerId, generalId, isPublic, effectiveEmail, me?.id, me?.type]);
