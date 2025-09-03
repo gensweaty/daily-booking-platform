@@ -119,7 +119,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         me_email: me?.email, 
         me_type: me?.type, 
         me_id: me?.id, 
-        pathname: location.pathname 
+        me_name: me?.name,
+        me_full_name: (me as any)?.full_name,
+        me_fullname: (me as any)?.fullname,
+        pathname: location.pathname,
+        effectiveEmail
       });
       
       if (!activeChannelId) { 
@@ -156,6 +160,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             dmPartner: isDm ? { name: row.partner_name, avatar: row.partner_avatar_url } : undefined,
           });
           return;
+        } else {
+          console.log('🔍 No public header data returned or error occurred');
         }
       }
 
@@ -191,18 +197,23 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           console.log('🔍 No internal header data returned or error occurred');
         }
       } else {
-        console.log('🔍 Missing required data for internal header:', { boardOwnerId, me_id: me?.id, me_type: me?.type });
+        console.log('🔍 Missing required data for internal header:', { 
+          boardOwnerId, 
+          me_id: me?.id, 
+          me_type: me?.type,
+          has_me: !!me 
+        });
       }
       
       // Try to infer DM header from cached messages if RPCs didn't set channelInfo
-      if (active && !channelInfo) {
-        const cached = cacheRef.current.get(activeChannelId) || [];
-        const inferred = inferDMHeaderFromMessages(cached, me);
-        if (inferred) {
-          console.log('🔍 Inferred DM header from messages:', inferred);
-          setChannelInfo(inferred);
-          return;
-        }
+      console.log('🔍 Attempting to infer from cached messages');
+      const cached = cacheRef.current.get(activeChannelId) || [];
+      console.log('🔍 Cached messages:', cached.length);
+      const inferred = inferDMHeaderFromMessages(cached, me);
+      if (inferred) {
+        console.log('🔍 Inferred DM header from cached messages:', inferred);
+        if (active) setChannelInfo(inferred);
+        return;
       }
       
       // Final fallback
