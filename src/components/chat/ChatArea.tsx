@@ -61,6 +61,27 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
   const activeChannelId = currentChannelId;
 
+  // Fetch channel metadata for internal boards to know if it's a DM
+  useEffect(() => {
+    setChannelInfo(null);      // clear stale header on switch
+    setChannelMeta(null);
+    if (!activeChannelId || isPublic) return;
+
+    (async () => {
+      console.log('🔍 Fetching channel metadata for:', activeChannelId);
+      const { data, error } = await supabase
+        .from('chat_channels')
+        .select('name, is_dm')
+        .eq('id', activeChannelId)
+        .maybeSingle();
+      
+      console.log('🔍 Channel metadata result:', { data, error });
+      if (!error && data) {
+        setChannelMeta({ name: data.name, is_dm: !!data.is_dm });
+      }
+    })();
+  }, [activeChannelId, isPublic]);
+
   // helper for clean display names
   const nameFor = (m: Message) =>
     (m.sender_name && m.sender_name.trim())
