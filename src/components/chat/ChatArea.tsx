@@ -38,7 +38,7 @@ interface ChatAreaProps {
 }
 
 export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
-  const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled } = useChat();
+  const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled, channelMemberMap } = useChat();
   const { toast } = useToast();
   const location = useLocation();
 
