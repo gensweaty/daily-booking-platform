@@ -61,6 +61,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const activeChannelId = currentChannelId;
   const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } }>>(new Map());
   const [generalId, setGeneralId] = useState<string | null>(null);
+  const [generalIdLoading, setGeneralIdLoading] = useState(true);
 
   // Always clear header on channel switch; we will re-resolve strictly
   useEffect(() => { setChannelInfo(null); }, [activeChannelId]);
