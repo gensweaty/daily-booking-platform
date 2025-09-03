@@ -38,7 +38,7 @@ interface ChatAreaProps {
 }
 
 export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
-  const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled, channelMemberMap } = useChat();
+  const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled } = useChat();
   const { toast } = useToast();
   const location = useLocation();
 
@@ -47,7 +47,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   // Know if the active channel is a DM (internal only)
   const isPublic = location.pathname.startsWith('/board/');
-  const [channelMeta, setChannelMeta] = useState<{ name?: string | null; is_dm?: boolean | null } | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,63 +59,155 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
   const activeChannelId = currentChannelId;
+  const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } }>>(new Map());
+  const [generalId, setGeneralId] = useState<string | null>(null);
 
-  // Fetch channel metadata for internal boards to know if it's a DM
-  useEffect(() => {
-    setChannelInfo(null);      // clear stale header on switch
-    setChannelMeta(null);
-    if (!activeChannelId || isPublic) return;
+  // Always clear header on channel switch; we will re-resolve strictly
+  useEffect(() => { setChannelInfo(null); }, [activeChannelId]);
 
-    (async () => {
-      console.log('🔍 Fetching channel metadata for:', activeChannelId);
-      const { data, error } = await supabase
-        .from('chat_channels')
-        .select('name, is_dm')
-        .eq('id', activeChannelId)
-        .maybeSingle();
-      
-      console.log('🔍 Channel metadata result:', { data, error });
-      if (!error && data) {
-        setChannelMeta({ name: data.name, is_dm: !!data.is_dm });
-      }
-    })();
-  }, [activeChannelId, isPublic]);
-
-  // helper for clean display names
+  // helper for clean display names (for message bubbles, not header)
   const nameFor = (m: Message) =>
     (m.sender_name && m.sender_name.trim())
     || (me?.name?.trim() || (me as any)?.full_name?.trim())
     || 'User';
 
-  // Helper to infer DM header from cached messages when RPCs don't work
-  const inferDMHeaderFromMessages = (
-    msgs: Message[],
-    meObj: any
-  ): { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } } | null => {
-    if (!msgs?.length) return null;
-
-    const myType = meObj?.type as 'admin' | 'sub_user' | undefined;
-    const myId   = meObj?.id as string | undefined;
-
-    // newest → oldest
-    for (let i = msgs.length - 1; i >= 0; i--) {
-      const m = msgs[i];
-      const msgSenderId   = m.sender_type === 'admin' ? m.sender_user_id : m.sender_sub_user_id;
-      const msgSenderType = m.sender_type;
-
-      const isMeById = !!myId && !!msgSenderId && myId === msgSenderId && myType === msgSenderType;
-      const isLikelyOther =
-        !isMeById &&
-        ((myType ? msgSenderType !== myType : true) || (!!myId && !!msgSenderId && msgSenderId !== myId));
-
-      if (isLikelyOther) {
-        const partnerName   = (m.sender_name && m.sender_name.trim()) || undefined;
-        const partnerAvatar = m.sender_avatar_url || undefined;
-        if (partnerName) return { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } };
-      }
-    }
-    return null;
+  // Normalize admin display name (avoid auto-generated "user_*")
+  const normalizeAdminName = (username?: string | null) => {
+    if (!username) return 'Admin';
+    return username.startsWith('user_') ? 'Admin' : username;
   };
+
+  // Load the General channel id (so General can never show a person's name)
+  useEffect(() => {
+    if (!boardOwnerId) { setGeneralId(null); return; }
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_default_channel_for_board', {
+          p_board_owner_id: boardOwnerId
+        });
+        if (error) { setGeneralId(null); return; }
+        setGeneralId(data?.[0]?.id ?? null);
+      } catch { setGeneralId(null); }
+    })();
+  }, [boardOwnerId, location.pathname]);
+
+  // Strict header resolver (no guessing)
+  useEffect(() => {
+    const resolveHeader = async () => {
+      if (!activeChannelId || !boardOwnerId) return;
+
+      // Cached?
+      const cached = headerCacheRef.current.get(activeChannelId);
+      if (cached) { setChannelInfo(cached); return; }
+
+      // 1) If this is the known General channel => force "General".
+      if (generalId && activeChannelId === generalId) {
+        const info = { name: 'General', isDM: false } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
+
+      // 2) INTERNAL boards: resolve strictly from participants
+      if (!isPublic) {
+        // What kind of channel is this?
+        const { data: ch, error: chErr } = await supabase
+          .from('chat_channels')
+          .select('name, is_dm')
+          .eq('id', activeChannelId)
+          .maybeSingle();
+        if (chErr) return;
+
+        // Non-DM: trust channel's own name (or General fallback)
+        if (!ch?.is_dm) {
+          const info = { name: ch?.name || 'General', isDM: false } as const;
+          headerCacheRef.current.set(activeChannelId, info);
+          setChannelInfo(info);
+          return;
+        }
+
+        // DM: fetch both participants and pick the OTHER one
+        const { data: parts } = await supabase
+          .from('chat_participants')
+          .select('participant_type, user_id, sub_user_id')
+          .eq('channel_id', activeChannelId);
+        if (!parts || parts.length === 0) return;
+
+        const myType = me?.type;
+        const myId   = me?.id;
+        const other = parts.find(p => {
+          if (myType === 'admin') {
+            // I am admin => "other" is either a sub_user or another admin with different id
+            return (p.participant_type === 'sub_user') ||
+                   (p.participant_type === 'admin' && p.user_id !== myId);
+          } else if (myType === 'sub_user') {
+            // I am sub_user => "other" is either an admin or a different sub_user
+            return (p.participant_type === 'admin') ||
+                   (p.participant_type === 'sub_user' && p.sub_user_id !== myId);
+          }
+          return false;
+        });
+        if (!other) return;
+
+        // Fetch partner profile
+        let partnerName = 'Direct Message';
+        let partnerAvatar: string | undefined;
+
+        if (other.participant_type === 'admin' && other.user_id) {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', other.user_id)
+            .maybeSingle();
+          partnerName   = normalizeAdminName(prof?.username) || 'Admin';
+          partnerAvatar = prof?.avatar_url || undefined;
+        } else if (other.participant_type === 'sub_user' && other.sub_user_id) {
+          const { data: su } = await supabase
+            .from('sub_users')
+            .select('fullname, email, avatar_url')
+            .eq('id', other.sub_user_id)
+            .maybeSingle();
+          partnerName   = (su?.fullname && su.fullname.trim()) || su?.email || 'Member';
+          partnerAvatar = su?.avatar_url || undefined;
+        }
+
+        const info = { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
+
+      // 3) PUBLIC boards:
+      //    If this is General (checked above) we already returned "General".
+      //    Otherwise, use the public header RPC only for DM partner details.
+      try {
+        const { data: hdr } = await supabase.rpc('get_channel_header_public', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_requester_email: effectiveEmail!,
+        });
+        const row = hdr?.[0];
+        if (row?.is_dm) {
+          const partnerName   = (row.partner_name && String(row.partner_name).trim()) || 'Direct Message';
+          const partnerAvatar = row.partner_avatar_url || undefined;
+          const info = { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } } as const;
+          headerCacheRef.current.set(activeChannelId, info);
+          setChannelInfo(info);
+          return;
+        }
+        // Safety: if RPC says not DM but it's not General id, force "General"
+        const info = { name: 'General', isDM: false } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+      } catch {
+        // As a last resort on public, show "General" rather than a wrong name
+        const info = { name: 'General', isDM: false } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+      }
+    };
+    resolveHeader();
+  }, [activeChannelId, boardOwnerId, generalId, isPublic, effectiveEmail, me?.id, me?.type]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -126,57 +217,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     }, 3000);
     return () => clearTimeout(timer);
   }, [activeChannelId, isInitialized]);
-
-  // Fallback header logic (RPCs) — only if the sidebar hasn't set it yet
-  useEffect(() => {
-    if (channelInfo) return;             // sidebar already told us
-    if (!activeChannelId) return;
-
-    (async () => {
-      const onPublic = location.pathname.startsWith('/board/');
-      if (onPublic && boardOwnerId && effectiveEmail) {
-        const { data: hdr } = await supabase.rpc('get_channel_header_public', {
-          p_owner_id: boardOwnerId,
-          p_channel_id: activeChannelId,
-          p_requester_email: effectiveEmail,
-        });
-        const row = hdr?.[0];
-        if (row) {
-          if (row.is_dm) {
-            setChannelInfo({
-              name: row.partner_name || 'Direct Message',
-              isDM: true,
-              dmPartner: { name: row.partner_name, avatar: row.partner_avatar_url }
-            });
-          } else {
-            setChannelInfo({ name: row.name || 'General', isDM: false });
-          }
-          return;
-        }
-      } else if (boardOwnerId && me?.id && me?.type) {
-        const { data: hdrInt } = await supabase.rpc('get_channel_header_internal', {
-          p_owner_id: boardOwnerId,
-          p_channel_id: activeChannelId,
-          p_viewer_id: me.id,
-          p_viewer_type: me.type,
-        });
-        const row = hdrInt?.[0];
-        if (row) {
-          if (row.is_dm) {
-            setChannelInfo({
-              name: row.partner_name || 'Direct Message',
-              isDM: true,
-              dmPartner: { name: row.partner_name, avatar: row.partner_avatar_url }
-            });
-          } else {
-            setChannelInfo({ name: row.name || 'General', isDM: false });
-          }
-          return;
-        }
-      }
-      // If still nothing, we leave it null; UI will show "General" below or we may infer from messages later.
-    })();
-  }, [channelInfo, activeChannelId, boardOwnerId, me?.id, me?.type, effectiveEmail, location.pathname]);
 
   useEffect(() => {
     let active = true;
@@ -278,13 +318,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => { active = false; };
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
-  // LAST-RESORT fallback — infer DM from messages only if we still have no header
-  useEffect(() => {
-    if (!activeChannelId || !messages?.length || channelInfo) return;
-    const inferred = inferDMHeaderFromMessages(messages, me);
-    if (inferred) setChannelInfo(inferred);
-  }, [messages, activeChannelId, channelInfo]);
-
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); setLoading(true); return; }
     const cached = cacheRef.current.get(activeChannelId);
@@ -372,23 +405,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     window.addEventListener('chat-reset', onReset as EventListener);
     return () => window.removeEventListener('chat-reset', onReset as EventListener);
   }, []);
-
-  // Listen for unified header hints from the sidebar (works for General and DM)
-  useEffect(() => {
-    const handler = (e: any) => {
-      const { channelId, isDM, title, avatar } = e.detail || {};
-      // If a channelId is provided and it doesn't match the active one, ignore.
-      if (channelId && channelId !== activeChannelId) return;
-      if (isDM) {
-        if (!title) return; // must have a name for DM
-        setChannelInfo({ name: title, isDM: true, dmPartner: { name: title, avatar } });
-      } else {
-        setChannelInfo({ name: title || 'General', isDM: false });
-      }
-    };
-    window.addEventListener('chat-header', handler as EventListener);
-    return () => window.removeEventListener('chat-header', handler as EventListener);
-  }, [activeChannelId]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
