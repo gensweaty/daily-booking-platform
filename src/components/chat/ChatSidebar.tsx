@@ -441,6 +441,13 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       // Internal/authenticated path unchanged
                       await startDM(member.id, member.type);
                       onDMStart?.();
+                      // hint ChatArea about the partner so header appears instantly
+                      // Note: currentChannelId should be set by startDM
+                      setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent('chat-dm-partner', {
+                          detail: { channelId: currentChannelId, partner: { name: member.name, avatar: member.avatar_url } }
+                        }));
+                      }, 0);
                       console.log('✅ DM started successfully with:', member.name);
                     }
                   } catch (error) {

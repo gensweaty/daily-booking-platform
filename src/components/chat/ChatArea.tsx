@@ -79,23 +79,15 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const msgSenderId   = m.sender_type === 'admin' ? m.sender_user_id : m.sender_sub_user_id;
       const msgSenderType = m.sender_type;
 
-      // Prefer "the other participant"
-      const isMeById   = !!myId && !!msgSenderId && myId === msgSenderId && myType === msgSenderType;
+      const isMeById = !!myId && !!msgSenderId && myId === msgSenderId && myType === msgSenderType;
       const isLikelyOther =
         !isMeById &&
-        (
-          // if we know my type, prefer the opposite type first
-          (myType ? msgSenderType !== myType : true) ||
-          // or same type but different id
-          (!!myId && !!msgSenderId && msgSenderId !== myId)
-        );
+        ((myType ? msgSenderType !== myType : true) || (!!myId && !!msgSenderId && msgSenderId !== myId));
 
       if (isLikelyOther) {
         const partnerName   = (m.sender_name && m.sender_name.trim()) || undefined;
         const partnerAvatar = m.sender_avatar_url || undefined;
-        if (partnerName) {
-          return { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } };
-        }
+        if (partnerName) return { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } };
       }
     }
     return null;
@@ -329,17 +321,16 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => { active = false; };
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
-  // NEW EFFECT: Infer DM header after messages load
+  // NEW EFFECT — upgrades header from messages once they load
   useEffect(() => {
-    if (!activeChannelId) return;
-    if (!messages?.length) return;
+    if (!activeChannelId || !messages?.length) return;
 
-    // If we don't have DM header yet or it still shows as a channel, try to infer
+    // If it's still "General" or empty, infer the DM partner from messages
     if (!channelInfo || !channelInfo.isDM || !channelInfo.dmPartner?.name) {
       const inferred = inferDMHeaderFromMessages(messages, me);
       if (inferred) setChannelInfo(inferred);
     }
-  }, [messages, activeChannelId]);  // ← intentionally NOT depending on channelInfo
+  }, [messages, activeChannelId]); // note: no channelInfo in deps
 
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); setLoading(true); return; }
@@ -428,6 +419,17 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     window.addEventListener('chat-reset', onReset as EventListener);
     return () => window.removeEventListener('chat-reset', onReset as EventListener);
   }, []);
+
+  // Listen for instant DM partner hints
+  useEffect(() => {
+    const handler = (e: any) => {
+      const { channelId, partner } = e.detail || {};
+      if (!channelId || channelId !== activeChannelId || !partner?.name) return;
+      setChannelInfo({ name: partner.name, isDM: true, dmPartner: partner });
+    };
+    window.addEventListener('chat-dm-partner', handler as EventListener);
+    return () => window.removeEventListener('chat-dm-partner', handler as EventListener);
+  }, [activeChannelId]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
