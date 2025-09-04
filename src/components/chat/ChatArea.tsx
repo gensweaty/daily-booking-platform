@@ -7,7 +7,7 @@ import { useChat } from './ChatProvider';
 import { resolveAvatarUrl } from './_avatar';
 import { useToast } from '@/hooks/use-toast';
 import { MessageInput } from './MessageInput';
-import { MessageAttachments } from './MessageAttachments';
+import { MessageList } from './MessageList';
 import { getEffectivePublicEmail } from '@/utils/chatEmail';
 
 type Message = {
@@ -22,6 +22,9 @@ type Message = {
   channel_id: string;
   has_attachments?: boolean;
   message_type?: string;
+  is_deleted?: boolean;
+  edited_at?: string;
+  original_content?: string;
   attachments?: Array<{
     id: string;
     filename: string;
@@ -45,7 +48,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   // Compute effective email using the same logic as ChatSidebar
   const effectiveEmail = getEffectivePublicEmail(location.pathname, me?.email);
 
-  // Know if the active channel is a DM (internal only)
   const isPublic = location.pathname.startsWith('/board/');
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -55,6 +57,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     isDM: boolean; 
     dmPartner?: { name: string; avatar?: string } 
   } | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
@@ -633,6 +637,105 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         variant: 'destructive',
       });
     }
+    };
+  };
+
+  const handleReply = (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (message) {
+      setReplyingTo(message);
+      setEditingMessage(null); // Cancel edit when replying
+    }
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  const handleEdit = (message: Message) => {
+    setEditingMessage(message);
+    setReplyingTo(null); // Cancel reply when editing
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    console.log('🔄 Reaction:', { messageId, emoji });
+    // TODO: Implement reactions
+  };
+
+  const handleEditMessage = async (messageId: string, content: string) => {
+    try {
+      console.log('📝 Editing message:', { messageId, content });
+      
+      const { error } = await supabase.functions.invoke('edit-message', {
+        body: { messageId, content }
+      });
+
+      if (error) {
+        console.error('❌ Error editing message:', error);
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to edit message',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setEditingMessage(null);
+      
+      // Reload messages to show the edit
+      setLoading(true);
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 500);
+      
+      console.log('✅ Message edited successfully');
+    } catch (error: any) {
+      console.error('❌ Edit message failed:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to edit message',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      console.log('🗑️ Deleting message:', messageId);
+      
+      const { error } = await supabase.functions.invoke('delete-message', {
+        body: { messageId }
+      });
+
+      if (error) {
+        console.error('❌ Error deleting message:', error);
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to delete message',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Reload messages to show the deletion
+      setLoading(true);
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 500);
+      
+      console.log('✅ Message deleted successfully');
+    } catch (error: any) {
+      console.error('❌ Delete message failed:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete message',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (loading || !isInitialized) {
@@ -690,49 +793,23 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       {/* Messages */}
       <div className="overflow-hidden">
         <ScrollArea className="h-full">
-          <div className="p-4 space-y-4">
-            {messages.length === 0 ? (
-              <div className="text-center text-sm text-muted-foreground py-12">
-                {channelInfo?.isDM 
-                  ? `Start a conversation!`
-                  : `Welcome to #${channelInfo?.name || 'general'}. Start chatting with your team!`
-                }
-              </div>
-            ) : (
-              messages.map((message) => (
-                <div key={message.id} className="flex gap-3">
-                  <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                    {resolveAvatarUrl(message.sender_avatar_url) ? (
-                      <img 
-                        src={resolveAvatarUrl(message.sender_avatar_url)!} 
-                        alt={message.sender_name || "User"} 
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xs font-medium">
-                        {(nameFor(message) || "U").slice(0, 2).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="font-medium text-sm">
-                        {nameFor(message)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(message.created_at).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap break-words">
-                      {message.content}
-                    </p>
-                    {message.attachments && message.attachments.length > 0 && (
-                      <MessageAttachments attachments={message.attachments} />
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="p-4">
+            <MessageList
+              messages={messages.map(m => ({
+                ...m,
+                sender_avatar: m.sender_avatar_url,
+                files: m.attachments
+              }))}
+              currentUser={me ? {
+                id: me.id,
+                type: me.type,
+                name: me.name || (me as any)?.full_name || 'Me'
+              } : null}
+              onReply={handleReply}
+              onReaction={handleReaction}
+              onEdit={handleEdit}
+              onDelete={handleDeleteMessage}
+            />
             <div ref={bottomRef} />
           </div>
         </ScrollArea>
@@ -742,7 +819,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       <div onFocus={onMessageInputFocus}>
         <MessageInput 
           onSendMessage={send}
+          onEditMessage={handleEditMessage}
           placeholder="Type a message..."
+          replyingTo={replyingTo}
+          onCancelReply={handleCancelReply}
+          editingMessage={editingMessage}
+          onCancelEdit={handleCancelEdit}
         />
       </div>
     </div>

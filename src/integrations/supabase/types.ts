@@ -343,9 +343,12 @@ export type Database = {
           channel_id: string
           content: string
           created_at: string | null
+          edited_at: string | null
           has_attachments: boolean | null
           id: string
+          is_deleted: boolean | null
           message_type: string | null
+          original_content: string | null
           owner_id: string | null
           reply_to_id: string | null
           sender_avatar_url: string | null
@@ -359,9 +362,12 @@ export type Database = {
           channel_id: string
           content: string
           created_at?: string | null
+          edited_at?: string | null
           has_attachments?: boolean | null
           id?: string
+          is_deleted?: boolean | null
           message_type?: string | null
+          original_content?: string | null
           owner_id?: string | null
           reply_to_id?: string | null
           sender_avatar_url?: string | null
@@ -375,9 +381,12 @@ export type Database = {
           channel_id?: string
           content?: string
           created_at?: string | null
+          edited_at?: string | null
           has_attachments?: boolean | null
           id?: string
+          is_deleted?: boolean | null
           message_type?: string | null
+          original_content?: string | null
           owner_id?: string | null
           reply_to_id?: string | null
           sender_avatar_url?: string | null
@@ -2044,9 +2053,12 @@ export type Database = {
           channel_id: string
           content: string
           created_at: string | null
+          edited_at: string | null
           has_attachments: boolean | null
           id: string
+          is_deleted: boolean | null
           message_type: string | null
+          original_content: string | null
           owner_id: string | null
           reply_to_id: string | null
           sender_avatar_url: string | null

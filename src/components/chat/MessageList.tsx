@@ -1,10 +1,20 @@
 import { useState } from 'react';
-import { MoreHorizontal, Reply, Smile, Copy, Pin, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Reply, Smile, Copy, Pin, Trash2, Edit, Clock } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 // This type is now defined locally since we removed the separate useChat hook
 type ChatMessage = {
   id: string;
@@ -21,6 +31,10 @@ type ChatMessage = {
   reactions?: any[];
   reply_to?: ChatMessage;
   files?: any[];
+  is_deleted?: boolean;
+  edited_at?: string;
+  original_content?: string;
+  message_type?: string;
 };
 
 interface MessageListProps {
@@ -28,10 +42,14 @@ interface MessageListProps {
   currentUser: { id: string; type: 'admin' | 'sub_user'; name: string } | null;
   onReply: (messageId: string) => void;
   onReaction: (messageId: string, emoji: string) => void;
+  onEdit: (message: ChatMessage) => void;
+  onDelete: (messageId: string) => void;
 }
 
-export const MessageList = ({ messages, currentUser, onReply, onReaction }: MessageListProps) => {
+export const MessageList = ({ messages, currentUser, onReply, onReaction, onEdit, onDelete }: MessageListProps) => {
   const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
 
   const getInitials = (name: string) => {
     return name
@@ -85,6 +103,31 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction }: Mess
         return false;
       })
     }));
+  };
+
+  const canEditMessage = (message: ChatMessage) => {
+    if (!isOwnMessage(message) || message.is_deleted) return false;
+    if (message.message_type && message.message_type !== 'text') return false;
+    
+    // Check 12-hour limit
+    const messageTime = new Date(message.created_at).getTime();
+    const now = new Date().getTime();
+    const hoursDiff = (now - messageTime) / (1000 * 60 * 60);
+    
+    return hoursDiff <= 12;
+  };
+
+  const handleDeleteClick = (messageId: string) => {
+    setMessageToDelete(messageId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (messageToDelete) {
+      onDelete(messageToDelete);
+      setMessageToDelete(null);
+    }
+    setDeleteDialogOpen(false);
   };
 
   if (messages.length === 0) {
@@ -171,12 +214,18 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction }: Mess
                 )}
 
                 {/* Message Text */}
-                <div className="text-sm text-foreground leading-relaxed">
+                <div className={`text-sm leading-relaxed ${message.is_deleted ? 'text-muted-foreground italic' : 'text-foreground'}`}>
                   {message.content}
+                  {message.edited_at && !message.is_deleted && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      <Clock className="h-3 w-3 inline mr-1" />
+                      edited
+                    </span>
+                  )}
                 </div>
 
-                {/* Files */}
-                {message.files && message.files.length > 0 && (
+                {/* Files - hide if message is deleted */}
+                {message.files && message.files.length > 0 && !message.is_deleted && (
                   <div className="mt-2 space-y-1">
                     {message.files.map((file) => (
                       <div
@@ -222,7 +271,7 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction }: Mess
               </div>
 
               {/* Message Actions */}
-              {hoveredMessage === message.id && (
+              {hoveredMessage === message.id && !message.is_deleted && (
                 <div className="absolute -top-2 right-0 flex items-center gap-1 bg-background border border-border rounded-lg p-1 shadow-lg">
                   <Button
                     variant="ghost"
@@ -257,6 +306,32 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction }: Mess
                     <Reply className="h-3 w-3" />
                   </Button>
                   
+                  {/* Edit button - only for own text messages within 12 hours */}
+                  {canEditMessage(message) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEdit(message)}
+                      className="h-6 w-6 p-0"
+                      title="Edit message"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                  )}
+                  
+                  {/* Delete button - only for own messages */}
+                  {isOwnMessage(message) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteClick(message.id)}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                      title="Delete message"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                  
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -272,12 +347,6 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction }: Mess
                         <Pin className="h-4 w-4 mr-2" />
                         Pin message
                       </DropdownMenuItem>
-                      {isOwnMessage(message) && (
-                        <DropdownMenuItem className="text-destructive">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete message
-                        </DropdownMenuItem>
-                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
@@ -286,6 +355,27 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction }: Mess
           </div>
         );
       })}
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Message</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this message? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

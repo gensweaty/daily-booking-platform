@@ -12,9 +12,12 @@ import { useToast } from '@/hooks/use-toast';
 
 interface MessageInputProps {
   onSendMessage: (content: string, attachments?: any[]) => void;
+  onEditMessage?: (messageId: string, content: string) => void;
   placeholder?: string;
   replyingTo?: ChatMessage | null;
   onCancelReply?: () => void;
+  editingMessage?: ChatMessage | null;
+  onCancelEdit?: () => void;
 }
 
 const ALLOWED_MIME: Record<string, string[]> = {
@@ -42,10 +45,13 @@ const iconForName = (name: string, type: string) => {
 };
 
 export const MessageInput = ({ 
-  onSendMessage, 
+  onSendMessage,
+  onEditMessage,
   placeholder,
   replyingTo,
-  onCancelReply
+  onCancelReply,
+  editingMessage,
+  onCancelEdit
 }: MessageInputProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -61,34 +67,45 @@ export const MessageInput = ({
   const uploadAndSend = async () => {
     setIsUploading(true);
     try {
-      let uploadedFiles: any[] = [];
-      if (attachments.length > 0) {
-        for (const file of attachments) {
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-          const filePath = `${fileName}`;
-
-          const { error: uploadError } = await supabase.storage.from('chat_attachments').upload(filePath, file);
-          if (uploadError) {
-            console.error('Upload error:', uploadError);
-            toast({ title: "Upload failed", description: `Could not upload ${file.name}`, variant: "destructive" });
-            continue;
-          }
-
-          const { data: pub } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
-          uploadedFiles.push({
-            filename: file.name,
-            file_path: filePath,
-            content_type: file.type || undefined,
-            size: file.size,
-            public_url: pub.publicUrl,
-            object_url: URL.createObjectURL(file),
-          });
+      if (editingMessage) {
+        // Handle editing
+        if (onEditMessage && message.trim()) {
+          await onEditMessage(editingMessage.id, message.trim());
+          setMessage('');
+          if (onCancelEdit) onCancelEdit();
         }
+      } else {
+        // Handle new message
+        let uploadedFiles: any[] = [];
+        if (attachments.length > 0) {
+          for (const file of attachments) {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            const { error: uploadError } = await supabase.storage.from('chat_attachments').upload(filePath, file);
+            if (uploadError) {
+              console.error('Upload error:', uploadError);
+              toast({ title: "Upload failed", description: `Could not upload ${file.name}`, variant: "destructive" });
+              continue;
+            }
+
+            const { data: pub } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
+            uploadedFiles.push({
+              filename: file.name,
+              file_path: filePath,
+              content_type: file.type || undefined,
+              size: file.size,
+              public_url: pub.publicUrl,
+              object_url: URL.createObjectURL(file),
+            });
+          }
+        }
+        onSendMessage(message.trim(), uploadedFiles);
+        setMessage('');
+        setAttachments([]);
       }
-      onSendMessage(message.trim(), uploadedFiles);
-      setMessage('');
-      setAttachments([]);
+      
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
@@ -99,8 +116,16 @@ export const MessageInput = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (message.trim() || attachments.length > 0) {
-      await uploadAndSend();
+    if (editingMessage) {
+      // For editing, only allow if there's content
+      if (message.trim()) {
+        await uploadAndSend();
+      }
+    } else {
+      // For new messages, allow if there's content or attachments
+      if (message.trim() || attachments.length > 0) {
+        await uploadAndSend();
+      }
     }
   };
 
@@ -187,6 +212,15 @@ export const MessageInput = ({
   }, [message]);
 
   useEffect(() => { textareaRef.current?.focus(); }, []);
+  
+  // Set message content when editing
+  useEffect(() => {
+    if (editingMessage) {
+      setMessage(editingMessage.content);
+    } else {
+      setMessage('');
+    }
+  }, [editingMessage]);
 
   return (
     <div className="p-4">
@@ -205,8 +239,23 @@ export const MessageInput = ({
         </div>
       )}
 
-      {/* File attachments preview */}
-      {attachments.length > 0 && (
+      {/* Edit Context */}
+      {editingMessage && (
+        <div className="mb-2 p-2 bg-warning/10 rounded border-l-2 border-warning flex items-start justify-between">
+          <div className="flex-1">
+            <p className="text-xs text-warning mb-1 font-medium">
+              Editing message
+            </p>
+            <p className="text-sm text-muted-foreground">Make your changes and press Enter to update</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onCancelEdit} className="h-6 w-6 p-0 ml-2">
+            <X className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
+
+      {/* File attachments preview - hide when editing */}
+      {attachments.length > 0 && !editingMessage && (
         <div className="mb-3 p-3 bg-muted/30 rounded-lg">
           <div className="text-sm text-muted-foreground mb-2">Attachments ({attachments.length})</div>
           <div className="flex flex-wrap gap-2">
@@ -255,40 +304,53 @@ export const MessageInput = ({
 
           {/* Input Actions */}
           <div className="absolute right-2 bottom-3 flex items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-              disabled={isUploading}
-              aria-label="Attach files"
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
+            {!editingMessage && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                disabled={isUploading}
+                aria-label="Attach files"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+            )}
 
-            <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                  disabled={isUploading}
-                  onClick={() => setShowEmojiPicker(v => !v)}
-                  aria-label="Insert emoji"
-                >
-                  <Smile className="h-4 w-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 bg-background border-input z-[10000]" align="end" side="top" sideOffset={8}>
-                <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" previewPosition="none" skinTonePosition="none" />
-              </PopoverContent>
-            </Popover>
+            {!editingMessage && (
+              <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    disabled={isUploading}
+                    onClick={() => setShowEmojiPicker(v => !v)}
+                    aria-label="Insert emoji"
+                  >
+                    <Smile className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-background border-input z-[10000]" align="end" side="top" sideOffset={8}>
+                  <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" previewPosition="none" skinTonePosition="none" />
+                </PopoverContent>
+              </Popover>
+            )}
           </div>
         </div>
 
-        <Button type="submit" size="sm" disabled={(!message.trim() && attachments.length === 0) || isUploading} className="h-12 w-12 p-0">
+        <Button 
+          type="submit" 
+          size="sm" 
+          disabled={
+            editingMessage 
+              ? !message.trim() || isUploading
+              : (!message.trim() && attachments.length === 0) || isUploading
+          } 
+          className="h-12 w-12 p-0"
+        >
           <Send className="h-4 w-4" />
         </Button>
       </form>

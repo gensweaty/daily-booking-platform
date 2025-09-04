@@ -16,6 +16,9 @@ export interface ChatMessage {
   has_attachments?: boolean;
   message_type?: string;
   attachments?: ChatAttachment[];
+  is_deleted?: boolean;
+  edited_at?: string;
+  original_content?: string;
 }
 
 export interface ChatAttachment {
@@ -260,12 +263,60 @@ export const useChatMessages = () => {
     }
   }, [currentChannel, loadMessages]);
 
+  // Edit message
+  const editMessage = useCallback(async (messageId: string, content: string) => {
+    try {
+      console.log('📝 Editing message:', { messageId, content });
+      
+      const { error } = await supabase.functions.invoke('edit-message', {
+        body: { messageId, content }
+      });
+
+      if (error) {
+        console.error('❌ Error editing message:', error);
+        throw error;
+      }
+      
+      console.log('✅ Message edited successfully');
+      // Reload messages to reflect changes
+      await loadMessages();
+    } catch (error) {
+      console.error('❌ Edit message failed:', error);
+      throw error;
+    }
+  }, [loadMessages]);
+
+  // Delete message
+  const deleteMessage = useCallback(async (messageId: string) => {
+    try {
+      console.log('🗑️ Deleting message:', messageId);
+      
+      const { error } = await supabase.functions.invoke('delete-message', {
+        body: { messageId }
+      });
+
+      if (error) {
+        console.error('❌ Error deleting message:', error);
+        throw error;
+      }
+      
+      console.log('✅ Message deleted successfully');
+      // Reload messages to reflect changes
+      await loadMessages();
+    } catch (error) {
+      console.error('❌ Delete message failed:', error);
+      throw error;
+    }
+  }, [loadMessages]);
+
   return {
     messages,
     channels,
     currentChannel,
     setCurrentChannel,
     sendMessage,
+    editMessage,
+    deleteMessage,
     loading,
     loadChannels,
     loadMessages
