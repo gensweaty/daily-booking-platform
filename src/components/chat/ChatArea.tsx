@@ -61,6 +61,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(null);
 
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
   const activeChannelId = currentChannelId;
@@ -70,6 +71,43 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   // Always clear header on channel switch; we will re-resolve strictly
   useEffect(() => { setChannelInfo(null); }, [activeChannelId]);
+
+  // Resolve current user ID for sub-users on public boards
+  useEffect(() => {
+    const resolveCurrentUserId = async () => {
+      if (!me || !boardOwnerId) {
+        setResolvedCurrentUserId(null);
+        return;
+      }
+
+      // For admins or internal boards, use the ID as-is
+      if (me.type === 'admin' || !isPublic) {
+        setResolvedCurrentUserId(me.id);
+        return;
+      }
+
+      // For sub-users on public boards, resolve UUID by email if ID is email-based
+      if (me.type === 'sub_user' && isPublic && me.email && me.id?.includes('@')) {
+        console.log('🔍 Resolving current user UUID by email for public board:', me.email);
+        const { data: subUser } = await supabase
+          .from('sub_users')
+          .select('id')
+          .eq('board_owner_id', boardOwnerId)
+          .eq('email', me.email)
+          .maybeSingle();
+        if (subUser?.id) {
+          setResolvedCurrentUserId(subUser.id);
+          console.log('✅ Resolved current user UUID:', subUser.id);
+        } else {
+          setResolvedCurrentUserId(me.id);
+        }
+      } else {
+        setResolvedCurrentUserId(me.id);
+      }
+    };
+
+    resolveCurrentUserId();
+  }, [me?.id, me?.type, me?.email, boardOwnerId, isPublic]);
 
   // helper for clean display names (for message bubbles, not header)
   const nameFor = (m: Message) =>
@@ -836,8 +874,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 sender_avatar: m.sender_avatar_url,
                 files: m.attachments
               }))}
-              currentUser={me ? {
-                id: me.id,
+              currentUser={me && resolvedCurrentUserId ? {
+                id: resolvedCurrentUserId,
                 type: me.type,
                 name: me.name || (me as any)?.full_name || 'Me'
               } : null}
