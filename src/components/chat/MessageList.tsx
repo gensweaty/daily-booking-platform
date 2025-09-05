@@ -306,40 +306,29 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction, onEdit
                     <Reply className="h-3 w-3" />
                   </Button>
                   
-                  {/* Edit button - only for own text messages within 12 hours */}
-                  {canEditMessage(message) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEdit(message)}
-                      className="h-6 w-6 p-0"
-                      title="Edit message"
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                  )}
-                  
-                  {/* Delete button - only for own messages */}
-                  {isOwnMessage(message) && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteClick(message.id)}
-                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                      title="Delete message"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                  
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                         <MoreHorizontal className="h-3 w-3" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                    <DropdownMenuContent align="end" className="z-[100]">
+                      {canEditMessage(message) && (
+                        <DropdownMenuItem onClick={() => onEdit(message)}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit message
+                        </DropdownMenuItem>
+                      )}
+                      {isOwnMessage(message) && (
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteClick(message.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete message
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem onClick={() => navigator.clipboard.writeText(message.content)}>
                         <Copy className="h-4 w-4 mr-2" />
                         Copy message
                       </DropdownMenuItem>
@@ -358,7 +347,7 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction, onEdit
       
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="z-[200]">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Message</AlertDialogTitle>
             <AlertDialogDescription>

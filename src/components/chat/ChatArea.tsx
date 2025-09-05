@@ -662,8 +662,43 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   };
 
   const handleReaction = async (messageId: string, emoji: string) => {
-    console.log('🔄 Reaction:', { messageId, emoji });
-    // TODO: Implement reactions
+    try {
+      console.log('🔄 Adding reaction:', { messageId, emoji });
+      
+      const { error } = await supabase.from('chat_message_reactions').upsert({
+        message_id: messageId,
+        user_id: me?.type === 'admin' ? me.id : null,
+        sub_user_id: me?.type === 'sub_user' ? me.id : null,
+        user_type: me?.type || 'admin',
+        emoji: emoji
+      }, {
+        onConflict: 'message_id,user_id,sub_user_id,emoji'
+      });
+
+      if (error) {
+        console.error('❌ Error adding reaction:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to add reaction',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Reload messages to show the reaction
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 100);
+      
+      console.log('✅ Reaction added successfully');
+    } catch (error: any) {
+      console.error('❌ Add reaction failed:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add reaction',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleEditMessage = async (messageId: string, content: string) => {
