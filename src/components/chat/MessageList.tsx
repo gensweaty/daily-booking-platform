@@ -274,14 +274,15 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
                     <Reply className="h-3 w-3" />
                   </Button>
                   
-                  {/* Edit button - only for own text messages within 12 hours */}
-                  {canEditMessage(message) && (
+                  {/* Edit button - show for own messages */}
+                  {isOwnMessage(message) && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => onEdit(message)}
                       className="h-6 w-6 p-0"
-                      title="Edit message"
+                      title={canEditMessage(message) ? "Edit message" : "Cannot edit this message"}
+                      disabled={!canEditMessage(message)}
                     >
                       <Edit className="h-3 w-3" />
                     </Button>
@@ -308,7 +309,7 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
       
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="z-[200]">
+        <AlertDialogContent className="z-[9999]">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Message</AlertDialogTitle>
             <AlertDialogDescription>
