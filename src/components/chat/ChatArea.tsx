@@ -14,6 +14,7 @@ type Message = {
   id: string;
   content: string;
   created_at: string;
+  updated_at?: string;
   sender_user_id?: string;
   sender_sub_user_id?: string;
   sender_type: 'admin' | 'sub_user';
@@ -637,7 +638,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         variant: 'destructive',
       });
     }
-    };
   };
 
   const handleReply = (messageId: string) => {
@@ -797,6 +797,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             <MessageList
               messages={messages.map(m => ({
                 ...m,
+                updated_at: m.updated_at || m.created_at,
                 sender_avatar: m.sender_avatar_url,
                 files: m.attachments
               }))}
@@ -821,12 +822,22 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           onSendMessage={send}
           onEditMessage={handleEditMessage}
           placeholder="Type a message..."
-          replyingTo={replyingTo}
+          replyingTo={replyingTo ? {
+            ...replyingTo,
+            updated_at: replyingTo.updated_at || replyingTo.created_at,
+            attachments: replyingTo.attachments
+          } : null}
           onCancelReply={handleCancelReply}
-          editingMessage={editingMessage}
+          editingMessage={editingMessage ? {
+            ...editingMessage,
+            updated_at: editingMessage.updated_at || editingMessage.created_at,
+            attachments: editingMessage.attachments
+          } : null}
           onCancelEdit={handleCancelEdit}
         />
       </div>
     </div>
   );
 };
+
+export default ChatArea;
