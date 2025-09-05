@@ -842,7 +842,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 name: me.name || (me as any)?.full_name || 'Me'
               } : null}
               onReply={handleReply}
-              onReaction={handleReaction}
               onEdit={handleEdit}
               onDelete={handleDeleteMessage}
             />

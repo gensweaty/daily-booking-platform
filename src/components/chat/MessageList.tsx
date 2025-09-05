@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { MoreHorizontal, Reply, Smile, Copy, Pin, Trash2, Edit, Clock } from 'lucide-react';
+import { Reply, Edit, Trash2, Clock, Smile } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { 
@@ -41,12 +40,11 @@ interface MessageListProps {
   messages: ChatMessage[];
   currentUser: { id: string; type: 'admin' | 'sub_user'; name: string } | null;
   onReply: (messageId: string) => void;
-  onReaction: (messageId: string, emoji: string) => void;
   onEdit: (message: ChatMessage) => void;
   onDelete: (messageId: string) => void;
 }
 
-export const MessageList = ({ messages, currentUser, onReply, onReaction, onEdit, onDelete }: MessageListProps) => {
+export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }: MessageListProps) => {
   const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
@@ -250,21 +248,14 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction, onEdit
                 {reactions.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
                     {reactions.map((reaction) => (
-                      <button
+                      <div
                         key={reaction.emoji}
-                        onClick={() => onReaction(message.id, reaction.emoji)}
-                        className={`
-                          flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors
-                          ${reaction.hasCurrentUser
-                            ? 'bg-primary/20 border border-primary/30'
-                            : 'bg-muted hover:bg-muted/80 border border-transparent'
-                          }
-                        `}
+                        className="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-muted border border-transparent"
                         title={`${reaction.users.join(', ')} reacted with ${reaction.emoji}`}
                       >
                         <span>{reaction.emoji}</span>
                         <span className="font-medium">{reaction.count}</span>
-                      </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -276,68 +267,38 @@ export const MessageList = ({ messages, currentUser, onReply, onReaction, onEdit
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => onReaction(message.id, '👍')}
-                    className="h-6 w-6 p-0"
-                  >
-                    👍
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onReaction(message.id, '❤️')}
-                    className="h-6 w-6 p-0"
-                  >
-                    ❤️
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onReaction(message.id, '😄')}
-                    className="h-6 w-6 p-0"
-                  >
-                    😄
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
                     onClick={() => onReply(message.id)}
                     className="h-6 w-6 p-0"
+                    title="Reply to message"
                   >
                     <Reply className="h-3 w-3" />
                   </Button>
                   
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                        <MoreHorizontal className="h-3 w-3" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="z-[100]">
-                      {canEditMessage(message) && (
-                        <DropdownMenuItem onClick={() => onEdit(message)}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit message
-                        </DropdownMenuItem>
-                      )}
-                      {isOwnMessage(message) && (
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteClick(message.id)}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete message
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => navigator.clipboard.writeText(message.content)}>
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copy message
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Pin className="h-4 w-4 mr-2" />
-                        Pin message
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {/* Edit button - only for own text messages within 12 hours */}
+                  {canEditMessage(message) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEdit(message)}
+                      className="h-6 w-6 p-0"
+                      title="Edit message"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                  )}
+                  
+                  {/* Delete button - only for own messages */}
+                  {isOwnMessage(message) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteClick(message.id)}
+                      className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                      title="Delete message"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
