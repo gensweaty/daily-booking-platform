@@ -85,6 +85,34 @@ serve(async (req) => {
       )
     }
 
+    // Get associated files before deleting
+    const { data: messageFiles } = await supabaseClient
+      .from('chat_message_files')
+      .select('file_path')
+      .eq('message_id', messageId)
+
+    // Delete files from storage if they exist
+    if (messageFiles && messageFiles.length > 0) {
+      const filePaths = messageFiles.map(file => file.file_path.replace('chat_attachments/', ''))
+      const { error: storageError } = await supabaseClient.storage
+        .from('chat_attachments')
+        .remove(filePaths)
+      
+      if (storageError) {
+        console.error('⚠️ Warning: Failed to delete some files from storage:', storageError)
+      }
+
+      // Delete file records from database
+      const { error: filesDeleteError } = await supabaseClient
+        .from('chat_message_files')
+        .delete()
+        .eq('message_id', messageId)
+
+      if (filesDeleteError) {
+        console.error('⚠️ Warning: Failed to delete file records:', filesDeleteError)
+      }
+    }
+
     // Soft delete - mark as deleted and replace content
     const { error: updateError } = await supabaseClient
       .from('chat_messages')
