@@ -741,20 +741,41 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   const handleEditMessage = async (messageId: string, content: string) => {
     try {
-      console.log('📝 Editing message:', { messageId, content });
+      console.log('📝 Editing message:', { messageId, content, isPublic, effectiveEmail });
       
-      const { error } = await supabase.functions.invoke('edit-message', {
-        body: { messageId, content }
-      });
-
-      if (error) {
-        console.error('❌ Error editing message:', error);
-        toast({
-          title: 'Error',
-          description: error.message || 'Failed to edit message',
-          variant: 'destructive',
+      // For public board sub-users, use the new RPC function
+      if (isPublic && me?.type === 'sub_user' && effectiveEmail && boardOwnerId) {
+        const { error } = await supabase.rpc('edit_public_board_message', {
+          p_owner_id: boardOwnerId,
+          p_message_id: messageId,
+          p_sender_email: effectiveEmail,
+          p_content: content
         });
-        return;
+
+        if (error) {
+          console.error('❌ Error editing public board message:', error);
+          toast({
+            title: 'Error',
+            description: error.message || 'Failed to edit message',
+            variant: 'destructive',
+          });
+          return;
+        }
+      } else {
+        // For admin users or internal board sub-users, use the edge function
+        const { error } = await supabase.functions.invoke('edit-message', {
+          body: { messageId, content }
+        });
+
+        if (error) {
+          console.error('❌ Error editing message:', error);
+          toast({
+            title: 'Error',
+            description: error.message || 'Failed to edit message',
+            variant: 'destructive',
+          });
+          return;
+        }
       }
       
       setEditingMessage(null);
@@ -778,20 +799,40 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   const handleDeleteMessage = async (messageId: string) => {
     try {
-      console.log('🗑️ Deleting message:', messageId);
+      console.log('🗑️ Deleting message:', messageId, { isPublic, effectiveEmail });
       
-      const { error } = await supabase.functions.invoke('delete-message', {
-        body: { messageId }
-      });
-
-      if (error) {
-        console.error('❌ Error deleting message:', error);
-        toast({
-          title: 'Error',
-          description: error.message || 'Failed to delete message',
-          variant: 'destructive',
+      // For public board sub-users, use the new RPC function
+      if (isPublic && me?.type === 'sub_user' && effectiveEmail && boardOwnerId) {
+        const { error } = await supabase.rpc('delete_public_board_message', {
+          p_owner_id: boardOwnerId,
+          p_message_id: messageId,
+          p_sender_email: effectiveEmail
         });
-        return;
+
+        if (error) {
+          console.error('❌ Error deleting public board message:', error);
+          toast({
+            title: 'Error',
+            description: error.message || 'Failed to delete message',
+            variant: 'destructive',
+          });
+          return;
+        }
+      } else {
+        // For admin users or internal board sub-users, use the edge function
+        const { error } = await supabase.functions.invoke('delete-message', {
+          body: { messageId }
+        });
+
+        if (error) {
+          console.error('❌ Error deleting message:', error);
+          toast({
+            title: 'Error',
+            description: error.message || 'Failed to delete message',
+            variant: 'destructive',
+          });
+          return;
+        }
       }
       
       // Reload messages to show the deletion
@@ -874,8 +915,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 sender_avatar: m.sender_avatar_url,
                 files: m.attachments
               }))}
-              currentUser={me && resolvedCurrentUserId ? {
-                id: resolvedCurrentUserId,
+              currentUser={me ? {
+                id: isPublic && me.type === 'sub_user' && me.email ? me.email : (resolvedCurrentUserId || me.id),
                 type: me.type,
                 name: me.name || (me as any)?.full_name || 'Me'
               } : null}

@@ -72,7 +72,10 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
     }
     
     if (currentUser.type === 'sub_user' && message.sender_type === 'sub_user') {
-      return message.sender_sub_user_id === currentUser.id;
+      // For public boards, sub-users may use email as ID initially
+      // Check both UUID and email-based identification
+      return message.sender_sub_user_id === currentUser.id || 
+             (message.sender_name === currentUser.name && currentUser.id?.includes('@'));
     }
     
     return false;

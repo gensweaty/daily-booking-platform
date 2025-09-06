@@ -1656,6 +1656,14 @@ export type Database = {
         Args: { p_event_id: string; p_user_id: string }
         Returns: number
       }
+      delete_public_board_message: {
+        Args: {
+          p_message_id: string
+          p_owner_id: string
+          p_sender_email: string
+        }
+        Returns: undefined
+      }
       delete_recurring_series: {
         Args: {
           p_delete_choice?: string
@@ -1676,6 +1684,15 @@ export type Database = {
       dm_sort_key: {
         Args: { p_id: string; p_type: string }
         Returns: string
+      }
+      edit_public_board_message: {
+        Args: {
+          p_content: string
+          p_message_id: string
+          p_owner_id: string
+          p_sender_email: string
+        }
+        Returns: undefined
       }
       ensure_dm_channel: {
         Args: {
