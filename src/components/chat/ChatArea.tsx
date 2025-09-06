@@ -874,8 +874,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 sender_avatar: m.sender_avatar_url,
                 files: m.attachments
               }))}
-              currentUser={me && resolvedCurrentUserId ? {
-                id: resolvedCurrentUserId,
+              currentUser={me && currentUserId ? {
+                id: currentUserId,
                 type: me.type,
                 name: me.name || (me as any)?.full_name || 'Me'
               } : null}
