@@ -803,6 +803,24 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       
       // For public board sub-users, use the new RPC function
       if (isPublic && me?.type === 'sub_user' && effectiveEmail && boardOwnerId) {
+        // First get associated files before deleting
+        const { data: messageFiles } = await supabase
+          .from('chat_message_files')
+          .select('file_path')
+          .eq('message_id', messageId);
+
+        // Delete files from storage if they exist
+        if (messageFiles && messageFiles.length > 0) {
+          const filePaths = messageFiles.map(file => file.file_path.replace('chat_attachments/', ''));
+          const { error: storageError } = await supabase.storage
+            .from('chat_attachments')
+            .remove(filePaths);
+          
+          if (storageError) {
+            console.error('⚠️ Warning: Failed to delete some files from storage:', storageError);
+          }
+        }
+
         const { error } = await supabase.rpc('delete_public_board_message', {
           p_owner_id: boardOwnerId,
           p_message_id: messageId,
