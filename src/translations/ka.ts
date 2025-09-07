@@ -1,5 +1,6 @@
 import { TranslationType } from './types';
 
+// Updated type definition with messageDeleted and channel properties
 export const translations: TranslationType = {
   taskComments: {
     title: 'კომენტარები',
