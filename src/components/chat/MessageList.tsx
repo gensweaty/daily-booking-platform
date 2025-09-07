@@ -14,6 +14,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useLanguage } from '@/contexts/LanguageContext';
 // This type is now defined locally since we removed the separate useChat hook
 type ChatMessage = {
   id: string;
@@ -45,6 +46,7 @@ interface MessageListProps {
 }
 
 export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }: MessageListProps) => {
+  const { t } = useLanguage();
   const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
@@ -216,11 +218,11 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
 
                 {/* Message Text */}
                 <div className={`text-sm leading-relaxed ${message.is_deleted ? 'text-muted-foreground italic' : 'text-foreground'}`}>
-                  {message.content}
+                  {message.is_deleted ? t('chat.messageDeleted') : message.content}
                   {message.edited_at && !message.is_deleted && (
                     <span className="text-xs text-muted-foreground ml-2">
                       <Clock className="h-3 w-3 inline mr-1" />
-                      edited
+                      {t('chat.edited')}
                     </span>
                   )}
                 </div>
@@ -314,18 +316,18 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="z-[9999]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Message</AlertDialogTitle>
+            <AlertDialogTitle>{t('chat.deleteMessage')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this message? This action cannot be undone.
+              {t('chat.deleteMessageConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogCancel>{t('chat.cancelButton')}</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDeleteConfirm}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Yes, Delete
+              {t('chat.deleteButton')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

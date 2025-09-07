@@ -733,5 +733,10 @@ export interface TranslationType {
     loading: string;
     messageDeleted: string;
     channel: string;
+    deleteMessage: string;
+    deleteMessageConfirm: string;
+    deleteButton: string;
+    cancelButton: string;
+    edited: string;
   };
 }
