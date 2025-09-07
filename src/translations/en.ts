@@ -729,6 +729,8 @@ export const translations: TranslationType = {
     directMessage: "Direct Message",
     typeMessage: "Type a message...",
     noTeamMembers: "No team members found",
-    loading: "Loading..."
+    loading: "Loading...",
+    messageDeleted: "Message deleted",
+    channel: "Channel"
   }
 };

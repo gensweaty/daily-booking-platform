@@ -729,6 +729,8 @@ export const translations: TranslationType = {
     directMessage: "პირადი მესიჯი",
     typeMessage: "დაწერეთ მესიჯი...",
     noTeamMembers: "გუნდის წევრები ვერ მოიძებნა",
-    loading: "იტვირთება..."
+    loading: "იტვირთება...",
+    messageDeleted: "მესიჯი წაიშალა",
+    channel: "არხი"
   }
 };
