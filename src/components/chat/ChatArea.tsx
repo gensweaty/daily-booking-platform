@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 import { getEffectivePublicEmail } from '@/utils/chatEmail';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 type Message = {
   id: string;
@@ -44,6 +45,7 @@ interface ChatAreaProps {
 export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled } = useChat();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const location = useLocation();
 
   // Compute effective email using the same logic as ChatSidebar
@@ -146,7 +148,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       // 1) If this is the known General channel => force "General".
       if (generalId && activeChannelId === generalId) {
-        const info = { name: 'General', isDM: false } as const;
+        const info = { name: t('chat.general'), isDM: false } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
         return;
@@ -166,7 +168,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       // Non-DM: trust channel's own name (or General fallback)
       if (!ch?.is_dm) {
-        const info = { name: ch?.name || 'General', isDM: false } as const;
+        const info = { name: ch?.name || t('chat.general'), isDM: false } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
         return;
@@ -183,7 +185,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       console.log('👥 Found participants:', parts);
       if (!parts || parts.length === 0) {
         console.log('❌ No participants found, fallback to General');
-        const info = { name: 'General', isDM: false } as const;
+        const info = { name: t('chat.general'), isDM: false } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
         return;
@@ -222,7 +224,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       console.log('👤 Found other participant:', other, 'using myUUID:', myUUID);
       if (!other) {
         console.log('❌ No other participant found, fallback to General');
-        const info = { name: 'General', isDM: false } as const;
+        const info = { name: t('chat.general'), isDM: false } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
         return;
@@ -914,11 +916,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         )}
         <h2 className="font-semibold">
           {channelInfo?.isDM
-            ? (channelInfo?.dmPartner?.name || 'Direct Message')
-            : (channelInfo?.name || 'General')}
+            ? (channelInfo?.dmPartner?.name || t('chat.directMessage'))
+            : (channelInfo?.name || t('chat.general'))}
         </h2>
         <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
-          {channelInfo?.isDM ? 'Direct Message' : 'Channel'}
+          {channelInfo?.isDM ? t('chat.directMessage') : t('chat.channel')}
         </span>
       </div>
 

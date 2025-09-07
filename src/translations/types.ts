@@ -731,5 +731,7 @@ export interface TranslationType {
     typeMessage: string;
     noTeamMembers: string;
     loading: string;
+    messageDeleted: string;
+    channel: string;
   };
 }
