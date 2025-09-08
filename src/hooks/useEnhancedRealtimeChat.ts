@@ -76,6 +76,25 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
           config.onNewMessage(payload.new);
         }
       )
+      .on('postgres_changes',
+        { 
+          schema: 'public', 
+          table: 'chat_messages', 
+          event: 'UPDATE', 
+          filter: `owner_id=eq.${config.boardOwnerId}` 
+        },
+        (payload) => {
+          console.log('✏️ Board-wide realtime message updated:', {
+            messageId: payload.new.id,
+            channelId: payload.new.channel_id,
+            senderId: payload.new.sender_user_id || payload.new.sender_sub_user_id,
+            content: payload.new.content?.substring(0, 50) + '...',
+            edited: !!payload.new.edited_at
+          });
+          // Send updated message with special flag to indicate it's an update
+          config.onNewMessage({ ...payload.new, _isUpdate: true });
+        }
+      )
       .subscribe((status) => {
         console.log('📡 Board subscription status:', status);
         

@@ -27,6 +27,7 @@ type Message = {
   is_deleted?: boolean;
   edited_at?: string;
   original_content?: string;
+  _isUpdate?: boolean; // Flag to indicate this is an update event
   attachments?: Array<{
     id: string;
     filename: string;
@@ -435,8 +436,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     const handleMessage = async (event: CustomEvent) => {
       let { message } = event.detail as { message: Message };
       const channelId = message.channel_id;
+      const isUpdate = message._isUpdate;
 
-      if (message.has_attachments) {
+      if (message.has_attachments && !isUpdate) {
         const { data: atts } = await supabase.from('chat_message_files').select('*').eq('message_id', message.id);
         message = { ...message, attachments: (atts || []).map(a => ({
           id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
@@ -444,16 +446,45 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       }
 
       const currentCache = cacheRef.current.get(channelId) || [];
-      const existsInCache = currentCache.some(m => m.id === message.id);
-      if (!existsInCache) {
-        const updatedCache = [...currentCache, message];
+      
+      if (isUpdate) {
+        // Handle message update
+        const updatedCache = currentCache.map(m => 
+          m.id === message.id ? {
+            ...message,
+            // Ensure we keep all the edit fields
+            updated_at: message.updated_at,
+            edited_at: message.edited_at,
+            original_content: message.original_content || m.original_content || m.content,
+            is_deleted: message.is_deleted
+          } : m
+        );
         cacheRef.current.set(channelId, updatedCache);
+        
         if (channelId === activeChannelId) {
-          setMessages(prev => {
-            const existsInUI = prev.some(m => m.id === message.id);
-            if (existsInUI) return prev;
-            return [...prev, message];
-          });
+          setMessages(prev => prev.map(m => 
+            m.id === message.id ? {
+              ...message,
+              updated_at: message.updated_at,
+              edited_at: message.edited_at,
+              original_content: message.original_content || m.original_content || m.content,
+              is_deleted: message.is_deleted
+            } : m
+          ));
+        }
+      } else {
+        // Handle new message
+        const existsInCache = currentCache.some(m => m.id === message.id);
+        if (!existsInCache) {
+          const updatedCache = [...currentCache, message];
+          cacheRef.current.set(channelId, updatedCache);
+          if (channelId === activeChannelId) {
+            setMessages(prev => {
+              const existsInUI = prev.some(m => m.id === message.id);
+              if (existsInUI) return prev;
+              return [...prev, message];
+            });
+          }
         }
       }
     };

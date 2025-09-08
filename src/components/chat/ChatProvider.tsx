@@ -282,17 +282,22 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const handleNewMessage = useCallback((message: any) => {
     console.log('📨 Enhanced realtime message received:', message);
 
-    // Hard dedupe by message id across polling + realtime
-    if (message?.id) {
-      if (seenMessageIdsRef.current.has(message.id)) {
-        return; // already processed this one
-      }
-      seenMessageIdsRef.current.add(message.id);
-      // optional tiny cap to avoid unbounded growth
-      if (seenMessageIdsRef.current.size > 3000) {
-        // drop oldest-ish by clearing (super rare) or rebuild smaller set if you prefer
-        seenMessageIdsRef.current.clear();
+    // Handle message updates differently - don't dedupe updates
+    const isUpdate = message._isUpdate;
+    
+    if (!isUpdate) {
+      // Hard dedupe by message id across polling + realtime for new messages only
+      if (message?.id) {
+        if (seenMessageIdsRef.current.has(message.id)) {
+          return; // already processed this one
+        }
         seenMessageIdsRef.current.add(message.id);
+        // optional tiny cap to avoid unbounded growth
+        if (seenMessageIdsRef.current.size > 3000) {
+          // drop oldest-ish by clearing (super rare) or rebuild smaller set if you prefer
+          seenMessageIdsRef.current.clear();
+          seenMessageIdsRef.current.add(message.id);
+        }
       }
     }
 
@@ -307,8 +312,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       ? message.sender_user_id === me.id 
       : message.sender_sub_user_id === me.id;
 
-    if (!isMyMessage) {
-      // Create realtime bump for unread tracking
+    if (!isMyMessage && !isUpdate) {
+      // Create realtime bump for unread tracking (only for new messages, not updates)
       setRtBump({
         channelId: message.channel_id,
         createdAt: message.created_at,
@@ -341,6 +346,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           senderName: message.sender_name || 'Unknown',
         });
       }
+    } else if (isUpdate) {
+      console.log('✏️ Message update - broadcasting to ChatArea');
     } else {
       console.log('⏭️ Skipping notification - own message');
     }
