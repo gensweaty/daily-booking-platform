@@ -553,8 +553,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         editingMessage={editingMessage ? { ...editingMessage, updated_at: editingMessage.updated_at || editingMessage.created_at } : null}
         onCancelEdit={() => setEditingMessage(null)}
         onEditMessage={handleEditMessage}
-        disabled={!activeChannelId}
-        className="border-t"
       />
     </div>
   );
