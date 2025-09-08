@@ -95,6 +95,28 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
           config.onNewMessage({ ...payload.new, _isUpdate: true });
         }
       )
+      .on('postgres_changes',
+        {
+          schema: 'public',
+          table: 'chat_message_files',
+          event: 'INSERT'
+        },
+        (payload) => {
+          console.log('📎 Board-wide file attachment received:', {
+            messageId: payload.new.message_id,
+            filename: payload.new.filename,
+            fileId: payload.new.id
+          });
+          // Dispatch a special file attachment event
+          window.dispatchEvent(new CustomEvent('chat-file-attachment-added', {
+            detail: { 
+              messageId: payload.new.message_id,
+              file: payload.new,
+              boardOwnerId: config.boardOwnerId
+            }
+          }));
+        }
+      )
       .subscribe((status) => {
         console.log('📡 Board subscription status:', status);
         
