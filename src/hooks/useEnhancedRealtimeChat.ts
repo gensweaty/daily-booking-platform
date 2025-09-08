@@ -105,21 +105,39 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
           event: 'INSERT'
         },
         async (payload) => {
-          console.log('📎 File attachment added:', payload.new);
+          console.log('📎 File attachment inserted:', {
+            fileId: payload.new.id,
+            messageId: payload.new.message_id,
+            filename: payload.new.filename
+          });
+          
           const messageId = payload.new.message_id;
           if (messageId) {
-            // Fetch the full message with attachments
-            const { data: message } = await supabase
-              .from('chat_messages')
-              .select('*')
-              .eq('id', messageId)
-              .eq('owner_id', config.boardOwnerId)
-              .maybeSingle();
-            
-            if (message) {
-              console.log('🔄 Sending message update with file attachments');
-              config.onNewMessage({ ...message, _isUpdate: true, has_attachments: true });
-            }
+            // Small delay to ensure all file records are inserted for multi-file uploads
+            setTimeout(async () => {
+              try {
+                // Fetch the full message with owner check
+                const { data: message } = await supabase
+                  .from('chat_messages')
+                  .select('*')
+                  .eq('id', messageId)
+                  .eq('owner_id', config.boardOwnerId)
+                  .maybeSingle();
+                
+                if (message) {
+                  console.log('🔄 Broadcasting file attachment update for message:', messageId);
+                  // Force update with attachment flag
+                  config.onNewMessage({ 
+                    ...message, 
+                    _isUpdate: true, 
+                    _fileAttachmentUpdate: true,
+                    has_attachments: true 
+                  });
+                }
+              } catch (error) {
+                console.error('❌ Error fetching message for file update:', error);
+              }
+            }, 100); // 100ms delay for multi-file uploads
           }
         }
       )

@@ -437,84 +437,83 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       let { message } = event.detail as { message: Message };
       const channelId = message.channel_id;
       const isUpdate = message._isUpdate;
+      const isFileUpdate = (message as any)._fileAttachmentUpdate;
 
-      // 🔧 FIX: Robust attachment loading with retry for real-time messages
-      if (message.has_attachments && !isUpdate) {
-        console.log('📎 Loading attachments for real-time message:', message.id);
+      console.log('🎯 ChatArea handling message:', {
+        messageId: message.id,
+        isUpdate,
+        isFileUpdate, 
+        hasAttachments: message.has_attachments,
+        channelId: channelId === activeChannelId ? 'ACTIVE' : 'OTHER'
+      });
+
+      // 🔧 FIX: Always try to load attachments for messages that should have them
+      if (message.has_attachments) {
+        console.log('📎 Loading attachments for message:', message.id);
         
         let attempts = 0;
-        const maxAttempts = 5; // Increased from 3
-        const baseDelay = 200; // Faster initial retry
+        const maxAttempts = isUpdate ? 2 : 6; // More attempts for new messages
+        const baseDelay = isUpdate ? 50 : 150;
         
         while (attempts < maxAttempts) {
-          const { data: atts } = await supabase
-            .from('chat_message_files')
-            .select('*')
-            .eq('message_id', message.id);
-          
-          if (atts && atts.length > 0) {
-            console.log('✅ Found', atts.length, 'attachments for message:', message.id);
-            message = { 
-              ...message, 
-              attachments: atts.map(a => ({
-                id: a.id,
-                filename: a.filename,
-                file_path: a.file_path,
-                content_type: a.content_type,
-                size: a.size,
-              }))
-            };
+          try {
+            const { data: atts } = await supabase
+              .from('chat_message_files')
+              .select('*')
+              .eq('message_id', message.id);
+            
+            if (atts && atts.length > 0) {
+              console.log('✅ Loaded', atts.length, 'attachments for message:', message.id);
+              message = { 
+                ...message, 
+                attachments: atts.map(a => ({
+                  id: a.id,
+                  filename: a.filename,
+                  file_path: a.file_path,
+                  content_type: a.content_type,
+                  size: a.size,
+                }))
+              };
+              break;
+            }
+            
+            attempts++;
+            if (attempts < maxAttempts) {
+              const delay = baseDelay * Math.pow(1.4, attempts);
+              console.log(`⏳ Attachments not ready for message ${message.id}, retry ${attempts}/${maxAttempts} in ${delay}ms`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+              console.warn('❌ Failed to load attachments after', maxAttempts, 'attempts for message:', message.id);
+              // Don't give up - set empty attachments but message still displays
+              message = { ...message, attachments: [] };
+            }
+          } catch (error) {
+            console.error('❌ Error loading attachments for message:', message.id, error);
             break;
           }
-          
-          attempts++;
-          if (attempts < maxAttempts) {
-            const delay = baseDelay * Math.pow(1.5, attempts); // Exponential backoff
-            console.log(`⏳ Attachments not ready yet for message ${message.id}, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          } else {
-            console.log('❌ Failed to load attachments after', maxAttempts, 'attempts for message:', message.id);
-            // Don't give up completely - keep message without attachments for now
-            message = { ...message, attachments: [] };
-          }
-        }
-      }
-
-      // 🔧 FIX: For updates, always try to fetch attachments if message has them
-      if (isUpdate && message.has_attachments) {
-        console.log('🔄 Fetching attachments for updated message:', message.id);
-        const { data: atts } = await supabase
-          .from('chat_message_files')
-          .select('*')
-          .eq('message_id', message.id);
-        
-        if (atts && atts.length > 0) {
-          message = {
-            ...message,
-            attachments: atts.map(a => ({
-              id: a.id,
-              filename: a.filename,
-              file_path: a.file_path,
-              content_type: a.content_type,
-              size: a.size,
-            }))
-          };
         }
       }
 
       const currentCache = cacheRef.current.get(channelId) || [];
       
       if (isUpdate) {
-        // Handle message update
+        console.log('🔄 Processing message update:', {
+          messageId: message.id, 
+          hasAttachments: message.has_attachments,
+          attachmentCount: message.attachments?.length || 0,
+          isFileUpdate
+        });
+        
+        // Handle message update - always update even if it's just file attachments
         const updatedCache = currentCache.map(m => 
           m.id === message.id ? {
             ...message,
-            // Ensure we keep all the edit fields
+            // Preserve edit fields for actual edits, but allow file updates
             updated_at: message.updated_at,
-            edited_at: message.edited_at,
+            edited_at: isFileUpdate ? m.edited_at : message.edited_at,
             original_content: message.original_content || m.original_content || m.content,
             is_deleted: message.is_deleted,
-            // 🔧 FIX: Preserve attachments on updates if they exist
+            // Always use new attachments if provided
             attachments: message.attachments || m.attachments || []
           } : m
         );
@@ -525,15 +524,20 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             m.id === message.id ? {
               ...message,
               updated_at: message.updated_at,
-              edited_at: message.edited_at,
+              edited_at: isFileUpdate ? m.edited_at : message.edited_at,
               original_content: message.original_content || m.original_content || m.content,
               is_deleted: message.is_deleted,
-              // 🔧 FIX: Preserve attachments on updates if they exist
               attachments: message.attachments || m.attachments || []
             } : m
           ));
         }
       } else {
+        console.log('➕ Processing new message:', {
+          messageId: message.id,
+          hasAttachments: message.has_attachments,
+          attachmentCount: message.attachments?.length || 0
+        });
+        
         // Handle new message
         const existsInCache = currentCache.some(m => m.id === message.id);
         if (!existsInCache) {
@@ -566,7 +570,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
-  // 🔧 FIX: Periodic check for messages with missing attachments
+  // 🔧 FIX: Enhanced periodic check for messages with missing attachments
   useEffect(() => {
     if (!activeChannelId) return;
     
@@ -576,9 +580,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       );
       
       if (messagesWithMissingAttachments.length > 0) {
-        console.log('🔍 Found', messagesWithMissingAttachments.length, 'messages with missing attachments, retrying...');
+        console.log('🔍 Found', messagesWithMissingAttachments.length, 'messages with missing attachments, checking...');
         
-        for (const msg of messagesWithMissingAttachments) {
+        for (const msg of messagesWithMissingAttachments.slice(0, 3)) { // Limit to 3 at a time
           try {
             const { data: atts } = await supabase
               .from('chat_message_files')
@@ -586,13 +590,15 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               .eq('message_id', msg.id);
             
             if (atts && atts.length > 0) {
-              console.log('✅ Recovered attachments for message:', msg.id);
+              console.log('✅ Recovered', atts.length, 'attachments for message:', msg.id);
               // Trigger message update with attachments
               window.dispatchEvent(new CustomEvent('chat-message-received', {
                 detail: {
                   message: {
                     ...msg,
                     _isUpdate: true,
+                    _fileAttachmentUpdate: true,
+                    has_attachments: true,
                     attachments: atts.map(a => ({
                       id: a.id,
                       filename: a.filename,
@@ -611,13 +617,23 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       }
     };
 
-    // Check for missing attachments every 5 seconds if there are any
-    const interval = setInterval(checkMissingAttachments, 5000);
+    // Check immediately on mount and when messages change
+    const timeoutId = setTimeout(checkMissingAttachments, 500);
     
-    // Also check once immediately
-    checkMissingAttachments();
+    // Then check periodically every 3 seconds if there are missing attachments  
+    const interval = setInterval(() => {
+      const hasMissingAttachments = messages.some(m => 
+        ((m as any).has_attachments === true) && (!m.attachments || m.attachments.length === 0)
+      );
+      if (hasMissingAttachments) {
+        checkMissingAttachments();
+      }
+    }, 3000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(interval);
+    };
   }, [messages, activeChannelId]);
 
   const send = async (content: string, attachments: any[] = []) => {
