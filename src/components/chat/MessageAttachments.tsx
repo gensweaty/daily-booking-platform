@@ -63,45 +63,48 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
 
   const openDoc = async (a: Att) => {
     try {
-      // Always use blob download method to avoid Chrome blocking Supabase URLs
+      // For PDF files, try to use Google Docs viewer as it's more reliable
+      if (a.content_type === 'application/pdf' || a.filename.toLowerCase().endsWith('.pdf')) {
+        // Get the public URL and encode it for Google Docs viewer
+        const publicUrl = publicUrlFor(a);
+        const encodedUrl = encodeURIComponent(publicUrl);
+        const viewerUrl = `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`;
+        
+        // Open in new tab using Google Docs viewer
+        window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      // For other file types, fall back to blob method
       const { data } = await supabase.storage.from('chat_attachments').download(a.file_path);
       if (!data) {
         console.error('Failed to download file:', a.filename);
         return;
       }
       
-      // Create blob with proper content type for better browser handling
+      // Create blob with proper content type
       const blob = new Blob([data], { 
-        type: a.content_type || 'application/pdf' 
+        type: a.content_type || 'application/octet-stream' 
       });
       
-      // Create a temporary URL for the blob
+      // Use the download approach but force it to display
       const blobUrl = URL.createObjectURL(blob);
-      
-      // Use a more reliable method - create a temporary anchor and click it
-      // This bypasses Chrome's window.open blocking
       const link = document.createElement('a');
       link.href = blobUrl;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       
-      // Make the link invisible and add to DOM temporarily
-      link.style.display = 'none';
+      // Don't set download attribute - let browser decide to display
       document.body.appendChild(link);
-      
-      // Trigger the click
       link.click();
-      
-      // Clean up immediately
       document.body.removeChild(link);
       
-      // Clean up the blob URL after a delay to ensure it loads
-      setTimeout(() => {
-        URL.revokeObjectURL(blobUrl);
-      }, 5000);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
       
     } catch (error) {
       console.error('Error opening document:', error);
+      // Final fallback - just download the file
+      downloadFile(a);
     }
   };
 
