@@ -64,13 +64,42 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const topSentinelRef = useRef<HTMLDivElement | null>(null);
   const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(null);
+  
+  // Pagination state per channel
+  const [paginationState, setPaginationState] = useState<{
+    [channelId: string]: {
+      items: Message[];
+      oldestCursor: string | null;
+      hasMore: boolean;
+      isFetchingOlder: boolean;
+    }
+  }>({});
 
-  const cacheRef = useRef<Map<string, Message[]>>(new Map());
+  const cacheRef = useRef<Map<string, { items: Message[]; oldestCursor: string | null; hasMore: boolean }>>(new Map());
   const activeChannelId = currentChannelId;
   const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } }>>(new Map());
   const [generalId, setGeneralId] = useState<string | null>(null);
   const [generalIdLoading, setGeneralIdLoading] = useState(true);
+  
+  // Get current pagination state for active channel
+  const currentPagination = activeChannelId ? paginationState[activeChannelId] : null;
+  
+  // Scroll to bottom function
+  const scrollToBottom = (behavior: 'smooth' | 'instant' = 'smooth') => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior, block: 'end' });
+    }
+  };
+  
+  // Check if user is near bottom of scroll area
+  const isNearBottom = () => {
+    if (!scrollAreaRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
+    return scrollHeight - (scrollTop + clientHeight) < 80;
+  };
 
   // -------- helper: fetch attachments correctly for public vs internal
   const fetchAttachments = async (messageId: string) => {
@@ -306,123 +335,352 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => clearTimeout(timer);
   }, [activeChannelId, isInitialized]);
 
-  useEffect(() => {
-    let active = true;
+  // Load initial messages with pagination
+  const loadInitialMessages = async (channelId: string) => {
+    if (!channelId || !me || !boardOwnerId || !isInitialized) return;
 
-    const loadMessages = async () => {
-      if (!activeChannelId || !me || !boardOwnerId || !isInitialized) return;
+    try {
+      setLoading(true);
+      const onPublicBoard = location.pathname.startsWith('/board/');
 
-      try {
-        const onPublicBoard = location.pathname.startsWith('/board/');
-        const { data: { session } } = await supabase.auth.getSession();
-        const isAuthed = !!session?.user?.id;
+      let data: any = null;
+      let error: any = null;
 
-        let data, error;
-        if (onPublicBoard && me?.type === 'sub_user') {
-          const result = await supabase.rpc('list_channel_messages_public', {
+      // Try paged RPC first, fallback to legacy
+      if (onPublicBoard && me?.type === 'sub_user') {
+        const result = await supabase.rpc('list_channel_messages_public_paged', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: channelId,
+          p_requester_type: 'sub_user',
+          p_requester_email: effectiveEmail!,
+          p_limit: 40,
+          p_before: null
+        });
+        
+        if (result.error) {
+          console.log('Paged RPC not available, falling back to legacy');
+          const fallback = await supabase.rpc('list_channel_messages_public', {
             p_owner_id: boardOwnerId,
-            p_channel_id: activeChannelId,
+            p_channel_id: channelId,
             p_requester_type: 'sub_user',
             p_requester_email: effectiveEmail!,
           });
-          data = result.data;
-          error = result.error;
+          data = fallback.data;
+          error = fallback.error;
         } else {
-          const result = await supabase.rpc('get_chat_messages_for_channel', {
-            p_board_owner_id: boardOwnerId,
-            p_channel_id: activeChannelId,
-          });
           data = result.data;
           error = result.error;
         }
+      } else {
+        const result = await supabase.rpc('get_chat_messages_for_channel_paged', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: channelId,
+          p_limit: 40,
+          p_before: null
+        });
 
-        if (error) { if (active) setLoading(false); return; }
-
-        if (active) {
-          const normalized = (data || []).map((m: any) => ({
-            ...m,
-            sender_type: m.sender_type as 'admin' | 'sub_user',
-            // ensure we always show *something* sensible
-            sender_name: (m.sender_name && m.sender_name.trim()) || undefined,
-          }));
-
-          // fetch attachments
-          const ids = normalized.map(m => m.id);
-          let byMsg: Record<string, any[]> = {};
-          if (ids.length) {
-            if (onPublicBoard && me?.type === 'sub_user') {
-              // RLS-safe path for sub-users on external board
-              const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
-                p_message_ids: ids
-              });
-              if (attRows) {
-                byMsg = attRows.reduce((acc: any, a: any) => {
-                  (acc[a.message_id] ||= []).push({
-                    id: a.id,
-                    filename: a.filename,
-                    file_path: a.file_path,
-                    content_type: a.content_type,
-                    size: a.size,
-                  });
-                  return acc;
-                }, {});
-              }
-            } else {
-              // existing direct select for authenticated
-              const { data: atts } = await supabase
-                .from('chat_message_files')
-                .select('*')
-                .in('message_id', ids);
-              if (atts) {
-                byMsg = atts.reduce((acc: any, a: any) => {
-                  (acc[a.message_id] ||= []).push({
-                    id: a.id,
-                    filename: a.filename,
-                    file_path: a.file_path,
-                    content_type: a.content_type,
-                    size: a.size,
-                  });
-                  return acc;
-                }, {});
-              }
-            }
-          }
-
-          const withAtts = normalized.map(m => ({
-            ...m,
-            attachments: byMsg[m.id] || [],
-          }));
-
-          // meta backfill so MessageList sees edit/deleted flags
-          let metaById = new Map<string, any>();
-          if (!onPublicBoard) {
-            const { data: meta } = await supabase
-              .from('chat_messages')
-              .select('id, updated_at, edited_at, original_content, is_deleted')
-              .in('id', ids);
-            if (meta) metaById = new Map(meta.map((x: any) => [x.id, x]));
-          }
-
-          const withMeta = withAtts.map(m => ({ ...m, ...(metaById.get(m.id) || {}) }));
-          setMessages(withMeta);
-          cacheRef.current.set(activeChannelId, withMeta);
-          setLoading(false);
+        if (result.error) {
+          console.log('Paged RPC not available, falling back to legacy');
+          const fallback = await supabase.rpc('get_chat_messages_for_channel', {
+            p_board_owner_id: boardOwnerId,
+            p_channel_id: channelId,
+          });
+          data = fallback.data;
+          error = fallback.error;
+        } else {
+          data = result.data;
+          error = result.error;
         }
-      } catch {
-        if (active) setLoading(false);
       }
-    };
 
-    loadMessages();
-    return () => { active = false; };
+      if (error) {
+        console.error('Error loading messages:', error);
+        setLoading(false);
+        return;
+      }
+
+      const normalized = (data || []).map((m: any) => ({
+        ...m,
+        sender_type: m.sender_type as 'admin' | 'sub_user',
+        sender_name: (m.sender_name && m.sender_name.trim()) || undefined,
+      }));
+
+      // Batch-hydrate attachments for messages with has_attachments=true
+      const messagesWithAttachments = normalized.filter(m => m.has_attachments);
+      const attachmentIds = messagesWithAttachments.map(m => m.id);
+      let byMsg: Record<string, any[]> = {};
+
+      if (attachmentIds.length) {
+        if (onPublicBoard && me?.type === 'sub_user') {
+          const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+            p_message_ids: attachmentIds
+          });
+          if (attRows) {
+            byMsg = attRows.reduce((acc: any, a: any) => {
+              (acc[a.message_id] ||= []).push({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              });
+              return acc;
+            }, {});
+          }
+        } else {
+          const { data: atts } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .in('message_id', attachmentIds);
+          if (atts) {
+            byMsg = atts.reduce((acc: any, a: any) => {
+              (acc[a.message_id] ||= []).push({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              });
+              return acc;
+            }, {});
+          }
+        }
+      }
+
+      const withAtts = normalized.map(m => ({
+        ...m,
+        attachments: byMsg[m.id] || [],
+      }));
+
+      // Meta backfill for edit/delete flags
+      let metaById = new Map<string, any>();
+      if (!onPublicBoard) {
+        const ids = withAtts.map(m => m.id);
+        const { data: meta } = await supabase
+          .from('chat_messages')
+          .select('id, updated_at, edited_at, original_content, is_deleted')
+          .in('id', ids);
+        if (meta) metaById = new Map(meta.map((x: any) => [x.id, x]));
+      }
+
+      const finalMessages = withAtts.map(m => ({ ...m, ...(metaById.get(m.id) || {}) }));
+
+      // Determine pagination state
+      const hasMore = data?.[0]?.has_more ?? false;
+      const oldestCursor = finalMessages.length > 0 ? finalMessages[0].created_at : null;
+
+      // Update state
+      setMessages(finalMessages);
+      setPaginationState(prev => ({
+        ...prev,
+        [channelId]: {
+          items: finalMessages,
+          oldestCursor,
+          hasMore,
+          isFetchingOlder: false
+        }
+      }));
+
+      // Cache for quick reopening
+      cacheRef.current.set(channelId, { items: finalMessages, oldestCursor, hasMore });
+      
+      setLoading(false);
+
+      // Scroll to bottom instantly after loading
+      setTimeout(() => scrollToBottom('instant'), 50);
+      
+    } catch (error) {
+      console.error('Error loading initial messages:', error);
+      setLoading(false);
+    }
+  };
+
+  // Load older messages when scrolling up
+  const loadOlderMessages = async (channelId: string) => {
+    const pagination = paginationState[channelId];
+    if (!pagination || !pagination.hasMore || pagination.isFetchingOlder) return;
+    if (!me || !boardOwnerId) return;
+
+    // Mark as fetching to prevent duplicate requests
+    setPaginationState(prev => ({
+      ...prev,
+      [channelId]: { ...prev[channelId], isFetchingOlder: true }
+    }));
+
+    try {
+      const onPublicBoard = location.pathname.startsWith('/board/');
+
+      let data: any = null;
+      let error: any = null;
+
+      if (onPublicBoard && me?.type === 'sub_user') {
+        const result = await supabase.rpc('list_channel_messages_public_paged', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: channelId,
+          p_requester_type: 'sub_user',
+          p_requester_email: effectiveEmail!,
+          p_limit: 40,
+          p_before: pagination.oldestCursor
+        });
+        data = result.data;
+        error = result.error;
+      } else {
+        const result = await supabase.rpc('get_chat_messages_for_channel_paged', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: channelId,
+          p_limit: 40,
+          p_before: pagination.oldestCursor
+        });
+        data = result.data;
+        error = result.error;
+      }
+
+      if (error) {
+        console.error('Error loading older messages:', error);
+        setPaginationState(prev => ({
+          ...prev,
+          [channelId]: { ...prev[channelId], isFetchingOlder: false }
+        }));
+        return;
+      }
+
+      const normalized = (data || []).map((m: any) => ({
+        ...m,
+        sender_type: m.sender_type as 'admin' | 'sub_user',
+        sender_name: (m.sender_name && m.sender_name.trim()) || undefined,
+      }));
+
+      // Hydrate attachments for new messages
+      const messagesWithAttachments = normalized.filter(m => m.has_attachments);
+      const attachmentIds = messagesWithAttachments.map(m => m.id);
+      let byMsg: Record<string, any[]> = {};
+
+      if (attachmentIds.length) {
+        if (onPublicBoard && me?.type === 'sub_user') {
+          const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+            p_message_ids: attachmentIds
+          });
+          if (attRows) {
+            byMsg = attRows.reduce((acc: any, a: any) => {
+              (acc[a.message_id] ||= []).push({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              });
+              return acc;
+            }, {});
+          }
+        } else {
+          const { data: atts } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .in('message_id', attachmentIds);
+          if (atts) {
+            byMsg = atts.reduce((acc: any, a: any) => {
+              (acc[a.message_id] ||= []).push({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              });
+              return acc;
+            }, {});
+          }
+        }
+      }
+
+      const withAtts = normalized.map(m => ({
+        ...m,
+        attachments: byMsg[m.id] || [],
+      }));
+
+      // Capture scroll position before updating state
+      const scrollContainer = scrollAreaRef.current;
+      const oldScrollHeight = scrollContainer?.scrollHeight || 0;
+      const oldScrollTop = scrollContainer?.scrollTop || 0;
+
+      // Determine new pagination state
+      const hasMore = data?.[0]?.has_more ?? false;
+      const newOldestCursor = withAtts.length > 0 ? withAtts[0].created_at : pagination.oldestCursor;
+
+      // Prepend new messages
+      const updatedItems = [...withAtts, ...pagination.items];
+      
+      setMessages(updatedItems);
+      setPaginationState(prev => ({
+        ...prev,
+        [channelId]: {
+          items: updatedItems,
+          oldestCursor: newOldestCursor,
+          hasMore,
+          isFetchingOlder: false
+        }
+      }));
+
+      // Maintain scroll position after prepending
+      setTimeout(() => {
+        if (scrollContainer) {
+          const newScrollHeight = scrollContainer.scrollHeight;
+          scrollContainer.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+        }
+      }, 0);
+
+    } catch (error) {
+      console.error('Error loading older messages:', error);
+      setPaginationState(prev => ({
+        ...prev,
+        [channelId]: { ...prev[channelId], isFetchingOlder: false }
+      }));
+    }
+  };
+
+  // Main load effect - check cache first, then load
+  useEffect(() => {
+    if (!activeChannelId || !isInitialized) return;
+
+    // Check cache first for instant display
+    const cached = cacheRef.current.get(activeChannelId);
+    if (cached) {
+      setMessages(cached.items);
+      setPaginationState(prev => ({
+        ...prev,
+        [activeChannelId]: {
+          items: cached.items,
+          oldestCursor: cached.oldestCursor,
+          hasMore: cached.hasMore,
+          isFetchingOlder: false
+        }
+      }));
+      setLoading(false);
+      setTimeout(() => scrollToBottom('instant'), 50);
+      return;
+    }
+
+    // Load fresh data if not cached
+    loadInitialMessages(activeChannelId);
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
+  // Scroll detection for loading older messages
   useEffect(() => {
-    if (!activeChannelId) { setMessages([]); setLoading(true); return; }
-    const cached = cacheRef.current.get(activeChannelId);
-    if (cached?.length) { setMessages(cached); setLoading(false); }
-    else { setLoading(true); }
-  }, [activeChannelId]);
+    if (!activeChannelId || !topSentinelRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && currentPagination?.hasMore && !currentPagination.isFetchingOlder) {
+          loadOlderMessages(activeChannelId);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(topSentinelRef.current);
+    
+    return () => observer.disconnect();
+  }, [activeChannelId, currentPagination?.hasMore, currentPagination?.isFetchingOlder]);
 
   // polling for public (only when realtime disabled)
   useEffect(() => {
@@ -519,23 +777,25 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         }
       }
 
-      const currentCache = cacheRef.current.get(channelId) || [];
+      const currentCache = cacheRef.current.get(channelId);
       
       if (isUpdate) {
         // Handle message update
-        const updatedCache = currentCache.map(m => 
-          m.id === message.id ? {
-            ...message,
-            // Ensure we keep all the edit fields
-            updated_at: message.updated_at,
-            edited_at: message.edited_at,
-            original_content: message.original_content || m.original_content || m.content,
-            is_deleted: message.is_deleted,
-            // 🔧 FIX: Preserve attachments on updates if they exist
-            attachments: message.attachments || m.attachments || []
-          } : m
-        );
-        cacheRef.current.set(channelId, updatedCache);
+        if (currentCache?.items) {
+          const updatedItems = currentCache.items.map(m => 
+            m.id === message.id ? {
+              ...message,
+              // Ensure we keep all the edit fields
+              updated_at: message.updated_at,
+              edited_at: message.edited_at,
+              original_content: message.original_content || m.original_content || m.content,
+              is_deleted: message.is_deleted,
+              // 🔧 FIX: Preserve attachments on updates if they exist
+              attachments: message.attachments || m.attachments || []
+            } : m
+          );
+          cacheRef.current.set(channelId, { ...currentCache, items: updatedItems });
+        }
         
         if (channelId === activeChannelId) {
           setMessages(prev => prev.map(m => 
@@ -552,17 +812,17 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         }
       } else {
         // Handle new message
-        const existsInCache = currentCache.some(m => m.id === message.id);
-        if (!existsInCache) {
-          const updatedCache = [...currentCache, message];
-          cacheRef.current.set(channelId, updatedCache);
-          if (channelId === activeChannelId) {
-            setMessages(prev => {
-              const existsInUI = prev.some(m => m.id === message.id);
-              if (existsInUI) return prev;
-              return [...prev, message];
-            });
-          }
+        const existsInCache = currentCache?.items?.some(m => m.id === message.id) || false;
+        if (!existsInCache && currentCache) {
+          const updatedItems = [...currentCache.items, message];
+          cacheRef.current.set(channelId, { ...currentCache, items: updatedItems });
+        }
+        if (channelId === activeChannelId) {
+          setMessages(prev => {
+            const existsInUI = prev.some(m => m.id === message.id);
+            if (existsInUI) return prev;
+            return [...prev, message];
+          });
         }
       }
     };
@@ -962,18 +1222,21 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       
       // Update cache as well
       if (activeChannelId) {
-        const updatedCache = cacheRef.current.get(activeChannelId)?.map(msg => 
-          msg.id === messageId 
-            ? { 
-                ...msg, 
-                content, 
-                updated_at: new Date().toISOString(),
-                edited_at: new Date().toISOString(),
-                original_content: msg.content 
-              }
-            : msg
-        ) || [];
-        cacheRef.current.set(activeChannelId, updatedCache);
+        const cached = cacheRef.current.get(activeChannelId);
+        if (cached?.items) {
+          const updatedItems = cached.items.map(msg => 
+            msg.id === messageId 
+              ? { 
+                  ...msg, 
+                  content, 
+                  updated_at: new Date().toISOString(),
+                  edited_at: new Date().toISOString(),
+                  original_content: msg.content 
+                }
+              : msg
+          );
+          cacheRef.current.set(activeChannelId, { ...cached, items: updatedItems });
+        }
       }
       
       console.log('✅ Message edited successfully');
@@ -1058,13 +1321,22 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       
       // Update cache as well
       if (activeChannelId) {
-        const updatedCache = cacheRef.current.get(activeChannelId)?.map(msg => 
-          msg.id === messageId 
-            ? { 
-                ...msg, 
-                content: '[Message deleted]',
-                is_deleted: true,
-                message_type: 'deleted',
+        const cached = cacheRef.current.get(activeChannelId);
+        if (cached?.items) {
+          const updatedItems = cached.items.map(msg => 
+            msg.id === messageId 
+              ? { 
+                  ...msg, 
+                  content: '[Message deleted]',
+                  is_deleted: true,
+                  message_type: 'deleted',
+                  updated_at: new Date().toISOString()
+                }
+              : msg
+          );
+          cacheRef.current.set(activeChannelId, { ...cached, items: updatedItems });
+        }
+      }
                 attachments: [] 
               }
             : msg
