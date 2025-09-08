@@ -1,16 +1,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Check, Star } from "lucide-react";
+import { Check } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useAuth } from "@/contexts/AuthContext";
-import { createCheckoutSession } from "@/utils/stripeUtils";
+import { createCheckoutSession } from "@/utils/optimizedStripeUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
-export const PricingSection = () => {
+const PricingSection = () => {
   const [isYearly, setIsYearly] = useState(false);
   const [loading, setLoading] = useState<'monthly' | 'yearly' | null>(null);
   const { t, language } = useLanguage();
