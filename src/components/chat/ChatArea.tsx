@@ -447,22 +447,40 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const baseDelay = 200; // Faster initial retry
         
         while (attempts < maxAttempts) {
-          const { data: atts } = await supabase
-            .from('chat_message_files')
-            .select('*')
-            .eq('message_id', message.id);
+          let atts: any[] = [];
+          const onPublicBoard = location.pathname.startsWith('/board/');
+          if (onPublicBoard && me?.type === 'sub_user') {
+            const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+              p_message_ids: [message.id],
+            });
+            atts = (attRows || []).map((a: any) => ({
+              id: a.id,
+              filename: a.filename,
+              file_path: a.file_path,
+              content_type: a.content_type,
+              size: a.size,
+            }));
+          } else {
+            const { data: linked } = await supabase
+              .from('chat_message_files')
+              .select('*')
+              .eq('message_id', message.id);
+            atts = (linked || []).map((a: any) => ({
+              id: a.id,
+              filename: a.filename,
+              file_path: a.file_path,
+              content_type: a.content_type,
+              size: a.size,
+            }));
+          }
           
           if (atts && atts.length > 0) {
             console.log('✅ Found', atts.length, 'attachments for message:', message.id);
             message = { 
               ...message, 
-              attachments: atts.map(a => ({
-                id: a.id,
-                filename: a.filename,
-                file_path: a.file_path,
-                content_type: a.content_type,
-                size: a.size,
-              }))
+              attachments: atts,
+              has_attachments: true,
+              message_type: 'file'
             };
             break;
           }
@@ -483,21 +501,39 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       // 🔧 FIX: For updates, always try to fetch attachments if message has them
       if (isUpdate && message.has_attachments) {
         console.log('🔄 Fetching attachments for updated message:', message.id);
-        const { data: atts } = await supabase
-          .from('chat_message_files')
-          .select('*')
-          .eq('message_id', message.id);
-        
+        let atts: any[] = [];
+        const onPublicBoard = location.pathname.startsWith('/board/');
+        if (onPublicBoard && me?.type === 'sub_user') {
+          const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+            p_message_ids: [message.id],
+          });
+          atts = (attRows || []).map((a: any) => ({
+            id: a.id,
+            filename: a.filename,
+            file_path: a.file_path,
+            content_type: a.content_type,
+            size: a.size,
+          }));
+        } else {
+          const { data: linked } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .eq('message_id', message.id);
+          atts = (linked || []).map((a: any) => ({
+            id: a.id,
+            filename: a.filename,
+            file_path: a.file_path,
+            content_type: a.content_type,
+            size: a.size,
+          }));
+        }
+
         if (atts && atts.length > 0) {
           message = {
             ...message,
-            attachments: atts.map(a => ({
-              id: a.id,
-              filename: a.filename,
-              file_path: a.file_path,
-              content_type: a.content_type,
-              size: a.size,
-            }))
+            attachments: atts,
+            has_attachments: true,
+            message_type: 'file'
           };
         }
       }
@@ -580,11 +616,32 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         
         for (const msg of messagesWithMissingAttachments) {
           try {
-            const { data: atts } = await supabase
-              .from('chat_message_files')
-              .select('*')
-              .eq('message_id', msg.id);
-            
+            let atts: any[] = [];
+            const onPublicBoard = location.pathname.startsWith('/board/');
+            if (onPublicBoard && me?.type === 'sub_user') {
+              const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+                p_message_ids: [msg.id],
+              });
+              atts = (attRows || []).map((a: any) => ({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              }));
+            } else {
+              const { data: linked } = await supabase
+                .from('chat_message_files')
+                .select('*')
+                .eq('message_id', msg.id);
+              atts = (linked || []).map((a: any) => ({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              }));
+            }
             if (atts && atts.length > 0) {
               console.log('✅ Recovered attachments for message:', msg.id);
               // Trigger message update with attachments
@@ -593,13 +650,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                   message: {
                     ...msg,
                     _isUpdate: true,
-                    attachments: atts.map(a => ({
-                      id: a.id,
-                      filename: a.filename,
-                      file_path: a.file_path,
-                      content_type: a.content_type,
-                      size: a.size,
-                    }))
+                    attachments: atts,
+                    has_attachments: true,
+                    message_type: 'file'
                   }
                 }
               }));
