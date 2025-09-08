@@ -463,20 +463,14 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           const updatedCache = currentCache.map(m => {
             if (m.id !== msg.id) return m;
             const merged: Message = { ...m, ...msg };
-            
-            // 🔧 PHASE 1: Preserve existing sender info that might be missing from realtime UPDATE
-            if (!merged.sender_name && m.sender_name) {
-              merged.sender_name = m.sender_name;
-            }
-            if (!merged.sender_avatar_url && m.sender_avatar_url) {
-              merged.sender_avatar_url = m.sender_avatar_url;
-            }
-            
-            // Keep existing attachments if update didn't include them
-            if ((!merged.attachments || merged.attachments.length === 0) && (m.attachments && m.attachments.length > 0)) {
+            if (!merged.sender_name && m.sender_name) merged.sender_name = m.sender_name;
+            if (!merged.sender_avatar_url && m.sender_avatar_url) merged.sender_avatar_url = m.sender_avatar_url;
+            // attachments: prefer fresh, else keep old
+            if (msg.attachments && msg.attachments.length > 0) {
+              merged.attachments = msg.attachments;
+            } else if ((!merged.attachments || merged.attachments.length === 0) && m.attachments?.length) {
               merged.attachments = m.attachments;
             }
-            
             merged.original_content = msg.original_content || m.original_content || m.content;
             return merged;
           });
@@ -486,19 +480,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             setMessages(prev => prev.map(m => {
               if (m.id !== msg.id) return m;
               const merged: Message = { ...m, ...msg };
-              
-              // 🔧 PHASE 1: Preserve existing sender info in UI state too
-              if (!merged.sender_name && m.sender_name) {
-                merged.sender_name = m.sender_name;
-              }
-              if (!merged.sender_avatar_url && m.sender_avatar_url) {
-                merged.sender_avatar_url = m.sender_avatar_url;
-              }
-              
-              if ((!merged.attachments || merged.attachments.length === 0) && (m.attachments && m.attachments.length > 0)) {
-                merged.attachments = m.attachments;
-              }
-              
+              if (!merged.sender_name && m.sender_name) merged.sender_name = m.sender_name;
+              if (!merged.sender_avatar_url && m.sender_avatar_url) merged.sender_avatar_url = m.sender_avatar_url;
+              if (msg.attachments?.length) merged.attachments = msg.attachments;
+              else if ((!merged.attachments || merged.attachments.length === 0) && m.attachments?.length) merged.attachments = m.attachments;
               merged.original_content = msg.original_content || m.original_content || m.content;
               return merged;
             }));

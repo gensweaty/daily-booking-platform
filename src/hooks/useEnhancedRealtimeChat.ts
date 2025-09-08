@@ -96,7 +96,7 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
                 messageId: msgId,
                 fileName: payload.new?.filename
               });
-              config.onNewMessage({ ...msg, _isUpdate: true, has_attachments: true });
+              onNewMessageRef.current({ ...msg, _isUpdate: true, has_attachments: true });
             }
           } catch (e) {
             console.error('⚠️ file insert bridge failed', e);
