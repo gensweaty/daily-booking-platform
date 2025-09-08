@@ -1,4 +1,3 @@
-// Chat message component with proper translations and edit/delete controls
 import { useState } from 'react';
 import { Reply, Edit, Trash2, Clock, Smile } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -267,7 +266,7 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
                 )}
               </div>
 
-                {/* Message Actions - only show for non-deleted messages */}
+              {/* Message Actions */}
               {hoveredMessage === message.id && !message.is_deleted && (
                 <div className="absolute -top-2 right-0 flex items-center gap-1 bg-background border border-border rounded-lg p-1 shadow-lg">
                   <Button
@@ -280,8 +279,8 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
                     <Reply className="h-3 w-3" />
                   </Button>
                   
-                  {/* Edit button - only for own non-deleted messages within 12 hours */}
-                  {isOwnMessage(message) && !message.is_deleted && (
+                  {/* Edit button - show for own messages */}
+                  {isOwnMessage(message) && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -294,8 +293,8 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
                     </Button>
                   )}
                   
-                  {/* Delete button - only for own messages and not deleted */}
-                  {isOwnMessage(message) && !message.is_deleted && (
+                  {/* Delete button - only for own messages */}
+                  {isOwnMessage(message) && (
                     <Button
                       variant="ghost"
                       size="sm"
