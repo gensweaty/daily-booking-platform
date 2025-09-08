@@ -639,14 +639,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   // Main load effect - check cache first, then load
   useEffect(() => {
-    if (!activeChannelId || !isInitialized) {
-      setLoading(true);
-      return;
-    }
-    
-    // Ensure all required dependencies are available before proceeding
-    if (!boardOwnerId || !me) {
-      setLoading(true);
+    if (!activeChannelId || !isInitialized || !boardOwnerId || !me) {
       return;
     }
 
