@@ -732,11 +732,6 @@ export const translations: TranslationType = {
     noTeamMembers: "No se encontraron miembros del equipo",
     loading: "Cargando...",
     messageDeleted: "Mensaje eliminado",
-    channel: "Canal",
-    deleteMessage: "Eliminar Mensaje",
-    deleteMessageConfirm: "¿Estás seguro de que deseas eliminar este mensaje? Esta acción no se puede deshacer.",
-    deleteButton: "Sí, Eliminar",
-    cancelButton: "No",
-    edited: "editado"
+    channel: "Canal"
   }
 };

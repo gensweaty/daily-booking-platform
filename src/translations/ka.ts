@@ -732,11 +732,6 @@ export const translations: TranslationType = {
     noTeamMembers: "გუნდის წევრები ვერ მოიძებნა",
     loading: "იტვირთება...",
     messageDeleted: "მესიჯი წაიშალა",
-    channel: "არხი",
-    deleteMessage: "შეტყობინების წაშლა",
-    deleteMessageConfirm: "დარწმუნებული ხართ, რომ გსურთ ამ შეტყობინების წაშლა? ეს მოქმედება შეუქცევადია.",
-    deleteButton: "კი, წაშლა",
-    cancelButton: "არა",
-    edited: "რედაქტირებული"
+    channel: "არხი"
   }
 };
