@@ -308,97 +308,66 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   useEffect(() => {
     let active = true;
-    let timeoutId: NodeJS.Timeout;
-    let retryCount = 0;
-    const maxRetries = 3;
-
-    const loadMessages = async (attempt = 1) => {
+    
+    const loadMessages = async () => {
       if (!activeChannelId || !me || !boardOwnerId || !isInitialized) return;
 
-      try {
-        // Enhanced network detection
-        const connection = (navigator as any).connection;
-        const userAgent = navigator.userAgent.toLowerCase();
-        const isMobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
-        
-        // More conservative network detection
-        const isSlowConnection = connection ? (
-          connection.effectiveType === '2g' || 
-          connection.effectiveType === '3g' ||
-          connection.downlink < 1.5 ||
-          connection.rtt > 400 ||
-          connection.saveData
-        ) : isMobile; // Default to slow if mobile and no connection API
-        
-        // More generous timeouts for mobile networks
-        const baseTimeout = isSlowConnection ? 15000 : 8000; // 15s for mobile, 8s for others
-        const timeoutDuration = baseTimeout + (attempt * 5000); // Add 5s per retry
-        
-        console.log(`📱 Loading messages (attempt ${attempt}/${maxRetries}) - slow network: ${isSlowConnection}, timeout: ${timeoutDuration}ms`);
+      // Check cache first
+      const cached = cacheRef.current.get(activeChannelId);
+      if (cached) {
+        console.log('📋 Using cached messages for channel:', activeChannelId);
+        setMessages(cached);
+        setLoading(false);
+        return;
+      }
 
-        // Create timeout promise
-        const timeoutPromise = new Promise((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error(`Network timeout after ${timeoutDuration}ms`)), timeoutDuration);
-        });
-
-        const onPublicBoard = location.pathname.startsWith('/board/');
-
-        // Main message loading with better error handling
-        const messageLoadPromise = (async () => {
+      setLoading(true);
+      
+      // Simple retry logic with exponential backoff
+      let lastError: any;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          console.log(`📱 Loading messages (attempt ${attempt}/3)`);
+          
+          const onPublicBoard = location.pathname.startsWith('/board/');
+          
+          // Simple message loading without complex timeout logic
+          let result;
           if (onPublicBoard && me?.type === 'sub_user') {
-            return await supabase.rpc('list_channel_messages_public', {
+            result = await supabase.rpc('list_channel_messages_public', {
               p_owner_id: boardOwnerId,
               p_channel_id: activeChannelId,
               p_requester_type: 'sub_user',
               p_requester_email: effectiveEmail!,
             });
           } else {
-            return await supabase.rpc('get_chat_messages_for_channel', {
+            result = await supabase.rpc('get_chat_messages_for_channel', {
               p_board_owner_id: boardOwnerId,
               p_channel_id: activeChannelId,
             });
           }
-        })();
 
-        // Race between message loading and timeout
-        const result = await Promise.race([messageLoadPromise, timeoutPromise]);
-        clearTimeout(timeoutId);
-        
-        let data, error;
-        if (result && typeof result === 'object' && 'data' in result) {
-          data = (result as any).data;
-          error = (result as any).error;
-        } else {
-          throw new Error('Invalid response format');
-        }
+          if (result.error) {
+            throw result.error;
+          }
 
-        if (error) { 
-          console.log(`❌ Message loading error (attempt ${attempt}):`, error);
-          throw error;
-        }
+          if (!active) return;
 
-        if (active) {
-          const normalized = (data || []).map((m: any) => ({
+          const normalized = (result.data || []).map((m: any) => ({
             ...m,
             sender_type: m.sender_type as 'admin' | 'sub_user',
             sender_name: (m.sender_name && m.sender_name.trim()) || undefined,
+            attachments: [], // Start without attachments for fast loading
           }));
 
           console.log(`✅ Loaded ${normalized.length} messages successfully`);
-
-          // Progressive loading - show messages immediately, load attachments separately
-          const withBasicMessages = normalized.map(m => ({
-            ...m,
-            attachments: [], // Start with no attachments
-          }));
-
-          // Set messages immediately for fast display
-          setMessages(withBasicMessages);
+          
+          setMessages(normalized);
           setLoading(false);
-          cacheRef.current.set(activeChannelId, withBasicMessages);
-
-          // Load attachments in background (non-blocking)
-          if (normalized.length > 0 && !isSlowConnection) {
+          cacheRef.current.set(activeChannelId, normalized);
+          
+          // Load attachments separately (non-blocking)
+          if (normalized.length > 0) {
             setTimeout(async () => {
               try {
                 const ids = normalized.map(m => m.id);
@@ -448,65 +417,44 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 if (active) {
                   setMessages(withAtts);
                   cacheRef.current.set(activeChannelId, withAtts);
-                  console.log('📎 Attachments loaded');
+                  console.log('📎 Background attachments loaded');
                 }
               } catch (attachErr) {
-                console.log('⚠️ Failed to load attachments, but messages are visible');
+                console.log('⚠️ Background attachment loading failed (non-critical)');
               }
-            }, 100);
+            }, 500);
           }
-
-          // Load metadata in background (non-blocking)
-          if (!onPublicBoard && !isSlowConnection) {
-            setTimeout(async () => {
-              try {
-                const ids = normalized.map(m => m.id);
-                const { data: meta } = await supabase
-                  .from('chat_messages')
-                  .select('id, updated_at, edited_at, original_content, is_deleted')
-                  .in('id', ids);
-
-                if (meta && active) {
-                  const metaById = new Map(meta.map((x: any) => [x.id, x]));
-                  setMessages(prev => prev.map(m => {
-                    const metaData = metaById.get(m.id);
-                    return metaData && typeof metaData === 'object' ? { ...m, ...metaData } : m;
-                  }));
-                  console.log('📝 Metadata loaded');
-                }
-              } catch (metaErr) {
-                console.log('⚠️ Failed to load metadata, but messages are visible');
-              }
-            }, 200);
-          }
-        }
-      } catch (loadErr) {
-        console.log(`❌ Chat loading failed (attempt ${attempt}/${maxRetries}):`, loadErr);
-        
-        if (active && attempt < maxRetries) {
-          // Retry with exponential backoff
-          retryCount++;
-          const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Max 5s delay
-          console.log(`🔄 Retrying in ${retryDelay}ms...`);
           
-          setTimeout(() => {
-            if (active) {
-              loadMessages(attempt + 1);
-            }
-          }, retryDelay);
-        } else if (active) {
-          // Final failure - set loading to false but don't show error to user
-          setLoading(false);
-          console.log('❌ All retry attempts failed, showing empty chat');
+          return; // Success, exit retry loop
+          
+        } catch (error) {
+          lastError = error;
+          console.log(`❌ Chat loading failed (attempt ${attempt}/3):`, error);
+          
+          if (attempt < 3) {
+            // Wait before retrying (exponential backoff)
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+            console.log(`⏳ Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
         }
       }
+      
+      // All retries failed
+      if (active) {
+        console.log('❌ All retries failed, showing error state');
+        setLoading(false);
+        toast({
+          title: t('chat.error'),
+          description: 'Failed to load messages. Please check your network connection.',
+          variant: 'destructive',
+        });
+      }
     };
-
     loadMessages();
     
     return () => { 
       active = false; 
-      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
