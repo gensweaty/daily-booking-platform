@@ -45,6 +45,8 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
 
   // local preview state for modal popup
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  // 🔧 FIX: Track loading state for attachments
+  const [loadingAttachments, setLoadingAttachments] = useState<Set<string>>(new Set());
 
   const downloadFile = async (a: Att) => {
     const { data, error } = await supabase.storage.from('chat_attachments').download(a.file_path);
@@ -91,19 +93,27 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
               {/* Media */}
               {isImage ? (
                 // CLICK = popup on the same page
-                <button
-                  type="button"
-                  onClick={() => setPreviewSrc(a.object_url || href)}
-                  className="block w-full"
-                >
-                  <img
-                    src={a.object_url || href}
-                    alt={a.filename}
-                    // modest height; no giant images in the timeline
-                    className="w-full h-auto max-h-64 object-contain bg-background"
-                    loading="lazy"
-                  />
-                </button>
+                 <button
+                   type="button"
+                   onClick={() => setPreviewSrc(a.object_url || href)}
+                   className="block w-full"
+                 >
+                   <img
+                     src={a.object_url || href}
+                     alt={a.filename}
+                     // modest height; no giant images in the timeline
+                     className="w-full h-auto max-h-64 object-contain bg-background"
+                     loading="lazy"
+                     onError={(e) => {
+                       // 🔧 FIX: Fallback for broken image URLs
+                       const target = e.target as HTMLImageElement;
+                       console.log('🖼️ Image load failed, trying fallback for:', a.filename);
+                       if (!target.src.includes('retry=1')) {
+                         target.src = `${publicUrlFor(a)}?retry=1&t=${Date.now()}`;
+                       }
+                     }}
+                   />
+                 </button>
               ) : (
                 <button type="button" onClick={() => openDoc(a)} className="w-full text-left">
                   <div className="w-full h-28 px-4 flex items-center gap-3 bg-background">

@@ -438,11 +438,45 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const channelId = message.channel_id;
       const isUpdate = message._isUpdate;
 
+      // 🔧 FIX: Robust attachment loading with retry for real-time messages
       if (message.has_attachments && !isUpdate) {
-        const { data: atts } = await supabase.from('chat_message_files').select('*').eq('message_id', message.id);
-        message = { ...message, attachments: (atts || []).map(a => ({
-          id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
-        }))};
+        console.log('📎 Loading attachments for real-time message:', message.id);
+        
+        let attempts = 0;
+        const maxAttempts = 3;
+        const baseDelay = 100;
+        
+        while (attempts < maxAttempts) {
+          const { data: atts } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .eq('message_id', message.id);
+          
+          if (atts && atts.length > 0) {
+            console.log('✅ Found', atts.length, 'attachments for message:', message.id);
+            message = { 
+              ...message, 
+              attachments: atts.map(a => ({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              }))
+            };
+            break;
+          }
+          
+          attempts++;
+          if (attempts < maxAttempts) {
+            console.log(`⏳ Attachments not ready yet for message ${message.id}, retrying in ${baseDelay * attempts}ms (attempt ${attempts}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, baseDelay * attempts));
+          } else {
+            console.log('❌ Failed to load attachments after', maxAttempts, 'attempts for message:', message.id);
+            // Keep the message but mark it for potential later retry
+            message = { ...message, attachments: [] };
+          }
+        }
       }
 
       const currentCache = cacheRef.current.get(channelId) || [];
@@ -456,7 +490,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             updated_at: message.updated_at,
             edited_at: message.edited_at,
             original_content: message.original_content || m.original_content || m.content,
-            is_deleted: message.is_deleted
+            is_deleted: message.is_deleted,
+            // 🔧 FIX: Preserve attachments on updates if they exist
+            attachments: message.attachments || m.attachments || []
           } : m
         );
         cacheRef.current.set(channelId, updatedCache);
@@ -468,7 +504,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               updated_at: message.updated_at,
               edited_at: message.edited_at,
               original_content: message.original_content || m.original_content || m.content,
-              is_deleted: message.is_deleted
+              is_deleted: message.is_deleted,
+              // 🔧 FIX: Preserve attachments on updates if they exist
+              attachments: message.attachments || m.attachments || []
             } : m
           ));
         }
