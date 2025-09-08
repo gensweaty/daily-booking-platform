@@ -438,39 +438,76 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const channelId = message.channel_id;
       const isUpdate = message._isUpdate;
 
-      if (message.has_attachments && !isUpdate) {
-        const { data: atts } = await supabase.from('chat_message_files').select('*').eq('message_id', message.id);
-        message = { ...message, attachments: (atts || []).map(a => ({
-          id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
-        }))};
+      // 🔧 Always hydrate attachments whenever the message says it has them
+      // (covers both first INSERT and later UPDATEs where has_attachments flips to true)
+      const shouldHydrateFiles = !!message.has_attachments || message.message_type === 'file';
+      if (shouldHydrateFiles) {
+        let atts: any[] = [];
+        try {
+          const onPublicBoard = location.pathname.startsWith('/board/');
+          if (onPublicBoard && me?.type === 'sub_user') {
+            const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+              p_message_ids: [message.id],
+            });
+            atts = (attRows || []).map((a: any) => ({
+              id: a.id,
+              filename: a.filename,
+              file_path: a.file_path,
+              content_type: a.content_type,
+              size: a.size,
+            }));
+          } else {
+            const { data: linked } = await supabase
+              .from('chat_message_files')
+              .select('*')
+              .eq('message_id', message.id);
+            atts = (linked || []).map((a: any) => ({
+              id: a.id,
+              filename: a.filename,
+              file_path: a.file_path,
+              content_type: a.content_type,
+              size: a.size,
+            }));
+          }
+        } catch (e) {
+          console.error('Failed to hydrate files:', e);
+        }
+        message = { ...message, attachments: atts, has_attachments: true, message_type: 'file' };
       }
 
       const currentCache = cacheRef.current.get(channelId) || [];
-      
+
       if (isUpdate) {
-        // Handle message update
-        const updatedCache = currentCache.map(m => 
-          m.id === message.id ? {
-            ...message,
-            // Ensure we keep all the edit fields
-            updated_at: message.updated_at,
-            edited_at: message.edited_at,
-            original_content: message.original_content || m.original_content || m.content,
-            is_deleted: message.is_deleted
-          } : m
-        );
+        // 🧠 Merge with existing so we NEVER drop prior fields/attachments
+        const updatedCache = currentCache.map(m => {
+          if (m.id !== message.id) return m;
+          const merged = {
+            ...m,          // keep everything we already had (sender info, attachments, etc.)
+            ...message,    // overlay any updated columns from realtime payload
+          };
+          // if realtime update didn't include attachments, keep existing ones
+          if (!merged.attachments || merged.attachments.length === 0) {
+            merged.attachments = m.attachments || [];
+          }
+          // keep strongest original_content we know of
+          merged.original_content = message.original_content || m.original_content || m.content;
+          return merged;
+        });
         cacheRef.current.set(channelId, updatedCache);
-        
+
         if (channelId === activeChannelId) {
-          setMessages(prev => prev.map(m => 
-            m.id === message.id ? {
+          setMessages(prev => prev.map(m => {
+            if (m.id !== message.id) return m;
+            const merged = {
+              ...m,
               ...message,
-              updated_at: message.updated_at,
-              edited_at: message.edited_at,
-              original_content: message.original_content || m.original_content || m.content,
-              is_deleted: message.is_deleted
-            } : m
-          ));
+            };
+            if (!merged.attachments || merged.attachments.length === 0) {
+              merged.attachments = m.attachments || [];
+            }
+            merged.original_content = message.original_content || m.original_content || m.content;
+            return merged;
+          }));
         }
       } else {
         // Handle new message
