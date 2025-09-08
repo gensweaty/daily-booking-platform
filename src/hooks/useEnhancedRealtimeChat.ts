@@ -95,6 +95,26 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
           config.onNewMessage({ ...payload.new, _isUpdate: true });
         }
       )
+      // 🔔 When a file row is inserted, fetch its parent message and emit an update
+      .on('postgres_changes',
+        { schema: 'public', table: 'chat_message_files', event: 'INSERT' },
+        async (payload) => {
+          try {
+            const msgId = payload.new?.message_id;
+            if (!msgId) return;
+            const { data: msg } = await supabase
+              .from('chat_messages')
+              .select('*, owner_id')
+              .eq('id', msgId)
+              .maybeSingle();
+            if (msg && msg.owner_id === config.boardOwnerId) {
+              config.onNewMessage({ ...msg, _isUpdate: true, has_attachments: true });
+            }
+          } catch (e) {
+            console.error('⚠️ file insert bridge failed', e);
+          }
+        }
+      )
       .subscribe((status) => {
         console.log('📡 Board subscription status:', status);
         
