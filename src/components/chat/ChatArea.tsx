@@ -336,17 +336,29 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   }, [activeChannelId, isInitialized]);
 
   // Load initial messages with pagination
+  const loadingChannelRef = useRef<string | null>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const loadInitialMessages = async (channelId: string) => {
     if (!channelId || !me || !boardOwnerId || !isInitialized) return;
     
-    // Prevent concurrent calls - key fix for mobile infinite loading
-    if (loading) {
-      console.log('⚠️ Skipping loadInitialMessages - already loading');
+    // Prevent concurrent calls for the same channel - mobile network fix
+    if (loadingChannelRef.current === channelId) {
+      console.log('⚠️ Skipping loadInitialMessages - already loading channel:', channelId);
       return;
     }
 
     try {
+      loadingChannelRef.current = channelId;
       setLoading(true);
+      
+      // Mobile network timeout - clear loading after 10 seconds max
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ Chat loading timeout - clearing loading state');
+        setLoading(false);
+        loadingChannelRef.current = null;
+      }, 10000);
       const onPublicBoard = location.pathname.startsWith('/board/');
 
       let data: any = null;
@@ -401,7 +413,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       if (error) {
         console.error('Error loading messages:', error);
+        if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
         setLoading(false);
+        loadingChannelRef.current = null;
         return;
       }
 
@@ -490,14 +504,18 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       // Cache for quick reopening
       cacheRef.current.set(channelId, { items: finalMessages, oldestCursor, hasMore });
       
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
       setLoading(false);
+      loadingChannelRef.current = null;
 
       // Scroll to bottom instantly after loading
       setTimeout(() => scrollToBottom('instant'), 50);
       
     } catch (error) {
       console.error('Error loading initial messages:', error);
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
       setLoading(false);
+      loadingChannelRef.current = null;
     }
   };
 
@@ -663,12 +681,15 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         }
       }));
       setLoading(false);
+      loadingChannelRef.current = null;
       setTimeout(() => scrollToBottom('instant'), 50);
       return;
     }
 
-    // Load fresh data if not cached
-    loadInitialMessages(activeChannelId);
+    // Load fresh data if not cached - only if not already loading this channel
+    if (loadingChannelRef.current !== activeChannelId) {
+      loadInitialMessages(activeChannelId);
+    }
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
   // Scroll detection for loading older messages
