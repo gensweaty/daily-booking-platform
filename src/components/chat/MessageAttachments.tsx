@@ -86,8 +86,8 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
           return (
             <div
               key={a.id ?? `${a.file_path}-${i}`}
-              // ~10% wider than the original compact card, not huge
-              className="group rounded-lg border bg-muted/30 overflow-hidden hover:bg-muted/50 transition w-fit min-w-[288px] max-w-[342px]"
+              // Responsive width that adapts to chat container size
+              className="group rounded-lg border bg-muted/30 overflow-hidden hover:bg-muted/50 transition w-full max-w-full"
               title={a.filename}
             >
               {/* Media */}
