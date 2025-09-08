@@ -485,10 +485,22 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             ...m,          // keep everything we already had (sender info, attachments, etc.)
             ...message,    // overlay any updated columns from realtime payload
           };
-          // if realtime update didn't include attachments, keep existing ones
-          if (!merged.attachments || merged.attachments.length === 0) {
+          
+          // 🔧 CRITICAL: Preserve sender info that might be missing from realtime UPDATE
+          if (!merged.sender_name && m.sender_name) {
+            merged.sender_name = m.sender_name;
+          }
+          if (!merged.sender_avatar_url && m.sender_avatar_url) {
+            merged.sender_avatar_url = m.sender_avatar_url;
+          }
+          
+          // If we just got file attachments, use the hydrated ones, otherwise keep existing
+          if (message.attachments && message.attachments.length > 0) {
+            merged.attachments = message.attachments;
+          } else if (!merged.attachments || merged.attachments.length === 0) {
             merged.attachments = m.attachments || [];
           }
+          
           // keep strongest original_content we know of
           merged.original_content = message.original_content || m.original_content || m.content;
           return merged;
@@ -502,9 +514,22 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               ...m,
               ...message,
             };
-            if (!merged.attachments || merged.attachments.length === 0) {
+            
+            // 🔧 CRITICAL: Preserve sender info that might be missing from realtime UPDATE
+            if (!merged.sender_name && m.sender_name) {
+              merged.sender_name = m.sender_name;
+            }
+            if (!merged.sender_avatar_url && m.sender_avatar_url) {
+              merged.sender_avatar_url = m.sender_avatar_url;
+            }
+            
+            // If we just got file attachments, use the hydrated ones, otherwise keep existing
+            if (message.attachments && message.attachments.length > 0) {
+              merged.attachments = message.attachments;
+            } else if (!merged.attachments || merged.attachments.length === 0) {
               merged.attachments = m.attachments || [];
             }
+            
             merged.original_content = message.original_content || m.original_content || m.content;
             return merged;
           }));
