@@ -721,6 +721,7 @@ export const translations: TranslationType = {
     november: "ნოემბერი",
     december: "დეკემბერი"
   },
+  // Georgian translations with proper chat localization
   chat: {
     teamChat: "გუნდის ჩატი",
     general: "ზოგადი",
