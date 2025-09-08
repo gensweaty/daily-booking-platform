@@ -96,16 +96,27 @@ export const MessageList = ({
   const wasEdited = (m: ChatMessage) => {
     if (isDeleted(m)) return false;
 
-    // explicit flags
+    // 🔧 FIX: Only show as edited if there's explicit edit evidence
+    // explicit edit flags
     // @ts-ignore
     if (m.edited_at || (m as any).is_edited === true) return true;
 
-    // content changed (if original was sent)
+    // content changed (if original was sent) - this is the most reliable indicator
     if (m.original_content && m.original_content.trim() !== (m.content || "").trim()) return true;
 
-    // timestamps – accept any difference, even same-second
-    if (m.updated_at && m.created_at && m.updated_at !== m.created_at) return true;
-    if (m.updated_at && new Date(m.updated_at).getTime() > new Date(m.created_at).getTime()) return true;
+    // 🔧 FIX: Don't rely solely on timestamp differences for file messages
+    // File uploads and system updates can cause timestamp differences without being user edits
+    // Only consider timestamp differences if we have other evidence of editing
+    const hasFileAttachments = (m.attachments && m.attachments.length > 0) || 
+                               (m.files && m.files.length > 0) || 
+                               ((m as any).has_attachments === true);
+    
+    if (!hasFileAttachments && m.updated_at && m.created_at) {
+      // For non-file messages, significant timestamp differences might indicate edits
+      const timeDiff = new Date(m.updated_at).getTime() - new Date(m.created_at).getTime();
+      // Only consider it edited if updated more than 1 second after creation (allows for minor DB delays)
+      if (timeDiff > 1000) return true;
+    }
 
     return false;
   };
