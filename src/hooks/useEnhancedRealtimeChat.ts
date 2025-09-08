@@ -13,7 +13,6 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
   const [retryCount, setRetryCount] = useState(0);
   const channelRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout>();
 
   const cleanup = useCallback(() => {
     if (channelRef.current) {
@@ -25,23 +24,8 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
-    
-    if (heartbeatIntervalRef.current) {
-      clearInterval(heartbeatIntervalRef.current);
-    }
   }, []);
 
-  const startHeartbeat = useCallback(() => {
-    heartbeatIntervalRef.current = setInterval(() => {
-      if (channelRef.current?.state === 'joined') {
-        // Send a heartbeat to check connection health
-        channelRef.current.send({
-          type: 'heartbeat',
-          payload: { timestamp: Date.now() }
-        });
-      }
-    }, 30000); // 30 second heartbeat
-  }, []);
 
   const setupConnection = useCallback(() => {
     if (!config.enabled || !config.boardOwnerId) {
@@ -101,7 +85,6 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
         if (status === 'SUBSCRIBED') {
           setConnectionStatus('connected');
           setRetryCount(0);
-          startHeartbeat();
           console.log('✅ Connected to board-wide chat subscription');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.error('❌ Board subscription error:', status);
@@ -123,7 +106,7 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
       });
 
     channelRef.current = channel;
-  }, [config.enabled, config.boardOwnerId, config.onNewMessage, cleanup, startHeartbeat, retryCount]);
+  }, [config.enabled, config.boardOwnerId, config.onNewMessage, cleanup, retryCount]);
 
   // Setup connection when config changes
   useEffect(() => {

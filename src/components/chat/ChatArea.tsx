@@ -72,6 +72,38 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const [generalId, setGeneralId] = useState<string | null>(null);
   const [generalIdLoading, setGeneralIdLoading] = useState(true);
 
+  // -------- helper: fetch attachments correctly for public vs internal
+  const fetchAttachments = async (messageId: string) => {
+    try {
+      const onPublicBoard = location.pathname.startsWith('/board/');
+      if (onPublicBoard && me?.type === 'sub_user') {
+        const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+          p_message_ids: [messageId],
+        });
+        return (attRows || []).map((a: any) => ({
+          id: a.id,
+          filename: a.filename,
+          file_path: a.file_path,
+          content_type: a.content_type,
+          size: a.size,
+        }));
+      }
+      const { data: linked } = await supabase
+        .from('chat_message_files')
+        .select('*')
+        .eq('message_id', messageId);
+      return (linked || []).map((a: any) => ({
+        id: a.id,
+        filename: a.filename,
+        file_path: a.file_path,
+        content_type: a.content_type,
+        size: a.size,
+      }));
+    } catch {
+      return [];
+    }
+  };
+
   // Always clear header on channel switch; we will re-resolve strictly
   useEffect(() => { setChannelInfo(null); }, [activeChannelId]);
 
@@ -438,31 +470,24 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const channelId = message.channel_id;
       const isUpdate = message._isUpdate;
 
-      // 🔧 FIX: Robust attachment loading with retry for real-time messages
+      // Load attachments for new file-messages (recipient side)
       if (message.has_attachments && !isUpdate) {
         console.log('📎 Loading attachments for real-time message:', message.id);
         
         let attempts = 0;
-        const maxAttempts = 3;
-        const baseDelay = 100;
+        const maxAttempts = 5;
+        const baseDelay = 200;
         
         while (attempts < maxAttempts) {
-          const { data: atts } = await supabase
-            .from('chat_message_files')
-            .select('*')
-            .eq('message_id', message.id);
+          const atts = await fetchAttachments(message.id);
           
           if (atts && atts.length > 0) {
             console.log('✅ Found', atts.length, 'attachments for message:', message.id);
             message = { 
               ...message, 
-              attachments: atts.map(a => ({
-                id: a.id,
-                filename: a.filename,
-                file_path: a.file_path,
-                content_type: a.content_type,
-                size: a.size,
-              }))
+              attachments: atts,
+              has_attachments: true,
+              message_type: 'file'
             };
             break;
           }
@@ -476,6 +501,21 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             // Keep the message but mark it for potential later retry
             message = { ...message, attachments: [] };
           }
+        }
+      }
+
+      // For updates, make sure we have attachments if the message says so
+      if (isUpdate && message.has_attachments) {
+        console.log('🔄 Fetching attachments for updated message:', message.id);
+        const atts = await fetchAttachments(message.id);
+
+        if (atts && atts.length > 0) {
+          message = {
+            ...message,
+            attachments: atts,
+            has_attachments: true,
+            message_type: 'file'
+          };
         }
       }
 
@@ -530,6 +570,47 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     window.addEventListener('chat-message-received', handleMessage as EventListener);
     return () => window.removeEventListener('chat-message-received', handleMessage as EventListener);
   }, [activeChannelId]);
+
+  // 🔧 FIX: Periodic check for messages with missing attachments
+  useEffect(() => {
+    if (!activeChannelId) return;
+    
+    const checkMissingAttachments = async () => {
+      const messagesWithMissingAttachments = messages.filter(m => 
+        ((m as any).has_attachments === true) && (!m.attachments || m.attachments.length === 0)
+      );
+      
+      if (messagesWithMissingAttachments.length > 0) {
+        console.log('🔍 Found', messagesWithMissingAttachments.length, 'messages with missing attachments, retrying...');
+        
+        for (const msg of messagesWithMissingAttachments) {
+          try {
+            const atts = await fetchAttachments(msg.id);
+            if (atts && atts.length > 0) {
+              console.log('✅ Recovered attachments for message:', msg.id);
+              // Trigger message update with attachments
+              window.dispatchEvent(new CustomEvent('chat-message-received', {
+                detail: {
+                  message: {
+                    ...msg,
+                    _isUpdate: true,
+                    attachments: atts,
+                    has_attachments: true,
+                    message_type: 'file'
+                  }
+                }
+              }));
+            }
+          } catch (error) {
+            console.warn('Failed to retry attachments for message:', msg.id, error);
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(checkMissingAttachments, 5000);
+    return () => clearInterval(interval);
+  }, [activeChannelId, messages]);
 
   useEffect(() => {
     const onReset = () => {
