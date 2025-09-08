@@ -44,7 +44,7 @@ interface ChatAreaProps {
 }
 
 export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
-  const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled, connectionStatus } = useChat();
+  const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled } = useChat();
   const { toast } = useToast();
   const { t } = useLanguage();
   const location = useLocation();
@@ -68,14 +68,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
   const activeChannelId = currentChannelId;
-  const activeChannelIdRef = useRef<string | null>(null);
-  useEffect(() => { activeChannelIdRef.current = activeChannelId; }, [activeChannelId]);
-  const isPublicRef = useRef(isPublic);
-  useEffect(() => { isPublicRef.current = isPublic; }, [isPublic]);
-  const meRef = useRef(me);
-  useEffect(() => { meRef.current = me; }, [me]);
-  const boardOwnerIdRef = useRef(boardOwnerId);
-  useEffect(() => { boardOwnerIdRef.current = boardOwnerId; }, [boardOwnerId]);
   const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } }>>(new Map());
   const [generalId, setGeneralId] = useState<string | null>(null);
   const [generalIdLoading, setGeneralIdLoading] = useState(true);
@@ -400,33 +392,25 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     else { setLoading(true); }
   }, [activeChannelId]);
 
-  // ⛑️ Polling fallback when realtime is not connected (works for both public & internal)
+  // polling for public (only when realtime disabled)
   useEffect(() => {
     if (!activeChannelId || !boardOwnerId || !me) return;
-    if (realtimeEnabled && connectionStatus === 'connected') return;
+    if (realtimeEnabled) return;
 
     let mounted = true;
-    const guardKey = `${boardOwnerId}:${me.email || me.id}:${activeChannelId}`;
+    const guardKey = `${boardOwnerId}:${me.email || me.id}`;
 
     const poll = async () => {
       if (!mounted) return;
-      const onPublicBoard = location.pathname.startsWith('/board/');
-      let data: any[] | null = null;
-      if (onPublicBoard && me?.type === 'sub_user') {
-        const resp = await supabase.rpc('list_channel_messages_public', {
-          p_owner_id: boardOwnerId,
-          p_channel_id: activeChannelId,
-          p_requester_type: 'sub_user',
-          p_requester_email: effectiveEmail!,
-        });
-        data = resp.data || null;
-      } else {
-        const resp = await supabase.rpc('get_chat_messages_for_channel', {
-          p_board_owner_id: boardOwnerId,
-          p_channel_id: activeChannelId,
-        });
-        data = resp.data || null;
-      }
+      const slug = location.pathname.split('/').pop();
+      const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+
+      const { data } = await supabase.rpc('list_channel_messages_public', {
+        p_owner_id: boardOwnerId,
+        p_channel_id: activeChannelId,
+        p_requester_type: 'sub_user',
+        p_requester_email: effectiveEmail!,
+      });
       if (!mounted || !data) return;
 
       setMessages(prev => {
@@ -446,7 +430,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     const id = setInterval(poll, 2500);
     poll();
     return () => { mounted = false; clearInterval(id); };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.id, me?.type, location.pathname, realtimeEnabled, connectionStatus, effectiveEmail]);
+  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled]);
 
   useEffect(() => {
     const handleMessage = async (event: CustomEvent) => {
@@ -454,180 +438,60 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const channelId = message.channel_id;
       const isUpdate = message._isUpdate;
 
-      console.log('🔔 Realtime message received:', { 
-        messageId: message.id, 
-        isUpdate, 
-        channelId, 
-        hasAttachments: message.has_attachments,
-        senderName: message.sender_name,
-        senderAvatar: message.sender_avatar_url
-      });
+      if (message.has_attachments && !isUpdate) {
+        const { data: atts } = await supabase.from('chat_message_files').select('*').eq('message_id', message.id);
+        message = { ...message, attachments: (atts || []).map(a => ({
+          id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
+        }))};
+      }
 
-      // 🎨 PHASE 3: Paint first, enrich later - Display message immediately, then hydrate in background
-      const upsertImmediately = (msg: Message) => {
-        const currentCache = cacheRef.current.get(channelId) || [];
+      const currentCache = cacheRef.current.get(channelId) || [];
+      
+      if (isUpdate) {
+        // Handle message update
+        const updatedCache = currentCache.map(m => 
+          m.id === message.id ? {
+            ...message,
+            // Ensure we keep all the edit fields
+            updated_at: message.updated_at,
+            edited_at: message.edited_at,
+            original_content: message.original_content || m.original_content || m.content,
+            is_deleted: message.is_deleted
+          } : m
+        );
+        cacheRef.current.set(channelId, updatedCache);
         
-        if (isUpdate) {
-          const updatedCache = currentCache.map(m => {
-            if (m.id !== msg.id) return m;
-            const merged: Message = { ...m, ...msg };
-            if (!merged.sender_name && m.sender_name) merged.sender_name = m.sender_name;
-            if (!merged.sender_avatar_url && m.sender_avatar_url) merged.sender_avatar_url = m.sender_avatar_url;
-            // attachments: prefer fresh, else keep old
-            if (msg.attachments && msg.attachments.length > 0) {
-              merged.attachments = msg.attachments;
-            } else if ((!merged.attachments || merged.attachments.length === 0) && m.attachments?.length) {
-              merged.attachments = m.attachments;
-            }
-            merged.original_content = msg.original_content || m.original_content || m.content;
-            return merged;
-          });
+        if (channelId === activeChannelId) {
+          setMessages(prev => prev.map(m => 
+            m.id === message.id ? {
+              ...message,
+              updated_at: message.updated_at,
+              edited_at: message.edited_at,
+              original_content: message.original_content || m.original_content || m.content,
+              is_deleted: message.is_deleted
+            } : m
+          ));
+        }
+      } else {
+        // Handle new message
+        const existsInCache = currentCache.some(m => m.id === message.id);
+        if (!existsInCache) {
+          const updatedCache = [...currentCache, message];
           cacheRef.current.set(channelId, updatedCache);
-
-          if (channelId === activeChannelIdRef.current) {
-            setMessages(prev => prev.map(m => {
-              if (m.id !== msg.id) return m;
-              const merged: Message = { ...m, ...msg };
-              if (!merged.sender_name && m.sender_name) merged.sender_name = m.sender_name;
-              if (!merged.sender_avatar_url && m.sender_avatar_url) merged.sender_avatar_url = m.sender_avatar_url;
-              if (msg.attachments?.length) merged.attachments = msg.attachments;
-              else if ((!merged.attachments || merged.attachments.length === 0) && m.attachments?.length) merged.attachments = m.attachments;
-              merged.original_content = msg.original_content || m.original_content || m.content;
-              return merged;
-            }));
-          }
-        } else {
-          // Handle new message
-          if (!currentCache.some(m => m.id === msg.id)) {
-            const updatedCache = [...currentCache, msg];
-            cacheRef.current.set(channelId, updatedCache);
-            if (channelId === activeChannelIdRef.current) {
-              setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
-            }
+          if (channelId === activeChannelId) {
+            setMessages(prev => {
+              const existsInUI = prev.some(m => m.id === message.id);
+              if (existsInUI) return prev;
+              return [...prev, message];
+            });
           }
         }
-      };
-
-      // 🎨 Display message immediately
-      upsertImmediately(message);
-
-      // 🔧 PHASE 1: Background avatar enrichment (non-blocking)
-      const enrichSenderAsync = (msg: Message) => {
-        // Skip if we already have sender info or if no IDs to work with
-        if ((msg.sender_avatar_url && msg.sender_name) || (!msg.sender_user_id && !msg.sender_sub_user_id)) {
-          return;
-        }
-
-        setTimeout(async () => {
-          try {
-            let enriched = msg;
-            
-            if (msg.sender_user_id) {
-              console.log('🔍 Enriching admin avatar for:', msg.sender_user_id);
-              const { data: prof } = await supabase
-                .from('profiles')
-                .select('username, avatar_url')
-                .eq('id', msg.sender_user_id)
-                .maybeSingle();
-              
-              if (prof?.username || prof?.avatar_url) {
-                enriched = {
-                  ...msg,
-                  sender_name: msg.sender_name || normalizeAdminName(prof?.username) || msg.sender_name,
-                  sender_avatar_url: msg.sender_avatar_url || prof?.avatar_url || msg.sender_avatar_url
-                };
-                console.log('✅ Enriched admin profile:', { name: enriched.sender_name, avatar: enriched.sender_avatar_url });
-              }
-            } else if (msg.sender_sub_user_id) {
-              console.log('🔍 Enriching sub-user avatar for:', msg.sender_sub_user_id);
-              const { data: su } = await supabase
-                .from('sub_users')
-                .select('fullname, avatar_url, email')
-                .eq('id', msg.sender_sub_user_id)
-                .maybeSingle();
-              
-              if (su?.fullname || su?.avatar_url || su?.email) {
-                enriched = {
-                  ...msg,
-                  sender_name: msg.sender_name || (su?.fullname && su.fullname.trim()) || su?.email || msg.sender_name,
-                  sender_avatar_url: msg.sender_avatar_url || su?.avatar_url || msg.sender_avatar_url
-                };
-                console.log('✅ Enriched sub-user profile:', { name: enriched.sender_name, avatar: enriched.sender_avatar_url });
-              }
-            }
-            
-            // Update cache and UI if we enriched anything
-            if (enriched !== msg) {
-              upsertImmediately(enriched);
-            }
-          } catch (error) {
-            console.warn('❌ Avatar enrichment failed:', error);
-          }
-        }, 0);
-      };
-
-      // 🔧 PHASE 2: Background file hydration (non-blocking)
-      const hydrateFilesAsync = (msg: Message) => {
-        const shouldHydrateFiles = !!msg.has_attachments || msg.message_type === 'file';
-        if (!shouldHydrateFiles) return;
-
-        setTimeout(async () => {
-          try {
-            console.log('📎 Hydrating files for message:', msg.id);
-            let atts: any[] = [];
-            const onPublicBoard = location.pathname.startsWith('/board/');
-            
-            if (onPublicBoard && me?.type === 'sub_user') {
-              const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
-                p_message_ids: [msg.id],
-              });
-              atts = (attRows || []).map((a: any) => ({
-                id: a.id,
-                filename: a.filename,
-                file_path: a.file_path,
-                content_type: a.content_type,
-                size: a.size,
-              }));
-            } else {
-              const { data: linked } = await supabase
-                .from('chat_message_files')
-                .select('*')
-                .eq('message_id', msg.id);
-              atts = (linked || []).map((a: any) => ({
-                id: a.id,
-                filename: a.filename,
-                file_path: a.file_path,
-                content_type: a.content_type,
-                size: a.size,
-              }));
-            }
-            
-            if (atts.length > 0) {
-              console.log('✅ Hydrated files:', atts.length, 'attachments');
-              const hydrated = { 
-                ...msg, 
-                attachments: atts, 
-                has_attachments: true, 
-                message_type: 'file' 
-              };
-              upsertImmediately(hydrated);
-            }
-          } catch (error) {
-            console.warn('❌ File hydration failed:', error);
-          }
-        }, 0);
-      };
-
-      // 🚀 Start background enrichment (after immediate display)
-      enrichSenderAsync(message);
-      hydrateFilesAsync(message);
+      }
     };
 
     window.addEventListener('chat-message-received', handleMessage as EventListener);
     return () => window.removeEventListener('chat-message-received', handleMessage as EventListener);
-  }, []); // 👈 listen once, use refs inside
-
-  // REMOVED: Per-channel realtime safety net - causes duplicate messages with board-wide subscription
+  }, [activeChannelId]);
 
   useEffect(() => {
     const onReset = () => {
