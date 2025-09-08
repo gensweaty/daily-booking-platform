@@ -438,92 +438,188 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const channelId = message.channel_id;
       const isUpdate = message._isUpdate;
 
-      // 🔧 Always hydrate attachments whenever the message says it has them
-      // (covers both first INSERT and later UPDATEs where has_attachments flips to true)
-      const shouldHydrateFiles = !!message.has_attachments || message.message_type === 'file';
-      if (shouldHydrateFiles) {
-        let atts: any[] = [];
-        try {
-          const onPublicBoard = location.pathname.startsWith('/board/');
-          if (onPublicBoard && me?.type === 'sub_user') {
-            const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
-              p_message_ids: [message.id],
-            });
-            atts = (attRows || []).map((a: any) => ({
-              id: a.id,
-              filename: a.filename,
-              file_path: a.file_path,
-              content_type: a.content_type,
-              size: a.size,
-            }));
-          } else {
-            const { data: linked } = await supabase
-              .from('chat_message_files')
-              .select('*')
-              .eq('message_id', message.id);
-            atts = (linked || []).map((a: any) => ({
-              id: a.id,
-              filename: a.filename,
-              file_path: a.file_path,
-              content_type: a.content_type,
-              size: a.size,
-            }));
-          }
-        } catch (e) {
-          console.error('Failed to hydrate files:', e);
-        }
-        message = { ...message, attachments: atts, has_attachments: true, message_type: 'file' };
-      }
+      console.log('🔔 Realtime message received:', { 
+        messageId: message.id, 
+        isUpdate, 
+        channelId, 
+        hasAttachments: message.has_attachments,
+        senderName: message.sender_name,
+        senderAvatar: message.sender_avatar_url
+      });
 
-      const currentCache = cacheRef.current.get(channelId) || [];
-
-      if (isUpdate) {
-        // 🧠 Merge with existing so we NEVER drop prior fields/attachments
-        const updatedCache = currentCache.map(m => {
-          if (m.id !== message.id) return m;
-          const merged = {
-            ...m,          // keep everything we already had (sender info, attachments, etc.)
-            ...message,    // overlay any updated columns from realtime payload
-          };
-          // if realtime update didn't include attachments, keep existing ones
-          if (!merged.attachments || merged.attachments.length === 0) {
-            merged.attachments = m.attachments || [];
-          }
-          // keep strongest original_content we know of
-          merged.original_content = message.original_content || m.original_content || m.content;
-          return merged;
-        });
-        cacheRef.current.set(channelId, updatedCache);
-
-        if (channelId === activeChannelId) {
-          setMessages(prev => prev.map(m => {
-            if (m.id !== message.id) return m;
-            const merged = {
-              ...m,
-              ...message,
-            };
-            if (!merged.attachments || merged.attachments.length === 0) {
-              merged.attachments = m.attachments || [];
+      // 🎨 PHASE 3: Paint first, enrich later - Display message immediately, then hydrate in background
+      const upsertImmediately = (msg: Message) => {
+        const currentCache = cacheRef.current.get(channelId) || [];
+        
+        if (isUpdate) {
+          const updatedCache = currentCache.map(m => {
+            if (m.id !== msg.id) return m;
+            const merged: Message = { ...m, ...msg };
+            
+            // 🔧 PHASE 1: Preserve existing sender info that might be missing from realtime UPDATE
+            if (!merged.sender_name && m.sender_name) {
+              merged.sender_name = m.sender_name;
             }
-            merged.original_content = message.original_content || m.original_content || m.content;
+            if (!merged.sender_avatar_url && m.sender_avatar_url) {
+              merged.sender_avatar_url = m.sender_avatar_url;
+            }
+            
+            // Keep existing attachments if update didn't include them
+            if ((!merged.attachments || merged.attachments.length === 0) && (m.attachments && m.attachments.length > 0)) {
+              merged.attachments = m.attachments;
+            }
+            
+            merged.original_content = msg.original_content || m.original_content || m.content;
             return merged;
-          }));
-        }
-      } else {
-        // Handle new message
-        const existsInCache = currentCache.some(m => m.id === message.id);
-        if (!existsInCache) {
-          const updatedCache = [...currentCache, message];
+          });
           cacheRef.current.set(channelId, updatedCache);
+
           if (channelId === activeChannelId) {
-            setMessages(prev => {
-              const existsInUI = prev.some(m => m.id === message.id);
-              if (existsInUI) return prev;
-              return [...prev, message];
-            });
+            setMessages(prev => prev.map(m => {
+              if (m.id !== msg.id) return m;
+              const merged: Message = { ...m, ...msg };
+              
+              // 🔧 PHASE 1: Preserve existing sender info in UI state too
+              if (!merged.sender_name && m.sender_name) {
+                merged.sender_name = m.sender_name;
+              }
+              if (!merged.sender_avatar_url && m.sender_avatar_url) {
+                merged.sender_avatar_url = m.sender_avatar_url;
+              }
+              
+              if ((!merged.attachments || merged.attachments.length === 0) && (m.attachments && m.attachments.length > 0)) {
+                merged.attachments = m.attachments;
+              }
+              
+              merged.original_content = msg.original_content || m.original_content || m.content;
+              return merged;
+            }));
+          }
+        } else {
+          // Handle new message
+          if (!currentCache.some(m => m.id === msg.id)) {
+            const updatedCache = [...currentCache, msg];
+            cacheRef.current.set(channelId, updatedCache);
+            if (channelId === activeChannelId) {
+              setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
+            }
           }
         }
-      }
+      };
+
+      // 🎨 Display message immediately
+      upsertImmediately(message);
+
+      // 🔧 PHASE 1: Background avatar enrichment (non-blocking)
+      const enrichSenderAsync = (msg: Message) => {
+        // Skip if we already have sender info or if no IDs to work with
+        if ((msg.sender_avatar_url && msg.sender_name) || (!msg.sender_user_id && !msg.sender_sub_user_id)) {
+          return;
+        }
+
+        setTimeout(async () => {
+          try {
+            let enriched = msg;
+            
+            if (msg.sender_user_id) {
+              console.log('🔍 Enriching admin avatar for:', msg.sender_user_id);
+              const { data: prof } = await supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', msg.sender_user_id)
+                .maybeSingle();
+              
+              if (prof?.username || prof?.avatar_url) {
+                enriched = {
+                  ...msg,
+                  sender_name: msg.sender_name || normalizeAdminName(prof?.username) || msg.sender_name,
+                  sender_avatar_url: msg.sender_avatar_url || prof?.avatar_url || msg.sender_avatar_url
+                };
+                console.log('✅ Enriched admin profile:', { name: enriched.sender_name, avatar: enriched.sender_avatar_url });
+              }
+            } else if (msg.sender_sub_user_id) {
+              console.log('🔍 Enriching sub-user avatar for:', msg.sender_sub_user_id);
+              const { data: su } = await supabase
+                .from('sub_users')
+                .select('fullname, avatar_url, email')
+                .eq('id', msg.sender_sub_user_id)
+                .maybeSingle();
+              
+              if (su?.fullname || su?.avatar_url || su?.email) {
+                enriched = {
+                  ...msg,
+                  sender_name: msg.sender_name || (su?.fullname && su.fullname.trim()) || su?.email || msg.sender_name,
+                  sender_avatar_url: msg.sender_avatar_url || su?.avatar_url || msg.sender_avatar_url
+                };
+                console.log('✅ Enriched sub-user profile:', { name: enriched.sender_name, avatar: enriched.sender_avatar_url });
+              }
+            }
+            
+            // Update cache and UI if we enriched anything
+            if (enriched !== msg) {
+              upsertImmediately(enriched);
+            }
+          } catch (error) {
+            console.warn('❌ Avatar enrichment failed:', error);
+          }
+        }, 0);
+      };
+
+      // 🔧 PHASE 2: Background file hydration (non-blocking)
+      const hydrateFilesAsync = (msg: Message) => {
+        const shouldHydrateFiles = !!msg.has_attachments || msg.message_type === 'file';
+        if (!shouldHydrateFiles) return;
+
+        setTimeout(async () => {
+          try {
+            console.log('📎 Hydrating files for message:', msg.id);
+            let atts: any[] = [];
+            const onPublicBoard = location.pathname.startsWith('/board/');
+            
+            if (onPublicBoard && me?.type === 'sub_user') {
+              const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+                p_message_ids: [msg.id],
+              });
+              atts = (attRows || []).map((a: any) => ({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              }));
+            } else {
+              const { data: linked } = await supabase
+                .from('chat_message_files')
+                .select('*')
+                .eq('message_id', msg.id);
+              atts = (linked || []).map((a: any) => ({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              }));
+            }
+            
+            if (atts.length > 0) {
+              console.log('✅ Hydrated files:', atts.length, 'attachments');
+              const hydrated = { 
+                ...msg, 
+                attachments: atts, 
+                has_attachments: true, 
+                message_type: 'file' 
+              };
+              upsertImmediately(hydrated);
+            }
+          } catch (error) {
+            console.warn('❌ File hydration failed:', error);
+          }
+        }, 0);
+      };
+
+      // 🚀 Start background enrichment (after immediate display)
+      enrichSenderAsync(message);
+      hydrateFilesAsync(message);
     };
 
     window.addEventListener('chat-message-received', handleMessage as EventListener);
