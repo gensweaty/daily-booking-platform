@@ -205,8 +205,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
   // Dummy handlers for now
-  const handleReply = (message: Message) => setReplyingTo(message);
-  const handleEdit = (message: Message) => setEditingMessage(message);
+  const handleReply = (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (message) setReplyingTo(message);
+  };
+  const handleEdit = (message: any) => setEditingMessage(message);
   const handleDeleteMessage = (messageId: string) => {};
   const handleCancelReply = () => setReplyingTo(null);
   const handleCancelEdit = () => setEditingMessage(null);
