@@ -243,8 +243,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [isOnPublicBoard, publicBoardUser?.id, hasPublicAccess, refreshUnread]);
 
-  // Enhanced notifications - request permission immediately
+  // Enhanced notifications - request permission immediately and preload audio
   const { requestPermission, showNotification } = useEnhancedNotifications();
+  
+  // 🔧 FIX: Request notification permission and preload audio on chat initialization
+  useEffect(() => {
+    if (shouldShowChat && isInitialized) {
+      console.log('🔔 Requesting notification permission and preloading audio');
+      requestPermission().then(granted => {
+        console.log('🔔 Notification permission:', granted ? 'granted' : 'denied');
+      });
+      
+      // Preload notification sound
+      import('@/utils/audioManager')
+        .then(({ preloadNotificationSound }) => {
+          preloadNotificationSound();
+          console.log('🔊 Audio preloaded for notifications');
+        })
+        .catch(error => console.warn('❌ Failed to preload audio:', error));
+    }
+  }, [shouldShowChat, isInitialized, requestPermission]);
 
   // 🧩 Bridge POLLING -> the same unread pipeline as realtime
   useEffect(() => {
@@ -275,87 +293,92 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return () => window.removeEventListener('chat-message-received', onPolledMessage as EventListener);
   }, [boardOwnerId, me?.id, me?.type]);
 
-  // Avoid re-processing the same message (prevents repeat sounds & badge churn)
-  const seenMessageIdsRef = React.useRef<Set<string>>(new Set());
+  // 🔧 FIX: Simplified message deduplication - only dedupe for notifications, not display
+  const notificationSeenIdsRef = React.useRef<Set<string>>(new Set());
 
   // Memoized real-time message handler to prevent re-renders
   const handleNewMessage = useCallback((message: any) => {
-    console.log('📨 Enhanced realtime message received:', message);
+    console.log('📨 Enhanced realtime message received:', {
+      id: message.id,
+      isUpdate: message._isUpdate,
+      channelId: message.channel_id,
+      senderId: message.sender_user_id || message.sender_sub_user_id,
+      content: message.content?.substring(0, 50) + '...'
+    });
 
     // Handle message updates differently - don't dedupe updates
     const isUpdate = message._isUpdate;
-    
-    if (!isUpdate) {
-      // Hard dedupe by message id across polling + realtime for new messages only
-      if (message?.id) {
-        if (seenMessageIdsRef.current.has(message.id)) {
-          return; // already processed this one
-        }
-        seenMessageIdsRef.current.add(message.id);
-        // optional tiny cap to avoid unbounded growth
-        if (seenMessageIdsRef.current.size > 3000) {
-          // drop oldest-ish by clearing (super rare) or rebuild smaller set if you prefer
-          seenMessageIdsRef.current.clear();
-          seenMessageIdsRef.current.add(message.id);
-        }
-      }
-    }
 
-    // STEP 2: Don't drop public messages that lack owner_id
+    // 🔧 FIX: Don't drop public messages that lack owner_id - let them through
     if (boardOwnerId && message.owner_id && message.owner_id !== boardOwnerId) {
       console.log('⏭️ Skipping message - owner mismatch');
       return;
     }
 
-    // Skip my own messages for notifications but NOT for display
+    // Determine if this is my own message
     const isMyMessage = me?.type === 'admin' 
       ? message.sender_user_id === me.id 
       : message.sender_sub_user_id === me.id;
 
-    if (!isMyMessage && !isUpdate) {
-      // Create realtime bump for unread tracking (only for new messages, not updates)
-      setRtBump({
-        channelId: message.channel_id,
-        createdAt: message.created_at,
-        senderType: message.sender_user_id ? 'admin' : 'sub_user',
-        senderId: message.sender_user_id || message.sender_sub_user_id,
-        isSelf: false
-      });
-
-      // FIXED: Simplified notification logic - alert for messages not in currently open channel
-      const shouldAlert = () => {
-        // Skip if chat is open and viewing the same channel
-        if (isOpen && currentChannelId === message.channel_id) {
-          return false;
-        }
-        return true; // Alert for any channel that isn't currently open
-      };
-
-      if (shouldAlert()) {
-        // Always play sound, regardless of notification permission/state
-        import('@/utils/audioManager')
-          .then(({ playNotificationSound }) => playNotificationSound())
-          .catch(() => {});
-        
-        // Also attempt system notification
-        showNotification({
-          title: `${message.sender_name || 'Someone'} messaged`,
-          body: message.content,
-          channelId: message.channel_id,
-          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-          senderName: message.sender_name || 'Unknown',
-        });
-      }
-    } else if (isUpdate) {
-      console.log('✏️ Message update - broadcasting to ChatArea');
-    } else {
-      console.log('⏭️ Skipping notification - own message');
-    }
-
-    // Direct message broadcasting (will be handled by cache in ChatArea)
+    // 🔧 FIX: Always broadcast message for display (no deduplication for display)
+    console.log('📢 Broadcasting message to ChatArea for display');
     window.dispatchEvent(new CustomEvent('chat-message-received', {
       detail: { message }
     }));
+
+    // Handle notifications and unread tracking (only for new messages from others)
+    if (!isMyMessage && !isUpdate) {
+      // 🔧 FIX: Only dedupe notifications, not message display
+      if (message?.id && !notificationSeenIdsRef.current.has(message.id)) {
+        notificationSeenIdsRef.current.add(message.id);
+        
+        // Keep notification dedup set reasonable size
+        if (notificationSeenIdsRef.current.size > 1000) {
+          notificationSeenIdsRef.current.clear();
+          notificationSeenIdsRef.current.add(message.id);
+        }
+
+        // Create realtime bump for unread tracking
+        setRtBump({
+          channelId: message.channel_id,
+          createdAt: message.created_at,
+          senderType: message.sender_user_id ? 'admin' : 'sub_user',
+          senderId: message.sender_user_id || message.sender_sub_user_id,
+          isSelf: false
+        });
+
+        // 🔧 FIX: Always show notifications when chat is closed or viewing different channel
+        const shouldShowNotification = !isOpen || currentChannelId !== message.channel_id;
+
+        if (shouldShowNotification) {
+          console.log('🔔 Triggering notification for message:', message.id);
+          
+          // 🔊 Always play sound for notifications
+          import('@/utils/audioManager')
+            .then(({ playNotificationSound }) => {
+              playNotificationSound().then(played => {
+                console.log('🔊 Notification sound:', played ? 'played' : 'failed');
+              });
+            })
+            .catch(error => console.warn('❌ Audio manager error:', error));
+          
+          // 📱 Show system notification
+          showNotification({
+            title: `${message.sender_name || 'Someone'} messaged`,
+            body: message.content?.substring(0, 100) || 'New message',
+            channelId: message.channel_id,
+            senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+            senderName: message.sender_name || 'Unknown',
+          });
+        } else {
+          console.log('⏭️ Skipping notification - chat is open on same channel');
+        }
+      }
+    } else if (isUpdate) {
+      console.log('✏️ Message update - no notification needed');
+    } else {
+      console.log('⏭️ Own message - no notification needed');
+    }
   }, [boardOwnerId, me, isOpen, currentChannelId, showNotification]);
 
   // Real-time setup - FIXED: enable for both admin and authenticated public board users
