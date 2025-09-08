@@ -104,13 +104,19 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
             if (!msgId) return;
             const { data: msg } = await supabase
               .from('chat_messages')
-              .select('*')
+              .select('*, owner_id')
               .eq('id', msgId)
               .maybeSingle();
             if (msg && msg.owner_id === config.boardOwnerId) {
-              config.onNewMessage({ ...msg, _isUpdate: true, has_attachments: true, message_type: 'file' });
+              console.log('📎 File attached to message, triggering update:', {
+                messageId: msgId,
+                fileName: payload.new?.filename
+              });
+              config.onNewMessage({ ...msg, _isUpdate: true, has_attachments: true });
             }
-          } catch {}
+          } catch (e) {
+            console.error('⚠️ file insert bridge failed', e);
+          }
         }
       )
       .subscribe((status) => {
