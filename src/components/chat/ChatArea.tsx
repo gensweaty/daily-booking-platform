@@ -43,6 +43,14 @@ interface ChatAreaProps {
   onMessageInputFocus?: () => void;
 }
 
+// near the top (after imports / hooks)
+const INITIAL_WINDOW = 60;
+const MSG_COLUMNS = `
+  id, content, created_at, updated_at, edited_at, original_content,
+  channel_id, sender_type, sender_user_id, sender_sub_user_id,
+  sender_name, sender_avatar_url, has_attachments, message_type, is_deleted
+` as const;
+
 export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled } = useChat();
   const { toast } = useToast();
@@ -308,155 +316,146 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   useEffect(() => {
     let active = true;
-    
+
     const loadMessages = async () => {
       if (!activeChannelId || !me || !boardOwnerId || !isInitialized) return;
 
       // Check cache first
       const cached = cacheRef.current.get(activeChannelId);
       if (cached) {
-        console.log('📋 Using cached messages for channel:', activeChannelId);
         setMessages(cached);
         setLoading(false);
+        // still scroll to bottom just in case
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'auto' }), 0);
         return;
       }
 
       setLoading(true);
-      
-      // Simple retry logic with exponential backoff
-      let lastError: any;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          console.log(`📱 Loading messages (attempt ${attempt}/3)`);
-          
-          const onPublicBoard = location.pathname.startsWith('/board/');
-          
-          // Simple message loading without complex timeout logic
-          let result;
-          if (onPublicBoard && me?.type === 'sub_user') {
-            result = await supabase.rpc('list_channel_messages_public', {
-              p_owner_id: boardOwnerId,
-              p_channel_id: activeChannelId,
-              p_requester_type: 'sub_user',
-              p_requester_email: effectiveEmail!,
-            });
-          } else {
-            result = await supabase.rpc('get_chat_messages_for_channel', {
+
+      try {
+        const onPublicBoard = location.pathname.startsWith('/board/');
+        let rows: any[] = [];
+
+        if (onPublicBoard && me?.type === 'sub_user') {
+          // Keep your RLS-safe RPC for public boards
+          const result = await supabase.rpc('list_channel_messages_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_requester_type: 'sub_user',
+            p_requester_email: effectiveEmail!,
+          });
+          if (result.error) throw result.error;
+
+          // Client slice to last N to avoid rendering huge arrays (still safe)
+          rows = (result.data || []).slice(-INITIAL_WINDOW);
+        } else {
+          // Internal/admin path: small query directly with order+limit
+          const { data, error } = await supabase
+            .from('chat_messages')
+            .select(MSG_COLUMNS)
+            .eq('owner_id', boardOwnerId)
+            .eq('channel_id', activeChannelId)
+            .order('created_at', { ascending: false })
+            .limit(INITIAL_WINDOW);
+
+          if (error) {
+            // Fallback to your existing internal RPC (and slice) if table query ever fails
+            const fallback = await supabase.rpc('get_chat_messages_for_channel', {
               p_board_owner_id: boardOwnerId,
               p_channel_id: activeChannelId,
             });
+            if (fallback.error) throw fallback.error;
+            rows = (fallback.data || []).slice(-INITIAL_WINDOW);
+          } else {
+            rows = data || [];
           }
+        }
 
-          if (result.error) {
-            throw result.error;
-          }
+        if (!active) return;
 
-          if (!active) return;
-
-          const normalized = (result.data || []).map((m: any) => ({
+        // Normalize and flip to ascending for rendering
+        const normalized = rows
+          .map((m: any) => ({
             ...m,
             sender_type: m.sender_type as 'admin' | 'sub_user',
             sender_name: (m.sender_name && m.sender_name.trim()) || undefined,
-            attachments: [], // Start without attachments for fast loading
-          }));
+            attachments: [], // attachments hydrate later (unchanged)
+          }))
+          .sort((a: any, b: any) => +new Date(a.created_at) - +new Date(b.created_at));
 
-          console.log(`✅ Loaded ${normalized.length} messages successfully`);
-          
-          setMessages(normalized);
-          setLoading(false);
-          cacheRef.current.set(activeChannelId, normalized);
-          
-          // Load attachments separately (non-blocking)
-          if (normalized.length > 0) {
-            setTimeout(async () => {
-              try {
-                const ids = normalized.map(m => m.id);
-                let byMsg: Record<string, any[]> = {};
+        setMessages(normalized);
+        setLoading(false);
+        cacheRef.current.set(activeChannelId, normalized);
 
-                if (onPublicBoard && me?.type === 'sub_user') {
-                  const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
-                    p_message_ids: ids
-                  });
-                  if (attRows) {
-                    byMsg = attRows.reduce((acc: any, a: any) => {
-                      (acc[a.message_id] ||= []).push({
-                        id: a.id,
-                        filename: a.filename,
-                        file_path: a.file_path,
-                        content_type: a.content_type,
-                        size: a.size,
-                      });
-                      return acc;
-                    }, {});
-                  }
-                } else {
-                  const { data: atts } = await supabase
-                    .from('chat_message_files')
-                    .select('*')
-                    .in('message_id', ids);
-                  if (atts) {
-                    byMsg = atts.reduce((acc: any, a: any) => {
-                      (acc[a.message_id] ||= []).push({
-                        id: a.id,
-                        filename: a.filename,
-                        file_path: a.file_path,
-                        content_type: a.content_type,
-                        size: a.size,
-                      });
-                      return acc;
-                    }, {});
-                  }
+        // Scroll to latest right after the first paint
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'auto' }), 0);
+
+        // 🔁 Background attachments (your existing logic kept intact)
+        if (normalized.length > 0) {
+          setTimeout(async () => {
+            try {
+              const ids = normalized.map(m => m.id);
+              let byMsg: Record<string, any[]> = {};
+
+              if (location.pathname.startsWith('/board/') && me?.type === 'sub_user') {
+                const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+                  p_message_ids: ids
+                });
+                if (attRows) {
+                  byMsg = attRows.reduce((acc: any, a: any) => {
+                    (acc[a.message_id] ||= []).push({
+                      id: a.id,
+                      filename: a.filename,
+                      file_path: a.file_path,
+                      content_type: a.content_type,
+                      size: a.size,
+                    });
+                    return acc;
+                  }, {});
                 }
-
-                // Update messages with attachments
-                const withAtts = normalized.map(m => ({
-                  ...m,
-                  attachments: byMsg[m.id] || [],
-                }));
-
-                if (active) {
-                  setMessages(withAtts);
-                  cacheRef.current.set(activeChannelId, withAtts);
-                  console.log('📎 Background attachments loaded');
+              } else {
+                const { data: atts } = await supabase
+                  .from('chat_message_files')
+                  .select('*')
+                  .in('message_id', ids);
+                if (atts) {
+                  byMsg = atts.reduce((acc: any, a: any) => {
+                    (acc[a.message_id] ||= []).push({
+                      id: a.id,
+                      filename: a.filename,
+                      file_path: a.file_path,
+                      content_type: a.content_type,
+                      size: a.size,
+                    });
+                    return acc;
+                  }, {});
                 }
-              } catch (attachErr) {
-                console.log('⚠️ Background attachment loading failed (non-critical)');
               }
-            }, 500);
-          }
-          
-          return; // Success, exit retry loop
-          
-        } catch (error) {
-          lastError = error;
-          console.log(`❌ Chat loading failed (attempt ${attempt}/3):`, error);
-          
-          if (attempt < 3) {
-            // Wait before retrying (exponential backoff)
-            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
-            console.log(`⏳ Retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
+
+              const withAtts = normalized.map(m => ({ ...m, attachments: byMsg[m.id] || [] }));
+              if (active) {
+                setMessages(withAtts);
+                cacheRef.current.set(activeChannelId, withAtts);
+              }
+            } catch {
+              // non-blocking
+            }
+          }, 0);
         }
-      }
-      
-      // All retries failed
-      if (active) {
-        console.log('❌ All retries failed, showing error state');
+      } catch (err) {
+        if (!active) return;
         setLoading(false);
         toast({
           title: t('chat.error'),
-          description: 'Failed to load messages. Please check your network connection.',
+          description: 'Failed to load messages. Please check your network.',
           variant: 'destructive',
         });
       }
     };
+
     loadMessages();
-    
-    return () => { 
-      active = false; 
-    };
-  }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
+    return () => { active = false; };
+  }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname, effectiveEmail, t, toast]);
 
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); setLoading(true); return; }

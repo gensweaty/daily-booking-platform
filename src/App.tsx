@@ -296,8 +296,11 @@ function App() {
   // Initialize memory optimization
   useMemoryOptimization();
 
-  // Enable Supabase realtime functionality
+  // Enable Supabase realtime functionality and warm up connection
   useEffect(() => {
+    // Warm up the connection on app mount
+    fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/', { method: 'HEAD', cache: 'no-store', keepalive: true }).catch(()=>{});
+    
     // Enable Supabase realtime for the required tables
     const enableRealtimeTables = async () => {
       try {
