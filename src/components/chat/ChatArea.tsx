@@ -1337,12 +1337,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           cacheRef.current.set(activeChannelId, { ...cached, items: updatedItems });
         }
       }
-                attachments: [] 
-              }
-            : msg
-        ) || [];
-        cacheRef.current.set(activeChannelId, updatedCache);
-      }
       
       console.log('✅ Message deleted successfully');
     } catch (error: any) {
