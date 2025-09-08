@@ -62,18 +62,48 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
   };
 
   const openDoc = async (a: Att) => {
+    try {
+      // First try direct public URL approach (works if bucket is public)
+      const publicUrl = publicUrlFor(a);
+      
+      // Test if public URL is accessible
+      const testResponse = await fetch(publicUrl, { method: 'HEAD' });
+      if (testResponse.ok) {
+        // Public URL works, use it directly
+        window.open(publicUrl, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    } catch (error) {
+      console.log('Public URL not accessible, falling back to blob download');
+    }
+
+    // Fallback to blob download with proper content type
     const { data } = await supabase.storage.from('chat_attachments').download(a.file_path);
     if (!data) return;
-    const url = URL.createObjectURL(data);
-    // open in new tab (anchor avoids popup blockers)
-    const aTag = document.createElement('a');
-    aTag.href = url;
-    aTag.target = '_blank';
-    aTag.rel = 'noopener';
-    document.body.appendChild(aTag);
-    aTag.click();
-    aTag.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    
+    // Create blob with proper content type for better browser handling
+    const blob = new Blob([data], { 
+      type: a.content_type || 'application/octet-stream' 
+    });
+    const url = URL.createObjectURL(blob);
+    
+    // Use window.open directly with blob URL (more reliable than anchor click)
+    const newWindow = window.open('', '_blank', 'noopener,noreferrer');
+    if (newWindow) {
+      newWindow.location.href = url;
+      // Clean up after longer delay to ensure file loads
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
+    } else {
+      // Fallback if popup blocked - use anchor method
+      const aTag = document.createElement('a');
+      aTag.href = url;
+      aTag.target = '_blank';
+      aTag.rel = 'noopener noreferrer';
+      document.body.appendChild(aTag);
+      aTag.click();
+      aTag.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
+    }
   };
 
   return (
