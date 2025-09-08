@@ -446,7 +446,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     const id = setInterval(poll, 2500);
     poll();
     return () => { mounted = false; clearInterval(id); };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled, connectionStatus]);
+  }, [activeChannelId, boardOwnerId, me?.email, me?.id, me?.type, location.pathname, realtimeEnabled, connectionStatus, effectiveEmail]);
 
   useEffect(() => {
     const handleMessage = async (event: CustomEvent) => {
@@ -627,38 +627,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => window.removeEventListener('chat-message-received', handleMessage as EventListener);
   }, []); // 👈 listen once, use refs inside
 
-  // 🔌 Per-channel realtime safety net (keeps the open chat snappy even if board-wide feed hiccups)
-  useEffect(() => {
-    if (!activeChannelId || !boardOwnerId) return;
-    const areaChannel = supabase
-      .channel(`chat-area-${activeChannelId}`)
-      .on('postgres_changes',
-        { schema: 'public', table: 'chat_messages', event: 'INSERT', filter: `channel_id=eq.${activeChannelId}` },
-        (payload) => {
-          window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: payload.new } }));
-        }
-      )
-      .on('postgres_changes',
-        { schema: 'public', table: 'chat_messages', event: 'UPDATE', filter: `channel_id=eq.${activeChannelId}` },
-        (payload) => {
-          window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: { ...payload.new, _isUpdate: true } } }));
-        }
-      )
-      // bridge file attaches to message updates for the active channel
-      .on('postgres_changes',
-        { schema: 'public', table: 'chat_message_files', event: 'INSERT' },
-        async (payload) => {
-          const msgId = payload.new?.message_id;
-          if (!msgId) return;
-          const { data: msg } = await supabase.from('chat_messages').select('*').eq('id', msgId).maybeSingle();
-          if (msg?.channel_id === activeChannelIdRef.current) {
-            window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: { ...msg, _isUpdate: true, has_attachments: true } } }));
-          }
-        }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(areaChannel); };
-  }, [activeChannelId, boardOwnerId]);
+  // REMOVED: Per-channel realtime safety net - causes duplicate messages with board-wide subscription
 
   useEffect(() => {
     const onReset = () => {

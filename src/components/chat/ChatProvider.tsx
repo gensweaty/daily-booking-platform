@@ -171,9 +171,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [location.pathname, publicBoardUser?.id]);
 
-  // Gate the icon on public login pages and show immediately on localStorage access
+  // Gate the icon on public login pages and show immediately on localStorage access  
   const onPublicLoginPage = isOnPublicBoard && location.pathname.includes('/login');
-  const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id);
+  // FIX: shouldShowChat should be true when me exists (authenticated admin or valid public access)
+  const shouldShowChat = !onPublicLoginPage && (!!me?.id && !!boardOwnerId);
 
   // State for realtime bumps
   const [rtBump, setRtBump] = useState<{ channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean } | undefined>(undefined);
@@ -351,7 +352,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }));
 
     // Handle notifications and unread tracking (only for new messages from others)
-    if (!isMyMessage && !isUpdate) {
+    if (!isMyMessage && !isUpdate && shouldShowChat && isInitialized) {
       // 🔧 FIX: Only dedupe notifications, not message display
       if (message?.id && !notificationSeenIdsRef.current.has(message.id)) {
         notificationSeenIdsRef.current.add(message.id);
@@ -371,7 +372,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           isSelf: false
         });
 
-        // 🔧 FIX: Always show notifications when chat is closed or viewing different channel
+        // 🔧 FIX: Show notifications when chat is closed or viewing different channel
         const shouldShowNotification = !isOpen || currentChannelId !== message.channel_id;
 
         if (shouldShowNotification) {
@@ -409,9 +410,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!me?.id;
   const { connectionStatus } = useEnhancedRealtimeChat({
     onNewMessage: handleNewMessage,
-    userId: me?.id,
+    userId: me?.id, 
     boardOwnerId: boardOwnerId || undefined,
-    // Enable real-time for authenticated users, disable for public board access only
+    // Enable real-time for authenticated users
     enabled: realtimeEnabled,
   });
 
@@ -445,7 +446,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // 🔄 Unified polling fallback whenever realtime is NOT connected (covers internal & public, open or closed)
   useEffect(() => {
-    if (!boardOwnerId || !me) return;
+    if (!boardOwnerId || !me || !shouldShowChat || !isInitialized) return;
     if (connectionStatus === 'connected') return;
 
     console.log('🔄 Starting fallback polling (realtime not connected)');
@@ -476,7 +477,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('🛑 Stopping fallback polling');
       clearInterval(id);
     };
-  }, [boardOwnerId, me, connectionStatus, handleNewMessage]);
+  }, [boardOwnerId, me, shouldShowChat, isInitialized, connectionStatus, handleNewMessage]);
 
   // Chat control functions - Open window immediately, no pending logic
   const open = useCallback(() => {
