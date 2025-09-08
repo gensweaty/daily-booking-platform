@@ -43,7 +43,7 @@ interface ChatAreaProps {
   onMessageInputFocus?: () => void;
 }
 
-export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
+export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled } = useChat();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -314,8 +314,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       try {
         const onPublicBoard = location.pathname.startsWith('/board/');
-        const { data: { session } } = await supabase.auth.getSession();
-        const isAuthed = !!session?.user?.id;
+        // Skip blocking auth session check for faster mobile loading
 
         let data, error;
         if (onPublicBoard && me?.type === 'sub_user') {
@@ -1184,4 +1183,5 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   );
 };
 
-export default ChatArea;
+export default ChatAreaLegacy;
+export { ChatAreaLegacy as ChatArea };
