@@ -87,12 +87,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     queryKey,
     queryFn: fetchEvents,
     enabled: !!(businessUserId || user?.id),
-    staleTime: 0, // Always consider data stale for immediate updates
-    gcTime: 1000, // Keep in cache for 1 second only
-    refetchInterval: 1500, // Moderate polling every 1.5 seconds
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    gcTime: 60000, // Keep in cache for 1 minute
+    refetchInterval: 15000, // Reduced polling - every 15 seconds only
     refetchIntervalInBackground: false, // Disable background refetch to avoid visible loading
     refetchOnWindowFocus: true,
     refetchOnMount: true,
+    networkMode: 'offlineFirst', // Use cache when possible on slow networks
   });
 
   // Debounced cache invalidation to prevent excessive calls
