@@ -438,38 +438,65 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const channelId = message.channel_id;
       const isUpdate = message._isUpdate;
 
-      // Helper: fetch sender avatar/name if missing (works for admin or sub_user)
-      const enrichSender = async (msg: Message): Promise<Message> => {
-        try {
-          if ((msg.sender_avatar_url && msg.sender_avatar_url.length > 0) && msg.sender_name) {
-            return msg;
+      console.log('🔔 Realtime message received:', { 
+        messageId: message.id, 
+        isUpdate, 
+        channelId, 
+        hasAttachments: message.has_attachments 
+      });
+
+      // Helper: NON-BLOCKING enrichment that happens after display
+      const enrichSenderAsync = (msg: Message, targetChannelId: string) => {
+        // Only enrich if missing info
+        if ((msg.sender_avatar_url && msg.sender_name) || (!msg.sender_user_id && !msg.sender_sub_user_id)) {
+          return;
+        }
+
+        setTimeout(async () => {
+          try {
+            let enriched = msg;
+            if (msg.sender_user_id) {
+              const { data: prof } = await supabase
+                .from('profiles')
+                .select('username, avatar_url')
+                .eq('id', msg.sender_user_id)
+                .maybeSingle();
+              if (prof?.username || prof?.avatar_url) {
+                enriched = {
+                  ...msg,
+                  sender_name: msg.sender_name || prof?.username || msg.sender_name,
+                  sender_avatar_url: msg.sender_avatar_url || prof?.avatar_url || msg.sender_avatar_url
+                };
+              }
+            } else if (msg.sender_sub_user_id) {
+              const { data: su } = await supabase
+                .from('sub_users')
+                .select('fullname, avatar_url, email')
+                .eq('id', msg.sender_sub_user_id)
+                .maybeSingle();
+              if (su?.fullname || su?.avatar_url || su?.email) {
+                enriched = {
+                  ...msg,
+                  sender_name: msg.sender_name || su?.fullname || su?.email || msg.sender_name,
+                  sender_avatar_url: msg.sender_avatar_url || su?.avatar_url || msg.sender_avatar_url
+                };
+              }
+            }
+
+            // Update cache and UI if enrichment found new info
+            if (enriched !== msg) {
+              console.log('✨ Enriched sender info for message:', enriched.id);
+              cacheRef.current.set(targetChannelId,
+                (cacheRef.current.get(targetChannelId) || []).map(x => x.id === enriched.id ? enriched : x)
+              );
+              if (targetChannelId === activeChannelId) {
+                setMessages(prev => prev.map(x => x.id === enriched.id ? enriched : x));
+              }
+            }
+          } catch (error) {
+            console.warn('❌ Sender enrichment failed:', error);
           }
-          if (msg.sender_user_id) {
-            const { data: prof } = await supabase
-              .from('profiles')
-              .select('username, avatar_url')
-              .eq('id', msg.sender_user_id)
-              .maybeSingle();
-            return {
-              ...msg,
-              sender_name: msg.sender_name || prof?.username || msg.sender_name,
-              sender_avatar_url: msg.sender_avatar_url || prof?.avatar_url || msg.sender_avatar_url
-            };
-          }
-          if (msg.sender_sub_user_id) {
-            const { data: su } = await supabase
-              .from('sub_users')
-              .select('fullname, avatar_url, email')
-              .eq('id', msg.sender_sub_user_id)
-              .maybeSingle();
-            return {
-              ...msg,
-              sender_name: msg.sender_name || su?.fullname || su?.email || msg.sender_name,
-              sender_avatar_url: msg.sender_avatar_url || su?.avatar_url || msg.sender_avatar_url
-            };
-          }
-        } catch {}
-        return msg;
+        }, 100); // Small delay to not block UI
       };
 
       // 🔧 Always hydrate attachments whenever we *suspect* they exist
@@ -509,11 +536,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         message = { ...message, attachments: atts, has_attachments: true, message_type: 'file' };
       }
 
-      // Also, if UPDATE arrives without avatar/name, fetch them once
-      if (isUpdate && (!message.sender_avatar_url || !message.sender_name)) {
-        message = await enrichSender(message);
-      }
-
       const currentCache = cacheRef.current.get(channelId) || [];
 
       if (isUpdate) {
@@ -532,18 +554,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           if (!merged.sender_avatar_url && m.sender_avatar_url) {
             merged.sender_avatar_url = m.sender_avatar_url;
           }
-          // If both are still empty, try one last enrichment
-          if (!merged.sender_avatar_url || !merged.sender_name) {
-            // best-effort, non-blocking
-            enrichSender(merged).then((filled) => {
-              cacheRef.current.set(channelId,
-                (cacheRef.current.get(channelId) || []).map(x => x.id === filled.id ? filled : x)
-              );
-              if (channelId === activeChannelId) {
-                setMessages(prev => prev.map(x => x.id === filled.id ? filled : x));
-              }
-            });
-          }
+          
+          return merged;
           
           // If we just got file attachments, use the hydrated ones, otherwise keep existing
           if (message.attachments && message.attachments.length > 0) {
@@ -573,11 +585,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             if (!merged.sender_avatar_url && m.sender_avatar_url) {
               merged.sender_avatar_url = m.sender_avatar_url;
             }
-            if (!merged.sender_avatar_url || !merged.sender_name) {
-              enrichSender(merged).then((filled) =>
-                setMessages(prev2 => prev2.map(x => x.id === filled.id ? filled : x))
-              );
-            }
             
             // If we just got file attachments, use the hydrated ones, otherwise keep existing
             if (message.attachments && message.attachments.length > 0) {
@@ -594,8 +601,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         // Handle new message
         const existsInCache = currentCache.some(m => m.id === message.id);
         if (!existsInCache) {
-          // Enrich once for new messages too (helps public-board senders)
-          message = await enrichSender(message);
           const updatedCache = [...currentCache, message];
           cacheRef.current.set(channelId, updatedCache);
           if (channelId === activeChannelId) {
@@ -605,6 +610,9 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               return [...prev, message];
             });
           }
+          
+          // Try enrichment after display (non-blocking)
+          enrichSenderAsync(message, channelId);
         }
       }
     };
