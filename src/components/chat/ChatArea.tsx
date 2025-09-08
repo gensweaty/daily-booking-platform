@@ -121,24 +121,31 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     }
   }, []);
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages (only when user is already at bottom)
   useEffect(() => {
-    if (messages.length > 0 && scrollManagerRef.current) {
+    if (messages.length > 0 && scrollManagerRef.current && !loading) {
       const shouldAutoScroll = scrollManagerRef.current.shouldAutoScrollOnNewMessage();
       if (shouldAutoScroll) {
         setTimeout(() => scrollToBottom(true), 100);
       }
     }
-  }, [messages.length, scrollToBottom]);
+  }, [messages.length, scrollToBottom, loading]);
 
-  // Scroll to bottom when channel changes
+  // Scroll to bottom when channel changes or when initial messages load
   useEffect(() => {
     if (currentChannelId && scrollManagerRef.current) {
       scrollManagerRef.current.reset();
       setShowScrollToBottom(false);
-      setTimeout(() => scrollToBottom(false), 100);
     }
-  }, [currentChannelId, scrollToBottom]);
+  }, [currentChannelId]);
+
+  // Scroll to bottom when messages finish loading (initial load)
+  useEffect(() => {
+    if (!loading && messages.length > 0 && scrollManagerRef.current) {
+      // Always scroll to bottom after initial load (instant, not smooth)
+      setTimeout(() => scrollToBottom(false), 50);
+    }
+  }, [loading, messages.length, scrollToBottom]);
 
   // Always clear header on channel switch; we will re-resolve strictly
   useEffect(() => { setChannelInfo(null); }, [activeChannelId]);
