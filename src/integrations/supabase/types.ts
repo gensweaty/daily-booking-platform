@@ -1804,14 +1804,18 @@ export type Database = {
           channel_id: string
           content: string
           created_at: string
+          edited_at: string
           has_attachments: boolean
           id: string
+          is_deleted: boolean
           message_type: string
+          original_content: string
           sender_avatar_url: string
           sender_name: string
           sender_sub_user_id: string
           sender_type: string
           sender_user_id: string
+          updated_at: string
         }[]
       }
       get_default_channel_for_board: {
@@ -1989,14 +1993,18 @@ export type Database = {
           channel_id: string
           content: string
           created_at: string
+          edited_at: string
           has_attachments: boolean
           id: string
+          is_deleted: boolean
           message_type: string
+          original_content: string
           sender_avatar_url: string
           sender_name: string
           sender_sub_user_id: string
           sender_type: string
           sender_user_id: string
+          updated_at: string
         }[]
       }
       list_channels_for_sub_user_public: {
