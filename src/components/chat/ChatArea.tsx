@@ -308,54 +308,100 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   useEffect(() => {
     let active = true;
+    let timeoutId: NodeJS.Timeout;
 
     const loadMessages = async () => {
       if (!activeChannelId || !me || !boardOwnerId || !isInitialized) return;
 
       try {
+        // Detect mobile network and set appropriate timeouts
+        const isMobileNetwork = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        const connection = (navigator as any).connection;
+        const isSlowConnection = connection?.effectiveType === '2g' || connection?.effectiveType === '3g' || 
+                                connection?.downlink < 2 || connection?.rtt > 300;
+        
+        const timeoutDuration = (isMobileNetwork || isSlowConnection) ? 10000 : 5000; // 10s for mobile, 5s for others
+        const skipAttachments = isSlowConnection; // Skip attachments on very slow networks
+
+        // Create timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Network timeout')), timeoutDuration);
+        });
+
         const onPublicBoard = location.pathname.startsWith('/board/');
-        // Skip blocking auth session check for faster mobile loading
 
         let data, error;
-        if (onPublicBoard && me?.type === 'sub_user') {
-          const result = await supabase.rpc('list_channel_messages_public', {
-            p_owner_id: boardOwnerId,
-            p_channel_id: activeChannelId,
-            p_requester_type: 'sub_user',
-            p_requester_email: effectiveEmail!,
-          });
-          data = result.data;
-          error = result.error;
+        
+        // Main message loading with timeout
+        const messageLoadPromise = (async () => {
+          if (onPublicBoard && me?.type === 'sub_user') {
+            return await supabase.rpc('list_channel_messages_public', {
+              p_owner_id: boardOwnerId,
+              p_channel_id: activeChannelId,
+              p_requester_type: 'sub_user',
+              p_requester_email: effectiveEmail!,
+            });
+          } else {
+            return await supabase.rpc('get_chat_messages_for_channel', {
+              p_board_owner_id: boardOwnerId,
+              p_channel_id: activeChannelId,
+            });
+          }
+        })();
+
+        // Race between message loading and timeout
+        const result = await Promise.race([messageLoadPromise, timeoutPromise]);
+        clearTimeout(timeoutId);
+        
+        if (result && typeof result === 'object' && 'data' in result) {
+          data = (result as any).data;
+          error = (result as any).error;
         } else {
-          const result = await supabase.rpc('get_chat_messages_for_channel', {
-            p_board_owner_id: boardOwnerId,
-            p_channel_id: activeChannelId,
-          });
-          data = result.data;
-          error = result.error;
+          throw new Error('Invalid response format');
         }
 
-        if (error) { if (active) setLoading(false); return; }
+        if (error) { 
+          console.log('❌ Message loading error:', error);
+          if (active) setLoading(false); 
+          return; 
+        }
 
         if (active) {
           const normalized = (data || []).map((m: any) => ({
             ...m,
             sender_type: m.sender_type as 'admin' | 'sub_user',
-            // ensure we always show *something* sensible
             sender_name: (m.sender_name && m.sender_name.trim()) || undefined,
           }));
 
-          // fetch attachments
-          const ids = normalized.map(m => m.id);
+          // Only load attachments on faster networks to prevent mobile timeout
           let byMsg: Record<string, any[]> = {};
-          if (ids.length) {
-            if (onPublicBoard && me?.type === 'sub_user') {
-              // RLS-safe path for sub-users on external board
-              const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
-                p_message_ids: ids
+          const ids = normalized.map(m => m.id);
+          
+          if (ids.length && !skipAttachments) {
+            try {
+              const attachmentTimeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Attachment timeout')), 3000); // 3s timeout for attachments
               });
-              if (attRows) {
-                byMsg = attRows.reduce((acc: any, a: any) => {
+
+              const attachmentLoadPromise = (async () => {
+                if (onPublicBoard && me?.type === 'sub_user') {
+                  const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+                    p_message_ids: ids
+                  });
+                  return attRows;
+                } else {
+                  const { data: atts } = await supabase
+                    .from('chat_message_files')
+                    .select('*')
+                    .in('message_id', ids);
+                  return atts;
+                }
+              })();
+
+              const attachments = await Promise.race([attachmentLoadPromise, attachmentTimeoutPromise]) as any;
+              
+              if (attachments) {
+                byMsg = attachments.reduce((acc: any, a: any) => {
                   (acc[a.message_id] ||= []).push({
                     id: a.id,
                     filename: a.filename,
@@ -366,24 +412,9 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                   return acc;
                 }, {});
               }
-            } else {
-              // existing direct select for authenticated
-              const { data: atts } = await supabase
-                .from('chat_message_files')
-                .select('*')
-                .in('message_id', ids);
-              if (atts) {
-                byMsg = atts.reduce((acc: any, a: any) => {
-                  (acc[a.message_id] ||= []).push({
-                    id: a.id,
-                    filename: a.filename,
-                    file_path: a.file_path,
-                    content_type: a.content_type,
-                    size: a.size,
-                  });
-                  return acc;
-                }, {});
-              }
+            } catch (attachErr) {
+              console.log('⚠️ Attachment loading timeout, continuing without attachments');
+              // Continue without attachments on mobile networks
             }
           }
 
@@ -392,28 +423,55 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             attachments: byMsg[m.id] || [],
           }));
 
-          // meta backfill so MessageList sees edit/deleted flags
-          let metaById = new Map<string, any>();
-          if (!onPublicBoard) {
-            const { data: meta } = await supabase
-              .from('chat_messages')
-              .select('id, updated_at, edited_at, original_content, is_deleted')
-              .in('id', ids);
-            if (meta) metaById = new Map(meta.map((x: any) => [x.id, x]));
+          // Skip metadata loading on slow networks for faster loading
+          let withMeta = withAtts;
+          if (!onPublicBoard && !isSlowConnection) {
+            try {
+              const metaTimeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Metadata timeout')), 2000);
+              });
+
+              const metaLoadPromise = supabase
+                .from('chat_messages')
+                .select('id, updated_at, edited_at, original_content, is_deleted')
+                .in('id', ids);
+
+              const { data: meta } = await Promise.race([metaLoadPromise, metaTimeoutPromise]) as any;
+              
+              if (meta) {
+                const metaById = new Map(meta.map((x: any) => [x.id, x]));
+                withMeta = withAtts.map(m => {
+                  const metaData = metaById.get(m.id);
+                  return metaData && typeof metaData === 'object' ? { ...m, ...metaData } : m;
+                });
+              }
+            } catch (metaErr) {
+              console.log('⚠️ Metadata loading timeout, using basic message data');
+              // Continue with basic message data
+            }
           }
 
-          const withMeta = withAtts.map(m => ({ ...m, ...(metaById.get(m.id) || {}) }));
           setMessages(withMeta);
           cacheRef.current.set(activeChannelId, withMeta);
           setLoading(false);
+          console.log('✅ Chat messages loaded successfully', { messageCount: withMeta.length, skipAttachments, isSlowConnection });
         }
-      } catch {
-        if (active) setLoading(false);
+      } catch (loadErr) {
+        console.log('❌ Chat loading failed:', loadErr);
+        if (active) {
+          setLoading(false);
+          // Show a basic message that loading failed but keep the UI functional
+          setMessages([]);
+        }
       }
     };
 
     loadMessages();
-    return () => { active = false; };
+    
+    return () => { 
+      active = false; 
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
   useEffect(() => {
@@ -423,45 +481,85 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     else { setLoading(true); }
   }, [activeChannelId]);
 
-  // polling for public (only when realtime disabled)
+  // Optimized polling for mobile networks with adaptive intervals
   useEffect(() => {
     if (!activeChannelId || !boardOwnerId || !me) return;
     if (realtimeEnabled) return;
 
     let mounted = true;
-    const guardKey = `${boardOwnerId}:${me.email || me.id}`;
+    
+    // Detect network quality for adaptive polling
+    const connection = (navigator as any).connection;
+    const isSlowNetwork = connection?.effectiveType === '2g' || connection?.effectiveType === '3g' ||
+                         connection?.downlink < 2 || connection?.rtt > 300;
+    
+    const pollingInterval = isSlowNetwork ? 5000 : 2500; // Slower polling on bad networks
+    console.log('📱 Starting polling with interval:', pollingInterval, 'ms (slow network:', isSlowNetwork, ')');
 
     const poll = async () => {
       if (!mounted) return;
-      const slug = location.pathname.split('/').pop();
-      const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+      
+      try {
+        const onPublicBoard = location.pathname.startsWith('/board/');
+        
+        // Add timeout for mobile networks
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Poll timeout')), isSlowNetwork ? 8000 : 4000);
+        });
 
-      const { data } = await supabase.rpc('list_channel_messages_public', {
-        p_owner_id: boardOwnerId,
-        p_channel_id: activeChannelId,
-        p_requester_type: 'sub_user',
-        p_requester_email: effectiveEmail!,
-      });
-      if (!mounted || !data) return;
-
-      setMessages(prev => {
-        const prevIds = new Set(prev.map(m => m.id));
-        const byId = new Map(prev.map(m => [m.id, m]));
-        for (const m of data) {
-          // Only emit for truly new ids; Map.set below already overwrites to latest snapshot
-          if (!prevIds.has(m.id)) {
-            window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: { ...m, owner_id: boardOwnerId } } }));
+        const pollPromise = (async () => {
+          if (onPublicBoard && me?.type === 'sub_user') {
+            return await supabase.rpc('list_channel_messages_public', {
+              p_owner_id: boardOwnerId,
+              p_channel_id: activeChannelId,
+              p_requester_type: 'sub_user',
+              p_requester_email: effectiveEmail!,
+            });
+          } else {
+            return await supabase.rpc('get_chat_messages_for_channel', {
+              p_board_owner_id: boardOwnerId,
+              p_channel_id: activeChannelId,
+            });
           }
-          byId.set(m.id, { ...m, sender_type: m.sender_type as 'admin' | 'sub_user' });
-        }
-        return Array.from(byId.values()).sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
-      });
+        })();
+
+        const result = await Promise.race([pollPromise, timeoutPromise]) as any;
+        const data = result.data;
+        
+        if (!mounted || !data) return;
+
+        setMessages(prev => {
+          const prevIds = new Set(prev.map(m => m.id));
+          const byId = new Map(prev.map(m => [m.id, m]));
+          
+          for (const m of data) {
+            if (!prevIds.has(m.id)) {
+              // Emit event for new messages only
+              window.dispatchEvent(new CustomEvent('chat-message-received', { 
+                detail: { message: { ...m, owner_id: boardOwnerId } } 
+              }));
+            }
+            byId.set(m.id, { ...m, sender_type: m.sender_type as 'admin' | 'sub_user' });
+          }
+          
+          return Array.from(byId.values()).sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
+        });
+        
+      } catch (pollErr) {
+        console.log('⚠️ Polling failed:', pollErr.message);
+        // Continue polling even if one request fails
+      }
     };
 
-    const id = setInterval(poll, 2500);
-    poll();
-    return () => { mounted = false; clearInterval(id); };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled]);
+    const id = setInterval(poll, pollingInterval);
+    poll(); // Initial poll
+    
+    return () => { 
+      mounted = false; 
+      clearInterval(id); 
+      console.log('🛑 Stopped polling for channel:', activeChannelId);
+    };
+  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled, effectiveEmail]);
 
   useEffect(() => {
     const handleMessage = async (event: CustomEvent) => {
