@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MessageAttachments } from './MessageAttachments';
+import { supabase } from '@/integrations/supabase/client';
 
 type ChatMessage = {
   id: string;
@@ -30,7 +31,8 @@ type ChatMessage = {
   sender_avatar?: string;
   reactions?: any[];
   reply_to?: ChatMessage;
-  files?: any[];
+  files?: any[];                     // sometimes used
+  attachments?: any[];               // sometimes used (older shape)
   is_deleted?: boolean;
   edited_at?: string;
   original_content?: string;
@@ -74,7 +76,6 @@ export const MessageList = ({
       return message.sender_user_id === currentUser.id;
     }
     if (currentUser.type === 'sub_user' && message.sender_type === 'sub_user') {
-      // tolerate email-based temp identifiers
       return (
         message.sender_sub_user_id === currentUser.id ||
         (message.sender_name === currentUser.name && currentUser.id?.includes('@'))
@@ -83,23 +84,30 @@ export const MessageList = ({
     return false;
   };
 
-  // ---------- NEW: robust deleted check ----------
+  // -- robust deleted check
   const isDeleted = (m: ChatMessage) => {
     if (m.is_deleted) return true;
     if (m.message_type === 'deleted') return true;
     const c = (m.content || '').trim().toLowerCase();
-    // also catch content that was replaced by renderer/back-end
     return c === 'message deleted' || c === '[message deleted]';
   };
 
-  // ---------- NEW: edited flag ----------
+  // -- robust edited check (matches your back-end behaviors)
   const wasEdited = (m: ChatMessage) => {
     if (isDeleted(m)) return false;
     if (m.edited_at) return true;
-    if (!m.updated_at || !m.created_at) return false;
-    const updatedTime = new Date(m.updated_at).getTime();
-    const createdTime = new Date(m.created_at).getTime();
-    return updatedTime - createdTime > 5000; // >5s to account for any processing delays
+    if (m.original_content && m.original_content.trim() && m.original_content.trim() !== (m.content || '').trim()) {
+      return true;
+    }
+    if (m.updated_at && m.created_at) {
+      const delta = new Date(m.updated_at).getTime() - new Date(m.created_at).getTime();
+      // >1s is enough — some DBs set the same second for created/updated
+      if (delta > 1000) return true;
+    }
+    // also accept explicit flag if your API ever sends it
+    // @ts-ignore
+    if ((m as any).is_edited === true) return true;
+    return false;
   };
 
   const groupReactions = (reactions: any[]) => {
@@ -111,21 +119,19 @@ export const MessageList = ({
       emoji,
       count: list.length,
       users: list.map((r) => r.sender_name || 'Unknown'),
-      hasCurrentUser: !!currentUser && list.some((r) =>
-        currentUser.type === 'admin' ? r.user_id === currentUser.id : r.sub_user_id === currentUser.id
-      ),
+      hasCurrentUser:
+        !!currentUser &&
+        list.some((r) => (currentUser.type === 'admin' ? r.user_id === currentUser.id : r.sub_user_id === currentUser.id)),
     }));
   };
 
   const canEditMessage = (message: ChatMessage) => {
     if (!isOwnMessage(message) || isDeleted(message)) return false;
     if (message.message_type && message.message_type !== 'text') return false;
-    const hoursDiff =
-      (Date.now() - new Date(message.created_at).getTime()) / (1000 * 60 * 60);
+    const hoursDiff = (Date.now() - new Date(message.created_at).getTime()) / (1000 * 60 * 60);
     return hoursDiff <= 12;
   };
 
-  // ---------- changed: take the whole message, guard if deleted ----------
   const handleDeleteClick = (message: ChatMessage) => {
     if (isDeleted(message)) return; // safety
     setMessageToDelete(message.id);
@@ -138,15 +144,40 @@ export const MessageList = ({
     setDeleteDialogOpen(false);
   };
 
+  // ---- normalize attachments for MessageAttachments component
+  const normalizeAttachments = (message: ChatMessage) => {
+    const raw = (message.files && message.files.length ? message.files : message.attachments) || [];
+    return raw
+      .map((a: any) => {
+        const file_path =
+          a.file_path ?? a.path ?? a.filepath ?? a.storage_path ?? a.full_path ?? a.key ?? null;
+        let public_url = a.public_url ?? a.preview_url ?? null;
+
+        if (!public_url && file_path) {
+          const { data } = supabase.storage.from('chat_attachments').getPublicUrl(file_path);
+          public_url = data?.publicUrl || null;
+        }
+
+        return {
+          id: a.id ?? a.file_id ?? a.attachment_id ?? `${message.id}_${(a.filename || a.name || 'file')}`,
+          filename: a.filename ?? a.name ?? a.file_name ?? (file_path ? file_path.split('/').pop() : 'file'),
+          file_path,
+          content_type: a.content_type ?? a.mimetype ?? a.mime_type ?? a.type ?? undefined,
+          size: a.size ?? a.bytes ?? a.length ?? undefined,
+          public_url,
+          object_url: a.object_url ?? undefined,
+        };
+      })
+      .filter((a: any) => !!a.file_path);
+  };
+
   if (messages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
           <Smile className="h-8 w-8 text-muted-foreground" />
         </div>
-        <h3 className="font-medium text-lg mb-2">
-          This is the beginning of your conversation
-        </h3>
+        <h3 className="font-medium text-lg mb-2">This is the beginning of your conversation</h3>
         <p className="text-muted-foreground text-sm">Send a message to get started!</p>
       </div>
     );
@@ -160,12 +191,12 @@ export const MessageList = ({
           !prevMessage ||
           prevMessage.sender_user_id !== message.sender_user_id ||
           prevMessage.sender_sub_user_id !== message.sender_sub_user_id ||
-          new Date(message.created_at).getTime() -
-            new Date(prevMessage.created_at).getTime() >
-            300000; // 5m
+          new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() > 300000; // 5m
+
         const reactions = groupReactions(message.reactions || []);
         const deleted = isDeleted(message);
         const edited = wasEdited(message);
+        const normalizedAtts = !deleted ? normalizeAttachments(message) : [];
 
         return (
           <div
@@ -175,7 +206,7 @@ export const MessageList = ({
             onMouseLeave={() => setHoveredMessage(null)}
           >
             <div className="flex gap-3">
-              {/* Avatar (only show for first message in group) */}
+              {/* Avatar (first in group only) */}
               <div className="w-10 flex-shrink-0">
                 {isFirstInGroup ? (
                   <Avatar className="h-10 w-10">
@@ -193,25 +224,25 @@ export const MessageList = ({
                 )}
               </div>
 
-              {/* Message Content */}
+              {/* Body */}
               <div className="flex-1 min-w-0">
-                {/* Header (name + time). NOTE: Admin badge removed */}
+                {/* Header row (name • time • edited) — Admin badge removed */}
                 {isFirstInGroup && (
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium text-sm">{message.sender_name}</span>
                     <span className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                      {edited && (
-                        <span className="ml-2 inline-flex items-center gap-1">
-                          <Edit className="h-3 w-3" />
-                          {t('chat.edited')}
-                        </span>
-                      )}
                     </span>
+                    {edited && (
+                      <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                        <Edit className="h-3 w-3" />
+                        {t('chat.edited')}
+                      </span>
+                    )}
                   </div>
                 )}
-                
-                {/* Show edit indicator for non-first messages */}
+
+                {/* If not first in group, still show edited marker so it never gets lost */}
                 {!isFirstInGroup && edited && (
                   <div className="flex items-center gap-1 mb-1 text-xs text-muted-foreground">
                     <Edit className="h-3 w-3" />
@@ -219,50 +250,47 @@ export const MessageList = ({
                   </div>
                 )}
 
-                {/* Reply Context */}
+                {/* Reply context */}
                 {message.reply_to && (
                   <div className="mb-2 pl-3 border-l-2 border-muted bg-muted/20 rounded py-1 px-2">
                     <p className="text-xs text-muted-foreground">
                       <Reply className="h-3 w-3 inline mr-1" />
-                      Replying to{' '}
-                      <span className="font-medium">{message.reply_to.sender_name}</span>
+                      Replying to <span className="font-medium">{message.reply_to.sender_name}</span>
                     </p>
                     <p className="text-sm truncate">{message.reply_to.content}</p>
                   </div>
                 )}
 
-                {/* Message Text */}
-                <div
-                  className={`text-sm leading-relaxed ${
-                    deleted ? 'text-muted-foreground italic' : 'text-foreground'
-                  }`}
-                >
+                {/* Text */}
+                <div className={`text-sm leading-relaxed ${deleted ? 'text-muted-foreground italic' : 'text-foreground'}`}>
                   {deleted ? `[${t('chat.messageDeleted')}]` : message.content}
                 </div>
 
-                {/* Files - hide if message is deleted */}
-                {message.files && message.files.length > 0 && !deleted && (
-                  <MessageAttachments attachments={message.files} />
+                {/* Attachments — use your existing rich component so thumbnails & popup work again */}
+                {normalizedAtts.length > 0 && (
+                  <div className="mt-2">
+                    <MessageAttachments attachments={normalizedAtts} />
+                  </div>
                 )}
 
                 {/* Reactions */}
                 {reactions.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {reactions.map((reaction) => (
+                    {reactions.map((r) => (
                       <div
-                        key={reaction.emoji}
+                        key={r.emoji}
                         className="flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-muted border border-transparent"
-                        title={`${reaction.users.join(', ')} reacted with ${reaction.emoji}`}
+                        title={`${r.users.join(', ')} reacted with ${r.emoji}`}
                       >
-                        <span>{reaction.emoji}</span>
-                        <span className="font-medium">{reaction.count}</span>
+                        <span>{r.emoji}</span>
+                        <span className="font-medium">{r.count}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Actions — hidden completely for deleted messages */}
+              {/* Actions — never shown for deleted messages */}
               {hoveredMessage === message.id && !deleted && (
                 <div className="absolute -top-2 right-0 flex items-center gap-1 bg-background border border-border rounded-lg p-1 shadow-lg">
                   <Button
@@ -275,7 +303,6 @@ export const MessageList = ({
                     <Reply className="h-3 w-3" />
                   </Button>
 
-                  {/* Edit (own + within 12h + not deleted) */}
                   {isOwnMessage(message) && (
                     <Button
                       variant="ghost"
@@ -289,7 +316,6 @@ export const MessageList = ({
                     </Button>
                   )}
 
-                  {/* Delete (own + not deleted) */}
                   {isOwnMessage(message) && (
                     <Button
                       variant="ghost"
@@ -308,14 +334,12 @@ export const MessageList = ({
         );
       })}
 
-      {/* Delete Confirmation */}
+      {/* Delete confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="z-[9999]">
           <AlertDialogHeader>
             <AlertDialogTitle>{t('chat.deleteMessage')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('chat.deleteMessageConfirm')}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('chat.deleteMessageConfirm')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('chat.cancelButton')}</AlertDialogCancel>
