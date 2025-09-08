@@ -1818,24 +1818,6 @@ export type Database = {
           updated_at: string
         }[]
       }
-      get_chat_messages_for_channel_paged: {
-        Args: {
-          p_before?: string
-          p_board_owner_id: string
-          p_channel_id: string
-          p_limit?: number
-        }
-        Returns: {
-          content: string
-          created_at: string
-          has_attachments: boolean
-          has_more: boolean
-          id: string
-          sender_id: string
-          sender_name: string
-          updated_at: string
-        }[]
-      }
       get_default_channel_for_board: {
         Args: { p_board_owner_id: string }
         Returns: {
@@ -2022,26 +2004,6 @@ export type Database = {
           sender_sub_user_id: string
           sender_type: string
           sender_user_id: string
-          updated_at: string
-        }[]
-      }
-      list_channel_messages_public_paged: {
-        Args: {
-          p_before?: string
-          p_channel_id: string
-          p_limit?: number
-          p_owner_id: string
-          p_requester_email: string
-          p_requester_type: string
-        }
-        Returns: {
-          content: string
-          created_at: string
-          has_attachments: boolean
-          has_more: boolean
-          id: string
-          sender_id: string
-          sender_name: string
           updated_at: string
         }[]
       }

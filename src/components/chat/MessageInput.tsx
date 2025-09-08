@@ -310,11 +310,11 @@ export const MessageInput = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                 disabled={isUploading}
                 aria-label="Attach files"
               >
-                <Paperclip className="h-5 w-5" />
+                <Paperclip className="h-4 w-4" />
               </Button>
             )}
 
@@ -325,12 +325,12 @@ export const MessageInput = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                     disabled={isUploading}
                     onClick={() => setShowEmojiPicker(v => !v)}
                     aria-label="Insert emoji"
                   >
-                    <Smile className="h-5 w-5" />
+                    <Smile className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-background border-input z-[10000]" align="end" side="top" sideOffset={8}>
