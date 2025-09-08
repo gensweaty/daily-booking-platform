@@ -732,6 +732,11 @@ export const translations: TranslationType = {
     noTeamMembers: "No team members found",
     loading: "Loading...",
     messageDeleted: "Message deleted",
-    channel: "Channel"
+    channel: "Channel",
+    deleteMessage: "Delete Message",
+    deleteMessageConfirm: "Are you sure you want to delete this message? This action cannot be undone.",
+    deleteButton: "Yes, Delete",
+    cancelButton: "No",
+    edited: "edited"
   }
 };
