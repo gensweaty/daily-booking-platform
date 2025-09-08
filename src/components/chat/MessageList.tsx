@@ -45,6 +45,7 @@ interface MessageListProps {
   onReply: (messageId: string) => void;
   onEdit: (message: ChatMessage) => void;
   onDelete: (messageId: string) => void;
+  loading?: boolean;
 }
 
 export const MessageList = ({
@@ -53,6 +54,7 @@ export const MessageList = ({
   onReply,
   onEdit,
   onDelete,
+  loading = false,
 }: MessageListProps) => {
   const { t } = useLanguage();
   const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
@@ -182,7 +184,8 @@ export const MessageList = ({
       .filter((a: any) => !!a.file_path);
   };
 
-  if (messages.length === 0) {
+  // Only show empty state when not loading and truly no messages
+  if (messages.length === 0 && !loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -190,6 +193,19 @@ export const MessageList = ({
         </div>
         <h3 className="font-medium text-lg mb-2">This is the beginning of your conversation</h3>
         <p className="text-muted-foreground text-sm">Send a message to get started!</p>
+      </div>
+    );
+  }
+
+  // Show loading state when loading and no messages
+  if (messages.length === 0 && loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 animate-pulse">
+          <Smile className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="font-medium text-lg mb-2">Loading messages...</h3>
+        <p className="text-muted-foreground text-sm">Please wait while we fetch your conversation</p>
       </div>
     );
   }

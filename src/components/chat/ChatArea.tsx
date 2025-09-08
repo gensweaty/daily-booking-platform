@@ -639,7 +639,16 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   // Main load effect - check cache first, then load
   useEffect(() => {
-    if (!activeChannelId || !isInitialized) return;
+    if (!activeChannelId || !isInitialized) {
+      setLoading(true);
+      return;
+    }
+    
+    // Ensure all required dependencies are available before proceeding
+    if (!boardOwnerId || !me) {
+      setLoading(true);
+      return;
+    }
 
     // Check cache first for instant display
     const cached = cacheRef.current.get(activeChannelId);
@@ -659,7 +668,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       return;
     }
 
-    // Load fresh data if not cached
+    // Load fresh data if not cached - ensure loading state is set
+    setLoading(true);
     loadInitialMessages(activeChannelId);
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
@@ -1420,6 +1430,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               onReply={handleReply}
               onEdit={handleEdit}
               onDelete={handleDeleteMessage}
+              loading={loading}
             />
             <div ref={bottomRef} />
           </div>
