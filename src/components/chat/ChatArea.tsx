@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,8 +10,6 @@ import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 import { getEffectivePublicEmail } from '@/utils/chatEmail';
 import { useLanguage } from '@/contexts/LanguageContext';
-
-const PAGE_SIZE = 40;
 
 type Message = {
   id: string;
@@ -29,15 +27,15 @@ type Message = {
   is_deleted?: boolean;
   edited_at?: string;
   original_content?: string;
-  _isUpdate?: boolean;
+  _isUpdate?: boolean; // Flag to indicate this is an update event
   attachments?: Array<{
     id: string;
     filename: string;
     file_path: string;
     content_type?: string;
     size?: number;
-    public_url?: string;
-    object_url?: string;
+    public_url?: string;  // optimistic
+    object_url?: string;  // optimistic
   }>;
 };
 
@@ -51,14 +49,13 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const { t } = useLanguage();
   const location = useLocation();
 
+  // Compute effective email using the same logic as ChatSidebar
   const effectiveEmail = getEffectivePublicEmail(location.pathname, me?.email);
+
   const isPublic = location.pathname.startsWith('/board/');
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [oldestCursor, setOldestCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState<boolean>(true);
-  const [isFetchingOlder, setIsFetchingOlder] = useState(false);
   const [channelInfo, setChannelInfo] = useState<{ 
     name: string; 
     isDM: boolean; 
@@ -68,12 +65,27 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement | null>(null);
+  const topSentinelRef = useRef<HTMLDivElement | null>(null);
   const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(null);
   
+  // Pagination state per channel
+  const [paginationState, setPaginationState] = useState<{
+    [channelId: string]: {
+      items: Message[];
+      oldestCursor: string | null;
+      hasMore: boolean;
+      isFetchingOlder: boolean;
+    }
+  }>({});
+
   const cacheRef = useRef<Map<string, { items: Message[]; oldestCursor: string | null; hasMore: boolean }>>(new Map());
   const activeChannelId = currentChannelId;
   const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } }>>(new Map());
   const [generalId, setGeneralId] = useState<string | null>(null);
+  const [generalIdLoading, setGeneralIdLoading] = useState(true);
+  
+  // Get current pagination state for active channel
+  const currentPagination = activeChannelId ? paginationState[activeChannelId] : null;
   
   // Scroll to bottom function
   const scrollToBottom = (behavior: 'smooth' | 'instant' = 'smooth') => {
@@ -81,73 +93,344 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       bottomRef.current.scrollIntoView({ behavior, block: 'end' });
     }
   };
+  
+  // Check if user is near bottom of scroll area
+  const isNearBottom = () => {
+    if (!scrollAreaRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
+    return scrollHeight - (scrollTop + clientHeight) < 80;
+  };
 
-  // helper: fetch a page (new RPCs first, fallback to old)
-  const fetchPage = async (before?: string | null) => {
-    const onPublicBoard = location.pathname.startsWith('/board/');
-    if (onPublicBoard && me?.type === 'sub_user') {
-      const { data, error } = await supabase.rpc('list_channel_messages_public_paged', {
-        p_owner_id: boardOwnerId,
-        p_channel_id: activeChannelId,
-        p_requester_type: 'sub_user',
-        p_requester_email: effectiveEmail!,
-        p_limit: PAGE_SIZE,
-        p_before: before ?? null,
-      });
-      return { data, error };
-    } else {
-      const { data, error } = await supabase.rpc('get_chat_messages_for_channel_paged', {
-        p_board_owner_id: boardOwnerId,
-        p_channel_id: activeChannelId,
-        p_limit: PAGE_SIZE,
-        p_before: before ?? null,
-      });
-      return { data, error };
+  // -------- helper: fetch attachments correctly for public vs internal
+  const fetchAttachments = async (messageId: string) => {
+    try {
+      const onPublicBoard = location.pathname.startsWith('/board/');
+      if (onPublicBoard && me?.type === 'sub_user') {
+        const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+          p_message_ids: [messageId],
+        });
+        return (attRows || []).map((a: any) => ({
+          id: a.id,
+          filename: a.filename,
+          file_path: a.file_path,
+          content_type: a.content_type,
+          size: a.size,
+        }));
+      }
+      const { data: linked } = await supabase
+        .from('chat_message_files')
+        .select('*')
+        .eq('message_id', messageId);
+      return (linked || []).map((a: any) => ({
+        id: a.id,
+        filename: a.filename,
+        file_path: a.file_path,
+        content_type: a.content_type,
+        size: a.size,
+      }));
+    } catch {
+      return [];
     }
   };
 
-  // 🔄 initial load: last page only
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!activeChannelId || !me || !boardOwnerId || !isInitialized) return;
+  // Always clear header on channel switch; we will re-resolve strictly
+  useEffect(() => { setChannelInfo(null); }, [activeChannelId]);
 
-      setLoading(true);
-      
-      // Check cache first
-      const cached = cacheRef.current.get(activeChannelId);
-      if (cached) {
-        setMessages(cached.items);
-        setOldestCursor(cached.oldestCursor);
-        setHasMore(cached.hasMore);
-        setLoading(false);
-        setTimeout(() => scrollToBottom('instant'), 0);
+  // Resolve current user ID for sub-users on public boards
+  useEffect(() => {
+    const resolveCurrentUserId = async () => {
+      if (!me || !boardOwnerId) {
+        setResolvedCurrentUserId(null);
         return;
       }
 
-      const { data, error } = await fetchPage(null);
-      if (!active) return;
-
-      if (error) { 
-        setLoading(false); 
-        return; 
+      // For admins or internal boards, use the ID as-is
+      if (me.type === 'admin' || !isPublic) {
+        setResolvedCurrentUserId(me.id);
+        return;
       }
 
-      const normalized = (data || [])
-        .map((m: any) => ({ 
-          ...m, 
-          sender_type: m.sender_type as 'admin'|'sub_user', 
-          sender_name: m.sender_name?.trim() || undefined 
-        }))
-        .reverse();
+      // For sub-users on public boards, resolve UUID by email if ID is email-based
+      if (me.type === 'sub_user' && isPublic && me.email && me.id?.includes('@')) {
+        console.log('🔍 Resolving current user UUID by email for public board:', me.email);
+        const { data: subUser } = await supabase
+          .from('sub_users')
+          .select('id')
+          .eq('board_owner_id', boardOwnerId)
+          .eq('email', me.email)
+          .maybeSingle();
+        if (subUser?.id) {
+          setResolvedCurrentUserId(subUser.id);
+          console.log('✅ Resolved current user UUID:', subUser.id);
+        } else {
+          setResolvedCurrentUserId(me.id);
+        }
+      } else {
+        setResolvedCurrentUserId(me.id);
+      }
+    };
 
-      // batch attachments for this page
+    resolveCurrentUserId();
+  }, [me?.id, me?.type, me?.email, boardOwnerId, isPublic]);
+
+  // helper for clean display names (for message bubbles, not header)
+  const nameFor = (m: Message) =>
+    (m.sender_name && m.sender_name.trim())
+    || (me?.name?.trim() || (me as any)?.full_name?.trim())
+    || 'User';
+
+  // Normalize admin display name (avoid auto-generated "user_*")
+  const normalizeAdminName = (username?: string | null) => {
+    if (!username) return 'Admin';
+    return username.startsWith('user_') ? 'Admin' : username;
+  };
+
+  // Load the General channel id (so General can never show a person's name)
+  useEffect(() => {
+    if (!boardOwnerId) { setGeneralId(null); return; }
+    (async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_default_channel_for_board', {
+          p_board_owner_id: boardOwnerId
+        });
+        if (error) { setGeneralId(null); return; }
+        setGeneralId(data?.[0]?.id ?? null);
+      } catch { setGeneralId(null); }
+    })();
+  }, [boardOwnerId, location.pathname]);
+
+  // Strict header resolver (no guessing)
+  useEffect(() => {
+    const resolveHeader = async () => {
+      if (!activeChannelId || !boardOwnerId) return;
+
+      // Cached?
+      const cached = headerCacheRef.current.get(activeChannelId);
+      if (cached) { setChannelInfo(cached); return; }
+
+      // 1) If this is the known General channel => force "General".
+      if (generalId && activeChannelId === generalId) {
+        const info = { name: t('chat.general'), isDM: false } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
+
+      // 2) Use unified participant-based resolution for both internal and public boards
+      // What kind of channel is this?
+      const { data: ch, error: chErr } = await supabase
+        .from('chat_channels')
+        .select('name, is_dm')
+        .eq('id', activeChannelId)
+        .maybeSingle();
+      if (chErr) {
+        console.log('❌ Failed to fetch channel info:', chErr);
+        return;
+      }
+
+      // Non-DM: trust channel's own name (or General fallback)
+      if (!ch?.is_dm) {
+        const info = { name: ch?.name || t('chat.general'), isDM: false } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
+
+      // DM: Use direct participant resolution for both internal and public boards
+      console.log('🔍 Resolving DM header for channel:', activeChannelId, 'me:', { type: me?.type, id: me?.id, isPublic });
+      
+      const { data: parts } = await supabase
+        .from('chat_participants')
+        .select('user_type, user_id, sub_user_id')
+        .eq('channel_id', activeChannelId);
+      
+      console.log('👥 Found participants:', parts);
+      if (!parts || parts.length === 0) {
+        console.log('❌ No participants found, fallback to General');
+        const info = { name: t('chat.general'), isDM: false } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
+
+      const myType = me?.type;
+      const myId   = me?.id;
+      let myUUID = myId; // Default to original ID
+      
+      // For sub-users on public boards, we might need to resolve by email if ID is email-based
+      if (myType === 'sub_user' && isPublic && me?.email && myId?.includes('@')) {
+        console.log('🔍 Resolving sub-user UUID by email for public board:', me.email);
+        const { data: subUser } = await supabase
+          .from('sub_users')
+          .select('id')
+          .eq('board_owner_id', boardOwnerId)
+          .eq('email', me.email)
+          .maybeSingle();
+        if (subUser?.id) {
+          myUUID = subUser.id;
+          console.log('✅ Resolved sub-user UUID:', myUUID);
+        }
+      }
+      
+      const other = parts.find(p => {
+        if (myType === 'admin') {
+          return (p.user_type === 'sub_user') ||
+                 (p.user_type === 'admin' && p.user_id !== myUUID);
+        } else if (myType === 'sub_user') {
+          return (p.user_type === 'admin') ||
+                 (p.user_type === 'sub_user' && p.sub_user_id !== myUUID);
+        }
+        return false;
+      });
+      
+      console.log('👤 Found other participant:', other, 'using myUUID:', myUUID);
+      if (!other) {
+        console.log('❌ No other participant found, fallback to General');
+        const info = { name: t('chat.general'), isDM: false } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
+
+      // Fetch partner profile
+      let partnerName = 'Direct Message';
+      let partnerAvatar: string | undefined;
+
+      if (other.user_type === 'admin' && other.user_id) {
+        console.log('🔍 Fetching admin profile for:', other.user_id);
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', other.user_id)
+          .maybeSingle();
+        console.log('👤 Admin profile:', prof);
+        partnerName   = normalizeAdminName(prof?.username) || 'Admin';
+        partnerAvatar = prof?.avatar_url || undefined;
+      } else if (other.user_type === 'sub_user' && other.sub_user_id) {
+        console.log('🔍 Fetching sub-user profile for:', other.sub_user_id);
+        const { data: su } = await supabase
+          .from('sub_users')
+          .select('fullname, email, avatar_url')
+          .eq('id', other.sub_user_id)
+          .maybeSingle();
+        console.log('👤 Sub-user profile:', su);
+        partnerName   = (su?.fullname && su.fullname.trim()) || su?.email || 'Member';
+        partnerAvatar = su?.avatar_url || undefined;
+      }
+
+      console.log('✅ Resolved DM header:', { partnerName, partnerAvatar, isPublic });
+      const info = { name: partnerName, isDM: true, dmPartner: { name: partnerName, avatar: partnerAvatar } } as const;
+      headerCacheRef.current.set(activeChannelId, info);
+      setChannelInfo(info);
+    };
+    resolveHeader();
+  }, [activeChannelId, boardOwnerId, generalId, isPublic, effectiveEmail, me?.id, me?.type]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!activeChannelId && isInitialized) {
+        console.log('⏰ Timeout fallback: no channel selected after 3 seconds');
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [activeChannelId, isInitialized]);
+
+  // Load initial messages with pagination
+  const loadingChannelRef = useRef<string | null>(null);
+  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  const loadInitialMessages = async (channelId: string) => {
+    if (!channelId || !me || !boardOwnerId || !isInitialized) return;
+    
+    // Prevent concurrent calls for the same channel - mobile network fix
+    if (loadingChannelRef.current === channelId) {
+      console.log('⚠️ Skipping loadInitialMessages - already loading channel:', channelId);
+      return;
+    }
+
+    try {
+      loadingChannelRef.current = channelId;
+      setLoading(true);
+      
+      // Mobile network timeout - clear loading after 10 seconds max
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+      loadingTimeoutRef.current = setTimeout(() => {
+        console.log('⏰ Chat loading timeout - clearing loading state');
+        setLoading(false);
+        loadingChannelRef.current = null;
+      }, 10000);
+      const onPublicBoard = location.pathname.startsWith('/board/');
+
+      let data: any = null;
+      let error: any = null;
+
+      // Try paged RPC first, fallback to legacy
+      if (onPublicBoard && me?.type === 'sub_user') {
+        const result = await supabase.rpc('list_channel_messages_public_paged', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: channelId,
+          p_requester_type: 'sub_user',
+          p_requester_email: effectiveEmail!,
+          p_limit: 40,
+          p_before: null
+        });
+        
+        if (result.error) {
+          console.log('Paged RPC not available, falling back to legacy');
+          const fallback = await supabase.rpc('list_channel_messages_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: channelId,
+            p_requester_type: 'sub_user',
+            p_requester_email: effectiveEmail!,
+          });
+          data = fallback.data;
+          error = fallback.error;
+        } else {
+          data = result.data;
+          error = result.error;
+        }
+      } else {
+        const result = await supabase.rpc('get_chat_messages_for_channel_paged', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: channelId,
+          p_limit: 40,
+          p_before: null
+        });
+
+        if (result.error) {
+          console.log('Paged RPC not available, falling back to legacy');
+          const fallback = await supabase.rpc('get_chat_messages_for_channel', {
+            p_board_owner_id: boardOwnerId,
+            p_channel_id: channelId,
+          });
+          data = fallback.data;
+          error = fallback.error;
+        } else {
+          data = result.data;
+          error = result.error;
+        }
+      }
+
+      if (error) {
+        console.error('Error loading messages:', error);
+        if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+        setLoading(false);
+        loadingChannelRef.current = null;
+        return;
+      }
+
+      const normalized = (data || []).map((m: any) => ({
+        ...m,
+        sender_type: m.sender_type as 'admin' | 'sub_user',
+        sender_name: (m.sender_name && m.sender_name.trim()) || undefined,
+      }));
+
+      // Batch-hydrate attachments for messages with has_attachments=true
       const messagesWithAttachments = normalized.filter(m => m.has_attachments);
       const attachmentIds = messagesWithAttachments.map(m => m.id);
       let byMsg: Record<string, any[]> = {};
 
       if (attachmentIds.length) {
-        const onPublicBoard = location.pathname.startsWith('/board/');
         if (onPublicBoard && me?.type === 'sub_user') {
           const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
             p_message_ids: attachmentIds
@@ -189,67 +472,968 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         attachments: byMsg[m.id] || [],
       }));
 
-      setMessages(withAtts);
-      cacheRef.current.set(activeChannelId, { 
-        items: withAtts, 
-        oldestCursor: withAtts[0]?.created_at ?? null,
-        hasMore: (data || []).length === PAGE_SIZE
-      });
+      // Meta backfill for edit/delete flags
+      let metaById = new Map<string, any>();
+      if (!onPublicBoard) {
+        const ids = withAtts.map(m => m.id);
+        const { data: meta } = await supabase
+          .from('chat_messages')
+          .select('id, updated_at, edited_at, original_content, is_deleted')
+          .in('id', ids);
+        if (meta) metaById = new Map(meta.map((x: any) => [x.id, x]));
+      }
+
+      const finalMessages = withAtts.map(m => ({ ...m, ...(metaById.get(m.id) || {}) }));
+
+      // Determine pagination state
+      const hasMore = data?.[0]?.has_more ?? false;
+      const oldestCursor = finalMessages.length > 0 ? finalMessages[0].created_at : null;
+
+      // Update state
+      setMessages(finalMessages);
+      setPaginationState(prev => ({
+        ...prev,
+        [channelId]: {
+          items: finalMessages,
+          oldestCursor,
+          hasMore,
+          isFetchingOlder: false
+        }
+      }));
+
+      // Cache for quick reopening
+      cacheRef.current.set(channelId, { items: finalMessages, oldestCursor, hasMore });
       
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
       setLoading(false);
-      setOldestCursor(withAtts[0]?.created_at ?? null);
-      setHasMore((data || []).length === PAGE_SIZE);
-      setTimeout(() => scrollToBottom('instant'), 0);
-    })();
-    return () => { active = false; };
+      loadingChannelRef.current = null;
+
+      // Scroll to bottom instantly after loading
+      setTimeout(() => scrollToBottom('instant'), 50);
+      
+    } catch (error) {
+      console.error('Error loading initial messages:', error);
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+      setLoading(false);
+      loadingChannelRef.current = null;
+    }
+  };
+
+  // Load older messages when scrolling up
+  const loadOlderMessages = async (channelId: string) => {
+    const pagination = paginationState[channelId];
+    if (!pagination || !pagination.hasMore || pagination.isFetchingOlder) return;
+    if (!me || !boardOwnerId) return;
+
+    // Mark as fetching to prevent duplicate requests
+    setPaginationState(prev => ({
+      ...prev,
+      [channelId]: { ...prev[channelId], isFetchingOlder: true }
+    }));
+
+    try {
+      const onPublicBoard = location.pathname.startsWith('/board/');
+
+      let data: any = null;
+      let error: any = null;
+
+      if (onPublicBoard && me?.type === 'sub_user') {
+        const result = await supabase.rpc('list_channel_messages_public_paged', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: channelId,
+          p_requester_type: 'sub_user',
+          p_requester_email: effectiveEmail!,
+          p_limit: 40,
+          p_before: pagination.oldestCursor
+        });
+        data = result.data;
+        error = result.error;
+      } else {
+        const result = await supabase.rpc('get_chat_messages_for_channel_paged', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: channelId,
+          p_limit: 40,
+          p_before: pagination.oldestCursor
+        });
+        data = result.data;
+        error = result.error;
+      }
+
+      if (error) {
+        console.error('Error loading older messages:', error);
+        setPaginationState(prev => ({
+          ...prev,
+          [channelId]: { ...prev[channelId], isFetchingOlder: false }
+        }));
+        return;
+      }
+
+      const normalized = (data || []).map((m: any) => ({
+        ...m,
+        sender_type: m.sender_type as 'admin' | 'sub_user',
+        sender_name: (m.sender_name && m.sender_name.trim()) || undefined,
+      }));
+
+      // Hydrate attachments for new messages
+      const messagesWithAttachments = normalized.filter(m => m.has_attachments);
+      const attachmentIds = messagesWithAttachments.map(m => m.id);
+      let byMsg: Record<string, any[]> = {};
+
+      if (attachmentIds.length) {
+        if (onPublicBoard && me?.type === 'sub_user') {
+          const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+            p_message_ids: attachmentIds
+          });
+          if (attRows) {
+            byMsg = attRows.reduce((acc: any, a: any) => {
+              (acc[a.message_id] ||= []).push({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              });
+              return acc;
+            }, {});
+          }
+        } else {
+          const { data: atts } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .in('message_id', attachmentIds);
+          if (atts) {
+            byMsg = atts.reduce((acc: any, a: any) => {
+              (acc[a.message_id] ||= []).push({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              });
+              return acc;
+            }, {});
+          }
+        }
+      }
+
+      const withAtts = normalized.map(m => ({
+        ...m,
+        attachments: byMsg[m.id] || [],
+      }));
+
+      // Capture scroll position before updating state
+      const scrollContainer = scrollAreaRef.current;
+      const oldScrollHeight = scrollContainer?.scrollHeight || 0;
+      const oldScrollTop = scrollContainer?.scrollTop || 0;
+
+      // Determine new pagination state
+      const hasMore = data?.[0]?.has_more ?? false;
+      const newOldestCursor = withAtts.length > 0 ? withAtts[0].created_at : pagination.oldestCursor;
+
+      // Prepend new messages
+      const updatedItems = [...withAtts, ...pagination.items];
+      
+      setMessages(updatedItems);
+      setPaginationState(prev => ({
+        ...prev,
+        [channelId]: {
+          items: updatedItems,
+          oldestCursor: newOldestCursor,
+          hasMore,
+          isFetchingOlder: false
+        }
+      }));
+
+      // Maintain scroll position after prepending
+      setTimeout(() => {
+        if (scrollContainer) {
+          const newScrollHeight = scrollContainer.scrollHeight;
+          scrollContainer.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+        }
+      }, 0);
+
+    } catch (error) {
+      console.error('Error loading older messages:', error);
+      setPaginationState(prev => ({
+        ...prev,
+        [channelId]: { ...prev[channelId], isFetchingOlder: false }
+      }));
+    }
+  };
+
+  // Main load effect - check cache first, then load
+  useEffect(() => {
+    if (!activeChannelId || !isInitialized || !boardOwnerId || !me) {
+      return;
+    }
+
+    // Check cache first for instant display
+    const cached = cacheRef.current.get(activeChannelId);
+    if (cached) {
+      setMessages(cached.items);
+      setPaginationState(prev => ({
+        ...prev,
+        [activeChannelId]: {
+          items: cached.items,
+          oldestCursor: cached.oldestCursor,
+          hasMore: cached.hasMore,
+          isFetchingOlder: false
+        }
+      }));
+      setLoading(false);
+      loadingChannelRef.current = null;
+      setTimeout(() => scrollToBottom('instant'), 50);
+      return;
+    }
+
+    // Load fresh data if not cached - only if not already loading this channel
+    if (loadingChannelRef.current !== activeChannelId) {
+      loadInitialMessages(activeChannelId);
+    }
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
-  // Dummy handlers for now
+  // Scroll detection for loading older messages
+  useEffect(() => {
+    if (!activeChannelId || !topSentinelRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && currentPagination?.hasMore && !currentPagination.isFetchingOlder) {
+          loadOlderMessages(activeChannelId);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(topSentinelRef.current);
+    
+    return () => observer.disconnect();
+  }, [activeChannelId, currentPagination?.hasMore, currentPagination?.isFetchingOlder]);
+
+  // polling for public (only when realtime disabled)
+  useEffect(() => {
+    if (!activeChannelId || !boardOwnerId || !me) return;
+    if (realtimeEnabled) return;
+
+    let mounted = true;
+    const guardKey = `${boardOwnerId}:${me.email || me.id}`;
+
+    const poll = async () => {
+      if (!mounted) return;
+      const slug = location.pathname.split('/').pop();
+      const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+
+      const { data } = await supabase.rpc('list_channel_messages_public', {
+        p_owner_id: boardOwnerId,
+        p_channel_id: activeChannelId,
+        p_requester_type: 'sub_user',
+        p_requester_email: effectiveEmail!,
+      });
+      if (!mounted || !data) return;
+
+      setMessages(prev => {
+        const prevIds = new Set(prev.map(m => m.id));
+        const byId = new Map(prev.map(m => [m.id, m]));
+        for (const m of data) {
+          // Only emit for truly new ids; Map.set below already overwrites to latest snapshot
+          if (!prevIds.has(m.id)) {
+            window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: { ...m, owner_id: boardOwnerId } } }));
+          }
+          byId.set(m.id, { ...m, sender_type: m.sender_type as 'admin' | 'sub_user' });
+        }
+        return Array.from(byId.values()).sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
+      });
+    };
+
+    const id = setInterval(poll, 2500);
+    poll();
+    return () => { mounted = false; clearInterval(id); };
+  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled]);
+
+  useEffect(() => {
+    const handleMessage = async (event: CustomEvent) => {
+      let { message } = event.detail as { message: Message };
+      const channelId = message.channel_id;
+      const isUpdate = message._isUpdate;
+
+      // Load attachments for new file-messages (recipient side)
+      if (message.has_attachments && !isUpdate) {
+        console.log('📎 Loading attachments for real-time message:', message.id);
+        
+        let attempts = 0;
+        const maxAttempts = 5;
+        const baseDelay = 200;
+        
+        while (attempts < maxAttempts) {
+          const atts = await fetchAttachments(message.id);
+          
+          if (atts && atts.length > 0) {
+            console.log('✅ Found', atts.length, 'attachments for message:', message.id);
+            message = { 
+              ...message, 
+              attachments: atts,
+              has_attachments: true,
+              message_type: 'file'
+            };
+            break;
+          }
+          
+          attempts++;
+          if (attempts < maxAttempts) {
+            console.log(`⏳ Attachments not ready yet for message ${message.id}, retrying in ${baseDelay * attempts}ms (attempt ${attempts}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, baseDelay * attempts));
+          } else {
+            console.log('❌ Failed to load attachments after', maxAttempts, 'attempts for message:', message.id);
+            // Keep the message but mark it for potential later retry
+            message = { ...message, attachments: [] };
+          }
+        }
+      }
+
+      // For updates, make sure we have attachments if the message says so
+      if (isUpdate && message.has_attachments) {
+        console.log('🔄 Fetching attachments for updated message:', message.id);
+        const atts = await fetchAttachments(message.id);
+
+        if (atts && atts.length > 0) {
+          message = {
+            ...message,
+            attachments: atts,
+            has_attachments: true,
+            message_type: 'file'
+          };
+        }
+      }
+
+      const currentCache = cacheRef.current.get(channelId);
+      
+      if (isUpdate) {
+        // Handle message update
+        if (currentCache?.items) {
+          const updatedItems = currentCache.items.map(m => 
+            m.id === message.id ? {
+              ...message,
+              // Ensure we keep all the edit fields
+              updated_at: message.updated_at,
+              edited_at: message.edited_at,
+              original_content: message.original_content || m.original_content || m.content,
+              is_deleted: message.is_deleted,
+              // 🔧 FIX: Preserve attachments on updates if they exist
+              attachments: message.attachments || m.attachments || []
+            } : m
+          );
+          cacheRef.current.set(channelId, { ...currentCache, items: updatedItems });
+        }
+        
+        if (channelId === activeChannelId) {
+          setMessages(prev => prev.map(m => 
+            m.id === message.id ? {
+              ...message,
+              updated_at: message.updated_at,
+              edited_at: message.edited_at,
+              original_content: message.original_content || m.original_content || m.content,
+              is_deleted: message.is_deleted,
+              // 🔧 FIX: Preserve attachments on updates if they exist
+              attachments: message.attachments || m.attachments || []
+            } : m
+          ));
+        }
+      } else {
+        // Handle new message
+        const existsInCache = currentCache?.items?.some(m => m.id === message.id) || false;
+        if (!existsInCache && currentCache) {
+          const updatedItems = [...currentCache.items, message];
+          cacheRef.current.set(channelId, { ...currentCache, items: updatedItems });
+        }
+        if (channelId === activeChannelId) {
+          setMessages(prev => {
+            const existsInUI = prev.some(m => m.id === message.id);
+            if (existsInUI) return prev;
+            return [...prev, message];
+          });
+        }
+      }
+    };
+
+    window.addEventListener('chat-message-received', handleMessage as EventListener);
+    return () => window.removeEventListener('chat-message-received', handleMessage as EventListener);
+  }, [activeChannelId]);
+
+  // 🔧 FIX: Periodic check for messages with missing attachments
+  useEffect(() => {
+    if (!activeChannelId) return;
+    
+    const checkMissingAttachments = async () => {
+      const messagesWithMissingAttachments = messages.filter(m => 
+        ((m as any).has_attachments === true) && (!m.attachments || m.attachments.length === 0)
+      );
+      
+      if (messagesWithMissingAttachments.length > 0) {
+        console.log('🔍 Found', messagesWithMissingAttachments.length, 'messages with missing attachments, retrying...');
+        
+        for (const msg of messagesWithMissingAttachments) {
+          try {
+            const atts = await fetchAttachments(msg.id);
+            if (atts && atts.length > 0) {
+              console.log('✅ Recovered attachments for message:', msg.id);
+              // Trigger message update with attachments
+              window.dispatchEvent(new CustomEvent('chat-message-received', {
+                detail: {
+                  message: {
+                    ...msg,
+                    _isUpdate: true,
+                    attachments: atts,
+                    has_attachments: true,
+                    message_type: 'file'
+                  }
+                }
+              }));
+            }
+          } catch (error) {
+            console.warn('Failed to retry attachments for message:', msg.id, error);
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(checkMissingAttachments, 5000);
+    return () => clearInterval(interval);
+  }, [activeChannelId, messages]);
+
+  useEffect(() => {
+    const onReset = () => {
+      cacheRef.current.clear();
+      setMessages([]);
+      setLoading(false);
+    };
+    window.addEventListener('chat-reset', onReset as EventListener);
+    return () => window.removeEventListener('chat-reset', onReset as EventListener);
+  }, []);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
+
+  const send = async (content: string, attachments: any[] = []) => {
+    if (!content.trim() && attachments.length === 0) return;
+    if (!activeChannelId || !boardOwnerId || !me) return;
+
+    // Ensure message body is never empty (use single space when files only)
+    const body = content.trim().length > 0 ? content.trim() : ' ';
+
+    // --- optimistic paint
+    const tempId = `temp_${Date.now()}`;
+    const optimisticAtts = attachments.map((a: any) => {
+      const { data } = supabase.storage.from('chat_attachments').getPublicUrl(a.file_path);
+      return {
+        id: `tmp_${Math.random().toString(36).slice(2)}`,
+        filename: a.filename,
+        file_path: a.file_path,
+        content_type: a.content_type,
+        size: a.size,
+        public_url: a.public_url || data.publicUrl,
+        object_url: a.object_url,
+      };
+    });
+
+    const optimisticMessage: Message = {
+      id: tempId,
+      content: body,
+      created_at: new Date().toISOString(),
+      sender_type: me.type as 'admin' | 'sub_user',
+      sender_name: (me.name || (me as any)?.full_name || 'Me'),
+      sender_avatar_url: me.avatarUrl || undefined,
+      channel_id: activeChannelId,
+      has_attachments: optimisticAtts.length > 0,
+      message_type: optimisticAtts.length ? 'file' : 'text',
+      attachments: optimisticAtts,
+    };
+
+    setMessages(prev => [...prev, optimisticMessage]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+    // helper: fetch the latest message id the server just created
+    const fetchLatestMessage = async () => {
+      const { data: msg } = await supabase
+        .from('chat_messages')
+        .select(`
+          id, created_at, updated_at, edited_at, original_content,
+          content, channel_id, has_attachments, message_type, is_deleted,
+          sender_type, sender_user_id, sender_sub_user_id, sender_name, sender_avatar_url
+        `)
+        .eq('channel_id', activeChannelId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return msg || null;
+    };
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const isAuthed = !!session?.user?.id;
+      const onPublicBoard = location.pathname.startsWith('/board/');
+
+      // New flow for public board sub-users
+      if (onPublicBoard && me?.type === 'sub_user') {
+        const { data: created, error } = await supabase.rpc('send_public_board_message', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_sender_email: me.email!,
+          p_content: body,
+        });
+        if (error) throw error;
+
+        const messageId = created?.[0]?.id;
+        if (attachments.length && messageId) {
+          await supabase.rpc('attach_files_to_message_public_by_id', {
+            p_owner_id: boardOwnerId,
+            p_message_id: messageId,
+            p_files: attachments,
+          });
+        }
+
+        // get linked files via RLS-safe list
+        let atts: any[] = [];
+        if (attachments.length && messageId) {
+          const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+            p_message_ids: [messageId],
+          });
+          atts = (attRows || []).map(a => ({ ...a }));
+        }
+
+        const hydrated: Message = {
+          id: messageId,
+          content: body,
+          created_at: created?.[0]?.created_at || new Date().toISOString(),
+          sender_type: 'sub_user',
+          sender_name: created?.[0]?.sender_name || me.name || (me as any)?.full_name || 'Me',
+          sender_avatar_url: created?.[0]?.sender_avatar_url || me.avatarUrl,
+          channel_id: activeChannelId,
+          has_attachments: atts.length > 0,
+          message_type: atts.length ? 'file' : 'text',
+          attachments: atts,
+        };
+
+        // replace optimistic AND any pre-fetched "real" stub with the hydrated one
+        setMessages(prev => {
+          const withoutTempOrReal = prev.filter(
+            m => m.id !== tempId && m.id !== messageId
+          );
+          return [...withoutTempOrReal, hydrated];
+        });
+        // No-op: local state is already updated; poller/realtime will converge
+        return;
+      }
+
+      // Original flow for authenticated users
+      if (isAuthed && me?.type === 'admin') {
+        const { error } = await supabase.rpc('send_authenticated_message', {
+          p_channel_id: activeChannelId,
+          p_owner_id: boardOwnerId,
+          p_content: body,
+        });
+        if (error) throw error;
+      } else {
+        // Fallback public flow
+        const slug = location.pathname.split('/').pop()!;
+        const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+        const senderEmail = me?.email || stored?.email;
+        const { error } = await supabase.rpc('send_public_board_message', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_sender_email: senderEmail,
+          p_content: body,
+        });
+        if (error) throw error;
+      }
+
+      // get the just-created message
+      const real = await fetchLatestMessage();
+      if (!real?.id) return;
+
+      // link files to that message
+      if (attachments.length > 0) {
+        if (me?.type === 'admin' && isAuthed) {
+          const rows = attachments.map(a => ({
+            message_id: real.id,
+            filename: a.filename,
+            file_path: a.file_path,
+            content_type: a.content_type,
+            size: a.size,
+          }));
+          await supabase.from('chat_message_files').insert(rows);
+          await supabase.from('chat_messages')
+            .update({ has_attachments: true, message_type: 'file' })
+            .eq('id', real.id);
+        } else {
+          const slug = location.pathname.split('/').pop()!;
+          const stored = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
+          const senderEmail = stored?.email || me.email;
+
+          await supabase.rpc('attach_files_to_message_public', {
+            p_owner_id: boardOwnerId,
+            p_channel_id: activeChannelId,
+            p_sender_email: senderEmail,
+            p_files: attachments,
+          });
+        }
+      }
+
+      // hydrate with attachments
+      let atts: any[] = [];
+      if (attachments.length > 0) {
+        if (me?.type === 'sub_user' && location.pathname.startsWith('/board/')) {
+          // Use RLS-safe RPC for sub-users on external board
+          const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
+            p_message_ids: [real.id]
+          });
+          atts = (attRows || []).map(a => ({
+            id: a.id, filename: a.filename, file_path: a.file_path,
+            content_type: a.content_type, size: a.size,
+          }));
+        } else {
+          // Direct select for authenticated users
+          const { data: linked } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .eq('message_id', real.id);
+          atts = (linked || []).map(a => ({
+            id: a.id, filename: a.filename, file_path: a.file_path, content_type: a.content_type, size: a.size,
+          }));
+        }
+      }
+
+      const hydrated: Message = {
+        ...real,
+        sender_type: real.sender_type as 'admin' | 'sub_user',
+        sender_name: (real.sender_name && real.sender_name.trim())
+          || (me.name || (me as any)?.full_name || 'Me'),
+        // Prefer what DB saved for sender avatar; only fall back to local
+        sender_avatar_url: (real as any).sender_avatar_url
+          ?? me.avatarUrl
+          ?? undefined,
+        attachments: atts,
+      };
+
+      // replace optimistic; also guard against duplicates by id
+      setMessages(prev => {
+        const withoutTemp = prev.filter(m => m.id !== tempId && m.id !== real.id);
+        return [...withoutTemp, hydrated];
+      });
+
+      // dispatch once so other views update; id-based guards will avoid dupes
+      window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: hydrated } }));
+    } catch (e: any) {
+      // rollback optimistic
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      console.error('❌ Send error:', e);
+      toast({
+        title: 'Error',
+        description: e.message || 'Failed to send',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleReply = (messageId: string) => {
     const message = messages.find(m => m.id === messageId);
-    if (message) setReplyingTo(message);
+    if (message) {
+      setReplyingTo(message);
+      setEditingMessage(null); // Cancel edit when replying
+    }
   };
-  const handleEdit = (message: any) => setEditingMessage(message);
-  const handleDeleteMessage = (messageId: string) => {};
-  const handleCancelReply = () => setReplyingTo(null);
-  const handleCancelEdit = () => setEditingMessage(null);
-  const handleEditMessage = (messageId: string, content: string) => {};
-  const send = async (body: string, attachments: any[]) => {};
 
-  if (!activeChannelId) {
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  const handleEdit = (message: Message) => {
+    setEditingMessage(message);
+    setReplyingTo(null); // Cancel reply when editing
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    try {
+      console.log('🔄 Adding reaction:', { messageId, emoji });
+      
+      const { error } = await supabase.from('chat_message_reactions').upsert({
+        message_id: messageId,
+        user_id: me?.type === 'admin' ? me.id : null,
+        sub_user_id: me?.type === 'sub_user' ? me.id : null,
+        user_type: me?.type || 'admin',
+        emoji: emoji
+      }, {
+        onConflict: 'message_id,user_id,sub_user_id,emoji'
+      });
+
+      if (error) {
+        console.error('❌ Error adding reaction:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to add reaction',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Reload messages to show the reaction
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 100);
+      
+      console.log('✅ Reaction added successfully');
+    } catch (error: any) {
+      console.error('❌ Add reaction failed:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add reaction',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditMessage = async (messageId: string, content: string) => {
+    try {
+      console.log('📝 Editing message:', { messageId, content, isPublic, effectiveEmail });
+      
+      // For public board sub-users, use the new RPC function
+      if (isPublic && me?.type === 'sub_user' && effectiveEmail && boardOwnerId) {
+        const { error } = await supabase.rpc('edit_public_board_message', {
+          p_owner_id: boardOwnerId,
+          p_message_id: messageId,
+          p_sender_email: effectiveEmail,
+          p_content: content
+        });
+
+        if (error) {
+          console.error('❌ Error editing public board message:', error);
+          toast({
+            title: 'Error',
+            description: error.message || 'Failed to edit message',
+            variant: 'destructive',
+          });
+          return;
+        }
+      } else {
+        // For admin users or internal board sub-users, use the edge function
+        const { error } = await supabase.functions.invoke('edit-message', {
+          body: { messageId, content }
+        });
+
+        if (error) {
+          console.error('❌ Error editing message:', error);
+          toast({
+            title: 'Error',
+            description: error.message || 'Failed to edit message',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+      
+      setEditingMessage(null);
+      
+      // Update message locally to show the edit immediately
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              content, 
+              updated_at: new Date().toISOString(),
+              edited_at: new Date().toISOString(),
+              original_content: msg.content 
+            }
+          : msg
+      ));
+      
+      // Update cache as well
+      if (activeChannelId) {
+        const cached = cacheRef.current.get(activeChannelId);
+        if (cached?.items) {
+          const updatedItems = cached.items.map(msg => 
+            msg.id === messageId 
+              ? { 
+                  ...msg, 
+                  content, 
+                  updated_at: new Date().toISOString(),
+                  edited_at: new Date().toISOString(),
+                  original_content: msg.content 
+                }
+              : msg
+          );
+          cacheRef.current.set(activeChannelId, { ...cached, items: updatedItems });
+        }
+      }
+      
+      console.log('✅ Message edited successfully');
+    } catch (error: any) {
+      console.error('❌ Edit message failed:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to edit message',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      console.log('🗑️ Deleting message:', messageId, { isPublic, effectiveEmail });
+      
+      // For public board sub-users, use the new RPC function
+      if (isPublic && me?.type === 'sub_user' && effectiveEmail && boardOwnerId) {
+        // First get associated files before deleting
+        const { data: messageFiles } = await supabase
+          .from('chat_message_files')
+          .select('file_path')
+          .eq('message_id', messageId);
+
+        // Delete files from storage if they exist
+        if (messageFiles && messageFiles.length > 0) {
+          const filePaths = messageFiles.map(file => file.file_path.replace('chat_attachments/', ''));
+          const { error: storageError } = await supabase.storage
+            .from('chat_attachments')
+            .remove(filePaths);
+          
+          if (storageError) {
+            console.error('⚠️ Warning: Failed to delete some files from storage:', storageError);
+          }
+        }
+
+        const { error } = await supabase.rpc('delete_public_board_message', {
+          p_owner_id: boardOwnerId,
+          p_message_id: messageId,
+          p_sender_email: effectiveEmail
+        });
+
+        if (error) {
+          console.error('❌ Error deleting public board message:', error);
+          toast({
+            title: 'Error',
+            description: error.message || 'Failed to delete message',
+            variant: 'destructive',
+          });
+          return;
+        }
+      } else {
+        // For admin users or internal board sub-users, use the edge function
+        const { error } = await supabase.functions.invoke('delete-message', {
+          body: { messageId }
+        });
+
+        if (error) {
+          console.error('❌ Error deleting message:', error);
+          toast({
+            title: 'Error',
+            description: error.message || 'Failed to delete message',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+      
+      // Update message locally to show deletion immediately
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              content: '[Message deleted]',
+              is_deleted: true,
+              message_type: 'deleted',
+              attachments: [] // Clear attachments for deleted messages
+            }
+          : msg
+      ));
+      
+      // Update cache as well
+      if (activeChannelId) {
+        const cached = cacheRef.current.get(activeChannelId);
+        if (cached?.items) {
+          const updatedItems = cached.items.map(msg => 
+            msg.id === messageId 
+              ? { 
+                  ...msg, 
+                  content: '[Message deleted]',
+                  is_deleted: true,
+                  message_type: 'deleted',
+                  updated_at: new Date().toISOString()
+                }
+              : msg
+          );
+          cacheRef.current.set(activeChannelId, { ...cached, items: updatedItems });
+        }
+      }
+      
+      console.log('✅ Message deleted successfully');
+    } catch (error: any) {
+      console.error('❌ Delete message failed:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete message',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (loading || !isInitialized) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground">
-        <div className="text-center">
-          <MessageCircle className="mx-auto h-12 w-12 mb-4 opacity-50" />
-          <h3 className="text-lg font-medium mb-2">{t('chat.selectChannel')}</h3>
-          <p className="text-sm">{t('chat.selectChannelDesc')}</p>
+      <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
+        <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
+          <MessageCircle className="h-5 w-5 animate-pulse" />
+          <h2 className="font-semibold">Loading...</h2>
+        </div>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center space-y-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-sm text-muted-foreground">Loading chat...</p>
+            <p className="text-xs text-muted-foreground">Initializing chat system...</p>
+          </div>
+        </div>
+        <div className="p-4 border-t bg-muted/30">
+          <div className="bg-muted rounded-md h-10 animate-pulse"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <MessageCircle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-          <h2 className="font-semibold truncate">
-            {channelInfo?.isDM && channelInfo.dmPartner
-              ? channelInfo.dmPartner.name
-              : (channelInfo?.name || t('chat.general'))}
-          </h2>
-          <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
-            {channelInfo?.isDM ? t('chat.directMessage') : t('chat.channel')}
-          </span>
-        </div>
+      <div className="flex items-center gap-3 p-4 border-b bg-muted/30">
+        {channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
+          <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+            <img
+              src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
+              alt={channelInfo.dmPartner.name}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        ) : channelInfo?.isDM ? (
+          <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+            <span className="text-sm font-semibold text-foreground">
+              {(channelInfo?.dmPartner?.name || "U").slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+        ) : (
+          <MessageCircle className="h-5 w-5" />
+        )}
+        <h2 className="font-semibold">
+          {channelInfo?.isDM
+            ? (channelInfo?.dmPartner?.name || t('chat.directMessage'))
+            : (channelInfo?.name || t('chat.general'))}
+        </h2>
+        <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
+          {channelInfo?.isDM ? t('chat.directMessage') : t('chat.channel')}
+        </span>
       </div>
 
       {/* Messages */}
       <div className="overflow-hidden">
-        <ScrollArea className="h-full" ref={scrollAreaRef}>
+        <ScrollArea className="h-full">
           <div className="p-4">
-            <div style={{ height: 1 }} />
             <MessageList
               messages={messages.map(m => ({
                 ...m,

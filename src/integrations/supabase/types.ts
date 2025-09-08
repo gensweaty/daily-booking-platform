@@ -1826,20 +1826,13 @@ export type Database = {
           p_limit?: number
         }
         Returns: {
-          channel_id: string
           content: string
           created_at: string
-          edited_at: string
           has_attachments: boolean
+          has_more: boolean
           id: string
-          is_deleted: boolean
-          message_type: string
-          original_content: string
-          sender_avatar_url: string
+          sender_id: string
           sender_name: string
-          sender_sub_user_id: string
-          sender_type: string
-          sender_user_id: string
           updated_at: string
         }[]
       }
@@ -2042,23 +2035,14 @@ export type Database = {
           p_requester_type: string
         }
         Returns: {
-          channel_id: string
           content: string
-          created_at: string | null
-          edited_at: string | null
-          has_attachments: boolean | null
+          created_at: string
+          has_attachments: boolean
+          has_more: boolean
           id: string
-          is_deleted: boolean | null
-          message_type: string | null
-          original_content: string | null
-          owner_id: string | null
-          reply_to_id: string | null
-          sender_avatar_url: string | null
-          sender_name: string | null
-          sender_sub_user_id: string | null
-          sender_type: string
-          sender_user_id: string | null
-          updated_at: string | null
+          sender_id: string
+          sender_name: string
+          updated_at: string
         }[]
       }
       list_channels_for_sub_user_public: {
