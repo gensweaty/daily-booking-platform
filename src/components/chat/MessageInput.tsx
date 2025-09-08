@@ -75,32 +75,43 @@ export const MessageInput = ({
           if (onCancelEdit) onCancelEdit();
         }
       } else {
-        // Handle new message
+        // Handle new message with optimized uploads
         let uploadedFiles: any[] = [];
         if (attachments.length > 0) {
-          for (const file of attachments) {
+          // Batch upload files in parallel for better performance
+          const uploadPromises = attachments.map(async (file) => {
             const fileExt = file.name.split('.').pop();
             const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
             const filePath = `${fileName}`;
 
-            const { error: uploadError } = await supabase.storage.from('chat_attachments').upload(filePath, file);
-            if (uploadError) {
-              console.error('Upload error:', uploadError);
-              toast({ title: "Upload failed", description: `Could not upload ${file.name}`, variant: "destructive" });
-              continue;
-            }
+            try {
+              const { error: uploadError } = await supabase.storage.from('chat_attachments').upload(filePath, file);
+              if (uploadError) {
+                console.error('Upload error:', uploadError);
+                toast({ title: "Upload failed", description: `Could not upload ${file.name}`, variant: "destructive" });
+                return null;
+              }
 
-            const { data: pub } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
-            uploadedFiles.push({
-              filename: file.name,
-              file_path: filePath,
-              content_type: file.type || undefined,
-              size: file.size,
-              public_url: pub.publicUrl,
-              object_url: URL.createObjectURL(file),
-            });
-          }
+              const { data: pub } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
+              return {
+                filename: file.name,
+                file_path: filePath,
+                content_type: file.type || undefined,
+                size: file.size,
+                public_url: pub.publicUrl,
+                object_url: URL.createObjectURL(file),
+              };
+            } catch (error) {
+              console.error('Upload error for', file.name, ':', error);
+              toast({ title: "Upload failed", description: `Could not upload ${file.name}`, variant: "destructive" });
+              return null;
+            }
+          });
+
+          const uploadResults = await Promise.all(uploadPromises);
+          uploadedFiles = uploadResults.filter(result => result !== null);
         }
+        
         onSendMessage(message.trim(), uploadedFiles);
         setMessage('');
         setAttachments([]);
