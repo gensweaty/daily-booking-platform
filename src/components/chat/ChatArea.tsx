@@ -309,30 +309,41 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   useEffect(() => {
     let active = true;
     let timeoutId: NodeJS.Timeout;
+    let retryCount = 0;
+    const maxRetries = 3;
 
-    const loadMessages = async () => {
+    const loadMessages = async (attempt = 1) => {
       if (!activeChannelId || !me || !boardOwnerId || !isInitialized) return;
 
       try {
-        // Detect mobile network and set appropriate timeouts
-        const isMobileNetwork = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+        // Enhanced network detection
         const connection = (navigator as any).connection;
-        const isSlowConnection = connection?.effectiveType === '2g' || connection?.effectiveType === '3g' || 
-                                connection?.downlink < 2 || connection?.rtt > 300;
+        const userAgent = navigator.userAgent.toLowerCase();
+        const isMobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
         
-        const timeoutDuration = (isMobileNetwork || isSlowConnection) ? 10000 : 5000; // 10s for mobile, 5s for others
-        const skipAttachments = isSlowConnection; // Skip attachments on very slow networks
+        // More conservative network detection
+        const isSlowConnection = connection ? (
+          connection.effectiveType === '2g' || 
+          connection.effectiveType === '3g' ||
+          connection.downlink < 1.5 ||
+          connection.rtt > 400 ||
+          connection.saveData
+        ) : isMobile; // Default to slow if mobile and no connection API
+        
+        // More generous timeouts for mobile networks
+        const baseTimeout = isSlowConnection ? 15000 : 8000; // 15s for mobile, 8s for others
+        const timeoutDuration = baseTimeout + (attempt * 5000); // Add 5s per retry
+        
+        console.log(`📱 Loading messages (attempt ${attempt}/${maxRetries}) - slow network: ${isSlowConnection}, timeout: ${timeoutDuration}ms`);
 
         // Create timeout promise
         const timeoutPromise = new Promise((_, reject) => {
-          timeoutId = setTimeout(() => reject(new Error('Network timeout')), timeoutDuration);
+          timeoutId = setTimeout(() => reject(new Error(`Network timeout after ${timeoutDuration}ms`)), timeoutDuration);
         });
 
         const onPublicBoard = location.pathname.startsWith('/board/');
 
-        let data, error;
-        
-        // Main message loading with timeout
+        // Main message loading with better error handling
         const messageLoadPromise = (async () => {
           if (onPublicBoard && me?.type === 'sub_user') {
             return await supabase.rpc('list_channel_messages_public', {
@@ -353,6 +364,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const result = await Promise.race([messageLoadPromise, timeoutPromise]);
         clearTimeout(timeoutId);
         
+        let data, error;
         if (result && typeof result === 'object' && 'data' in result) {
           data = (result as any).data;
           error = (result as any).error;
@@ -361,9 +373,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         }
 
         if (error) { 
-          console.log('❌ Message loading error:', error);
-          if (active) setLoading(false); 
-          return; 
+          console.log(`❌ Message loading error (attempt ${attempt}):`, error);
+          throw error;
         }
 
         if (active) {
@@ -373,95 +384,120 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             sender_name: (m.sender_name && m.sender_name.trim()) || undefined,
           }));
 
-          // Only load attachments on faster networks to prevent mobile timeout
-          let byMsg: Record<string, any[]> = {};
-          const ids = normalized.map(m => m.id);
-          
-          if (ids.length && !skipAttachments) {
-            try {
-              const attachmentTimeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Attachment timeout')), 3000); // 3s timeout for attachments
-              });
+          console.log(`✅ Loaded ${normalized.length} messages successfully`);
 
-              const attachmentLoadPromise = (async () => {
+          // Progressive loading - show messages immediately, load attachments separately
+          const withBasicMessages = normalized.map(m => ({
+            ...m,
+            attachments: [], // Start with no attachments
+          }));
+
+          // Set messages immediately for fast display
+          setMessages(withBasicMessages);
+          setLoading(false);
+          cacheRef.current.set(activeChannelId, withBasicMessages);
+
+          // Load attachments in background (non-blocking)
+          if (normalized.length > 0 && !isSlowConnection) {
+            setTimeout(async () => {
+              try {
+                const ids = normalized.map(m => m.id);
+                let byMsg: Record<string, any[]> = {};
+
                 if (onPublicBoard && me?.type === 'sub_user') {
                   const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
                     p_message_ids: ids
                   });
-                  return attRows;
+                  if (attRows) {
+                    byMsg = attRows.reduce((acc: any, a: any) => {
+                      (acc[a.message_id] ||= []).push({
+                        id: a.id,
+                        filename: a.filename,
+                        file_path: a.file_path,
+                        content_type: a.content_type,
+                        size: a.size,
+                      });
+                      return acc;
+                    }, {});
+                  }
                 } else {
                   const { data: atts } = await supabase
                     .from('chat_message_files')
                     .select('*')
                     .in('message_id', ids);
-                  return atts;
+                  if (atts) {
+                    byMsg = atts.reduce((acc: any, a: any) => {
+                      (acc[a.message_id] ||= []).push({
+                        id: a.id,
+                        filename: a.filename,
+                        file_path: a.file_path,
+                        content_type: a.content_type,
+                        size: a.size,
+                      });
+                      return acc;
+                    }, {});
+                  }
                 }
-              })();
 
-              const attachments = await Promise.race([attachmentLoadPromise, attachmentTimeoutPromise]) as any;
-              
-              if (attachments) {
-                byMsg = attachments.reduce((acc: any, a: any) => {
-                  (acc[a.message_id] ||= []).push({
-                    id: a.id,
-                    filename: a.filename,
-                    file_path: a.file_path,
-                    content_type: a.content_type,
-                    size: a.size,
-                  });
-                  return acc;
-                }, {});
+                // Update messages with attachments
+                const withAtts = normalized.map(m => ({
+                  ...m,
+                  attachments: byMsg[m.id] || [],
+                }));
+
+                if (active) {
+                  setMessages(withAtts);
+                  cacheRef.current.set(activeChannelId, withAtts);
+                  console.log('📎 Attachments loaded');
+                }
+              } catch (attachErr) {
+                console.log('⚠️ Failed to load attachments, but messages are visible');
               }
-            } catch (attachErr) {
-              console.log('⚠️ Attachment loading timeout, continuing without attachments');
-              // Continue without attachments on mobile networks
-            }
+            }, 100);
           }
 
-          const withAtts = normalized.map(m => ({
-            ...m,
-            attachments: byMsg[m.id] || [],
-          }));
-
-          // Skip metadata loading on slow networks for faster loading
-          let withMeta = withAtts;
+          // Load metadata in background (non-blocking)
           if (!onPublicBoard && !isSlowConnection) {
-            try {
-              const metaTimeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Metadata timeout')), 2000);
-              });
+            setTimeout(async () => {
+              try {
+                const ids = normalized.map(m => m.id);
+                const { data: meta } = await supabase
+                  .from('chat_messages')
+                  .select('id, updated_at, edited_at, original_content, is_deleted')
+                  .in('id', ids);
 
-              const metaLoadPromise = supabase
-                .from('chat_messages')
-                .select('id, updated_at, edited_at, original_content, is_deleted')
-                .in('id', ids);
-
-              const { data: meta } = await Promise.race([metaLoadPromise, metaTimeoutPromise]) as any;
-              
-              if (meta) {
-                const metaById = new Map(meta.map((x: any) => [x.id, x]));
-                withMeta = withAtts.map(m => {
-                  const metaData = metaById.get(m.id);
-                  return metaData && typeof metaData === 'object' ? { ...m, ...metaData } : m;
-                });
+                if (meta && active) {
+                  const metaById = new Map(meta.map((x: any) => [x.id, x]));
+                  setMessages(prev => prev.map(m => {
+                    const metaData = metaById.get(m.id);
+                    return metaData && typeof metaData === 'object' ? { ...m, ...metaData } : m;
+                  }));
+                  console.log('📝 Metadata loaded');
+                }
+              } catch (metaErr) {
+                console.log('⚠️ Failed to load metadata, but messages are visible');
               }
-            } catch (metaErr) {
-              console.log('⚠️ Metadata loading timeout, using basic message data');
-              // Continue with basic message data
-            }
+            }, 200);
           }
-
-          setMessages(withMeta);
-          cacheRef.current.set(activeChannelId, withMeta);
-          setLoading(false);
-          console.log('✅ Chat messages loaded successfully', { messageCount: withMeta.length, skipAttachments, isSlowConnection });
         }
       } catch (loadErr) {
-        console.log('❌ Chat loading failed:', loadErr);
-        if (active) {
+        console.log(`❌ Chat loading failed (attempt ${attempt}/${maxRetries}):`, loadErr);
+        
+        if (active && attempt < maxRetries) {
+          // Retry with exponential backoff
+          retryCount++;
+          const retryDelay = Math.min(1000 * Math.pow(2, attempt - 1), 5000); // Max 5s delay
+          console.log(`🔄 Retrying in ${retryDelay}ms...`);
+          
+          setTimeout(() => {
+            if (active) {
+              loadMessages(attempt + 1);
+            }
+          }, retryDelay);
+        } else if (active) {
+          // Final failure - set loading to false but don't show error to user
           setLoading(false);
-          // Show a basic message that loading failed but keep the UI functional
-          setMessages([]);
+          console.log('❌ All retry attempts failed, showing empty chat');
         }
       }
     };
@@ -481,30 +517,40 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     else { setLoading(true); }
   }, [activeChannelId]);
 
-  // Optimized polling for mobile networks with adaptive intervals
+  // Enhanced polling with better mobile network handling
   useEffect(() => {
     if (!activeChannelId || !boardOwnerId || !me) return;
     if (realtimeEnabled) return;
 
     let mounted = true;
+    let pollAttempts = 0;
+    const maxPollAttempts = 3;
     
-    // Detect network quality for adaptive polling
+    // Enhanced network detection for polling
     const connection = (navigator as any).connection;
-    const isSlowNetwork = connection?.effectiveType === '2g' || connection?.effectiveType === '3g' ||
-                         connection?.downlink < 2 || connection?.rtt > 300;
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isMobile = /android|iphone|ipad|ipod|mobile/i.test(userAgent);
     
-    const pollingInterval = isSlowNetwork ? 5000 : 2500; // Slower polling on bad networks
-    console.log('📱 Starting polling with interval:', pollingInterval, 'ms (slow network:', isSlowNetwork, ')');
+    const isSlowNetwork = connection ? (
+      connection.effectiveType === '2g' || 
+      connection.effectiveType === '3g' ||
+      connection.downlink < 1.5 ||
+      connection.rtt > 400
+    ) : isMobile;
+    
+    const pollingInterval = isSlowNetwork ? 8000 : 3000; // Slower polling on mobile networks
+    console.log('📱 Starting enhanced polling - interval:', pollingInterval, 'ms, slow network:', isSlowNetwork);
 
-    const poll = async () => {
+    const poll = async (attempt = 1) => {
       if (!mounted) return;
       
       try {
         const onPublicBoard = location.pathname.startsWith('/board/');
         
-        // Add timeout for mobile networks
+        // More generous timeout for polling
+        const timeoutDuration = isSlowNetwork ? 12000 : 6000;
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Poll timeout')), isSlowNetwork ? 8000 : 4000);
+          setTimeout(() => reject(new Error('Poll timeout')), timeoutDuration);
         });
 
         const pollPromise = (async () => {
@@ -528,6 +574,9 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         
         if (!mounted || !data) return;
 
+        // Reset poll attempts on success
+        pollAttempts = 0;
+
         setMessages(prev => {
           const prevIds = new Set(prev.map(m => m.id));
           const byId = new Map(prev.map(m => [m.id, m]));
@@ -546,18 +595,29 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         });
         
       } catch (pollErr) {
-        console.log('⚠️ Polling failed:', pollErr.message);
-        // Continue polling even if one request fails
+        pollAttempts++;
+        console.log(`⚠️ Polling failed (attempt ${attempt}/${maxPollAttempts}):`, pollErr.message);
+        
+        if (mounted && pollAttempts < maxPollAttempts) {
+          // Retry failed poll with backoff
+          const retryDelay = Math.min(2000 * pollAttempts, 10000); // Max 10s backoff
+          setTimeout(() => {
+            if (mounted) poll(attempt + 1);
+          }, retryDelay);
+        } else {
+          // Reset attempts after max retries
+          pollAttempts = 0;
+        }
       }
     };
 
-    const id = setInterval(poll, pollingInterval);
+    const id = setInterval(() => poll(), pollingInterval);
     poll(); // Initial poll
     
     return () => { 
       mounted = false; 
       clearInterval(id); 
-      console.log('🛑 Stopped polling for channel:', activeChannelId);
+      console.log('🛑 Stopped enhanced polling for channel:', activeChannelId);
     };
   }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled, effectiveEmail]);
 
