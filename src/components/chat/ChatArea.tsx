@@ -68,6 +68,14 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
   const activeChannelId = currentChannelId;
+  const activeChannelIdRef = useRef<string | null>(null);
+  useEffect(() => { activeChannelIdRef.current = activeChannelId; }, [activeChannelId]);
+  const isPublicRef = useRef(isPublic);
+  useEffect(() => { isPublicRef.current = isPublic; }, [isPublic]);
+  const meRef = useRef(me);
+  useEffect(() => { meRef.current = me; }, [me]);
+  const boardOwnerIdRef = useRef(boardOwnerId);
+  useEffect(() => { boardOwnerIdRef.current = boardOwnerId; }, [boardOwnerId]);
   const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } }>>(new Map());
   const [generalId, setGeneralId] = useState<string | null>(null);
   const [generalIdLoading, setGeneralIdLoading] = useState(true);
@@ -474,7 +482,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           });
           cacheRef.current.set(channelId, updatedCache);
 
-          if (channelId === activeChannelId) {
+          if (channelId === activeChannelIdRef.current) {
             setMessages(prev => prev.map(m => {
               if (m.id !== msg.id) return m;
               const merged: Message = { ...m, ...msg };
@@ -500,7 +508,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           if (!currentCache.some(m => m.id === msg.id)) {
             const updatedCache = [...currentCache, msg];
             cacheRef.current.set(channelId, updatedCache);
-            if (channelId === activeChannelId) {
+            if (channelId === activeChannelIdRef.current) {
               setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
             }
           }
@@ -624,7 +632,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
     window.addEventListener('chat-message-received', handleMessage as EventListener);
     return () => window.removeEventListener('chat-message-received', handleMessage as EventListener);
-  }, [activeChannelId]);
+  }, []); // 👈 listen once, use refs inside
 
   useEffect(() => {
     const onReset = () => {

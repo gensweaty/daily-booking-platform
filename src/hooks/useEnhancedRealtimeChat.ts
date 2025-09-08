@@ -13,7 +13,10 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
   const [retryCount, setRetryCount] = useState(0);
   const channelRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout>();
+  const onNewMessageRef = useRef(config.onNewMessage);
+
+  // Keep the latest handler without re-subscribing
+  useEffect(() => { onNewMessageRef.current = config.onNewMessage; }, [config.onNewMessage]);
 
   const cleanup = useCallback(() => {
     if (channelRef.current) {
@@ -21,26 +24,7 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
       supabase.removeChannel(channelRef.current);
       channelRef.current = null;
     }
-    
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
-    
-    if (heartbeatIntervalRef.current) {
-      clearInterval(heartbeatIntervalRef.current);
-    }
-  }, []);
-
-  const startHeartbeat = useCallback(() => {
-    heartbeatIntervalRef.current = setInterval(() => {
-      if (channelRef.current?.state === 'joined') {
-        // Send a heartbeat to check connection health
-        channelRef.current.send({
-          type: 'heartbeat',
-          payload: { timestamp: Date.now() }
-        });
-      }
-    }, 30000); // 30 second heartbeat
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
   }, []);
 
   const setupConnection = useCallback(() => {
@@ -73,7 +57,7 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
             senderId: payload.new.sender_user_id || payload.new.sender_sub_user_id,
             content: payload.new.content?.substring(0, 50) + '...'
           });
-          config.onNewMessage(payload.new);
+          onNewMessageRef.current(payload.new);
         }
       )
       .on('postgres_changes',
@@ -92,7 +76,7 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
             edited: !!payload.new.edited_at
           });
           // Send updated message with special flag to indicate it's an update
-          config.onNewMessage({ ...payload.new, _isUpdate: true });
+          onNewMessageRef.current({ ...payload.new, _isUpdate: true });
         }
       )
       // 🔔 When a file row is inserted, fetch its parent message and emit an update
@@ -125,7 +109,6 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
         if (status === 'SUBSCRIBED') {
           setConnectionStatus('connected');
           setRetryCount(0);
-          startHeartbeat();
           console.log('✅ Connected to board-wide chat subscription');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.error('❌ Board subscription error:', status);
@@ -147,7 +130,7 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
       });
 
     channelRef.current = channel;
-  }, [config.enabled, config.boardOwnerId, config.onNewMessage, cleanup, startHeartbeat, retryCount]);
+  }, [config.enabled, config.boardOwnerId, cleanup, retryCount]);
 
   // Setup connection when config changes
   useEffect(() => {

@@ -264,6 +264,30 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [shouldShowChat, isInitialized, requestPermission]);
 
+  // one-time audio unlock for autoplay-restricted browsers
+  useEffect(() => {
+    let unlocked = false;
+    const unlock = () => {
+      if (unlocked) return;
+      unlocked = true;
+      import('@/utils/audioManager')
+        .then(({ preloadNotificationSound, playNotificationSound }) => {
+          preloadNotificationSound();
+          // fire and forget a nearly-silent beep to unlock context
+          playNotificationSound().catch(() => {});
+        })
+        .catch(() => {});
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
+
   // 🧩 Bridge POLLING -> the same unread pipeline as realtime
   useEffect(() => {
     const onPolledMessage = (evt: any) => {
