@@ -243,11 +243,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       } else {
         const { data: subUserData } = await supabase
           .from('sub_users')
-          .select('name, avatar_url')
+          .select('fullname, avatar_url')
           .eq('id', otherParticipant.sub_user_id)
           .maybeSingle();
         
-        partnerName = subUserData?.name || 'User';
+        partnerName = subUserData?.fullname || 'User';
         partnerAvatar = subUserData?.avatar_url || undefined;
       }
 
