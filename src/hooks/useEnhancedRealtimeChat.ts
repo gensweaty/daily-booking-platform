@@ -71,7 +71,8 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
             messageId: payload.new.id,
             channelId: payload.new.channel_id,
             senderId: payload.new.sender_user_id || payload.new.sender_sub_user_id,
-            content: payload.new.content?.substring(0, 50) + '...'
+            content: payload.new.content?.substring(0, 50) + '...',
+            hasAttachments: payload.new.has_attachments
           });
           config.onNewMessage(payload.new);
         }
@@ -89,10 +90,37 @@ export const useEnhancedRealtimeChat = (config: RealtimeConfig) => {
             channelId: payload.new.channel_id,
             senderId: payload.new.sender_user_id || payload.new.sender_sub_user_id,
             content: payload.new.content?.substring(0, 50) + '...',
-            edited: !!payload.new.edited_at
+            edited: !!payload.new.edited_at,
+            hasAttachments: payload.new.has_attachments
           });
           // Send updated message with special flag to indicate it's an update
           config.onNewMessage({ ...payload.new, _isUpdate: true });
+        }
+      )
+      // 🔧 FIX: Listen for file attachment inserts to update messages with files
+      .on('postgres_changes',
+        {
+          schema: 'public',
+          table: 'chat_message_files',
+          event: 'INSERT'
+        },
+        async (payload) => {
+          console.log('📎 File attachment added:', payload.new);
+          const messageId = payload.new.message_id;
+          if (messageId) {
+            // Fetch the full message with attachments
+            const { data: message } = await supabase
+              .from('chat_messages')
+              .select('*')
+              .eq('id', messageId)
+              .eq('owner_id', config.boardOwnerId)
+              .maybeSingle();
+            
+            if (message) {
+              console.log('🔄 Sending message update with file attachments');
+              config.onNewMessage({ ...message, _isUpdate: true, has_attachments: true });
+            }
+          }
         }
       )
       .subscribe((status) => {

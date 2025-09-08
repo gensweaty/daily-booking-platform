@@ -443,8 +443,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         console.log('📎 Loading attachments for real-time message:', message.id);
         
         let attempts = 0;
-        const maxAttempts = 3;
-        const baseDelay = 100;
+        const maxAttempts = 5; // Increased from 3
+        const baseDelay = 200; // Faster initial retry
         
         while (attempts < maxAttempts) {
           const { data: atts } = await supabase
@@ -469,13 +469,36 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           
           attempts++;
           if (attempts < maxAttempts) {
-            console.log(`⏳ Attachments not ready yet for message ${message.id}, retrying in ${baseDelay * attempts}ms (attempt ${attempts}/${maxAttempts})`);
-            await new Promise(resolve => setTimeout(resolve, baseDelay * attempts));
+            const delay = baseDelay * Math.pow(1.5, attempts); // Exponential backoff
+            console.log(`⏳ Attachments not ready yet for message ${message.id}, retrying in ${delay}ms (attempt ${attempts}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
           } else {
             console.log('❌ Failed to load attachments after', maxAttempts, 'attempts for message:', message.id);
-            // Keep the message but mark it for potential later retry
+            // Don't give up completely - keep message without attachments for now
             message = { ...message, attachments: [] };
           }
+        }
+      }
+
+      // 🔧 FIX: For updates, always try to fetch attachments if message has them
+      if (isUpdate && message.has_attachments) {
+        console.log('🔄 Fetching attachments for updated message:', message.id);
+        const { data: atts } = await supabase
+          .from('chat_message_files')
+          .select('*')
+          .eq('message_id', message.id);
+        
+        if (atts && atts.length > 0) {
+          message = {
+            ...message,
+            attachments: atts.map(a => ({
+              id: a.id,
+              filename: a.filename,
+              file_path: a.file_path,
+              content_type: a.content_type,
+              size: a.size,
+            }))
+          };
         }
       }
 
@@ -542,6 +565,60 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
+
+  // 🔧 FIX: Periodic check for messages with missing attachments
+  useEffect(() => {
+    if (!activeChannelId) return;
+    
+    const checkMissingAttachments = async () => {
+      const messagesWithMissingAttachments = messages.filter(m => 
+        ((m as any).has_attachments === true) && (!m.attachments || m.attachments.length === 0)
+      );
+      
+      if (messagesWithMissingAttachments.length > 0) {
+        console.log('🔍 Found', messagesWithMissingAttachments.length, 'messages with missing attachments, retrying...');
+        
+        for (const msg of messagesWithMissingAttachments) {
+          try {
+            const { data: atts } = await supabase
+              .from('chat_message_files')
+              .select('*')
+              .eq('message_id', msg.id);
+            
+            if (atts && atts.length > 0) {
+              console.log('✅ Recovered attachments for message:', msg.id);
+              // Trigger message update with attachments
+              window.dispatchEvent(new CustomEvent('chat-message-received', {
+                detail: {
+                  message: {
+                    ...msg,
+                    _isUpdate: true,
+                    attachments: atts.map(a => ({
+                      id: a.id,
+                      filename: a.filename,
+                      file_path: a.file_path,
+                      content_type: a.content_type,
+                      size: a.size,
+                    }))
+                  }
+                }
+              }));
+            }
+          } catch (error) {
+            console.warn('Failed to retry attachments for message:', msg.id, error);
+          }
+        }
+      }
+    };
+
+    // Check for missing attachments every 5 seconds if there are any
+    const interval = setInterval(checkMissingAttachments, 5000);
+    
+    // Also check once immediately
+    checkMissingAttachments();
+    
+    return () => clearInterval(interval);
+  }, [messages, activeChannelId]);
 
   const send = async (content: string, attachments: any[] = []) => {
     if (!content.trim() && attachments.length === 0) return;
