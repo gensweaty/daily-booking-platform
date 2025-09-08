@@ -338,6 +338,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   // Load initial messages with pagination
   const loadInitialMessages = async (channelId: string) => {
     if (!channelId || !me || !boardOwnerId || !isInitialized) return;
+    
+    // Prevent concurrent calls - key fix for mobile infinite loading
+    if (loading) {
+      console.log('⚠️ Skipping loadInitialMessages - already loading');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -661,8 +667,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       return;
     }
 
-    // Load fresh data if not cached - ensure loading state is set
-    setLoading(true);
+    // Load fresh data if not cached
     loadInitialMessages(activeChannelId);
   }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname]);
 
