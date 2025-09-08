@@ -360,8 +360,19 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             attachments: byMsg[m.id] || [],
           }));
 
-          setMessages(withAtts);
-          cacheRef.current.set(activeChannelId, withAtts);
+          // meta backfill so MessageList sees edit/deleted flags
+          let metaById = new Map<string, any>();
+          if (!onPublicBoard) {
+            const { data: meta } = await supabase
+              .from('chat_messages')
+              .select('id, updated_at, edited_at, original_content, is_deleted')
+              .in('id', ids);
+            if (meta) metaById = new Map(meta.map((x: any) => [x.id, x]));
+          }
+
+          const withMeta = withAtts.map(m => ({ ...m, ...(metaById.get(m.id) || {}) }));
+          setMessages(withMeta);
+          cacheRef.current.set(activeChannelId, withMeta);
           setLoading(false);
         }
       } catch {
@@ -505,7 +516,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     const fetchLatestMessage = async () => {
       const { data: msg } = await supabase
         .from('chat_messages')
-        .select('id, created_at, content, channel_id, has_attachments, message_type, sender_type, sender_user_id, sender_sub_user_id, sender_name, sender_avatar_url')
+        .select(`
+          id, created_at, updated_at, edited_at, original_content,
+          content, channel_id, has_attachments, message_type, is_deleted,
+          sender_type, sender_user_id, sender_sub_user_id, sender_name, sender_avatar_url
+        `)
         .eq('channel_id', activeChannelId)
         .order('created_at', { ascending: false })
         .limit(1)

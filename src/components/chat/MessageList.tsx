@@ -95,18 +95,18 @@ export const MessageList = ({
   // -- robust edited check (matches your back-end behaviors)
   const wasEdited = (m: ChatMessage) => {
     if (isDeleted(m)) return false;
-    if (m.edited_at) return true;
-    if (m.original_content && m.original_content.trim() && m.original_content.trim() !== (m.content || '').trim()) {
-      return true;
-    }
-    if (m.updated_at && m.created_at) {
-      const delta = new Date(m.updated_at).getTime() - new Date(m.created_at).getTime();
-      // >1s is enough — some DBs set the same second for created/updated
-      if (delta > 1000) return true;
-    }
-    // also accept explicit flag if your API ever sends it
+
+    // explicit flags
     // @ts-ignore
-    if ((m as any).is_edited === true) return true;
+    if (m.edited_at || (m as any).is_edited === true) return true;
+
+    // content changed (if original was sent)
+    if (m.original_content && m.original_content.trim() !== (m.content || "").trim()) return true;
+
+    // timestamps – accept any difference, even same-second
+    if (m.updated_at && m.created_at && m.updated_at !== m.created_at) return true;
+    if (m.updated_at && new Date(m.updated_at).getTime() > new Date(m.created_at).getTime()) return true;
+
     return false;
   };
 

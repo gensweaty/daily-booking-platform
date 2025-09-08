@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { FileText, FileSpreadsheet, FileIcon, Image as ImageIcon, Download, ExternalLink, Presentation } from 'lucide-react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 
 type Att = {
   id?: string;
@@ -153,17 +153,20 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
         })}
       </div>
 
-      {/* Image preview modal (same-page popup) */}
+      {/* Image preview modal with high z-index */}
       <Dialog open={!!previewSrc} onOpenChange={() => setPreviewSrc(null)}>
-        <DialogContent className="max-w-4xl">
-          {previewSrc && (
-            <img
-              src={previewSrc}
-              alt="Preview"
-              className="w-full h-auto max-h-[80vh] object-contain"
-            />
-          )}
-        </DialogContent>
+        <DialogPortal>
+          <DialogOverlay className="fixed inset-0 z-[10050] bg-black/70" />
+          <DialogContent className="fixed left-1/2 top-1/2 z-[10060] -translate-x-1/2 -translate-y-1/2 w-[min(96vw,1100px)] max-h-[92vh] p-0 overflow-hidden rounded-xl bg-background shadow-2xl">
+            {previewSrc && (
+              <img
+                src={previewSrc}
+                alt="Preview"
+                className="w-full h-auto max-h-[92vh] object-contain"
+              />
+            )}
+          </DialogContent>
+        </DialogPortal>
       </Dialog>
     </>
   );
