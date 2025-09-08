@@ -109,16 +109,17 @@ export const useOptimizedChatMessages = ({
           throw messagesError;
         }
 
-        // Reverse to show chronologically
-        const messages = (messagesData || []).reverse();
+        // Reverse to show chronologically and ensure we have a valid array
+        const messages = Array.isArray(messagesData) ? messagesData.reverse() : [];
 
         // Get unique message IDs for batch attachment loading
         const messageIds = messages
-          .filter(msg => msg.has_attachments)
-          .map(msg => msg.id);
+          .filter(msg => msg && msg.has_attachments)
+          .map(msg => msg.id)
+          .filter(Boolean); // Remove any undefined/null IDs
 
         let allAttachments: any[] = [];
-        if (messageIds.length > 0) {
+        if (messageIds && messageIds.length > 0) {
           // Try to get cached attachments first
           const cachedAttachments = await Promise.all(
             messageIds.map(id => chatPerformanceManager.getCachedAttachments(id))
@@ -126,19 +127,19 @@ export const useOptimizedChatMessages = ({
 
           const uncachedMessageIds = messageIds.filter((id, index) => !cachedAttachments[index]);
           
-          if (uncachedMessageIds.length > 0) {
+          if (uncachedMessageIds && uncachedMessageIds.length > 0) {
             // Batch load uncached attachments
             const { data: attachmentsData, error: attachmentsError } = await supabase
               .from('chat_message_files')
               .select('*')
               .in('message_id', uncachedMessageIds);
 
-            if (!attachmentsError) {
-              allAttachments = attachmentsData || [];
+            if (!attachmentsError && Array.isArray(attachmentsData)) {
+              allAttachments = attachmentsData;
               
               // Cache the new attachments
               for (const messageId of uncachedMessageIds) {
-                const messageAttachments = allAttachments.filter(att => att.message_id === messageId);
+                const messageAttachments = allAttachments.filter(att => att && att.message_id === messageId);
                 if (messageAttachments.length > 0) {
                   await chatPerformanceManager.setCachedAttachments(messageId, messageAttachments);
                 }
@@ -148,7 +149,7 @@ export const useOptimizedChatMessages = ({
 
           // Combine cached and fresh attachments
           cachedAttachments.forEach((cached, index) => {
-            if (cached) {
+            if (cached && Array.isArray(cached)) {
               allAttachments.push(...cached);
             }
           });
@@ -156,23 +157,30 @@ export const useOptimizedChatMessages = ({
 
         // Enrich messages with sender names and attachments
         const enrichedMessages = await Promise.all(
-          messages.map(async (msg: any) => {
+          (messages || []).map(async (msg: any) => {
+            if (!msg) return null; // Skip null/undefined messages
+            
             let senderName = 'Unknown User';
             
-            if (msg.sender_type === 'admin' && msg.sender_user_id) {
-              senderName = 'Admin';
-            } else if (msg.sender_type === 'sub_user' && msg.sender_sub_user_id) {
-              // For sub users, get from sub_users table
-              const { data: subUser } = await supabase
-                .from('sub_users')
-                .select('fullname, email')
-                .eq('id', msg.sender_sub_user_id)
-                .single();
-              
-              senderName = subUser?.fullname || subUser?.email || 'Sub User';
+            try {
+              if (msg.sender_type === 'admin' && msg.sender_user_id) {
+                senderName = 'Admin';
+              } else if (msg.sender_type === 'sub_user' && msg.sender_sub_user_id) {
+                // For sub users, get from sub_users table
+                const { data: subUser } = await supabase
+                  .from('sub_users')
+                  .select('fullname, email')
+                  .eq('id', msg.sender_sub_user_id)
+                  .single();
+                
+                senderName = subUser?.fullname || subUser?.email || 'Sub User';
+              }
+            } catch (error) {
+              console.warn('Error fetching sender name:', error);
+              senderName = msg.sender_type === 'admin' ? 'Admin' : 'Sub User';
             }
 
-            const messageAttachments = allAttachments.filter(att => att.message_id === msg.id);
+            const messageAttachments = (allAttachments || []).filter(att => att && att.message_id === msg.id);
 
             return {
               ...msg,
@@ -189,12 +197,15 @@ export const useOptimizedChatMessages = ({
           })
         );
 
+        // Filter out any null messages that were skipped
+        const validMessages = enrichedMessages.filter(Boolean);
+
         // Cache the results for the initial load
         if (offset === 0) {
-          await chatPerformanceManager.setCachedMessages(targetChannelId, enrichedMessages);
+          await chatPerformanceManager.setCachedMessages(targetChannelId, validMessages);
         }
 
-        return enrichedMessages;
+        return validMessages;
       },
       200 // Debounce delay
     );
@@ -214,10 +225,10 @@ export const useOptimizedChatMessages = ({
       }
 
       const freshMessages = await loadMessagesOptimized(channelId, 0);
-      setMessages(freshMessages);
-      setHasMoreMessages(freshMessages.length >= chatPerformanceManager.getOptimalBatchSize());
+      setMessages(Array.isArray(freshMessages) ? freshMessages : []);
+      setHasMoreMessages(freshMessages && freshMessages.length >= chatPerformanceManager.getOptimalBatchSize());
       
-      if (freshMessages.length > 0) {
+      if (freshMessages && freshMessages.length > 0) {
         lastMessageTimestamp.current = freshMessages[freshMessages.length - 1].created_at;
       }
       
@@ -237,12 +248,16 @@ export const useOptimizedChatMessages = ({
 
     setLoadingMore(true);
     try {
-      const olderMessages = await loadMessagesOptimized(channelId, messages.length);
+      const currentLength = Array.isArray(messages) ? messages.length : 0;
+      const olderMessages = await loadMessagesOptimized(channelId, currentLength);
       
-      if (olderMessages.length === 0) {
+      if (!olderMessages || olderMessages.length === 0) {
         setHasMoreMessages(false);
       } else {
-        setMessages(prev => [...olderMessages, ...prev]);
+        setMessages(prev => {
+          const prevArray = Array.isArray(prev) ? prev : [];
+          return [...olderMessages, ...prevArray];
+        });
         setHasMoreMessages(olderMessages.length >= chatPerformanceManager.getOptimalBatchSize());
       }
     } catch (error) {
@@ -250,7 +265,7 @@ export const useOptimizedChatMessages = ({
     } finally {
       setLoadingMore(false);
     }
-  }, [channelId, messages.length, loadingMore, hasMoreMessages, loadMessagesOptimized]);
+  }, [channelId, messages, loadingMore, hasMoreMessages, loadMessagesOptimized]);
 
   // Smart polling for public boards
   const setupPolling = useCallback(() => {
