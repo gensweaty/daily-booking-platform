@@ -151,8 +151,10 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
     <div className="space-y-4">
       {messages.map((message, index) => {
         const prevMessage = messages[index - 1];
-        // Always show avatar and name for each message (no grouping)
-        const isFirstInGroup = true;
+        const isFirstInGroup = !prevMessage || 
+          prevMessage.sender_user_id !== message.sender_user_id ||
+          prevMessage.sender_sub_user_id !== message.sender_sub_user_id ||
+          new Date(message.created_at).getTime() - new Date(prevMessage.created_at).getTime() > 300000; // 5 minutes
 
         const reactions = groupReactions(message.reactions || []);
 
@@ -264,7 +266,7 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
                 )}
               </div>
 
-              {/* Message Actions - only show for non-deleted messages */}
+              {/* Message Actions */}
               {hoveredMessage === message.id && !message.is_deleted && (
                 <div className="absolute -top-2 right-0 flex items-center gap-1 bg-background border border-border rounded-lg p-1 shadow-lg">
                   <Button
@@ -291,8 +293,8 @@ export const MessageList = ({ messages, currentUser, onReply, onEdit, onDelete }
                     </Button>
                   )}
                   
-                  {/* Delete button - only for own messages and not deleted messages */}
-                  {isOwnMessage(message) && !message.is_deleted && (
+                  {/* Delete button - only for own messages */}
+                  {isOwnMessage(message) && (
                     <Button
                       variant="ghost"
                       size="sm"
