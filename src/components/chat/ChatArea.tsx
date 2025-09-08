@@ -44,7 +44,7 @@ interface ChatAreaProps {
 }
 
 export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
-  const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled } = useChat();
+  const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled, connectionStatus } = useChat();
   const { toast } = useToast();
   const { t } = useLanguage();
   const location = useLocation();
@@ -400,25 +400,33 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     else { setLoading(true); }
   }, [activeChannelId]);
 
-  // polling for public (only when realtime disabled)
+  // ⛑️ Polling fallback when realtime is not connected (works for both public & internal)
   useEffect(() => {
     if (!activeChannelId || !boardOwnerId || !me) return;
-    if (realtimeEnabled) return;
+    if (realtimeEnabled && connectionStatus === 'connected') return;
 
     let mounted = true;
-    const guardKey = `${boardOwnerId}:${me.email || me.id}`;
+    const guardKey = `${boardOwnerId}:${me.email || me.id}:${activeChannelId}`;
 
     const poll = async () => {
       if (!mounted) return;
-      const slug = location.pathname.split('/').pop();
-      const accessData = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}');
-
-      const { data } = await supabase.rpc('list_channel_messages_public', {
-        p_owner_id: boardOwnerId,
-        p_channel_id: activeChannelId,
-        p_requester_type: 'sub_user',
-        p_requester_email: effectiveEmail!,
-      });
+      const onPublicBoard = location.pathname.startsWith('/board/');
+      let data: any[] | null = null;
+      if (onPublicBoard && me?.type === 'sub_user') {
+        const resp = await supabase.rpc('list_channel_messages_public', {
+          p_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+          p_requester_type: 'sub_user',
+          p_requester_email: effectiveEmail!,
+        });
+        data = resp.data || null;
+      } else {
+        const resp = await supabase.rpc('get_chat_messages_for_channel', {
+          p_board_owner_id: boardOwnerId,
+          p_channel_id: activeChannelId,
+        });
+        data = resp.data || null;
+      }
       if (!mounted || !data) return;
 
       setMessages(prev => {
@@ -438,7 +446,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     const id = setInterval(poll, 2500);
     poll();
     return () => { mounted = false; clearInterval(id); };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled]);
+  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled, connectionStatus]);
 
   useEffect(() => {
     const handleMessage = async (event: CustomEvent) => {
@@ -618,6 +626,39 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     window.addEventListener('chat-message-received', handleMessage as EventListener);
     return () => window.removeEventListener('chat-message-received', handleMessage as EventListener);
   }, []); // 👈 listen once, use refs inside
+
+  // 🔌 Per-channel realtime safety net (keeps the open chat snappy even if board-wide feed hiccups)
+  useEffect(() => {
+    if (!activeChannelId || !boardOwnerId) return;
+    const areaChannel = supabase
+      .channel(`chat-area-${activeChannelId}`)
+      .on('postgres_changes',
+        { schema: 'public', table: 'chat_messages', event: 'INSERT', filter: `channel_id=eq.${activeChannelId}` },
+        (payload) => {
+          window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: payload.new } }));
+        }
+      )
+      .on('postgres_changes',
+        { schema: 'public', table: 'chat_messages', event: 'UPDATE', filter: `channel_id=eq.${activeChannelId}` },
+        (payload) => {
+          window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: { ...payload.new, _isUpdate: true } } }));
+        }
+      )
+      // bridge file attaches to message updates for the active channel
+      .on('postgres_changes',
+        { schema: 'public', table: 'chat_message_files', event: 'INSERT' },
+        async (payload) => {
+          const msgId = payload.new?.message_id;
+          if (!msgId) return;
+          const { data: msg } = await supabase.from('chat_messages').select('*').eq('id', msgId).maybeSingle();
+          if (msg?.channel_id === activeChannelIdRef.current) {
+            window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: { ...msg, _isUpdate: true, has_attachments: true } } }));
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(areaChannel); };
+  }, [activeChannelId, boardOwnerId]);
 
   useEffect(() => {
     const onReset = () => {
