@@ -438,91 +438,44 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const channelId = message.channel_id;
       const isUpdate = message._isUpdate;
 
-      // 🔧 FIX: Enhanced attachment loading with retry and RLS-safe loading
-      const loadAttachments = async (messageId: string, attempts: number = 0): Promise<any[]> => {
-        const maxAttempts = 8; // Increased retry attempts
-        const baseDelay = 200; // Starting delay
-        
-        try {
-          let atts: any[] = [];
-          const onPublicBoard = location.pathname.startsWith('/board/');
-          
-          if (onPublicBoard && me?.type === 'sub_user') {
-            // RLS-safe loading for sub-users on public boards
-            const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
-              p_message_ids: [messageId],
-            });
-            atts = (attRows || []).map((a: any) => ({
-              id: a.id,
-              filename: a.filename,
-              file_path: a.file_path,
-              content_type: a.content_type,
-              size: a.size,
-            }));
-          } else {
-            // Standard loading for authenticated users
-            const { data: linked } = await supabase
-              .from('chat_message_files')
-              .select('*')
-              .eq('message_id', messageId);
-            atts = (linked || []).map((a: any) => ({
-              id: a.id,
-              filename: a.filename,
-              file_path: a.file_path,
-              content_type: a.content_type,
-              size: a.size,
-            }));
-          }
-          
-          if (atts && atts.length > 0) {
-            console.log(`✅ Found ${atts.length} attachments for message:`, messageId, `(attempt ${attempts + 1})`);
-            return atts;
-          }
-          
-          // Retry logic with exponential backoff
-          if (attempts < maxAttempts - 1) {
-            const delay = Math.min(baseDelay * Math.pow(2, attempts), 25600); // Max 25.6s
-            console.log(`⏳ Attempt ${attempts + 1} failed, retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-            return loadAttachments(messageId, attempts + 1);
-          }
-          
-          console.warn(`❌ Failed to load attachments after ${maxAttempts} attempts for message:`, messageId);
-          return [];
-        } catch (error) {
-          console.error('Error loading attachments:', error);
-          return [];
-        }
-      };
-
-      // Load attachments for new messages with file flag
+      // 🔧 FIX: Robust attachment loading with retry for real-time messages
       if (message.has_attachments && !isUpdate) {
         console.log('📎 Loading attachments for real-time message:', message.id);
-        const attachments = await loadAttachments(message.id);
-        if (attachments.length > 0) {
-          message = { 
-            ...message, 
-            attachments,
-            has_attachments: true,
-            message_type: 'file'
-          };
-        } else {
-          // Mark for potential later retry
-          message = { ...message, attachments: [] };
-        }
-      }
-
-      // Load attachments for message updates
-      if (isUpdate && message.has_attachments) {
-        console.log('🔄 Loading attachments for updated message:', message.id);
-        const attachments = await loadAttachments(message.id);
-        if (attachments.length > 0) {
-          message = {
-            ...message,
-            attachments,
-            has_attachments: true,
-            message_type: 'file'
-          };
+        
+        let attempts = 0;
+        const maxAttempts = 3;
+        const baseDelay = 100;
+        
+        while (attempts < maxAttempts) {
+          const { data: atts } = await supabase
+            .from('chat_message_files')
+            .select('*')
+            .eq('message_id', message.id);
+          
+          if (atts && atts.length > 0) {
+            console.log('✅ Found', atts.length, 'attachments for message:', message.id);
+            message = { 
+              ...message, 
+              attachments: atts.map(a => ({
+                id: a.id,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+              }))
+            };
+            break;
+          }
+          
+          attempts++;
+          if (attempts < maxAttempts) {
+            console.log(`⏳ Attachments not ready yet for message ${message.id}, retrying in ${baseDelay * attempts}ms (attempt ${attempts}/${maxAttempts})`);
+            await new Promise(resolve => setTimeout(resolve, baseDelay * attempts));
+          } else {
+            console.log('❌ Failed to load attachments after', maxAttempts, 'attempts for message:', message.id);
+            // Keep the message but mark it for potential later retry
+            message = { ...message, attachments: [] };
+          }
         }
       }
 
@@ -587,148 +540,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     window.addEventListener('chat-reset', onReset as EventListener);
     return () => window.removeEventListener('chat-reset', onReset as EventListener);
   }, []);
-
-  // 🔧 FIX: File attachment event handler
-  useEffect(() => {
-    const handleFileAttachment = async (event: CustomEvent) => {
-      const { messageId, file, boardOwnerId: eventBoardOwnerId } = event.detail;
-      
-      // Only process if this is for our board
-      if (eventBoardOwnerId !== boardOwnerId) return;
-      
-      console.log('📎 File attachment event received for message:', messageId, 'file:', file.filename);
-      
-      // Find the message and update it with the new attachment
-      setMessages(prev => prev.map(m => {
-        if (m.id === messageId) {
-          const existingAttachments = m.attachments || [];
-          const newAttachment = {
-            id: file.id,
-            filename: file.filename,
-            file_path: file.file_path,
-            content_type: file.content_type,
-            size: file.size,
-          };
-          
-          // Avoid duplicates
-          const hasExisting = existingAttachments.some(att => att.id === file.id);
-          if (!hasExisting) {
-            console.log('✅ Adding attachment to message:', messageId);
-            return {
-              ...m,
-              attachments: [...existingAttachments, newAttachment],
-              has_attachments: true,
-              message_type: 'file'
-            };
-          }
-        }
-        return m;
-      }));
-      
-      // Also update cache
-      const channelId = messages.find(m => m.id === messageId)?.channel_id;
-      if (channelId) {
-        const currentCache = cacheRef.current.get(channelId) || [];
-        const updatedCache = currentCache.map(m => {
-          if (m.id === messageId) {
-            const existingAttachments = m.attachments || [];
-            const newAttachment = {
-              id: file.id,
-              filename: file.filename,
-              file_path: file.file_path,
-              content_type: file.content_type,
-              size: file.size,
-            };
-            const hasExisting = existingAttachments.some(att => att.id === file.id);
-            if (!hasExisting) {
-              return {
-                ...m,
-                attachments: [...existingAttachments, newAttachment],
-                has_attachments: true,
-                message_type: 'file'
-              };
-            }
-          }
-          return m;
-        });
-        cacheRef.current.set(channelId, updatedCache);
-      }
-    };
-
-    window.addEventListener('chat-file-attachment-added', handleFileAttachment as EventListener);
-    return () => window.removeEventListener('chat-file-attachment-added', handleFileAttachment as EventListener);
-  }, [boardOwnerId, messages]);
-
-  // 🔧 FIX: Periodic attachment checker for missing attachments
-  useEffect(() => {
-    if (!activeChannelId || !boardOwnerId) return;
-    
-    const checkMissingAttachments = async () => {
-      const messagesWithMissingAttachments = messages.filter(m => 
-        m.has_attachments === true && (!m.attachments || m.attachments.length === 0)
-      );
-      
-      if (messagesWithMissingAttachments.length > 0) {
-        console.log('🔍 Found', messagesWithMissingAttachments.length, 'messages with missing attachments, recovering...');
-        
-        for (const msg of messagesWithMissingAttachments) {
-          try {
-            let atts: any[] = [];
-            const onPublicBoard = location.pathname.startsWith('/board/');
-            
-            if (onPublicBoard && me?.type === 'sub_user') {
-              const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
-                p_message_ids: [msg.id],
-              });
-              atts = (attRows || []).map((a: any) => ({
-                id: a.id,
-                filename: a.filename,
-                file_path: a.file_path,
-                content_type: a.content_type,
-                size: a.size,
-              }));
-            } else {
-              const { data: linked } = await supabase
-                .from('chat_message_files')
-                .select('*')
-                .eq('message_id', msg.id);
-              atts = (linked || []).map((a: any) => ({
-                id: a.id,
-                filename: a.filename,
-                file_path: a.file_path,
-                content_type: a.content_type,
-                size: a.size,
-              }));
-            }
-
-            if (atts && atts.length > 0) {
-              console.log('✅ Recovered attachments for message:', msg.id);
-              // Trigger message update
-              window.dispatchEvent(new CustomEvent('chat-message-received', {
-                detail: {
-                  message: {
-                    ...msg,
-                    _isUpdate: true,
-                    attachments: atts,
-                    has_attachments: true,
-                    message_type: 'file'
-                  }
-                }
-              }));
-            }
-          } catch (error) {
-            console.warn('Failed to recover attachments for message:', msg.id, error);
-          }
-        }
-      }
-    };
-    
-    // Run immediately, then every 5 seconds
-    checkMissingAttachments();
-    const interval = setInterval(checkMissingAttachments, 5000);
-    
-    return () => clearInterval(interval);
-  }, [activeChannelId, boardOwnerId, messages, me?.type, location.pathname]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
