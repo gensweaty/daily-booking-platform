@@ -160,8 +160,7 @@ export const useOptimizedChatMessages = ({
             let senderName = 'Unknown User';
             
             if (msg.sender_type === 'admin' && msg.sender_user_id) {
-              // For admin users, try to get display name from user metadata or email
-              senderName = me?.email || 'Admin';
+              senderName = 'Admin';
             } else if (msg.sender_type === 'sub_user' && msg.sender_sub_user_id) {
               // For sub users, get from sub_users table
               const { data: subUser } = await supabase
@@ -177,6 +176,7 @@ export const useOptimizedChatMessages = ({
 
             return {
               ...msg,
+              updated_at: msg.updated_at || msg.created_at, // Ensure updated_at is always present
               sender_name: senderName,
               attachments: messageAttachments.map((att: any) => ({
                 id: att.id,

@@ -18,7 +18,7 @@ type Message = {
   id: string;
   content: string;
   created_at: string;
-  updated_at?: string;
+  updated_at: string; // Make required to match ChatMessage
   sender_user_id?: string;
   sender_sub_user_id?: string;
   sender_type: 'admin' | 'sub_user';
@@ -133,7 +133,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             const partnerEmail = parts[1] === me?.email ? parts[2] : parts[1];
             dmPartner = {
               name: partnerEmail,
-              avatar: await resolveAvatarUrl(partnerEmail, boardOwnerId)
+              avatar: await resolveAvatarUrl(partnerEmail)
             };
           }
         }
@@ -430,7 +430,6 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           onCancelReply={handleCancelReply}
           editingMessage={editingMessage}
           onCancelEdit={handleCancelEdit}
-          onMessageInputFocus={onMessageInputFocus}
         />
       </div>
     </div>
