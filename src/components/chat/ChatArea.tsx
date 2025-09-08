@@ -797,11 +797,34 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       
       setEditingMessage(null);
       
-      // Reload messages to show the edit
-      setLoading(true);
-      const timer = setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      // Update message locally to show the edit immediately
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              content, 
+              updated_at: new Date().toISOString(),
+              edited_at: new Date().toISOString(),
+              original_content: msg.content 
+            }
+          : msg
+      ));
+      
+      // Update cache as well
+      if (activeChannelId) {
+        const updatedCache = cacheRef.current.get(activeChannelId)?.map(msg => 
+          msg.id === messageId 
+            ? { 
+                ...msg, 
+                content, 
+                updated_at: new Date().toISOString(),
+                edited_at: new Date().toISOString(),
+                original_content: msg.content 
+              }
+            : msg
+        ) || [];
+        cacheRef.current.set(activeChannelId, updatedCache);
+      }
       
       console.log('✅ Message edited successfully');
     } catch (error: any) {
@@ -870,11 +893,34 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         }
       }
       
-      // Reload messages to show the deletion
-      setLoading(true);
-      const timer = setTimeout(() => {
-        window.location.reload();
-      }, 500);
+      // Update message locally to show deletion immediately
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId 
+          ? { 
+              ...msg, 
+              content: '[Message deleted]',
+              is_deleted: true,
+              message_type: 'deleted',
+              attachments: [] // Clear attachments for deleted messages
+            }
+          : msg
+      ));
+      
+      // Update cache as well
+      if (activeChannelId) {
+        const updatedCache = cacheRef.current.get(activeChannelId)?.map(msg => 
+          msg.id === messageId 
+            ? { 
+                ...msg, 
+                content: '[Message deleted]',
+                is_deleted: true,
+                message_type: 'deleted',
+                attachments: [] 
+              }
+            : msg
+        ) || [];
+        cacheRef.current.set(activeChannelId, updatedCache);
+      }
       
       console.log('✅ Message deleted successfully');
     } catch (error: any) {
