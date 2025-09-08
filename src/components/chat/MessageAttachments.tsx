@@ -63,46 +63,45 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
 
   const openDoc = async (a: Att) => {
     try {
-      // First try direct public URL approach (works if bucket is public)
-      const publicUrl = publicUrlFor(a);
-      
-      // Test if public URL is accessible
-      const testResponse = await fetch(publicUrl, { method: 'HEAD' });
-      if (testResponse.ok) {
-        // Public URL works, use it directly
-        window.open(publicUrl, '_blank', 'noopener,noreferrer');
+      // Always use blob download method to avoid Chrome blocking Supabase URLs
+      const { data } = await supabase.storage.from('chat_attachments').download(a.file_path);
+      if (!data) {
+        console.error('Failed to download file:', a.filename);
         return;
       }
+      
+      // Create blob with proper content type for better browser handling
+      const blob = new Blob([data], { 
+        type: a.content_type || 'application/pdf' 
+      });
+      
+      // Create a temporary URL for the blob
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Use a more reliable method - create a temporary anchor and click it
+      // This bypasses Chrome's window.open blocking
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      
+      // Make the link invisible and add to DOM temporarily
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      
+      // Trigger the click
+      link.click();
+      
+      // Clean up immediately
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL after a delay to ensure it loads
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 5000);
+      
     } catch (error) {
-      console.log('Public URL not accessible, falling back to blob download');
-    }
-
-    // Fallback to blob download with proper content type
-    const { data } = await supabase.storage.from('chat_attachments').download(a.file_path);
-    if (!data) return;
-    
-    // Create blob with proper content type for better browser handling
-    const blob = new Blob([data], { 
-      type: a.content_type || 'application/octet-stream' 
-    });
-    const url = URL.createObjectURL(blob);
-    
-    // Use window.open directly with blob URL (more reliable than anchor click)
-    const newWindow = window.open('', '_blank', 'noopener,noreferrer');
-    if (newWindow) {
-      newWindow.location.href = url;
-      // Clean up after longer delay to ensure file loads
-      setTimeout(() => URL.revokeObjectURL(url), 120000);
-    } else {
-      // Fallback if popup blocked - use anchor method
-      const aTag = document.createElement('a');
-      aTag.href = url;
-      aTag.target = '_blank';
-      aTag.rel = 'noopener noreferrer';
-      document.body.appendChild(aTag);
-      aTag.click();
-      aTag.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 120000);
+      console.error('Error opening document:', error);
     }
   };
 
