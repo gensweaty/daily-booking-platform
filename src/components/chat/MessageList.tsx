@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { MessageAttachments } from './MessageAttachments';
 
 type ChatMessage = {
   id: string;
@@ -96,7 +97,9 @@ export const MessageList = ({
     if (isDeleted(m)) return false;
     if (m.edited_at) return true;
     if (!m.updated_at || !m.created_at) return false;
-    return new Date(m.updated_at).getTime() - new Date(m.created_at).getTime() > 1000; // >1s
+    const updatedTime = new Date(m.updated_at).getTime();
+    const createdTime = new Date(m.created_at).getTime();
+    return updatedTime - createdTime > 5000; // >5s to account for any processing delays
   };
 
   const groupReactions = (reactions: any[]) => {
@@ -198,12 +201,18 @@ export const MessageList = ({
                     <span className="font-medium text-sm">{message.sender_name}</span>
                     <span className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                      {edited && (
+                        <span className="ml-2 inline-flex items-center gap-1">
+                          <Edit className="h-3 w-3" />
+                          {t('chat.edited')}
+                        </span>
+                      )}
                     </span>
                   </div>
                 )}
                 
-                {/* Show edit indicator for any edited message */}
-                {edited && (
+                {/* Show edit indicator for non-first messages */}
+                {!isFirstInGroup && edited && (
                   <div className="flex items-center gap-1 mb-1 text-xs text-muted-foreground">
                     <Edit className="h-3 w-3" />
                     {t('chat.edited')}
@@ -233,54 +242,7 @@ export const MessageList = ({
 
                 {/* Files - hide if message is deleted */}
                 {message.files && message.files.length > 0 && !deleted && (
-                  <div className="mt-2 space-y-2">
-                    {message.files.map((file) => {
-                      const isImage = (filename: string): boolean => {
-                        const ext = filename.split('.').pop()?.toLowerCase() || '';
-                        return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
-                      };
-                      
-                      const imageUrl = file.url; // Assuming files have a url property
-                      
-                      return (
-                        <div key={file.id} className="bg-muted/50 rounded-lg overflow-hidden border max-w-sm">
-                          {isImage(file.filename) ? (
-                            <div className="cursor-pointer" onClick={() => window.open(imageUrl, '_blank')}>
-                              <img 
-                                src={imageUrl}
-                                alt={file.filename}
-                                className="w-full h-48 object-cover hover:opacity-90 transition-opacity"
-                                onError={(e) => {
-                                  console.error('Image failed to load:', imageUrl);
-                                  e.currentTarget.style.display = 'none';
-                                }}
-                              />
-                              <div className="p-2">
-                                <p className="text-xs font-medium truncate">{file.filename}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {file.size ? `${Math.round(file.size / 1024)} KB` : 'Image'}
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="p-3 cursor-pointer hover:bg-muted/70 transition-colors" onClick={() => window.open(imageUrl, '_blank')}>
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-primary/10 rounded flex items-center justify-center">
-                                  📄
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">{file.filename}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {file.size ? `${Math.round(file.size / 1024)} KB` : 'File'}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <MessageAttachments attachments={message.files} />
                 )}
 
                 {/* Reactions */}
