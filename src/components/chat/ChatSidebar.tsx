@@ -3,6 +3,7 @@ import { Hash, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { resolveAvatarUrl } from './_avatar';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -44,6 +45,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     created_by_type: string;
     created_by_id: string;
   }>>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState<{ id: string; name: string } | null>(null);
 
   // Load general channel with improved selection logic
   useEffect(() => {
@@ -339,7 +342,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
 
   // Delete custom chat (creator only)
   const handleDeleteCustomChat = async (channelId: string) => {
-    if (!me || !boardOwnerId) return;
+    if (!me || !boardOwnerId || !chatToDelete) return;
 
     try {
       // Resolve requester ID for sub-users if needed
@@ -359,7 +362,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
 
       const { error } = await supabase.rpc('delete_custom_chat', {
         p_owner_id: boardOwnerId,
-        p_channel_id: channelId,
+        p_channel_id: chatToDelete.id,
         p_requester_type: me.type,
         p_requester_id: requesterId
       });
@@ -727,7 +730,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteCustomChat(chat.id);
+                        setChatToDelete({ id: chat.id, name: chat.name });
+                        setDeleteDialogOpen(true);
                       }}
                     >
                       <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
@@ -746,6 +750,39 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           </ScrollArea>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="z-[9999]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <LanguageText>{t('chat.deleteChatConfirmTitle')}</LanguageText>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <LanguageText>{t('chat.deleteChatConfirmMessage')}</LanguageText>
+              {chatToDelete && (
+                <div className="mt-2 p-2 bg-muted rounded text-sm font-medium">
+                  "{chatToDelete.name}"
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDeleteDialogOpen(false);
+              setChatToDelete(null);
+            }}>
+              <LanguageText>{t('common.cancel')}</LanguageText>
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleDeleteCustomChat(chatToDelete?.id || '')}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              <LanguageText>{t('chat.deleteChat')}</LanguageText>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -742,6 +742,9 @@ export const translations: TranslationType = {
     createCustomChat: "მორგებული ჩატის შექმნა",
     chatName: "ჩატის სახელი",
     selectParticipants: "მონაწილეების არჩევა",
-    noCustomChats: "მორგებული ჩატები არ არის"
+    noCustomChats: "მორგებული ჩატები არ არის",
+    deleteChat: "ჩათის წაშლა",
+    deleteChatConfirmTitle: "წავშალოთ ჩათი?",
+    deleteChatConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ ამ ჩათის წაშლა? ეს მოქმედება შეუქცევადია და ყველა შეტყობინება დაიკარგება."
   }
 };

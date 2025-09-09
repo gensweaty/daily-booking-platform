@@ -742,6 +742,9 @@ export const translations: TranslationType = {
     createCustomChat: "Crear Chat Personalizado",
     chatName: "Nombre del Chat",
     selectParticipants: "Seleccionar Participantes",
-    noCustomChats: "No hay chats personalizados"
+    noCustomChats: "No hay chats personalizados",
+    deleteChat: "Eliminar Chat",
+    deleteChatConfirmTitle: "¿Eliminar Chat?",
+    deleteChatConfirmMessage: "¿Estás seguro de que quieres eliminar este chat? Esta acción no se puede deshacer y todos los mensajes se perderán."
   }
 };

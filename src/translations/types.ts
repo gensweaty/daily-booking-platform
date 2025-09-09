@@ -743,5 +743,8 @@ export interface TranslationType {
     chatName: string;
     selectParticipants: string;
     noCustomChats: string;
+    deleteChat: string;
+    deleteChatConfirmTitle: string;
+    deleteChatConfirmMessage: string;
   };
 }
