@@ -737,6 +737,11 @@ export const translations: TranslationType = {
     deleteMessageConfirm: "Are you sure you want to delete this message? This action cannot be undone.",
     deleteButton: "Yes, Delete",
     cancelButton: "No",
-    edited: "edited"
+    edited: "edited",
+    customChats: "Custom Chats",
+    createCustomChat: "Create Custom Chat",
+    chatName: "Chat Name",
+    selectParticipants: "Select Participants",
+    noCustomChats: "No custom chats"
   }
 };

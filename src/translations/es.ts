@@ -737,6 +737,11 @@ export const translations: TranslationType = {
     deleteMessageConfirm: "¿Estás seguro de que deseas eliminar este mensaje? Esta acción no se puede deshacer.",
     deleteButton: "Sí, Eliminar",
     cancelButton: "No",
-    edited: "editado"
+    edited: "editado",
+    customChats: "Chats Personalizados",
+    createCustomChat: "Crear Chat Personalizado",
+    chatName: "Nombre del Chat",
+    selectParticipants: "Seleccionar Participantes",
+    noCustomChats: "No hay chats personalizados"
   }
 };

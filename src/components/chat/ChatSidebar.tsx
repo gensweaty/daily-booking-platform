@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Hash } from 'lucide-react';
+import { Hash, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { CreateCustomChatDialog } from './CreateCustomChatDialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
@@ -35,6 +37,12 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     name: string; 
     type: 'admin' | 'sub_user'; 
     avatar_url?: string | null;
+  }>>([]);
+  const [customChats, setCustomChats] = useState<Array<{
+    id: string;
+    name: string;
+    created_by_type: string;
+    created_by_id: string;
   }>>([]);
 
   // Load general channel with improved selection logic
@@ -272,6 +280,117 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
       }
     })();
   }, [boardOwnerId, location.pathname]);
+
+  // Load custom chats
+  const loadCustomChats = async () => {
+    if (!boardOwnerId || !me) return;
+
+    try {
+      // Build membership filter for current user
+      const membership = me.type === 'admin'
+        ? `chat_participants.user_type.eq.admin,chat_participants.user_id.eq.${me.id}`
+        : `chat_participants.user_type.eq.sub_user,chat_participants.sub_user_id.eq.${me.id}`;
+
+      const { data: customChats, error } = await supabase
+        .from('chat_channels')
+        .select(`
+          id, name, is_custom, is_deleted, created_by_type, created_by_id,
+          chat_participants!inner(user_type, user_id, sub_user_id)
+        `)
+        .eq('owner_id', boardOwnerId)
+        .eq('is_custom', true)
+        .eq('is_deleted', false)
+        .or(membership)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error loading custom chats:', error);
+        return;
+      }
+
+      console.log('✅ Custom chats loaded:', customChats);
+      setCustomChats(customChats || []);
+
+    } catch (error) {
+      console.error('❌ Error loading custom chats:', error);
+    }
+  };
+
+  // Delete custom chat (creator only)
+  const handleDeleteCustomChat = async (channelId: string) => {
+    if (!me || !boardOwnerId) return;
+
+    try {
+      // Resolve requester ID for sub-users if needed
+      let requesterId = me.id;
+      if (me.type === 'sub_user' && typeof me.id === 'string' && me.id.includes('@')) {
+        const { data: subUser } = await supabase
+          .from('sub_users')
+          .select('id')
+          .eq('board_owner_id', boardOwnerId)
+          .eq('email', me.email || me.id)
+          .maybeSingle();
+        
+        if (subUser?.id) {
+          requesterId = subUser.id;
+        }
+      }
+
+      const { error } = await supabase.rpc('delete_custom_chat', {
+        p_owner_id: boardOwnerId,
+        p_channel_id: channelId,
+        p_requester_type: me.type,
+        p_requester_id: requesterId
+      });
+
+      if (error) {
+        console.error('❌ Error deleting custom chat:', error);
+        toast({
+          title: 'Error',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      console.log('✅ Custom chat deleted successfully');
+      
+      // Refresh custom chats list
+      await loadCustomChats();
+      
+      // If this was the current channel, switch to general
+      if (currentChannelId === channelId) {
+        if (generalChannelId) {
+          openChannel(generalChannelId);
+        }
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Custom chat deleted successfully',
+      });
+
+    } catch (error) {
+      console.error('❌ Error deleting custom chat:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete chat. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Check if current user is creator of a custom chat
+  const isCreator = (chat: any) => {
+    return chat.created_by_type === me?.type && chat.created_by_id === me?.id;
+  };
+
+  // Load custom chats when dependencies change
+  useEffect(() => {
+    if (boardOwnerId && me) {
+      loadCustomChats();
+    }
+  }, [boardOwnerId, me?.id, me?.type]);
 
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
@@ -528,6 +647,78 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               <LanguageText>{t('chat.noTeamMembers')}</LanguageText>
             </div>
           )}
+        </div>
+
+        {/* Custom Chats */}
+        <div className="pt-4">
+          <div className="flex items-center justify-between mb-2 px-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <LanguageText>{t('chat.customChats')}</LanguageText>
+            </p>
+            <CreateCustomChatDialog 
+              teamMembers={members} 
+              onChatCreated={loadCustomChats} 
+            />
+          </div>
+
+          <ScrollArea className="max-h-48 overflow-y-auto">
+            <div className="space-y-1">
+              {customChats.map((chat) => (
+                <div key={chat.id} className="group flex items-center">
+                  <button
+                    onClick={() => {
+                      // Tell the header this is a custom channel
+                      window.dispatchEvent(new CustomEvent('chat-header', {
+                        detail: {
+                          channelId: chat.id,
+                          isDM: false,
+                          title: chat.name,
+                          avatar: null
+                        }
+                      }));
+                      openChannel(chat.id);
+                      onChannelSelect?.();
+                    }}
+                    className={cn(
+                      "flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-muted/70 transition-all text-left",
+                      currentChannelId === chat.id ? "bg-primary/15 text-primary border border-primary/20" : "border border-transparent"
+                    )}
+                  >
+                    <Hash className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium truncate">{chat.name}</span>
+                    
+                    {chat.id && (channelUnreads[chat.id] ?? 0) > 0 && (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
+                        {(channelUnreads[chat.id] ?? 0) > 99 ? '99+' : channelUnreads[chat.id]}
+                      </span>
+                    )}
+                  </button>
+                  
+                  {/* Delete button - only show for creator */}
+                  {isCreator(chat) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCustomChat(chat.id);
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                      <span className="sr-only">Delete chat</span>
+                    </Button>
+                  )}
+                </div>
+              ))}
+              
+              {customChats.length === 0 && (
+                <div className="text-center text-xs text-muted-foreground py-4">
+                  <LanguageText>{t('chat.noCustomChats')}</LanguageText>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </div>
       </div>
     </div>

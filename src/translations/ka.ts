@@ -737,6 +737,11 @@ export const translations: TranslationType = {
     deleteMessageConfirm: "დარწმუნებული ხართ, რომ გსურთ ამ შეტყობინების წაშლა? ეს მოქმედება შეუქცევადია.",
     deleteButton: "კი, წაშლა",
     cancelButton: "არა",
-    edited: "რედაქტირებული"
+    edited: "რედაქტირებული",
+    customChats: "მორგებული ჩატები",
+    createCustomChat: "მორგებული ჩატის შექმნა",
+    chatName: "ჩატის სახელი",
+    selectParticipants: "მონაწილეების არჩევა",
+    noCustomChats: "მორგებული ჩატები არ არის"
   }
 };

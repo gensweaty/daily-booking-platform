@@ -738,5 +738,10 @@ export interface TranslationType {
     deleteButton: string;
     cancelButton: string;
     edited: string;
+    customChats: string;
+    createCustomChat: string;
+    chatName: string;
+    selectParticipants: string;
+    noCustomChats: string;
   };
 }

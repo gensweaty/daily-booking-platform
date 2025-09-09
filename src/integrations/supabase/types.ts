@@ -216,10 +216,15 @@ export type Database = {
       chat_channels: {
         Row: {
           created_at: string | null
+          created_by_id: string | null
+          created_by_type: string | null
+          custom_sig: string | null
           dm_pair_key: string | null
           emoji: string | null
           id: string
+          is_custom: boolean
           is_default: boolean | null
+          is_deleted: boolean
           is_dm: boolean | null
           is_private: boolean | null
           name: string
@@ -229,10 +234,15 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          created_by_id?: string | null
+          created_by_type?: string | null
+          custom_sig?: string | null
           dm_pair_key?: string | null
           emoji?: string | null
           id?: string
+          is_custom?: boolean
           is_default?: boolean | null
+          is_deleted?: boolean
           is_dm?: boolean | null
           is_private?: boolean | null
           name: string
@@ -242,10 +252,15 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          created_by_id?: string | null
+          created_by_type?: string | null
+          custom_sig?: string | null
           dm_pair_key?: string | null
           emoji?: string | null
           id?: string
+          is_custom?: boolean
           is_default?: boolean | null
+          is_deleted?: boolean
           is_dm?: boolean | null
           is_private?: boolean | null
           name?: string
@@ -1633,6 +1648,16 @@ export type Database = {
           migrated_messages_count: number
         }[]
       }
+      create_custom_chat: {
+        Args: {
+          p_creator_id: string
+          p_creator_type: string
+          p_name: string
+          p_owner_id: string
+          p_participants: Json
+        }
+        Returns: string
+      }
       create_subscription: {
         Args: {
           p_current_period_end: string
@@ -1651,6 +1676,15 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      delete_custom_chat: {
+        Args: {
+          p_channel_id: string
+          p_owner_id: string
+          p_requester_id: string
+          p_requester_type: string
+        }
+        Returns: undefined
       }
       delete_event_and_related_booking: {
         Args: { p_event_id: string; p_user_id: string }
@@ -1800,6 +1834,31 @@ export type Database = {
       }
       get_chat_messages_for_channel: {
         Args: { p_board_owner_id: string; p_channel_id: string }
+        Returns: {
+          channel_id: string
+          content: string
+          created_at: string
+          edited_at: string
+          has_attachments: boolean
+          id: string
+          is_deleted: boolean
+          message_type: string
+          original_content: string
+          sender_avatar_url: string
+          sender_name: string
+          sender_sub_user_id: string
+          sender_type: string
+          sender_user_id: string
+          updated_at: string
+        }[]
+      }
+      get_chat_messages_for_channel_paged: {
+        Args: {
+          p_before?: string
+          p_board_owner_id: string
+          p_channel_id: string
+          p_limit?: number
+        }
         Returns: {
           channel_id: string
           content: string
@@ -2005,6 +2064,35 @@ export type Database = {
           sender_type: string
           sender_user_id: string
           updated_at: string
+        }[]
+      }
+      list_channel_messages_public_paged: {
+        Args: {
+          p_before?: string
+          p_channel_id: string
+          p_limit?: number
+          p_owner_id: string
+          p_requester_email: string
+          p_requester_type: string
+        }
+        Returns: {
+          channel_id: string
+          content: string
+          created_at: string | null
+          edited_at: string | null
+          has_attachments: boolean | null
+          id: string
+          is_deleted: boolean | null
+          message_type: string | null
+          original_content: string | null
+          owner_id: string | null
+          reply_to_id: string | null
+          sender_avatar_url: string | null
+          sender_name: string | null
+          sender_sub_user_id: string | null
+          sender_type: string
+          sender_user_id: string | null
+          updated_at: string | null
         }[]
       }
       list_channels_for_sub_user_public: {
