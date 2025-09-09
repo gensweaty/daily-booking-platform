@@ -456,16 +456,19 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       const shouldAlert = async () => {
         // Skip if chat is open and viewing the same channel
         if (isOpen && currentChannelId === message.channel_id) {
+          console.log('⏭️ Skipping notification - chat is open and viewing same channel');
           return false;
         }
         
         // CRITICAL: Only show notifications if user is a participant of this channel
         // Check both the cached userChannels and fallback to database verification for immediate accuracy
         if (userChannels.has(message.channel_id)) {
+          console.log('✅ Fast path - user is participant of channel:', message.channel_id);
           return true; // Fast path - user is definitely a participant
         }
         
         // Fallback: Check database directly for immediate verification (handles new custom chats)
+        console.log('🔍 Checking database for channel participation:', message.channel_id, 'user:', me?.id, 'type:', me?.type);
         try {
           const { data: participation } = await supabase
             .from('chat_participants')
@@ -475,8 +478,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             .eq('user_type', me?.type)
             .limit(1);
           
+          console.log('📋 Database participation check result:', participation);
           if (participation && participation.length > 0) {
             console.log('✅ Database confirms user is participant of channel:', message.channel_id);
+            // Trigger a refresh to update the userChannels cache
+            refreshUnread();
             return true;
           }
         } catch (error) {
@@ -488,13 +494,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       };
 
       shouldAlert().then((shouldShow) => {
+        console.log('🔔 Should show notification for channel', message.channel_id, ':', shouldShow);
         if (shouldShow) {
           // Always play sound, regardless of notification permission/state
+          console.log('🔊 Playing notification sound for custom/regular chat');
           import('@/utils/audioManager')
             .then(({ playNotificationSound }) => playNotificationSound())
-            .catch(() => {});
+            .catch((error) => console.error('❌ Failed to play sound:', error));
           
           // Also attempt system notification
+          console.log('📱 Showing system notification');
           showNotification({
             title: `${message.sender_name || 'Someone'} messaged`,
             body: message.content,
