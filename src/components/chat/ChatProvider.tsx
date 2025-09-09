@@ -771,7 +771,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         const newMap = new Map<string, { id: string; type: 'admin' | 'sub_user' }>();
 
         if (me.type === 'admin') {
-          // Simple admin path - just DM channels
+          // Get DM channels - map to the "other" participant
           const { data: dmChannels } = await supabase
             .from('chat_channels')
             .select('id, chat_participants(user_id, sub_user_id, user_type)')
@@ -791,6 +791,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               if (memberId && memberType) {
                 newMap.set(channel.id, { id: memberId, type: memberType });
               }
+            }
+          });
+
+          // Get custom chats - for multi-participant chats, we'll map to the creator
+          // This prevents custom chat unread counts from being attributed to team members
+          const { data: customChannels } = await supabase
+            .from('chat_channels')
+            .select('id, created_by_type, created_by_id, chat_participants(user_id, sub_user_id, user_type)')
+            .eq('owner_id', boardOwnerId)
+            .eq('is_custom', true)
+            .eq('is_deleted', false);
+
+          customChannels?.forEach((channel: any) => {
+            // For custom chats, map to a special identifier so they don't interfere with DM attribution
+            // Use the creator as the representative, but with a special prefix to distinguish from DMs
+            if (channel.created_by_type && channel.created_by_id) {
+              newMap.set(channel.id, { 
+                id: `custom_${channel.created_by_id}`, 
+                type: channel.created_by_type as 'admin' | 'sub_user' 
+              });
             }
           });
         }

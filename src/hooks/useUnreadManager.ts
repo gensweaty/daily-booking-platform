@@ -125,16 +125,19 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean, ch
     
     const newMemberUnreads: MemberUnreads = {};
     
-    // Aggregate channel unreads by member
+    // Aggregate channel unreads by member, but exclude custom chats from member attribution
     channelMemberMap.forEach((member, channelId) => {
       const unreadCount = channelUnreads[channelId] || 0;
       if (unreadCount > 0) {
-        const memberKey = `${member.id}_${member.type}`;
-        newMemberUnreads[memberKey] = (newMemberUnreads[memberKey] || 0) + unreadCount;
+        // Skip custom chats (identified by the custom_ prefix) from being attributed to team members
+        if (!member.id.startsWith('custom_')) {
+          const memberKey = `${member.id}_${member.type}`;
+          newMemberUnreads[memberKey] = (newMemberUnreads[memberKey] || 0) + unreadCount;
+        }
       }
     });
     
-    console.log('📊 Updated member unreads:', { channelUnreads, newMemberUnreads });
+    console.log('📊 Updated member unreads (excluding custom chats):', { channelUnreads, newMemberUnreads });
     setMemberUnreads(newMemberUnreads);
   }, [channelUnreads, channelMemberMap]);
 
@@ -174,10 +177,11 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean, ch
     const memberKey = `${userId}_${userType}`;
     console.log('🧹 Clearing unread for member:', memberKey);
     
-    // Clear all channels for this member
+    // Clear all channels for this member, but skip custom chats
     if (channelMemberMap) {
       channelMemberMap.forEach((member, channelId) => {
-        if (member.id === userId && member.type === userType) {
+        // Only clear DM channels, not custom chats
+        if (member.id === userId && member.type === userType && !member.id.startsWith('custom_')) {
           setChannelUnreads(prev => {
             const updated = { ...prev };
             delete updated[channelId];

@@ -78,10 +78,10 @@ export function useServerUnread(
     }
   }, [ownerId, viewerType, viewerId, viewerEmail]);
 
-  // Initial + periodic refresh - more frequent for external users
+  // Initial + periodic refresh - less frequent to reduce flickering
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
-    const refreshInterval = isExternalUser ? 10_000 : 25_000; // External users refresh every 10s
+    const refreshInterval = isExternalUser ? 15_000 : 30_000; // Reduced frequency to prevent flickering
     const id = setInterval(refresh, refreshInterval);
     return () => clearInterval(id);
   }, [refresh, isExternalUser]);
