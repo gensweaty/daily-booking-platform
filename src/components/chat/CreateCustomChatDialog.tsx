@@ -110,6 +110,9 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
         p_participants: participants
       });
 
+      console.log('🔧 Selected participants for custom chat:', selectedParticipants);
+      console.log('🔧 Transformed participants:', participants);
+
       const { data: channelId, error } = await supabase.rpc('create_custom_chat', {
         p_owner_id: boardOwnerId,
         p_creator_type: me.type,
