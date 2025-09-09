@@ -14,7 +14,8 @@ export function useServerUnread(
   viewerType: 'admin' | 'sub_user' | null,
   viewerId: string | null,
   realtimeBump?: { channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean },
-  isExternalUser?: boolean
+  isExternalUser?: boolean,
+  viewerEmail?: string | null
 ) {
   const [maps, setMaps] = useState<Maps>({ channel: {}, peer: {}, total: 0 });
   const [userChannels, setUserChannels] = useState<Set<string>>(new Set());
@@ -24,11 +25,24 @@ export function useServerUnread(
     if (!ownerId || !viewerType || !viewerId || fetching.current) return;
     fetching.current = true;
     try {
+      let effectiveViewerId = viewerId;
+      const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (viewerType === 'sub_user' && !uuidRe.test(viewerId) && viewerEmail) {
+        // resolve UUID via email (public board)
+        const { data: su } = await supabase
+          .from('sub_users')
+          .select('id')
+          .eq('board_owner_id', ownerId)
+          .eq('email', viewerEmail)
+          .maybeSingle();
+        if (su?.id) effectiveViewerId = su.id;
+      }
+
       // Fetch user's participating channels first
       const { data: participantData, error: participantError } = await supabase
         .from('chat_participants')
         .select('channel_id')
-        .eq(viewerType === 'admin' ? 'user_id' : 'sub_user_id', viewerId)
+        .eq(viewerType === 'admin' ? 'user_id' : 'sub_user_id', effectiveViewerId)
         .eq('user_type', viewerType);
 
       if (participantError) throw participantError;
@@ -40,7 +54,7 @@ export function useServerUnread(
       const { data, error } = await supabase.rpc('unread_counters', {
         p_owner_id: ownerId,
         p_viewer_type: viewerType,
-        p_viewer_id: viewerId
+        p_viewer_id: effectiveViewerId
       });
       if (error) throw error;
 
@@ -62,7 +76,7 @@ export function useServerUnread(
     } finally {
       fetching.current = false;
     }
-  }, [ownerId, viewerType, viewerId]);
+  }, [ownerId, viewerType, viewerId, viewerEmail]);
 
   // Initial + periodic refresh - more frequent for external users
   useEffect(() => { refresh(); }, [refresh]);

@@ -195,7 +195,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     me?.type ?? null,
     me?.id ?? null,
     rtBump,
-    isExternalUser
+    isExternalUser,
+    me?.email ?? null
   );
 
   // Wrapper for getUserUnreadCount to match old interface
@@ -251,6 +252,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
 
+  // Request browser notification permission once the chat is available to the user
+  useEffect(() => {
+    if (shouldShowChat) {
+      try { requestPermission(); } catch {}
+    }
+  }, [shouldShowChat, requestPermission]);
+
   // Real-time subscription for participant changes to refresh unread data
   useEffect(() => {
     if (!me?.id || !boardOwnerId) return;
@@ -279,7 +287,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [me?.id, me?.type, boardOwnerId, refreshUnread]);
 
-  // 🧩 Bridge POLLING -> the same unread pipeline as realtime
+  // 🧩 Bridge POLLING -> the same unread pipeline as realtime + notifications
   useEffect(() => {
     const onPolledMessage = (evt: any) => {
       const message = evt?.detail?.message;
@@ -293,7 +301,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         : message.sender_sub_user_id === me?.id;
 
       if (!isMyMessage) {
-        // Create realtime bump for polled messages
+        // de-dupe like handleNewMessage
+        if (message?.id) {
+          if (seenMessageIdsRef.current.has(message.id)) return;
+          seenMessageIdsRef.current.add(message.id);
+          if (seenMessageIdsRef.current.size > 3000) {
+            seenMessageIdsRef.current.clear();
+            seenMessageIdsRef.current.add(message.id);
+          }
+        }
+
+        // 1) unread bump (kept)
         setRtBump({
           channelId: message.channel_id,
           createdAt: message.created_at,
@@ -301,12 +319,32 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           senderId: message.sender_user_id || message.sender_sub_user_id,
           isSelf: false
         });
+
+        // 2) notifications (don't redispatch event here to avoid loops)
+        const skipBecauseOpen = isOpen && currentChannelId === message.channel_id;
+        if (!skipBecauseOpen) {
+          const alertForExternal = isExternalUser; // public RPC already filtered visibility
+          const isMemberFast = userChannels.has(message.channel_id);
+          const shouldShow = alertForExternal || isMemberFast;
+          if (shouldShow) {
+            import('@/utils/audioManager')
+              .then(({ playNotificationSound }) => playNotificationSound())
+              .catch(() => {});
+            showNotification({
+              title: `${message.sender_name || 'Someone'} messaged`,
+              body: message.content,
+              channelId: message.channel_id,
+              senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+              senderName: message.sender_name || 'Unknown',
+            });
+          }
+        }
       }
     };
 
     window.addEventListener('chat-message-received', onPolledMessage as EventListener);
     return () => window.removeEventListener('chat-message-received', onPolledMessage as EventListener);
-  }, [boardOwnerId, me?.id, me?.type]);
+  }, [boardOwnerId, me?.id, me?.type, isOpen, currentChannelId, isExternalUser, userChannels, showNotification]);
 
   // Avoid re-processing the same message (prevents repeat sounds & badge churn)
   const seenMessageIdsRef = React.useRef<Set<string>>(new Set());
@@ -457,39 +495,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [defaultChannelId, currentChannelId]);
 
-  // Polling fallback for external users when real-time is unavailable
-  useEffect(() => {
-    if (!isExternalUser || !me || !boardOwnerId || !defaultChannelId) return;
-    
-    console.log('🔄 Starting message polling for external user');
-    let lastPollTime = Date.now();
-    
-    const pollForMessages = async () => {
-      try {
-        const { data: messages } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('owner_id', boardOwnerId)
-          .gte('created_at', new Date(lastPollTime).toISOString())
-          .order('created_at', { ascending: true });
-        
-        if (messages && messages.length > 0) {
-          console.log(`📬 Polling found ${messages.length} new messages`);
-          messages.forEach(message => handleNewMessage(message));
-          lastPollTime = Date.now();
-        }
-      } catch (error) {
-        console.error('❌ Polling error:', error);
-      }
-    };
-    
-    const pollInterval = setInterval(pollForMessages, 3000); // Poll every 3 seconds for external users
-    
-    return () => {
-      console.log('🛑 Stopping message polling for external user');
-      clearInterval(pollInterval);
-    };
-  }, [isExternalUser, me, boardOwnerId, defaultChannelId, handleNewMessage]);
 
   // Chat control functions - Open window immediately, no pending logic
   const open = useCallback(() => {
@@ -638,12 +643,37 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('👤 [CHAT] Public access user detected');
           const access = getPublicAccess(location.pathname);
           if (access.hasAccess && access.storedOwnerId === resolvedBoardOwnerId) {
-            setMe({
-              id: `guest-${access.email}`,
-              type: 'sub_user',
-              name: access.fullName,
-              email: access.email,
-            });
+            try {
+              const { data: su } = await supabase
+                .from('sub_users')
+                .select('id, fullname, avatar_url')
+                .eq('board_owner_id', resolvedBoardOwnerId)
+                .eq('email', access.email)
+                .maybeSingle();
+              if (su?.id) {
+                setMe({
+                  id: su.id,
+                  type: 'sub_user',
+                  name: su.fullname || access.fullName,
+                  email: access.email,
+                  avatarUrl: su.avatar_url || undefined,
+                });
+              } else {
+                setMe({
+                  id: `guest-${access.email}`,
+                  type: 'sub_user',
+                  name: access.fullName,
+                  email: access.email,
+                });
+              }
+            } catch {
+              setMe({
+                id: `guest-${access.email}`,
+                type: 'sub_user',
+                name: access.fullName,
+                email: access.email,
+              });
+            }
             console.log('✅ [CHAT] Step 2 complete in', performance.now() - step2Start, 'ms');
           }
         }
