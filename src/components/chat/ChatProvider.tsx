@@ -355,20 +355,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         isSelf: false
       });
 
-      // FIXED: Enhanced notification logic with special handling for external users
+      // FIXED: Enhanced notification logic - only alert if user is a participant of the channel
       const shouldAlert = async () => {
         // Skip if chat is open and viewing the same channel
         if (isOpen && currentChannelId === message.channel_id) {
           return false;
         }
         
-        // Special handling for external users - they should get notifications for all channels they can access
-        if (isExternalUser) {
-          console.log('🔔 External user - allowing notification for channel:', message.channel_id);
-          return true;
-        }
-        
-        // For authenticated users: Only show notifications if user is a participant of this channel
+        // CRITICAL: Only show notifications if user is a participant of this channel
         // Check both the cached userChannels and fallback to database verification for immediate accuracy
         if (userChannels.has(message.channel_id)) {
           return true; // Fast path - user is definitely a participant
@@ -398,14 +392,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       shouldAlert().then((shouldShow) => {
         if (shouldShow) {
-          console.log('🔔 Triggering notification for user:', me?.email || me?.id, 'message:', message.id);
-          
           // Always play sound, regardless of notification permission/state
           import('@/utils/audioManager')
-            .then(({ playNotificationSound }) => {
-              console.log('🔊 Playing notification sound');
-              playNotificationSound();
-            })
+            .then(({ playNotificationSound }) => playNotificationSound())
             .catch(() => {});
           
           // Also attempt system notification
@@ -416,8 +405,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
             senderName: message.sender_name || 'Unknown',
           });
-        } else {
-          console.log('⏭️ Notification blocked for user:', me?.email || me?.id, 'message:', message.id);
         }
       });
     } else if (isUpdate) {
@@ -430,7 +417,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     window.dispatchEvent(new CustomEvent('chat-message-received', {
       detail: { message }
     }));
-  }, [boardOwnerId, me, isOpen, currentChannelId, showNotification, userChannels, isExternalUser]);
+  }, [boardOwnerId, me, isOpen, currentChannelId, showNotification, userChannels]);
 
   // Real-time setup - FIXED: enable only for authenticated users, external users use polling
   const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!me?.id && !isExternalUser;
@@ -472,53 +459,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Polling fallback for external users when real-time is unavailable
   useEffect(() => {
-    if (!isExternalUser || !me || !boardOwnerId || !defaultChannelId) {
-      console.log('🔍 Polling check failed:', { isExternalUser, hasMe: !!me, hasBoardOwnerId: !!boardOwnerId, hasDefaultChannelId: !!defaultChannelId });
-      return;
-    }
+    if (!isExternalUser || !me || !boardOwnerId || !defaultChannelId) return;
     
-    console.log('🔄 Starting message polling for external user:', me.email);
+    console.log('🔄 Starting message polling for external user');
     let lastPollTime = Date.now();
-    
-    // Ensure external user is enrolled as participant in default channel
-    const ensureParticipation = async () => {
-      try {
-        console.log('🔐 Ensuring external user participation in default channel...');
-        const { data: existingParticipation } = await supabase
-          .from('chat_participants')
-          .select('id')
-          .eq('channel_id', defaultChannelId)
-          .eq('sub_user_id', me.id)
-          .eq('user_type', 'sub_user')
-          .limit(1);
-          
-        if (!existingParticipation || existingParticipation.length === 0) {
-          console.log('➕ Adding external user as participant to default channel');
-          const { error } = await supabase
-            .from('chat_participants')
-            .insert({
-              channel_id: defaultChannelId,
-              sub_user_id: me.id,
-              user_type: 'sub_user'
-            });
-          
-          if (error) {
-            console.error('❌ Failed to add external user as participant:', error);
-          } else {
-            console.log('✅ External user successfully added as participant');
-            refreshUnread(); // Refresh to pick up new participation
-          }
-        } else {
-          console.log('✅ External user already a participant');
-        }
-      } catch (error) {
-        console.error('❌ Error ensuring participation:', error);
-      }
-    };
     
     const pollForMessages = async () => {
       try {
-        console.log('📡 Polling for new messages...');
         const { data: messages } = await supabase
           .from('chat_messages')
           .select('*')
@@ -527,50 +474,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           .order('created_at', { ascending: true });
         
         if (messages && messages.length > 0) {
-          console.log(`📬 Polling found ${messages.length} new messages for external user`);
-          messages.forEach(message => {
-            console.log('🔔 Processing polled message:', message.id, 'from:', message.sender_name);
-            
-            // For external users, skip complex participation checks and notify directly
-            const isMyMessage = message.sender_sub_user_id === me.id;
-            
-            if (!isMyMessage) {
-              console.log('🔊 External user notification triggered for message:', message.id);
-              
-              // Direct notification for external users - bypass participation checks
-              import('@/utils/audioManager')
-                .then(({ playNotificationSound }) => {
-                  console.log('🔊 Playing notification sound for external user');
-                  playNotificationSound();
-                })
-                .catch(console.error);
-              
-              // Show system notification
-              showNotification({
-                title: `${message.sender_name || 'Someone'} messaged`,
-                body: message.content,
-                channelId: message.channel_id,
-                senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-                senderName: message.sender_name || 'Unknown',
-              });
-              
-              // Also create realtime bump for unread counting
-              setRtBump({
-                channelId: message.channel_id,
-                createdAt: message.created_at,
-                senderType: message.sender_user_id ? 'admin' : 'sub_user',
-                senderId: message.sender_user_id || message.sender_sub_user_id,
-                isSelf: false
-              });
-            } else {
-              console.log('⏭️ Skipping own message notification');
-            }
-            
-            // Always broadcast for UI updates
-            window.dispatchEvent(new CustomEvent('chat-message-received', {
-              detail: { message }
-            }));
-          });
+          console.log(`📬 Polling found ${messages.length} new messages`);
+          messages.forEach(message => handleNewMessage(message));
           lastPollTime = Date.now();
         }
       } catch (error) {
@@ -578,22 +483,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
     
-    // Ensure participation first, then start polling
-    ensureParticipation().then(() => {
-      const pollInterval = setInterval(pollForMessages, 3000);
-      pollForMessages(); // Initial poll
-      
-      return () => {
-        console.log('🛑 Stopping message polling for external user');
-        clearInterval(pollInterval);
-      };
-    });
+    const pollInterval = setInterval(pollForMessages, 3000); // Poll every 3 seconds for external users
     
-    // Cleanup function
     return () => {
       console.log('🛑 Stopping message polling for external user');
+      clearInterval(pollInterval);
     };
-  }, [isExternalUser, me, boardOwnerId, defaultChannelId, refreshUnread, showNotification, setRtBump]);
+  }, [isExternalUser, me, boardOwnerId, defaultChannelId, handleNewMessage]);
 
   // Chat control functions - Open window immediately, no pending logic
   const open = useCallback(() => {
