@@ -259,6 +259,65 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [shouldShowChat, requestPermission]);
 
+  // 🔁 Provider-level polling for external/public users (works even when chat UI is closed)
+  useEffect(() => {
+    // Preconditions: public board, has identity, external user (no dashboard session), and board owner resolved
+    if (!isOnPublicBoard || !shouldShowChat || !isExternalUser || !boardOwnerId || !me?.id) return;
+
+    let alive = true;
+    // Start slightly in the past to avoid edge drops on first run
+    let lastSeenISO = new Date(Date.now() - 2000).toISOString();
+
+    const poll = async () => {
+      if (!alive) return;
+      try {
+        // RLS should restrict this to only-visible messages for the external viewer.
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('owner_id', boardOwnerId)
+          .gt('created_at', lastSeenISO)
+          .order('created_at', { ascending: true })
+          .limit(100);
+
+        if (error) throw error;
+        if (!data || data.length === 0) return;
+
+        // Dispatch each as if it arrived realtime; onPolledMessage will dedupe + notify
+        for (const m of data) {
+          const msg = { ...m, owner_id: m.owner_id || boardOwnerId };
+          window.dispatchEvent(
+            new CustomEvent('chat-message-received', { detail: { message: msg } })
+          );
+        }
+
+        // Advance watermark
+        lastSeenISO = data[data.length - 1].created_at;
+      } catch (e) {
+        // Soft-fail; keep polling
+        console.log('⚠️ Public polling error:', (e as Error)?.message || e);
+      }
+    };
+
+    // Poll regularly; also kick on focus/visibility/online to feel instantaneous
+    const intervalMs = 3000;
+    const id = setInterval(poll, intervalMs);
+    poll();
+
+    const kick = () => poll();
+    window.addEventListener('focus', kick);
+    document.addEventListener('visibilitychange', kick);
+    window.addEventListener('online', kick);
+
+    return () => {
+      alive = false;
+      clearInterval(id);
+      window.removeEventListener('focus', kick);
+      document.removeEventListener('visibilitychange', kick);
+      window.removeEventListener('online', kick);
+    };
+  }, [isOnPublicBoard, shouldShowChat, isExternalUser, boardOwnerId, me?.id]);
+
   // Real-time subscription for participant changes to refresh unread data
   useEffect(() => {
     if (!me?.id || !boardOwnerId) return;
