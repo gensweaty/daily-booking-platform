@@ -267,7 +267,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const channelIds = new Set(channels?.map(c => c.channel_id) || []);
-        console.log('📋 User participating channels updated:', Array.from(channelIds), 'for user:', me.id, me.type);
+        console.log('📋 User participating channels:', channelIds);
         setUserChannels(channelIds);
       } catch (error) {
         console.error('❌ Error in loadUserChannels:', error);
@@ -276,31 +276,21 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
     loadUserChannels();
 
-    // Real-time subscription for participant changes to update user channels immediately
+    // Real-time subscription for participant changes
     const participantChannel = supabase
-      .channel(`participant-changes-${me.id}-${boardOwnerId}`)
+      .channel(`participant-changes-${me.id}`)
       .on(
         'postgres_changes',
         { 
           event: '*', 
           schema: 'public', 
-          table: 'chat_participants'
+          table: 'chat_participants',
+          filter: `${me.type === 'admin' ? 'user_id' : 'sub_user_id'}=eq.${me.id}`
         },
         (payload) => {
-          console.log('🔄 Participant change detected, refreshing user channels:', payload);
-          
-          // Check if this change affects the current user
-          const isRelevant = (
-            (me.type === 'admin' && (payload.new as any)?.user_id === me.id) ||
-            (me.type === 'sub_user' && (payload.new as any)?.sub_user_id === me.id) ||
-            (me.type === 'admin' && (payload.old as any)?.user_id === me.id) ||
-            (me.type === 'sub_user' && (payload.old as any)?.sub_user_id === me.id)
-          );
-          
-          if (isRelevant) {
-            console.log('📋 Relevant participant change detected for current user, reloading channels');
-            setTimeout(loadUserChannels, 100); // Small delay to ensure DB consistency
-          }
+          console.log('🔄 Participant change detected:', payload);
+          // Reload user channels when participation changes
+          loadUserChannels();
         }
       )
       .subscribe();
@@ -393,14 +383,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           return false;
         }
         
-        // CRITICAL FIX: Only check participant filter if userChannels is actually loaded
-        // If userChannels is empty (not loaded yet), allow notifications to prevent blocking
-        if (userChannels.size > 0 && !userChannels.has(message.channel_id)) {
-          console.log('⏭️ Skipping notification - user is not a participant of channel:', message.channel_id, 'userChannels:', Array.from(userChannels));
+        // CRITICAL: Only show notifications if user is a participant of this channel
+        if (!userChannels.has(message.channel_id)) {
+          console.log('⏭️ Skipping notification - user is not a participant of channel:', message.channel_id);
           return false;
         }
         
-        console.log('✅ Notification allowed for channel:', message.channel_id, 'userChannels size:', userChannels.size);
         return true; // Alert for channels where user is a participant and not currently viewing
       };
 
