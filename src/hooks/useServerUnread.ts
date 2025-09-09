@@ -13,7 +13,8 @@ export function useServerUnread(
   ownerId: string | null,
   viewerType: 'admin' | 'sub_user' | null,
   viewerId: string | null,
-  realtimeBump?: { channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean }
+  realtimeBump?: { channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean },
+  isExternalUser?: boolean
 ) {
   const [maps, setMaps] = useState<Maps>({ channel: {}, peer: {}, total: 0 });
   const [userChannels, setUserChannels] = useState<Set<string>>(new Set());
@@ -63,17 +64,25 @@ export function useServerUnread(
     }
   }, [ownerId, viewerType, viewerId]);
 
-  // Initial + periodic refresh
+  // Initial + periodic refresh - more frequent for external users
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
-    const id = setInterval(refresh, 25_000);
+    const refreshInterval = isExternalUser ? 10_000 : 25_000; // External users refresh every 10s
+    const id = setInterval(refresh, refreshInterval);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, isExternalUser]);
 
-  // Realtime bump (optimistic) - ONLY for channels user participates in
+  // Realtime bump (optimistic) - with fallback for external users
   useEffect(() => {
     const b = realtimeBump;
     if (!b || !b.channelId || b.isSelf) return;
+    
+    // For external users, always allow realtime bumps and refresh participation immediately
+    if (isExternalUser && !userChannels.has(b.channelId)) {
+      console.log('🔄 External user - refreshing participation for new channel:', b.channelId);
+      refresh(); // Refresh immediately to pick up new channel participation
+      return;
+    }
     
     // CRITICAL: Only increment if user is a participant of this channel
     if (!userChannels.has(b.channelId)) {
@@ -91,7 +100,7 @@ export function useServerUnread(
       const total = Object.values(channel).reduce((s, n) => s + (n || 0), 0);
       return { channel, peer, total };
     });
-  }, [realtimeBump, userChannels]);
+  }, [realtimeBump, userChannels, isExternalUser, refresh]);
 
   const clearChannel = useCallback((channelId: string) => {
     setMaps(prev => {

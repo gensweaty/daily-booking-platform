@@ -174,6 +174,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Gate the icon on public login pages and show immediately on localStorage access
   const onPublicLoginPage = isOnPublicBoard && location.pathname.includes('/login');
   const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id);
+  
+  // Detect external users for different handling
+  const isExternalUser = isOnPublicBoard && hasPublicAccess && !user?.id;
 
   // State for realtime bumps
   const [rtBump, setRtBump] = useState<{ channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean } | undefined>(undefined);
@@ -191,7 +194,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     boardOwnerId,
     me?.type ?? null,
     me?.id ?? null,
-    rtBump
+    rtBump,
+    isExternalUser
   );
 
   // Wrapper for getUserUnreadCount to match old interface
@@ -415,13 +419,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }));
   }, [boardOwnerId, me, isOpen, currentChannelId, showNotification, userChannels]);
 
-  // Real-time setup - FIXED: enable for both admin and authenticated public board users
-  const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!me?.id;
+  // Real-time setup - FIXED: enable only for authenticated users, external users use polling
+  const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!me?.id && !isExternalUser;
   const { connectionStatus } = useEnhancedRealtimeChat({
     onNewMessage: handleNewMessage,
     userId: me?.id,
     boardOwnerId: boardOwnerId || undefined,
-    // Enable real-time for authenticated users, disable for public board access only
+    // Enable real-time for authenticated users only, external users rely on polling
     enabled: realtimeEnabled,
   });
 
@@ -453,11 +457,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [defaultChannelId, currentChannelId]);
 
-  // Polling fallback for public board users when real-time is unavailable
+  // Polling fallback for external users when real-time is unavailable
   useEffect(() => {
-    if (!isOnPublicBoard || !me || !boardOwnerId || isOpen || !defaultChannelId) return;
+    if (!isExternalUser || !me || !boardOwnerId || !defaultChannelId) return;
     
-    console.log('🔄 Starting message polling for public board user');
+    console.log('🔄 Starting message polling for external user');
     let lastPollTime = Date.now();
     
     const pollForMessages = async () => {
@@ -479,13 +483,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
     
-    const pollInterval = setInterval(pollForMessages, 15000); // Poll every 15 seconds
+    const pollInterval = setInterval(pollForMessages, 3000); // Poll every 3 seconds for external users
     
     return () => {
-      console.log('🛑 Stopping message polling');
+      console.log('🛑 Stopping message polling for external user');
       clearInterval(pollInterval);
     };
-  }, [isOnPublicBoard, me, boardOwnerId, isOpen, defaultChannelId, handleNewMessage]);
+  }, [isExternalUser, me, boardOwnerId, defaultChannelId, handleNewMessage]);
 
   // Chat control functions - Open window immediately, no pending logic
   const open = useCallback(() => {
@@ -792,8 +796,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     channelMemberMap,
     boardOwnerId,
     connectionStatus,
-    realtimeEnabled,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled]);
+    realtimeEnabled: realtimeEnabled && !isExternalUser,
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser]);
 
   return (
     <ChatContext.Provider value={contextValue}>
