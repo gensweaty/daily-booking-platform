@@ -185,7 +185,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     getPeerUnread,
     clearChannel,
     clearPeer,
-    refresh: refreshUnread
+    refresh: refreshUnread,
+    userChannels
   } = useServerUnread(
     boardOwnerId,
     me?.type ?? null,
@@ -246,35 +247,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
 
-  // Store user's participating channels for notification filtering
-  const [userChannels, setUserChannels] = useState<Set<string>>(new Set());
-
-  // Load user's participating channels
+  // Real-time subscription for participant changes to refresh unread data
   useEffect(() => {
     if (!me?.id || !boardOwnerId) return;
-
-    const loadUserChannels = async () => {
-      try {
-        const { data: channels, error } = await supabase
-          .from('chat_participants')
-          .select('channel_id')
-          .eq(me.type === 'admin' ? 'user_id' : 'sub_user_id', me.id)
-          .eq('user_type', me.type);
-
-        if (error) {
-          console.error('❌ Error loading user channels:', error);
-          return;
-        }
-
-        const channelIds = new Set(channels?.map(c => c.channel_id) || []);
-        console.log('📋 User participating channels:', channelIds);
-        setUserChannels(channelIds);
-      } catch (error) {
-        console.error('❌ Error in loadUserChannels:', error);
-      }
-    };
-
-    loadUserChannels();
 
     // Real-time subscription for participant changes
     const participantChannel = supabase
@@ -289,8 +264,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         },
         (payload) => {
           console.log('🔄 Participant change detected:', payload);
-          // Reload user channels when participation changes
-          loadUserChannels();
+          // Immediately refresh unread data to get updated participant channels
+          refreshUnread();
         }
       )
       .subscribe();
@@ -298,7 +273,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       supabase.removeChannel(participantChannel);
     };
-  }, [me?.id, me?.type, boardOwnerId]);
+  }, [me?.id, me?.type, boardOwnerId, refreshUnread]);
 
   // 🧩 Bridge POLLING -> the same unread pipeline as realtime
   useEffect(() => {
@@ -377,36 +352,57 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       // FIXED: Enhanced notification logic - only alert if user is a participant of the channel
-      const shouldAlert = () => {
+      const shouldAlert = async () => {
         // Skip if chat is open and viewing the same channel
         if (isOpen && currentChannelId === message.channel_id) {
           return false;
         }
         
         // CRITICAL: Only show notifications if user is a participant of this channel
-        if (!userChannels.has(message.channel_id)) {
-          console.log('⏭️ Skipping notification - user is not a participant of channel:', message.channel_id);
-          return false;
+        // Check both the cached userChannels and fallback to database verification for immediate accuracy
+        if (userChannels.has(message.channel_id)) {
+          return true; // Fast path - user is definitely a participant
         }
         
-        return true; // Alert for channels where user is a participant and not currently viewing
+        // Fallback: Check database directly for immediate verification (handles new custom chats)
+        try {
+          const { data: participation } = await supabase
+            .from('chat_participants')
+            .select('id')
+            .eq('channel_id', message.channel_id)
+            .eq(me?.type === 'admin' ? 'user_id' : 'sub_user_id', me?.id)
+            .eq('user_type', me?.type)
+            .limit(1);
+          
+          if (participation && participation.length > 0) {
+            console.log('✅ Database confirms user is participant of channel:', message.channel_id);
+            return true;
+          }
+        } catch (error) {
+          console.error('❌ Error checking channel participation:', error);
+        }
+        
+        console.log('⏭️ Skipping notification - user is not a participant of channel:', message.channel_id);
+        return false;
       };
 
-      if (shouldAlert()) {
-        // Always play sound, regardless of notification permission/state
-        import('@/utils/audioManager')
-          .then(({ playNotificationSound }) => playNotificationSound())
-          .catch(() => {});
-        
-        // Also attempt system notification
-        showNotification({
-          title: `${message.sender_name || 'Someone'} messaged`,
-          body: message.content,
-          channelId: message.channel_id,
-          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-          senderName: message.sender_name || 'Unknown',
-        });
-      }
+      shouldAlert().then((shouldShow) => {
+        if (shouldShow) {
+          // Always play sound, regardless of notification permission/state
+          import('@/utils/audioManager')
+            .then(({ playNotificationSound }) => playNotificationSound())
+            .catch(() => {});
+          
+          // Also attempt system notification
+          showNotification({
+            title: `${message.sender_name || 'Someone'} messaged`,
+            body: message.content,
+            channelId: message.channel_id,
+            senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+            senderName: message.sender_name || 'Unknown',
+          });
+        }
+      });
     } else if (isUpdate) {
       console.log('✏️ Message update - broadcasting to ChatArea');
     } else {

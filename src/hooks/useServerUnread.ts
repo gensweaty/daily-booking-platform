@@ -120,6 +120,7 @@ export function useServerUnread(
     getPeerUnread,
     clearChannel,
     clearPeer,
-    refresh
+    refresh,
+    userChannels
   };
 }
