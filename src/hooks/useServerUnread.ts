@@ -78,39 +78,44 @@ export function useServerUnread(
     }
   }, [ownerId, viewerType, viewerId, viewerEmail]);
 
-  // Initial + periodic refresh - less frequent to reduce flickering
+  // Initial + periodic refresh - optimized to prevent flickering
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
-    const refreshInterval = isExternalUser ? 15_000 : 30_000; // Reduced frequency to prevent flickering
+    // Much less frequent refresh to prevent chat icon flickering
+    const refreshInterval = isExternalUser ? 30_000 : 60_000; 
     const id = setInterval(refresh, refreshInterval);
     return () => clearInterval(id);
   }, [refresh, isExternalUser]);
 
-  // Realtime bump (optimistic) - with fallback for external users
+  // Realtime bump (optimistic) - improved handling for custom chats and external users
   useEffect(() => {
     const b = realtimeBump;
     if (!b || !b.channelId || b.isSelf) return;
     
-    // For external users, always allow realtime bumps and refresh participation immediately
+    // For external users, always allow realtime bumps and refresh participation if needed
     if (isExternalUser && !userChannels.has(b.channelId)) {
       console.log('🔄 External user - refreshing participation for new channel:', b.channelId);
       refresh(); // Refresh immediately to pick up new channel participation
       return;
     }
     
-    // CRITICAL: Only increment if user is a participant of this channel
+    // Allow realtime bumps for all channels the user participates in (including custom chats)
     if (!userChannels.has(b.channelId)) {
       console.log('⏭️ Skipping realtime bump - user is not a participant of channel:', b.channelId);
       return;
     }
     
+    console.log('📈 Incrementing unread for channel via realtime:', b.channelId);
     setMaps(prev => {
       const channel = { ...prev.channel, [b.channelId]: (prev.channel[b.channelId] ?? 0) + 1 };
       const peer = { ...prev.peer };
-      if (b.senderId && b.senderType) {
+      
+      // Only attribute to peer if it's not a custom chat (avoid DM attribution for custom chats)
+      if (b.senderId && b.senderType && !b.senderId.startsWith('custom_')) {
         const key = `${b.senderId}_${b.senderType}` as PeerKey;
         peer[key] = (peer[key] ?? 0) + 1;
       }
+      
       const total = Object.values(channel).reduce((s, n) => s + (n || 0), 0);
       return { channel, peer, total };
     });

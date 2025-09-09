@@ -594,6 +594,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (boardOwnerId && me?.type && me?.id) {
       // Check if me.id is a valid UUID for mark_channel_read
       const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id);
+      const isExternalUser = !isValidUUID;
       
       try {
         if (isValidUUID) {
@@ -606,21 +607,29 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           clearChannel(channelId);
           refreshUnread();
         } else {
-          console.log('📧 [CHAT] External user - clearing local unread only:', me.id);
-          // For external users with email IDs, only clear local unread
-          // Don't call refreshUnread() to avoid race condition with server state
+          console.log('📧 [CHAT] External user - clearing local unread with debounce:', me.id);
+          // Clear immediately for UI responsiveness
           clearChannel(channelId);
+          
+          // For external users, delay server refresh to prevent race conditions/flickering
+          setTimeout(() => {
+            // Only refresh if we're still on the same channel to avoid unnecessary updates
+            if (currentChannelId === channelId) {
+              console.log('🔄 Delayed refresh for external user after clearing:', channelId);
+              refreshUnread();
+            }
+          }, 2000);
         }
       } catch (error) {
         console.error('❌ Error marking channel as read:', error);
-        // For external users, still only clear local unread on error
+        // Always clear local unread on error
         clearChannel(channelId);
         if (isValidUUID) {
           refreshUnread();
         }
       }
     }
-  }, [boardOwnerId, me, clearChannel, refreshUnread]);
+  }, [boardOwnerId, me, clearChannel, refreshUnread, currentChannelId]);
 
   // FAST LOADING: Detailed logging to identify bottleneck
   useEffect(() => {
@@ -794,23 +803,29 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             }
           });
 
-          // Get custom chats - for multi-participant chats, we'll map to the creator
-          // This prevents custom chat unread counts from being attributed to team members
+          // Get custom chats - track them properly for unread counts
           const { data: customChannels } = await supabase
             .from('chat_channels')
-            .select('id, created_by_type, created_by_id, chat_participants(user_id, sub_user_id, user_type)')
+            .select('id, name, created_by_type, created_by_id, chat_participants(user_id, sub_user_id, user_type)')
             .eq('owner_id', boardOwnerId)
             .eq('is_custom', true)
             .eq('is_deleted', false);
 
           customChannels?.forEach((channel: any) => {
-            // For custom chats, map to a special identifier so they don't interfere with DM attribution
-            // Use the creator as the representative, but with a special prefix to distinguish from DMs
-            if (channel.created_by_type && channel.created_by_id) {
+            // Check if current user is a participant in this custom chat
+            const participants = channel.chat_participants || [];
+            const isParticipant = participants.some((p: any) => 
+              (me.type === 'admin' && p.user_type === 'admin' && p.user_id === me.id) ||
+              (me.type === 'sub_user' && p.user_type === 'sub_user' && p.sub_user_id === me.id)
+            );
+
+            if (isParticipant) {
+              // For custom chats, use a special identifier to prevent DM attribution but allow unread tracking
               newMap.set(channel.id, { 
-                id: `custom_${channel.created_by_id}`, 
+                id: `custom_${channel.id}`, // Use channel ID to avoid collisions
                 type: channel.created_by_type as 'admin' | 'sub_user' 
               });
+              console.log('📍 Added custom chat to channel map:', { channelId: channel.id, name: channel.name });
             }
           });
         }
