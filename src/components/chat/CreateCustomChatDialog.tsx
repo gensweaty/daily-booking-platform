@@ -120,6 +120,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
 
       if (error) {
         console.error('❌ Error creating custom chat:', error);
+        console.error('❌ Error details:', error.message, error.code, error.details);
         toast({
           title: 'Cannot create',
           description: error.message,
@@ -136,10 +137,12 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
       setOpen(false);
       
       // Refresh the custom chats list
+      console.log('🔄 Refreshing custom chats after creation...');
       await onChatCreated();
       
       // Open the new channel
       if (channelId) {
+        console.log('🔄 Opening new channel:', channelId);
         openChannel(channelId as string);
       }
 

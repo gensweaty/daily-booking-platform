@@ -283,25 +283,45 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
 
   // Load custom chats
   const loadCustomChats = async () => {
-    if (!boardOwnerId || !me) return;
+    if (!boardOwnerId || !me) {
+      console.log('🚫 Cannot load custom chats - missing:', { boardOwnerId, me });
+      return;
+    }
+
+    console.log('🔍 Loading custom chats for:', { boardOwnerId, me: me.type, meId: me.id });
 
     try {
-      // Build membership filter for current user
-      const membership = me.type === 'admin'
-        ? `chat_participants.user_type.eq.admin,chat_participants.user_id.eq.${me.id}`
-        : `chat_participants.user_type.eq.sub_user,chat_participants.sub_user_id.eq.${me.id}`;
+      // Build membership filter for current user - fix PostgREST syntax
+      let membershipQuery;
+      if (me.type === 'admin') {
+        membershipQuery = supabase
+          .from('chat_channels')
+          .select(`
+            id, name, is_custom, is_deleted, created_by_type, created_by_id,
+            chat_participants!inner(user_type, user_id, sub_user_id)
+          `)
+          .eq('owner_id', boardOwnerId)
+          .eq('is_custom', true)
+          .eq('is_deleted', false)
+          .eq('chat_participants.user_type', 'admin')
+          .eq('chat_participants.user_id', me.id)
+          .order('name', { ascending: true });
+      } else {
+        membershipQuery = supabase
+          .from('chat_channels')
+          .select(`
+            id, name, is_custom, is_deleted, created_by_type, created_by_id,
+            chat_participants!inner(user_type, user_id, sub_user_id)
+          `)
+          .eq('owner_id', boardOwnerId)
+          .eq('is_custom', true)
+          .eq('is_deleted', false)
+          .eq('chat_participants.user_type', 'sub_user')
+          .eq('chat_participants.sub_user_id', me.id)
+          .order('name', { ascending: true });
+      }
 
-      const { data: customChats, error } = await supabase
-        .from('chat_channels')
-        .select(`
-          id, name, is_custom, is_deleted, created_by_type, created_by_id,
-          chat_participants!inner(user_type, user_id, sub_user_id)
-        `)
-        .eq('owner_id', boardOwnerId)
-        .eq('is_custom', true)
-        .eq('is_deleted', false)
-        .or(membership)
-        .order('name', { ascending: true });
+      const { data: customChats, error } = await membershipQuery;
 
       if (error) {
         console.error('❌ Error loading custom chats:', error);
@@ -309,6 +329,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
       }
 
       console.log('✅ Custom chats loaded:', customChats);
+      console.log('📊 Custom chats count:', customChats?.length || 0);
       setCustomChats(customChats || []);
 
     } catch (error) {
@@ -387,8 +408,12 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
 
   // Load custom chats when dependencies change
   useEffect(() => {
+    console.log('🔄 Custom chats effect triggered:', { boardOwnerId, me: me?.id, meType: me?.type });
     if (boardOwnerId && me) {
+      console.log('🔄 Calling loadCustomChats...');
       loadCustomChats();
+    } else {
+      console.log('🚫 Not loading custom chats - missing dependencies');
     }
   }, [boardOwnerId, me?.id, me?.type]);
 
