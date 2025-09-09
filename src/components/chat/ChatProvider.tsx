@@ -323,9 +323,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         // 2) notifications (don't redispatch event here to avoid loops)
         const skipBecauseOpen = isOpen && currentChannelId === message.channel_id;
         if (!skipBecauseOpen) {
-          const alertForExternal = isExternalUser; // public RPC already filtered visibility
-          const isMemberFast = userChannels.has(message.channel_id);
-          const shouldShow = alertForExternal || isMemberFast;
+          // PUBLIC BOARD: trust the polling source (visibility already enforced by the RPC).
+          // INTERNAL BOARD: keep the membership guard for safety.
+          const shouldShow = isOnPublicBoard ? true : userChannels.has(message.channel_id);
           if (shouldShow) {
             import('@/utils/audioManager')
               .then(({ playNotificationSound }) => playNotificationSound())
@@ -344,7 +344,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
     window.addEventListener('chat-message-received', onPolledMessage as EventListener);
     return () => window.removeEventListener('chat-message-received', onPolledMessage as EventListener);
-  }, [boardOwnerId, me?.id, me?.type, isOpen, currentChannelId, isExternalUser, userChannels, showNotification]);
+  }, [boardOwnerId, me?.id, me?.type, isOpen, currentChannelId, userChannels, showNotification, isOnPublicBoard]);
 
   // Avoid re-processing the same message (prevents repeat sounds & badge churn)
   const seenMessageIdsRef = React.useRef<Set<string>>(new Set());
