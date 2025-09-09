@@ -246,6 +246,60 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
 
+  // Store user's participating channels for notification filtering
+  const [userChannels, setUserChannels] = useState<Set<string>>(new Set());
+
+  // Load user's participating channels
+  useEffect(() => {
+    if (!me?.id || !boardOwnerId) return;
+
+    const loadUserChannels = async () => {
+      try {
+        const { data: channels, error } = await supabase
+          .from('chat_participants')
+          .select('channel_id')
+          .eq(me.type === 'admin' ? 'user_id' : 'sub_user_id', me.id)
+          .eq('user_type', me.type);
+
+        if (error) {
+          console.error('❌ Error loading user channels:', error);
+          return;
+        }
+
+        const channelIds = new Set(channels?.map(c => c.channel_id) || []);
+        console.log('📋 User participating channels:', channelIds);
+        setUserChannels(channelIds);
+      } catch (error) {
+        console.error('❌ Error in loadUserChannels:', error);
+      }
+    };
+
+    loadUserChannels();
+
+    // Real-time subscription for participant changes
+    const participantChannel = supabase
+      .channel(`participant-changes-${me.id}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'chat_participants',
+          filter: `${me.type === 'admin' ? 'user_id' : 'sub_user_id'}=eq.${me.id}`
+        },
+        (payload) => {
+          console.log('🔄 Participant change detected:', payload);
+          // Reload user channels when participation changes
+          loadUserChannels();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(participantChannel);
+    };
+  }, [me?.id, me?.type, boardOwnerId]);
+
   // 🧩 Bridge POLLING -> the same unread pipeline as realtime
   useEffect(() => {
     const onPolledMessage = (evt: any) => {
@@ -322,13 +376,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         isSelf: false
       });
 
-      // FIXED: Simplified notification logic - alert for messages not in currently open channel
+      // FIXED: Enhanced notification logic - only alert if user is a participant of the channel
       const shouldAlert = () => {
         // Skip if chat is open and viewing the same channel
         if (isOpen && currentChannelId === message.channel_id) {
           return false;
         }
-        return true; // Alert for any channel that isn't currently open
+        
+        // CRITICAL: Only show notifications if user is a participant of this channel
+        if (!userChannels.has(message.channel_id)) {
+          console.log('⏭️ Skipping notification - user is not a participant of channel:', message.channel_id);
+          return false;
+        }
+        
+        return true; // Alert for channels where user is a participant and not currently viewing
       };
 
       if (shouldAlert()) {
@@ -356,7 +417,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     window.dispatchEvent(new CustomEvent('chat-message-received', {
       detail: { message }
     }));
-  }, [boardOwnerId, me, isOpen, currentChannelId, showNotification]);
+  }, [boardOwnerId, me, isOpen, currentChannelId, showNotification, userChannels]);
 
   // Real-time setup - FIXED: enable for both admin and authenticated public board users
   const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!me?.id;
