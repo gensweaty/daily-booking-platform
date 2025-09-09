@@ -560,8 +560,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!shouldShowChat) return;
     setIsOpen(true);
     // Ensure a channel exists as soon as the window appears (if we already know it)
-    if (!currentChannelId && defaultChannelId) setCurrentChannelId(defaultChannelId);
-  }, [shouldShowChat, currentChannelId, defaultChannelId]);
+    if (!currentChannelId && defaultChannelId) {
+      setCurrentChannelId(defaultChannelId);
+      // Clear unread for default channel when opening chat for external users
+      if (isOnPublicBoard && me?.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id)) {
+        clearChannel(defaultChannelId);
+      }
+    }
+  }, [shouldShowChat, currentChannelId, defaultChannelId, isOnPublicBoard, me?.id, clearChannel]);
 
   const close = useCallback(() => setIsOpen(false), []);
 
@@ -571,10 +577,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       const next = !prev;
       if (next && !currentChannelId && defaultChannelId) {
         setCurrentChannelId(defaultChannelId);
+        // Clear unread for default channel when opening chat for external users
+        if (isOnPublicBoard && me?.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id)) {
+          clearChannel(defaultChannelId);
+        }
       }
       return next;
     });
-  }, [shouldShowChat, currentChannelId, defaultChannelId]);
+  }, [shouldShowChat, currentChannelId, defaultChannelId, isOnPublicBoard, me?.id, clearChannel]);
 
   const openChannel = useCallback(async (channelId: string) => {
     setCurrentChannelId(channelId);
@@ -582,10 +592,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     
     // Mark channel as read on server and clear local unread
     if (boardOwnerId && me?.type && me?.id) {
+      // Check if me.id is a valid UUID for mark_channel_read
+      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id);
+      
       try {
-        // Check if me.id is a valid UUID for mark_channel_read
-        const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id);
-        
         if (isValidUUID) {
           await supabase.rpc('mark_channel_read', {
             p_owner_id: boardOwnerId,
@@ -596,16 +606,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           clearChannel(channelId);
           refreshUnread();
         } else {
-          console.log('📧 [CHAT] Skipping mark_channel_read for email-based ID:', me.id);
-          // For public board users with email IDs, just clear local unread
+          console.log('📧 [CHAT] External user - clearing local unread only:', me.id);
+          // For external users with email IDs, only clear local unread
+          // Don't call refreshUnread() to avoid race condition with server state
           clearChannel(channelId);
-          refreshUnread();
         }
       } catch (error) {
         console.error('❌ Error marking channel as read:', error);
-        // Still clear local unread on error
+        // For external users, still only clear local unread on error
         clearChannel(channelId);
-        refreshUnread();
+        if (isValidUUID) {
+          refreshUnread();
+        }
       }
     }
   }, [boardOwnerId, me, clearChannel, refreshUnread]);
