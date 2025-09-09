@@ -420,6 +420,62 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     }
   }, [boardOwnerId, me?.id, me?.type]);
 
+  // Real-time subscription for custom chats and participants
+  useEffect(() => {
+    if (!boardOwnerId || !me) {
+      console.log('🚫 Skipping real-time subscription - missing dependencies');
+      return;
+    }
+
+    console.log('🔄 Setting up real-time subscriptions for custom chats');
+
+    // Subscribe to changes in chat_channels (new custom chats)
+    const channelsChannel = supabase
+      .channel(`custom-chats-${boardOwnerId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_channels',
+        filter: `owner_id=eq.${boardOwnerId}`
+      }, (payload) => {
+        console.log('🔄 Chat channels change detected:', payload);
+        if (payload.eventType === 'INSERT' && payload.new.is_custom) {
+          console.log('🆕 New custom chat created, refreshing list...');
+          loadCustomChats();
+        } else if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && payload.new.is_deleted)) {
+          console.log('🗑️ Custom chat deleted, refreshing list...');
+          loadCustomChats();
+        }
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public', 
+        table: 'chat_participants'
+      }, (payload) => {
+        console.log('🔄 Chat participants change detected:', payload);
+        
+        // Check if this participant change affects the current user
+        const isRelevant = (payload.eventType === 'INSERT' && (
+          (me.type === 'admin' && payload.new.user_id === me.id) ||
+          (me.type === 'sub_user' && payload.new.sub_user_id === me.id)
+        )) || (payload.eventType === 'DELETE' && (
+          (me.type === 'admin' && payload.old?.user_id === me.id) ||
+          (me.type === 'sub_user' && payload.old?.sub_user_id === me.id)
+        ));
+
+        if (isRelevant) {
+          console.log('👤 Participant change affects current user, refreshing custom chats...');
+          loadCustomChats();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      console.log('🔄 Cleaning up real-time subscriptions for custom chats');
+      supabase.removeChannel(channelsChannel);
+    };
+  }, [boardOwnerId, me?.id, me?.type]);
+
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
