@@ -267,7 +267,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const channelIds = new Set(channels?.map(c => c.channel_id) || []);
-        console.log('📋 User participating channels:', channelIds);
+        console.log('📋 User participating channels updated:', channelIds);
         setUserChannels(channelIds);
       } catch (error) {
         console.error('❌ Error in loadUserChannels:', error);
@@ -276,21 +276,31 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
     loadUserChannels();
 
-    // Real-time subscription for participant changes
+    // Real-time subscription for participant changes to update user channels immediately
     const participantChannel = supabase
-      .channel(`participant-changes-${me.id}`)
+      .channel(`participant-changes-${me.id}-${boardOwnerId}`)
       .on(
         'postgres_changes',
         { 
           event: '*', 
           schema: 'public', 
-          table: 'chat_participants',
-          filter: `${me.type === 'admin' ? 'user_id' : 'sub_user_id'}=eq.${me.id}`
+          table: 'chat_participants'
         },
         (payload) => {
-          console.log('🔄 Participant change detected:', payload);
-          // Reload user channels when participation changes
-          loadUserChannels();
+          console.log('🔄 Participant change detected, refreshing user channels:', payload);
+          
+          // Check if this change affects the current user
+          const isRelevant = (
+            (me.type === 'admin' && (payload.new as any)?.user_id === me.id) ||
+            (me.type === 'sub_user' && (payload.new as any)?.sub_user_id === me.id) ||
+            (me.type === 'admin' && (payload.old as any)?.user_id === me.id) ||
+            (me.type === 'sub_user' && (payload.old as any)?.sub_user_id === me.id)
+          );
+          
+          if (isRelevant) {
+            console.log('📋 Relevant participant change detected for current user, reloading channels');
+            setTimeout(loadUserChannels, 100); // Small delay to ensure DB consistency
+          }
         }
       )
       .subscribe();
