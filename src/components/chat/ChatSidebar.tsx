@@ -753,7 +753,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="z-[9999]">
+        <AlertDialogContent className="z-[10000] fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%]">
           <AlertDialogHeader>
             <AlertDialogTitle>
               <LanguageText>{t('chat.deleteChatConfirmTitle')}</LanguageText>
