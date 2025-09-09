@@ -310,6 +310,25 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           .eq('chat_participants.user_id', me.id)
           .order('name', { ascending: true });
       } else {
+        // For sub-users, resolve the actual sub-user ID if needed
+        let actualSubUserId = me.id;
+        if (typeof me.id === 'string' && me.id.includes('@')) {
+          console.log('🔍 Resolving sub-user ID for email:', me.id);
+          const { data: subUser } = await supabase
+            .from('sub_users')
+            .select('id')
+            .eq('board_owner_id', boardOwnerId)
+            .eq('email', me.email || me.id)
+            .maybeSingle();
+          
+          if (subUser?.id) {
+            actualSubUserId = subUser.id;
+            console.log('✅ Resolved sub-user ID:', actualSubUserId);
+          } else {
+            console.log('❌ Could not resolve sub-user ID for email:', me.id);
+          }
+        }
+
         membershipQuery = supabase
           .from('chat_channels')
           .select(`
@@ -320,7 +339,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           .eq('is_custom', true)
           .eq('is_deleted', false)
           .eq('chat_participants.user_type', 'sub_user')
-          .eq('chat_participants.sub_user_id', me.id)
+          .eq('chat_participants.sub_user_id', actualSubUserId)
           .order('name', { ascending: true });
       }
 
@@ -440,8 +459,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
       }, (payload) => {
         console.log('🔄 Chat channels change detected:', payload);
         if (payload.eventType === 'INSERT' && payload.new.is_custom) {
-          console.log('🆕 New custom chat created, refreshing list...');
-          loadCustomChats();
+          console.log('🆕 New custom chat created, refreshing list in 1 second...');
+          // Small delay to ensure participants are added
+          setTimeout(() => {
+            loadCustomChats();
+          }, 1000);
         } else if (payload.eventType === 'DELETE' || (payload.eventType === 'UPDATE' && payload.new.is_deleted)) {
           console.log('🗑️ Custom chat deleted, refreshing list...');
           loadCustomChats();
@@ -464,8 +486,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         ));
 
         if (isRelevant) {
-          console.log('👤 Participant change affects current user, refreshing custom chats...');
-          loadCustomChats();
+          console.log('👤 Participant change affects current user, refreshing custom chats in 500ms...');
+          setTimeout(() => {
+            loadCustomChats();
+          }, 500);
         }
       })
       .subscribe();
@@ -474,7 +498,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
       console.log('🔄 Cleaning up real-time subscriptions for custom chats');
       supabase.removeChannel(channelsChannel);
     };
-  }, [boardOwnerId, me?.id, me?.type]);
+  }, [boardOwnerId, me?.id, me?.type, loadCustomChats]);
 
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
