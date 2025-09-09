@@ -267,7 +267,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const channelIds = new Set(channels?.map(c => c.channel_id) || []);
-        console.log('📋 User participating channels updated:', channelIds);
+        console.log('📋 User participating channels updated:', Array.from(channelIds), 'for user:', me.id, me.type);
         setUserChannels(channelIds);
       } catch (error) {
         console.error('❌ Error in loadUserChannels:', error);
@@ -393,12 +393,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           return false;
         }
         
-        // CRITICAL: Only show notifications if user is a participant of this channel
-        if (!userChannels.has(message.channel_id)) {
-          console.log('⏭️ Skipping notification - user is not a participant of channel:', message.channel_id);
+        // CRITICAL FIX: Only check participant filter if userChannels is actually loaded
+        // If userChannels is empty (not loaded yet), allow notifications to prevent blocking
+        if (userChannels.size > 0 && !userChannels.has(message.channel_id)) {
+          console.log('⏭️ Skipping notification - user is not a participant of channel:', message.channel_id, 'userChannels:', Array.from(userChannels));
           return false;
         }
         
+        console.log('✅ Notification allowed for channel:', message.channel_id, 'userChannels size:', userChannels.size);
         return true; // Alert for channels where user is a participant and not currently viewing
       };
 
