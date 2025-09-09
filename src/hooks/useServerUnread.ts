@@ -16,12 +16,26 @@ export function useServerUnread(
   realtimeBump?: { channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean }
 ) {
   const [maps, setMaps] = useState<Maps>({ channel: {}, peer: {}, total: 0 });
+  const [userChannels, setUserChannels] = useState<Set<string>>(new Set());
   const fetching = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!ownerId || !viewerType || !viewerId || fetching.current) return;
     fetching.current = true;
     try {
+      // Fetch user's participating channels first
+      const { data: participantData, error: participantError } = await supabase
+        .from('chat_participants')
+        .select('channel_id')
+        .eq(viewerType === 'admin' ? 'user_id' : 'sub_user_id', viewerId)
+        .eq('user_type', viewerType);
+
+      if (participantError) throw participantError;
+
+      const channelIds = new Set(participantData?.map(p => p.channel_id) || []);
+      setUserChannels(channelIds);
+
+      // Then fetch unread counters
       const { data, error } = await supabase.rpc('unread_counters', {
         p_owner_id: ownerId,
         p_viewer_type: viewerType,
@@ -56,10 +70,17 @@ export function useServerUnread(
     return () => clearInterval(id);
   }, [refresh]);
 
-  // Realtime bump (optimistic)
+  // Realtime bump (optimistic) - ONLY for channels user participates in
   useEffect(() => {
     const b = realtimeBump;
     if (!b || !b.channelId || b.isSelf) return;
+    
+    // CRITICAL: Only increment if user is a participant of this channel
+    if (!userChannels.has(b.channelId)) {
+      console.log('⏭️ Skipping realtime bump - user is not a participant of channel:', b.channelId);
+      return;
+    }
+    
     setMaps(prev => {
       const channel = { ...prev.channel, [b.channelId]: (prev.channel[b.channelId] ?? 0) + 1 };
       const peer = { ...prev.peer };
@@ -70,7 +91,7 @@ export function useServerUnread(
       const total = Object.values(channel).reduce((s, n) => s + (n || 0), 0);
       return { channel, peer, total };
     });
-  }, [realtimeBump]);
+  }, [realtimeBump, userChannels]);
 
   const clearChannel = useCallback((channelId: string) => {
     setMaps(prev => {
