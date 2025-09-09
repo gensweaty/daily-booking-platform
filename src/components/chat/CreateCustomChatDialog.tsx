@@ -175,7 +175,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md z-[9999] bg-background border shadow-lg">
         <DialogHeader>
           <DialogTitle>
             <LanguageText>{t('chat.createCustomChat')}</LanguageText>
