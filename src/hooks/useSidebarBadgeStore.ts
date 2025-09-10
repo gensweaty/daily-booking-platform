@@ -62,19 +62,28 @@ export function useSidebarBadgeStore(opts: {
     setFreezeSnapshot({ ...countsRef.current, [cid]: 0 });
   }, [setCount]);
 
-  // seed once from provider
+  // seed once from provider, but wait for actual data
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current) return;
+    
+    // Only seed if we have actual provider data (not just empty object)
+    const hasProviderData = providerUnreads && Object.keys(providerUnreads).length > 0;
+    if (!hasProviderData) {
+      console.log('🏪 Badge store: waiting for provider data to seed');
+      return;
+    }
+    
     const snapshot: Counts = {};
     for (const [cid, v] of Object.entries(providerUnreads || {})) {
       snapshot[cid] = Math.max(0, v || 0);
     }
+    
+    console.log('🌱 Badge store: seeding with provider data:', snapshot);
     countsRef.current = snapshot;
     setCounts(snapshot);
     seededRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ident]);
+  }, [ident, providerUnreads]);
 
   // Always adopt provider zeros and active-channel zero.
   // Also adopt provider increases (missed bumps) when allowed (not frozen, not active).
@@ -93,6 +102,7 @@ export function useSidebarBadgeStore(opts: {
         if ((pv || 0) === 0 && cur !== 0) {
           next[cid] = 0;
           changed = true;
+          console.log('🔄 Badge store: adopting provider zero for channel:', cid);
           continue;
         }
 
@@ -101,6 +111,7 @@ export function useSidebarBadgeStore(opts: {
         if (pv > cur && !frozen && cid !== currentChannelId) {
           next[cid] = pv;
           changed = true;
+          console.log('🔄 Badge store: adopting provider increase for channel:', cid, 'from', cur, 'to', pv);
         }
       }
 
@@ -108,6 +119,7 @@ export function useSidebarBadgeStore(opts: {
       if (currentChannelId && (next[currentChannelId] || 0) !== 0) {
         next[currentChannelId] = 0;
         changed = true;
+        console.log('🔄 Badge store: zeroing active channel:', currentChannelId);
       }
 
       if (changed) {
@@ -126,8 +138,14 @@ export function useSidebarBadgeStore(opts: {
       if (!cid) return;
 
       // Ignore own messages so you don't badge yourself
-      if (meType === 'admin' && m?.sender_user_id && meId && m.sender_user_id === meId) return;
-      if (meType === 'sub_user' && m?.sender_sub_user_id && meId && m.sender_sub_user_id === meId) return;
+      if (meType === 'admin' && m?.sender_user_id && meId && m.sender_user_id === meId) {
+        console.log('🚫 Badge store: ignoring own message from admin:', meId);
+        return;
+      }
+      if (meType === 'sub_user' && m?.sender_sub_user_id && meId && m.sender_sub_user_id === meId) {
+        console.log('🚫 Badge store: ignoring own message from sub_user:', meId);
+        return;
+      }
 
       const createdAt = m?.created_at ? new Date(m.created_at).getTime() : Date.now();
 
@@ -136,14 +154,20 @@ export function useSidebarBadgeStore(opts: {
         if ((countsRef.current[cid] || 0) !== 0) setCount(cid, 0);
         const prevSeen = lastSeenRef.current.get(cid) || 0;
         if (createdAt > prevSeen) lastSeenRef.current.set(cid, createdAt);
+        console.log('📱 Badge store: message in active channel, keeping zero:', cid);
         return;
       }
 
       // Only count if strictly newer than our lastSeen for that channel
       const lastSeen = lastSeenRef.current.get(cid) || 0;
-      if (createdAt <= lastSeen) return;
+      if (createdAt <= lastSeen) {
+        console.log('🚫 Badge store: message too old, ignoring:', cid, 'createdAt:', createdAt, 'lastSeen:', lastSeen);
+        return;
+      }
 
-      setCount(cid, (countsRef.current[cid] || 0) + 1);
+      const newCount = (countsRef.current[cid] || 0) + 1;
+      console.log('📈 Badge store: incrementing badge for channel:', cid, 'to:', newCount);
+      setCount(cid, newCount);
     };
 
     window.addEventListener('chat-message-received', onMsg as EventListener);
