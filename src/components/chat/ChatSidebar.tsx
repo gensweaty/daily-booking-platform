@@ -4,7 +4,7 @@ import { Hash, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
-import { useSidebarBadges } from '@/hooks/useSidebarBadges';
+import { useBadgeVisualMask } from '@/hooks/useBadgeVisualMask';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { resolveAvatarUrl } from './_avatar';
@@ -35,11 +35,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     catch { return {}; }
   }, [location.pathname, isPublicBoard]);
 
-  // Sidebar-only badge model (does not affect provider/other UIs)
-  const { get: getSidebarBadge, zeroNow: zeroSidebarBadge } = useSidebarBadges(
-    boardOwnerId,
-    me?.id,
-    channelUnreads,          // provider feed (adopt increases & zeros)
+  // Visual badge masking system (instant DOM manipulation)
+  const { hideBadgeNow, isBadgeHidden } = useBadgeVisualMask(
+    channelUnreads,
     currentChannelId
   );
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
@@ -517,11 +515,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         <button
           onPointerDown={() => {
             if (generalChannelId) {
-              // Instant, local-only zero for the next paint (no flicker).
-              zeroSidebarBadge(generalChannelId);
-              // Optional: keep your existing clears/suppressors:
-              // clearChannel(generalChannelId);
-              // suppressChannelBadge(generalChannelId);
+              // Instant visual hiding via DOM manipulation + state
+              flushSync(() => {
+                hideBadgeNow(generalChannelId);
+              });
             }
           }}
           onClick={() => {
@@ -551,9 +548,13 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             </span>
           </div>
           {generalChannelId &&
-           getSidebarBadge(generalChannelId) > 0 && (
-              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
-                {getSidebarBadge(generalChannelId) > 99 ? '99+' : getSidebarBadge(generalChannelId)}
+           !isBadgeHidden(generalChannelId) &&
+           (channelUnreads[generalChannelId] ?? 0) > 0 && (
+              <span 
+                data-badge-id={generalChannelId}
+                className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground"
+              >
+                {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
               </span>
            )}
         </button>
@@ -795,11 +796,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                 <div key={chat.id} className="group flex items-center">
                   <button
                     onPointerDown={() => {
-                      // Instant, local-only zero for the next paint (no flicker).
-                      zeroSidebarBadge(chat.id);
-                      // Optional provider-side calls:
-                      // clearChannel(chat.id);
-                      // suppressChannelBadge(chat.id);
+                      // Instant visual hiding via DOM manipulation + state
+                      flushSync(() => {
+                        hideBadgeNow(chat.id);
+                      });
                     }}
                     onClick={() => {
                       // Tell the header this is a custom channel
@@ -822,9 +822,14 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     <Hash className="h-4 w-4 flex-shrink-0" />
                     <span className="font-medium truncate">{chat.name}</span>
                     
-                    {chat.id && getSidebarBadge(chat.id) > 0 && (
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
-                        {getSidebarBadge(chat.id) > 99 ? '99+' : getSidebarBadge(chat.id)}
+                    {chat.id && 
+                     !isBadgeHidden(chat.id) &&
+                     (channelUnreads[chat.id] ?? 0) > 0 && (
+                      <span 
+                        data-badge-id={chat.id}
+                        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto"
+                      >
+                        {(channelUnreads[chat.id] ?? 0) > 99 ? '99+' : channelUnreads[chat.id]}
                       </span>
                     )}
                   </button>
