@@ -11,35 +11,34 @@ export function useBadgeVisualMask(
   // Simple Set of channelIds that should be visually hidden
   const [visuallyHidden, setVisuallyHidden] = useState<Set<string>>(new Set());
   const timeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const lastResetKeyRef = useRef<string>('');
 
-  // Hide a badge immediately (both DOM and state)
-  const hideBadgeNow = useCallback((channelId: string) => {
-    // 1. Direct DOM manipulation for instant visual effect
-    const badgeElement = document.querySelector(`[data-badge-id="${channelId}"]`) as HTMLElement;
-    if (badgeElement) {
-      badgeElement.style.display = 'none';
-      badgeElement.style.opacity = '0';
-    }
-
-    // 2. Update visual mask for subsequent renders
-    setVisuallyHidden(prev => {
-      const next = new Set(prev);
-      next.add(channelId);
-      return next;
+  // Reset function to clear all accumulated state (mimics page refresh)
+  const resetAllState = useCallback(() => {
+    // Clear all timeouts
+    timeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+    timeoutsRef.current.clear();
+    
+    // Clear visual mask
+    setVisuallyHidden(new Set());
+    
+    // Reset all DOM elements (remove any inline styles we added)
+    document.querySelectorAll('[data-badge-id]').forEach(element => {
+      const htmlElement = element as HTMLElement;
+      htmlElement.style.display = '';
+      htmlElement.style.opacity = '';
     });
-
-    // 3. Set timeout to auto-unhide after 3 seconds (failsafe)
-    const existingTimeout = timeoutsRef.current.get(channelId);
-    if (existingTimeout) {
-      clearTimeout(existingTimeout);
-    }
-    
-    const timeout = setTimeout(() => {
-      showBadgeNow(channelId);
-    }, 3000);
-    
-    timeoutsRef.current.set(channelId, timeout);
   }, []);
+
+  // Auto-reset when provider context changes significantly (like page refresh)
+  useEffect(() => {
+    const currentResetKey = `${Object.keys(providerChannelUnreads).length}-${currentChannelId}`;
+    if (lastResetKeyRef.current && lastResetKeyRef.current !== currentResetKey) {
+      // Context changed significantly, reset everything
+      resetAllState();
+    }
+    lastResetKeyRef.current = currentResetKey;
+  }, [providerChannelUnreads, currentChannelId, resetAllState]);
 
   // Show a badge (remove from visual mask)
   const showBadgeNow = useCallback((channelId: string) => {
@@ -57,13 +56,46 @@ export function useBadgeVisualMask(
       return next;
     });
 
-    // Show DOM element
-    const badgeElement = document.querySelector(`[data-badge-id="${channelId}"]`) as HTMLElement;
-    if (badgeElement) {
-      badgeElement.style.display = '';
-      badgeElement.style.opacity = '';
-    }
+    // Show DOM element with requestAnimationFrame for timing
+    requestAnimationFrame(() => {
+      const badgeElement = document.querySelector(`[data-badge-id="${channelId}"]`) as HTMLElement;
+      if (badgeElement) {
+        badgeElement.style.display = '';
+        badgeElement.style.opacity = '';
+      }
+    });
   }, []);
+
+  // Hide a badge immediately (both DOM and state)
+  const hideBadgeNow = useCallback((channelId: string) => {
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      const badgeElement = document.querySelector(`[data-badge-id="${channelId}"]`) as HTMLElement;
+      if (badgeElement) {
+        badgeElement.style.display = 'none';
+        badgeElement.style.opacity = '0';
+      }
+    });
+
+    // Update visual mask for subsequent renders
+    setVisuallyHidden(prev => {
+      const next = new Set(prev);
+      next.add(channelId);
+      return next;
+    });
+
+    // Set timeout to auto-unhide after 2 seconds (failsafe)
+    const existingTimeout = timeoutsRef.current.get(channelId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    
+    const timeout = setTimeout(() => {
+      showBadgeNow(channelId);
+    }, 2000);
+    
+    timeoutsRef.current.set(channelId, timeout);
+  }, [showBadgeNow]);
 
   // Auto-unhide badges when conditions are met
   useEffect(() => {
@@ -92,11 +124,13 @@ export function useBadgeVisualMask(
           }
           
           // Show DOM element
-          const badgeElement = document.querySelector(`[data-badge-id="${channelId}"]`) as HTMLElement;
-          if (badgeElement) {
-            badgeElement.style.display = '';
-            badgeElement.style.opacity = '';
-          }
+          requestAnimationFrame(() => {
+            const badgeElement = document.querySelector(`[data-badge-id="${channelId}"]`) as HTMLElement;
+            if (badgeElement) {
+              badgeElement.style.display = '';
+              badgeElement.style.opacity = '';
+            }
+          });
         }
       }
 
@@ -120,6 +154,7 @@ export function useBadgeVisualMask(
   return {
     hideBadgeNow,
     showBadgeNow,
-    isBadgeHidden
+    isBadgeHidden,
+    resetAllState
   };
 }

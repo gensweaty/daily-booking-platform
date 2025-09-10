@@ -36,10 +36,17 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   }, [location.pathname, isPublicBoard]);
 
   // Visual badge masking system (instant DOM manipulation)
-  const { hideBadgeNow, isBadgeHidden } = useBadgeVisualMask(
+  const { hideBadgeNow, isBadgeHidden, resetAllState } = useBadgeVisualMask(
     channelUnreads,
     currentChannelId
   );
+
+  // Reset badge mask state when chat provider reinitializes (mimics page refresh)
+  useEffect(() => {
+    if (me && boardOwnerId) {
+      resetAllState();
+    }
+  }, [me?.id, boardOwnerId, resetAllState]);
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
