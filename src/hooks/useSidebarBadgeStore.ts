@@ -26,6 +26,10 @@ export function useSidebarBadgeStore(opts: {
   const [freezeSnapshot, setFreezeSnapshot] = useState<Counts | null>(null);
   const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
+  // NEW: post-read quarantine to avoid re-adopting stale provider increases
+  const quarantineRef = useRef<Map<string, number>>(new Map());
+  const QUARANTINE_MS = 600; // keep this tight so legit missed-provider bumps aren't delayed long
+
   // reset on identity change (same effect as a page refresh)
   useEffect(() => {
     countsRef.current = {};
@@ -33,6 +37,7 @@ export function useSidebarBadgeStore(opts: {
     lastSeenRef.current.clear();
     freezeUntilRef.current = 0;
     setFreezeSnapshot(null);
+    quarantineRef.current.clear();
     seededRef.current = false;
   }, [ident]);
 
@@ -56,47 +61,42 @@ export function useSidebarBadgeStore(opts: {
   const enterChannel = useCallback((cid: string, freezeMs = 240) => {
     const ts = Date.now();
     lastSeenRef.current.set(cid, ts);
-    
+
     // Immediately zero the count and create freeze snapshot with zero
-    const currentCounts = { ...countsRef.current };
-    currentCounts[cid] = 0;
+    const currentCounts = { ...countsRef.current, [cid]: 0 };
     countsRef.current = currentCounts;
-    
-    // Set freeze snapshot with the zero already applied
+
+    // Freeze the list briefly while server/provider settles
     freezeUntilRef.current = nowMs() + freezeMs;
     setFreezeSnapshot(currentCounts);
-    
-    // Update React state (this might cause a brief re-render, but freeze snapshot protects us)
+
+    // NEW: start a short quarantine to ignore stale provider increases for this channel
+    quarantineRef.current.set(cid, Date.now() + QUARANTINE_MS);
+
+    // Update React state
     setCounts(currentCounts);
-    
-    console.log('🔒 Badge store: entering channel, zeroing badge:', cid, 'freeze until:', freezeUntilRef.current);
   }, []);
 
   // seed once from provider, but wait for actual data
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current) return;
-    
-    // Only seed if we have actual provider data (not just empty object)
+
     const hasProviderData = providerUnreads && Object.keys(providerUnreads).length > 0;
-    if (!hasProviderData) {
-      console.log('🏪 Badge store: waiting for provider data to seed');
-      return;
-    }
-    
+    if (!hasProviderData) return;
+
     const snapshot: Counts = {};
     for (const [cid, v] of Object.entries(providerUnreads || {})) {
       snapshot[cid] = Math.max(0, v || 0);
     }
-    
-    console.log('🌱 Badge store: seeding with provider data:', snapshot);
+
     countsRef.current = snapshot;
     setCounts(snapshot);
     seededRef.current = true;
   }, [ident, providerUnreads]);
 
   // Always adopt provider zeros and active-channel zero.
-  // Also adopt provider increases (missed bumps) when allowed (not frozen, not active).
+  // Also adopt provider increases (missed bumps) when allowed.
   useEffect(() => {
     const now = nowMs();
     const frozen = now < freezeUntilRef.current;
@@ -108,28 +108,32 @@ export function useSidebarBadgeStore(opts: {
       for (const [cid, pv] of Object.entries(providerUnreads || {})) {
         const cur = next[cid] || 0;
 
-        // 1) zeros always win
+        // zeros always win
         if ((pv || 0) === 0 && cur !== 0) {
           next[cid] = 0;
           changed = true;
-          console.log('🔄 Badge store: adopting provider zero for channel:', cid);
           continue;
         }
 
-        // 2) adopt provider increases if we somehow missed an event,
-        //    but only when not frozen and not the active channel
+        // adopt provider increases if:
+        // - not frozen
+        // - not active channel
+        // - NOT inside post-read quarantine window
         if (pv > cur && !frozen && cid !== currentChannelId) {
-          next[cid] = pv;
-          changed = true;
-          console.log('🔄 Badge store: adopting provider increase for channel:', cid, 'from', cur, 'to', pv);
+          const until = quarantineRef.current.get(cid) || 0;
+          if (Date.now() > until) {
+            next[cid] = pv;
+            changed = true;
+          } else {
+            // still quarantined: skip adopting stale provider bump
+          }
         }
       }
 
-      // 3) active channel must stay zero on the sidebar
+      // active channel must stay zero on the sidebar
       if (currentChannelId && (next[currentChannelId] || 0) !== 0) {
         next[currentChannelId] = 0;
         changed = true;
-        console.log('🔄 Badge store: zeroing active channel:', currentChannelId);
       }
 
       if (changed) {
@@ -170,14 +174,14 @@ export function useSidebarBadgeStore(opts: {
 
       // Only count if strictly newer than our lastSeen for that channel
       const lastSeen = lastSeenRef.current.get(cid) || 0;
-      if (createdAt <= lastSeen) {
-        console.log('🚫 Badge store: message too old, ignoring:', cid, 'createdAt:', createdAt, 'lastSeen:', lastSeen);
-        return;
+      if (createdAt <= lastSeen) return;
+
+      // We have a *real* new message → clear any quarantine for this channel
+      if (quarantineRef.current.has(cid)) {
+        quarantineRef.current.delete(cid);
       }
 
-      const newCount = (countsRef.current[cid] || 0) + 1;
-      console.log('📈 Badge store: incrementing badge for channel:', cid, 'to:', newCount);
-      setCount(cid, newCount);
+      setCount(cid, (countsRef.current[cid] || 0) + 1);
     };
 
     window.addEventListener('chat-message-received', onMsg as EventListener);
