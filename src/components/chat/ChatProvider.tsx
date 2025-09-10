@@ -186,17 +186,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // State for realtime bumps
   const [rtBump, setRtBump] = useState<{ channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean } | undefined>(undefined);
-  
-  // Force a lightweight re-render when unreads may have changed (throttled)
-  const [unreadTick, setUnreadTick] = useState(0);
-  const lastUnreadTickRef = React.useRef(0);
-  const bumpUnreadTick = useCallback(() => {
-    const now = Date.now();
-    if (now - lastUnreadTickRef.current > 200) { // throttle 200ms
-      lastUnreadTickRef.current = now;
-      setUnreadTick(n => (n + 1) % 1_000_000);
-    }
-  }, []);
 
   // Server-based unread management
   const {
@@ -398,8 +387,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             senderId: message.sender_user_id || message.sender_sub_user_id,
             isSelf: false
           });
-          // Ensure sidebar re-renders even if the unread map mutated in place
-          bumpUnreadTick();
         }
 
         // 2) notifications (don't redispatch event here to avoid loops)
@@ -477,7 +464,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           senderId: message.sender_user_id || message.sender_sub_user_id,
           isSelf: false
         });
-        bumpUnreadTick();
       }
 
       // FIXED: Enhanced notification logic - only alert if user is a participant of the channel
@@ -1038,7 +1024,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     realtimeEnabled: realtimeEnabled && !isExternalUser,
     isChannelRecentlyCleared,
     isPeerRecentlyCleared,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreadsSnapshot, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, unreadTick]);
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreadsSnapshot, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared]);
 
   return (
     <ChatContext.Provider value={contextValue}>
