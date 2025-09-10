@@ -39,6 +39,8 @@ type ChatCtx = {
   boardOwnerId: string | null;
   connectionStatus: string;
   realtimeEnabled: boolean;
+  isChannelRecentlyCleared: (channelId: string) => boolean;
+  isPeerRecentlyCleared: (peerId: string, peerType: 'admin' | 'sub_user') => boolean;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -84,6 +86,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [hasSubUsers, setHasSubUsers] = useState(false);
   const [channelMemberMap, setChannelMemberMap] = useState<Map<string, { id: string; type: 'admin' | 'sub_user' }>>(new Map());
+  
+  // Track recently cleared channels and peers to prevent badge beaming
+  const [recentlyClearedChannels, setRecentlyClearedChannels] = useState<Map<string, number>>(new Map());
+  const [recentlyClearedPeers, setRecentlyClearedPeers] = useState<Map<string, number>>(new Map());
   
   // Show chat window when ready - minimal requirements
   const chatReady = !!boardOwnerId && !!me && isInitialized;
@@ -614,11 +620,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             p_channel_id: channelId,
           });
           clearChannel(channelId);
+          // Mark channel as recently cleared to prevent badge beaming
+          setRecentlyClearedChannels(prev => new Map(prev.set(channelId, Date.now())));
           refreshUnread();
         } else {
           console.log('📧 [CHAT] External user - clearing local unread with debounce:', me.id);
           // Clear immediately for UI responsiveness
           clearChannel(channelId);
+          // Mark channel as recently cleared to prevent badge beaming
+          setRecentlyClearedChannels(prev => new Map(prev.set(channelId, Date.now())));
           
           // For external users, delay server refresh to prevent race conditions/flickering
           setTimeout(() => {
@@ -633,12 +643,66 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('❌ Error marking channel as read:', error);
         // Always clear local unread on error
         clearChannel(channelId);
+        // Mark channel as recently cleared to prevent badge beaming
+        setRecentlyClearedChannels(prev => new Map(prev.set(channelId, Date.now())));
         if (isValidUUID) {
           refreshUnread();
         }
       }
     }
   }, [boardOwnerId, me, clearChannel, refreshUnread, currentChannelId]);
+
+  // Check if a channel was recently cleared (within 4 seconds)
+  const isChannelRecentlyCleared = useCallback((channelId: string) => {
+    const clearedAt = recentlyClearedChannels.get(channelId);
+    if (!clearedAt) return false;
+    return Date.now() - clearedAt < 4000; // 4 second grace period
+  }, [recentlyClearedChannels]);
+
+  // Check if a peer was recently cleared (within 4 seconds)
+  const isPeerRecentlyCleared = useCallback((peerId: string, peerType: 'admin' | 'sub_user') => {
+    const peerKey = `${peerId}_${peerType}`;
+    const clearedAt = recentlyClearedPeers.get(peerKey);
+    if (!clearedAt) return false;
+    return Date.now() - clearedAt < 4000; // 4 second grace period
+  }, [recentlyClearedPeers]);
+
+  // Clean up old entries from recentlyClearedChannels and peers every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      
+      setRecentlyClearedChannels(prev => {
+        const updated = new Map(prev);
+        let hasChanges = false;
+        
+        for (const [channelId, clearedAt] of updated.entries()) {
+          if (now - clearedAt > 5000) { // Clean up after 5 seconds
+            updated.delete(channelId);
+            hasChanges = true;
+          }
+        }
+        
+        return hasChanges ? updated : prev;
+      });
+
+      setRecentlyClearedPeers(prev => {
+        const updated = new Map(prev);
+        let hasChanges = false;
+        
+        for (const [peerKey, clearedAt] of updated.entries()) {
+          if (now - clearedAt > 5000) { // Clean up after 5 seconds
+            updated.delete(peerKey);
+            hasChanges = true;
+          }
+        }
+        
+        return hasChanges ? updated : prev;
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // FAST LOADING: Detailed logging to identify bottleneck
   useEffect(() => {
@@ -906,6 +970,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           });
           clearChannel(channelId as string);
           clearPeer(otherId, otherType);
+          // Mark peer as recently cleared to prevent badge beaming
+          setRecentlyClearedPeers(prev => new Map(prev.set(`${otherId}_${otherType}`, Date.now())));
           refreshUnread();
         } catch (error) {
           console.error('❌ Error marking DM as read:', error);
@@ -942,7 +1008,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     boardOwnerId,
     connectionStatus,
     realtimeEnabled: realtimeEnabled && !isExternalUser,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser]);
+    isChannelRecentlyCleared,
+    isPeerRecentlyCleared,
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared]);
 
   return (
     <ChatContext.Provider value={contextValue}>
