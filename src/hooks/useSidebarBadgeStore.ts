@@ -26,6 +26,10 @@ export function useSidebarBadgeStore(opts: {
   const [freezeSnapshot, setFreezeSnapshot] = useState<Counts | null>(null);
   const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
+  // post-read quarantine to prevent stale provider increases
+  const quarantineRef = useRef<Map<string, number>>(new Map());
+  const QUARANTINE_MS = 600;
+
   // reset on identity change (same effect as a page refresh)
   useEffect(() => {
     countsRef.current = {};
@@ -33,6 +37,7 @@ export function useSidebarBadgeStore(opts: {
     lastSeenRef.current.clear();
     freezeUntilRef.current = 0;
     setFreezeSnapshot(null);
+    quarantineRef.current.clear();
     seededRef.current = false;
   }, [ident]);
 
@@ -65,6 +70,9 @@ export function useSidebarBadgeStore(opts: {
     // Set freeze snapshot with the zero already applied
     freezeUntilRef.current = nowMs() + freezeMs;
     setFreezeSnapshot(currentCounts);
+    
+    // Start quarantine to ignore stale provider increases for this channel
+    quarantineRef.current.set(cid, Date.now() + QUARANTINE_MS);
     
     // Update React state (this might cause a brief re-render, but freeze snapshot protects us)
     setCounts(currentCounts);
@@ -117,11 +125,14 @@ export function useSidebarBadgeStore(opts: {
         }
 
         // 2) adopt provider increases if we somehow missed an event,
-        //    but only when not frozen and not the active channel
+        //    but only when not frozen, not active channel, and not quarantined
         if (pv > cur && !frozen && cid !== currentChannelId) {
-          next[cid] = pv;
-          changed = true;
-          console.log('🔄 Badge store: adopting provider increase for channel:', cid, 'from', cur, 'to', pv);
+          const quarantineUntil = quarantineRef.current.get(cid) || 0;
+          if (Date.now() > quarantineUntil) {
+            next[cid] = pv;
+            changed = true;
+            console.log('🔄 Badge store: adopting provider increase for channel:', cid, 'from', cur, 'to', pv);
+          }
         }
       }
 
@@ -173,6 +184,11 @@ export function useSidebarBadgeStore(opts: {
       if (createdAt <= lastSeen) {
         console.log('🚫 Badge store: message too old, ignoring:', cid, 'createdAt:', createdAt, 'lastSeen:', lastSeen);
         return;
+      }
+
+      // Clear quarantine for real new messages
+      if (quarantineRef.current.has(cid)) {
+        quarantineRef.current.delete(cid);
       }
 
       const newCount = (countsRef.current[cid] || 0) + 1;
