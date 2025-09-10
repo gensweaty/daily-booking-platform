@@ -4,6 +4,7 @@ import { Hash, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
+import { useSidebarBadges } from '@/hooks/useSidebarBadges';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { resolveAvatarUrl } from './_avatar';
@@ -33,6 +34,14 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     try { return JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}') || {}; }
     catch { return {}; }
   }, [location.pathname, isPublicBoard]);
+
+  // Sidebar-only badge model (does not affect provider/other UIs)
+  const { get: getSidebarBadge, zeroNow: zeroSidebarBadge } = useSidebarBadges(
+    boardOwnerId,
+    me?.id,
+    channelUnreads,          // provider feed (adopt increases & zeros)
+    currentChannelId
+  );
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
@@ -48,56 +57,6 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   }>>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<{ id: string; name: string } | null>(null);
-  
-  // Local badge mute system - independent of provider logic
-  const [badgeMute, setBadgeMute] = useState<Map<string, number>>(new Map());
-
-  // helper — mute a badge immediately for ms
-  const muteBadge = (id: string, ms = 2000) => {
-    setBadgeMute(prev => {
-      const next = new Map(prev);
-      next.set(id, Date.now() + ms);
-      return next;
-    });
-  };
-
-  // helper — is a badge currently muted?
-  const isMuted = (id: string) => {
-    const until = badgeMute.get(id) ?? 0;
-    if (!until) return false;
-    if (until <= Date.now()) {
-      // expire quietly
-      setBadgeMute(prev => {
-        const next = new Map(prev);
-        next.delete(id);
-        return next;
-      });
-      return false;
-    }
-    return true;
-  };
-
-  // effect — if the provider brings a channel to 0, clear its mute early
-  useEffect(() => {
-    if (badgeMute.size === 0) return;
-    setBadgeMute(prev => {
-      let changed = false;
-      const next = new Map(prev);
-      for (const [id] of prev) {
-        // provider already at 0? drop mute
-        if ((channelUnreads[id] ?? 0) === 0) {
-          next.delete(id);
-          changed = true;
-        }
-        // if this is the active channel, also drop mute
-        if (currentChannelId === id) {
-          next.delete(id);
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [channelUnreads, currentChannelId, badgeMute.size]);
 
   // Load general channel with improved selection logic
   useEffect(() => {
@@ -558,11 +517,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         <button
           onPointerDown={() => {
             if (generalChannelId) {
-              flushSync(() => {
-                muteBadge(generalChannelId);           // local, instant mute
-                clearChannel(generalChannelId);         // keep existing immediate clears
-                suppressChannelBadge(generalChannelId);
-              });
+              // Instant, local-only zero for the next paint (no flicker).
+              zeroSidebarBadge(generalChannelId);
+              // Optional: keep your existing clears/suppressors:
+              // clearChannel(generalChannelId);
+              // suppressChannelBadge(generalChannelId);
             }
           }}
           onClick={() => {
@@ -591,11 +550,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               <LanguageText>{t('chat.general')}</LanguageText>
             </span>
           </div>
-          {generalChannelId && 
-           !isMuted(generalChannelId) &&
-           (channelUnreads[generalChannelId] ?? 0) > 0 && (
+          {generalChannelId &&
+           getSidebarBadge(generalChannelId) > 0 && (
               <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
-                {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
+                {getSidebarBadge(generalChannelId) > 99 ? '99+' : getSidebarBadge(generalChannelId)}
               </span>
            )}
         </button>
@@ -836,11 +794,13 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               {customChats.map((chat) => (
                 <div key={chat.id} className="group flex items-center">
                   <button
-                    onPointerDown={() => flushSync(() => {
-                      muteBadge(chat.id);                   // local, instant mute
-                      clearChannel(chat.id);                // keep existing immediate clears
-                      suppressChannelBadge(chat.id);
-                    })}
+                    onPointerDown={() => {
+                      // Instant, local-only zero for the next paint (no flicker).
+                      zeroSidebarBadge(chat.id);
+                      // Optional provider-side calls:
+                      // clearChannel(chat.id);
+                      // suppressChannelBadge(chat.id);
+                    }}
                     onClick={() => {
                       // Tell the header this is a custom channel
                       window.dispatchEvent(new CustomEvent('chat-header', {
@@ -862,11 +822,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     <Hash className="h-4 w-4 flex-shrink-0" />
                     <span className="font-medium truncate">{chat.name}</span>
                     
-                    {chat.id && 
-                     !isMuted(chat.id) &&
-                     (channelUnreads[chat.id] ?? 0) > 0 && (
+                    {chat.id && getSidebarBadge(chat.id) > 0 && (
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
-                        {(channelUnreads[chat.id] ?? 0) > 99 ? '99+' : channelUnreads[chat.id]}
+                        {getSidebarBadge(chat.id) > 99 ? '99+' : getSidebarBadge(chat.id)}
                       </span>
                     )}
                   </button>
