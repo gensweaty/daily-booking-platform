@@ -99,6 +99,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [suppressPulse, setSuppressPulse] = useState(0);
   const bumpSuppressPulse = useCallback(() => setSuppressPulse(p => (p + 1) & 0x7fffffff), []);
 
+  // NEW state/refs for optimistic zeroing
+  const [isSwitching, setIsSwitching] = useState(false);
+  const optimisticZeroRef = React.useRef<Map<string, number>>(new Map()); // channelId -> untilTimestamp(ms)
+
   const channelSuppressRef = React.useRef<Map<string, number>>(new Map());
   const peerSuppressRef = React.useRef<Map<string, number>>(new Map());
   const pk = (id: string, type: 'admin' | 'sub_user') => `${type}:${id}`;
@@ -106,6 +110,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const suppressChannelBadge = useCallback((channelId: string, ms = 1800) => {
     channelSuppressRef.current.set(channelId, Date.now() + ms);
     bumpSuppressPulse();
+  }, [bumpSuppressPulse]);
+
+  // Helper to mark "force-0 until <now+ms>"
+  const forceZeroFor = useCallback((channelId: string, ms = 1800) => {
+    optimisticZeroRef.current.set(channelId, Date.now() + ms);
+    bumpSuppressPulse(); // ensure a re-render
   }, [bumpSuppressPulse]);
 
   const suppressPeerBadge = useCallback((peerId: string, peerType: 'admin' | 'sub_user', ms = 1800) => {
@@ -274,6 +284,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       setIsOpen(false);
       channelSuppressRef.current.clear();
       peerSuppressRef.current.clear();
+      optimisticZeroRef.current.clear();
       setSuppressPulse(0);
 
       // tell ChatArea to drop its caches & timers
@@ -292,6 +303,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       setIsOpen(false);
       channelSuppressRef.current.clear();
       peerSuppressRef.current.clear();
+      optimisticZeroRef.current.clear();
       setSuppressPulse(0);
       refreshUnread();
       window.dispatchEvent(new CustomEvent('chat-reset'));
@@ -653,12 +665,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [shouldShowChat, currentChannelId, defaultChannelId, isOnPublicBoard, me?.id, clearChannel]);
 
   const openChannel = useCallback(async (channelId: string) => {
-    // Suppress first so the very next render can't show the badge
+    // PRE-PAINT mask — do this first
     const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me?.id || '');
     const isExternalUser = !isValidUUID;
-    suppressChannelBadge(channelId, isExternalUser ? 2500 : 1800);
 
-    // now switch channel
+    suppressChannelBadge(channelId, isExternalUser ? 2500 : 1800);
+    forceZeroFor(channelId, isExternalUser ? 2500 : 1800); // optimistic zero for target
+    setIsSwitching(true);
+
+    // Now switch channel
     setCurrentChannelId(channelId);
     setIsOpen(true);
     
@@ -702,9 +717,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         if (isValidUUID) {
           refreshUnread();
         }
+      } finally {
+        // small switch window to cover one repaint
+        setTimeout(() => setIsSwitching(false), 200);
       }
     }
-  }, [boardOwnerId, me, clearChannel, refreshUnread, currentChannelId, suppressChannelBadge]);
+  }, [boardOwnerId, me, clearChannel, refreshUnread, currentChannelId, suppressChannelBadge, forceZeroFor]);
 
   // Check if a channel was recently cleared (within 4 seconds)
   const isChannelRecentlyCleared = useCallback((channelId: string) => {
@@ -1053,6 +1071,40 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     [channelUnreads, rtBump]
   );
 
+  // Build UI-facing counts (masked)
+  const uiChannelUnreads = useMemo(() => {
+    const now = Date.now();
+    const out: Record<string, number> = {};
+
+    for (const [cid, raw] of Object.entries(channelUnreadsSnapshot)) {
+      let v = Math.max(0, raw || 0);
+
+      // 1) never show unread on the active channel
+      if (cid === currentChannelId) { out[cid] = 0; continue; }
+
+      // 2) optimistic zero during switch/open
+      const until = optimisticZeroRef.current.get(cid) || 0;
+      if (until > now) { out[cid] = 0; continue; }
+
+      // 3) recent clear grace window
+      if (isChannelRecentlyCleared(cid)) { out[cid] = 0; continue; }
+
+      // 4) explicit suppression map
+      if (isChannelBadgeSuppressed(cid)) { out[cid] = 0; continue; }
+
+      out[cid] = v;
+    }
+
+    return out;
+    // include everything that can change the mask
+  }, [channelUnreadsSnapshot, currentChannelId, suppressPulse, recentlyClearedChannels, isChannelRecentlyCleared, isChannelBadgeSuppressed]);
+
+  // Compute a stable total from the same masked counts
+  const uiUnreadTotal = useMemo(
+    () => Object.values(uiChannelUnreads).reduce((a, b) => a + (b || 0), 0),
+    [uiChannelUnreads]
+  );
+
   // Context value - memoized to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     isOpen,
@@ -1066,8 +1118,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrentChannelId,
     openChannel,
     startDM,
-    unreadTotal,
-    channelUnreads: channelUnreadsSnapshot,
+    unreadTotal: uiUnreadTotal,
+    channelUnreads: uiChannelUnreads,
     getUserUnreadCount,
     channelMemberMap,
     boardOwnerId,
@@ -1079,7 +1131,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     suppressPeerBadge,
     isChannelBadgeSuppressed,
     isPeerBadgeSuppressed,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreadsSnapshot, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed]);
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, uiUnreadTotal, uiChannelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed]);
 
   return (
     <ChatContext.Provider value={contextValue}>

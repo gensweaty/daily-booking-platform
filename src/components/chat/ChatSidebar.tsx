@@ -536,14 +536,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             </span>
           </div>
           {generalChannelId && 
-           currentChannelId !== generalChannelId &&
-           (channelUnreads[generalChannelId] ?? 0) > 0 && 
-           !isChannelRecentlyCleared(generalChannelId) && 
-           !isChannelBadgeSuppressed(generalChannelId) && (
-             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
-               {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
-             </span>
-          )}
+           (channelUnreads[generalChannelId] ?? 0) > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
+              </span>
+           )}
         </button>
 
         {/* Team Members */}
@@ -804,7 +801,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     <Hash className="h-4 w-4 flex-shrink-0" />
                     <span className="font-medium truncate">{chat.name}</span>
                     
-                    {chat.id && currentChannelId !== chat.id && (channelUnreads[chat.id] ?? 0) > 0 && !isChannelRecentlyCleared(chat.id) && !isChannelBadgeSuppressed(chat.id) && (
+                    {chat.id && (channelUnreads[chat.id] ?? 0) > 0 && (
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
                         {(channelUnreads[chat.id] ?? 0) > 99 ? '99+' : channelUnreads[chat.id]}
                       </span>
