@@ -208,9 +208,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Create an immutable snapshot to ensure consumers re-render on bumps
   const channelUnreadsSnapshot = useMemo(
     () => ({ ...channelUnreads }),
-    // include rtBump primitives so a new message forces a fresh snapshot even if the hook mutated in place
-    [channelUnreads, rtBump?.channelId, rtBump?.createdAt]
+    [channelUnreads, rtBump] // depend on the object itself (always new identity per bump)
   );
+
+  // Throttled unread refresh (1s min interval) to ensure UI picks up changes even if hook mutated in place
+  const lastUnreadRefreshRef = React.useRef(0);
+  const maybeRefreshUnread = useCallback(() => {
+    const now = Date.now();
+    if (now - lastUnreadRefreshRef.current > 1000) {
+      lastUnreadRefreshRef.current = now;
+      refreshUnread();
+    }
+  }, [refreshUnread]);
 
   // Wrapper for getUserUnreadCount to match old interface
   const getUserUnreadCount = useCallback((userId: string, userType: 'admin' | 'sub_user') => {
@@ -396,23 +405,22 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           });
         }
 
-        // 2) notifications (don't redispatch event here to avoid loops)
-        if (!skipBecauseOpen) {
-          // PUBLIC BOARD: trust the polling source (visibility already enforced by the RPC).
-          // INTERNAL BOARD: keep the membership guard for safety.
-          const shouldShow = isOnPublicBoard ? true : userChannels.has(message.channel_id);
-          if (shouldShow) {
-            import('@/utils/audioManager')
-              .then(({ playNotificationSound }) => playNotificationSound())
-              .catch(() => {});
-            showNotification({
-              title: `${message.sender_name || 'Someone'} messaged`,
-              body: message.content,
-              channelId: message.channel_id,
-              senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-              senderName: message.sender_name || 'Unknown',
-            });
-          }
+        // AFTER — always notify for public/external; still suppress bump when viewing the same channel
+        const shouldNotify = isOnPublicBoard
+          ? true // public boards: always notify (restores behavior)
+          : (!skipBecauseOpen && userChannels.has(message.channel_id)); // internal: keep previous gating
+
+        if (shouldNotify) {
+          import('@/utils/audioManager')
+            .then(({ playNotificationSound }) => playNotificationSound())
+            .catch(() => {});
+          showNotification({
+            title: `${message.sender_name || 'Someone'} messaged`,
+            body: message.content,
+            channelId: message.channel_id,
+            senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+            senderName: message.sender_name || 'Unknown',
+          });
         }
       }
     };
@@ -471,6 +479,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           senderId: message.sender_user_id || message.sender_sub_user_id,
           isSelf: false
         });
+
+        // We suppressed bumps for the open channel (to avoid beaming), but when a message hits another channel
+        // we ensure the unread model is refreshed (throttled) so the sidebar badge updates immediately.
+        maybeRefreshUnread();
       }
 
       // FIXED: Enhanced notification logic - only alert if user is a participant of the channel
