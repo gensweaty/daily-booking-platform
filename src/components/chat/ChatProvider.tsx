@@ -41,6 +41,7 @@ type ChatCtx = {
   realtimeEnabled: boolean;
   isChannelRecentlyCleared: (channelId: string) => boolean;
   isPeerRecentlyCleared: (peerId: string, peerType: 'admin' | 'sub_user') => boolean;
+  isChannelAboutToOpen: (channelId: string) => boolean;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -90,6 +91,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Track recently cleared channels and peers to prevent badge beaming
   const [recentlyClearedChannels, setRecentlyClearedChannels] = useState<Map<string, number>>(new Map());
   const [recentlyClearedPeers, setRecentlyClearedPeers] = useState<Map<string, number>>(new Map());
+  
+  // Optimistic state to immediately hide badges when switching channels
+  const [aboutToOpenChannelId, setAboutToOpenChannelId] = useState<string | null>(null);
   
   // Show chat window when ready - minimal requirements
   const chatReady = !!boardOwnerId && !!me && isInitialized;
@@ -235,6 +239,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       setCurrentChannelId(null);
       refreshUnread();
       setIsOpen(false);
+      setAboutToOpenChannelId(null); // Clear optimistic state
 
       // tell ChatArea to drop its caches & timers
       window.dispatchEvent(new CustomEvent('chat-reset'));
@@ -250,6 +255,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       setBoardOwnerId(null);
       setCurrentChannelId(null);
       setIsOpen(false);
+      setAboutToOpenChannelId(null); // Clear optimistic state
       refreshUnread();
       window.dispatchEvent(new CustomEvent('chat-reset'));
     }
@@ -610,6 +616,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [shouldShowChat, currentChannelId, defaultChannelId, isOnPublicBoard, me?.id, clearChannel]);
 
   const openChannel = useCallback(async (channelId: string) => {
+    // Immediately set optimistic state to hide badge
+    setAboutToOpenChannelId(channelId);
+    
     setCurrentChannelId(channelId);
     setIsOpen(true);
     
@@ -656,6 +665,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         if (isValidUUID) {
           refreshUnread();
         }
+      } finally {
+        // Clear optimistic state after operation completes (success or failure)
+        setAboutToOpenChannelId(null);
       }
     }
   }, [boardOwnerId, me, clearChannel, refreshUnread, currentChannelId]);
@@ -674,6 +686,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!clearedAt) return false;
     return Date.now() - clearedAt < 4000; // 4 second grace period
   }, [recentlyClearedPeers]);
+
+  // Check if a channel is about to be opened (optimistic badge hiding)
+  const isChannelAboutToOpen = useCallback((channelId: string) => {
+    return aboutToOpenChannelId === channelId;
+  }, [aboutToOpenChannelId]);
 
   // Clean up old entries from recentlyClearedChannels and peers every 5 seconds
   useEffect(() => {
@@ -964,6 +981,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       console.log('✅ Canonical DM channel created/found:', channelId);
+      
+      // Immediately set optimistic state to hide badges
+      if (channelId) {
+        setAboutToOpenChannelId(channelId as string);
+      }
+      
       setCurrentChannelId(channelId as string);
       setIsOpen(true);
 
@@ -983,6 +1006,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           refreshUnread();
         } catch (error) {
           console.error('❌ Error marking DM as read:', error);
+        } finally {
+          // Clear optimistic state after operation completes
+          setAboutToOpenChannelId(null);
         }
       }
 
@@ -993,6 +1019,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         description: error.message || 'Failed to start direct message',
         variant: 'destructive',
       });
+      // Clear optimistic state on error
+      setAboutToOpenChannelId(null);
     }
   }, [boardOwnerId, me, toast, clearChannel, clearPeer, refreshUnread]);
 
@@ -1024,7 +1052,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     realtimeEnabled: realtimeEnabled && !isExternalUser,
     isChannelRecentlyCleared,
     isPeerRecentlyCleared,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreadsSnapshot, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared]);
+    isChannelAboutToOpen,
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreadsSnapshot, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, isChannelAboutToOpen]);
 
   return (
     <ChatContext.Provider value={contextValue}>

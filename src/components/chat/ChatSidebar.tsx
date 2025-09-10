@@ -23,7 +23,7 @@ interface ChatSidebarProps {
 export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {}) => {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, isChannelRecentlyCleared, isPeerRecentlyCleared } = useChat();
+  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, isChannelRecentlyCleared, isPeerRecentlyCleared, isChannelAboutToOpen } = useChat();
   const location = useLocation();
   const isPublicBoard = location.pathname.startsWith('/board/');
   const publicAccess = useMemo(() => {
@@ -533,7 +533,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           </div>
           {generalChannelId && 
            (channelUnreads[generalChannelId] ?? 0) > 0 && 
-           !isChannelRecentlyCleared(generalChannelId) && (
+           !isChannelRecentlyCleared(generalChannelId) && 
+           !isChannelAboutToOpen(generalChannelId) && (
             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
               {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
             </span>
@@ -797,7 +798,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     <Hash className="h-4 w-4 flex-shrink-0" />
                     <span className="font-medium truncate">{chat.name}</span>
                     
-                    {chat.id && (channelUnreads[chat.id] ?? 0) > 0 && !isChannelRecentlyCleared(chat.id) && (
+                    {chat.id && (channelUnreads[chat.id] ?? 0) > 0 && !isChannelRecentlyCleared(chat.id) && !isChannelAboutToOpen(chat.id) && (
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
                         {(channelUnreads[chat.id] ?? 0) > 99 ? '99+' : channelUnreads[chat.id]}
                       </span>
