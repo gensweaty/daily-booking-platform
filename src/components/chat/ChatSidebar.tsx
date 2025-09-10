@@ -4,7 +4,7 @@ import { Hash, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
-import { useBadgeVisualMask } from '@/hooks/useBadgeVisualMask';
+import { useSidebarBadgeStore } from '@/hooks/useSidebarBadgeStore';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { resolveAvatarUrl } from './_avatar';
@@ -35,18 +35,14 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     catch { return {}; }
   }, [location.pathname, isPublicBoard]);
 
-  // Visual badge masking system (instant DOM manipulation)
-  const { hideBadgeNow, isBadgeHidden, resetAllState } = useBadgeVisualMask(
-    channelUnreads,
-    currentChannelId
-  );
-
-  // Reset badge mask state when chat provider reinitializes (mimics page refresh)
-  useEffect(() => {
-    if (me && boardOwnerId) {
-      resetAllState();
-    }
-  }, [me?.id, boardOwnerId, resetAllState]);
+  // Sidebar-only badge VM: seeds from provider once, adopts provider zeros,
+  // ignores provider increases, gates realtime bumps by lastSeen, and freezes during switch.
+  const { get: getBadge, enterChannel } = useSidebarBadgeStore({
+    boardOwnerId,
+    meId: me?.id,
+    currentChannelId,
+    providerUnreads: channelUnreads
+  });
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
@@ -522,9 +518,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         <button
           onPointerDown={() => {
             if (generalChannelId) {
-              // Instant visual hiding via DOM manipulation + state
               flushSync(() => {
-                hideBadgeNow(generalChannelId);
+                // Synchronous: mark as read locally + freeze list for a beat.
+                enterChannel(generalChannelId);
               });
             }
           }}
@@ -554,14 +550,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               <LanguageText>{t('chat.general')}</LanguageText>
             </span>
           </div>
-          {generalChannelId &&
-           !isBadgeHidden(generalChannelId) &&
-           (channelUnreads[generalChannelId] ?? 0) > 0 && (
-              <span 
-                data-badge-id={generalChannelId}
-                className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground"
-              >
-                {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
+          {generalChannelId && getBadge(generalChannelId) > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                {getBadge(generalChannelId) > 99 ? '99+' : getBadge(generalChannelId)}
               </span>
            )}
         </button>
@@ -803,9 +794,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                 <div key={chat.id} className="group flex items-center">
                   <button
                     onPointerDown={() => {
-                      // Instant visual hiding via DOM manipulation + state
                       flushSync(() => {
-                        hideBadgeNow(chat.id);
+                        enterChannel(chat.id);
                       });
                     }}
                     onClick={() => {
@@ -829,14 +819,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     <Hash className="h-4 w-4 flex-shrink-0" />
                     <span className="font-medium truncate">{chat.name}</span>
                     
-                    {chat.id && 
-                     !isBadgeHidden(chat.id) &&
-                     (channelUnreads[chat.id] ?? 0) > 0 && (
-                      <span 
-                        data-badge-id={chat.id}
-                        className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto"
-                      >
-                        {(channelUnreads[chat.id] ?? 0) > 99 ? '99+' : channelUnreads[chat.id]}
+                    {chat.id && getBadge(chat.id) > 0 && (
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
+                        {getBadge(chat.id) > 99 ? '99+' : getBadge(chat.id)}
                       </span>
                     )}
                   </button>
