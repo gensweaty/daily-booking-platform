@@ -32,6 +32,10 @@ export function useSidebarBadgeStore(opts: {
   const quarantineRef = useRef<Map<string, number>>(new Map());
   const QUARANTINE_MS = 600;
 
+  // immediate visual suppression for channel switching
+  const visuallySuppressedRef = useRef<Set<string>>(new Set());
+  const [visualSuppressionTrigger, setVisualSuppressionTrigger] = useState(0);
+
   // reset on identity change (same effect as a page refresh)
   useEffect(() => {
     countsRef.current = {};
@@ -40,6 +44,7 @@ export function useSidebarBadgeStore(opts: {
     freezeUntilRef.current = 0;
     setFreezeSnapshot(null);
     quarantineRef.current.clear();
+    visuallySuppressedRef.current.clear();
     seededRef.current = false;
   }, [ident]);
 
@@ -51,7 +56,12 @@ export function useSidebarBadgeStore(opts: {
 
   const get = useCallback(
     (cid: string) => {
-      // Check ChatProvider suppressions first
+      // Check immediate visual suppression first
+      if (visuallySuppressedRef.current.has(cid)) {
+        return 0;
+      }
+      
+      // Check ChatProvider suppressions
       if (isChannelBadgeSuppressed?.(cid) || isChannelRecentlyCleared?.(cid)) {
         return 0;
       }
@@ -61,13 +71,17 @@ export function useSidebarBadgeStore(opts: {
       }
       return Math.max(0, (countsRef.current[cid] || 0));
     },
-    [freezeSnapshot, isChannelBadgeSuppressed, isChannelRecentlyCleared]
+    [freezeSnapshot, isChannelBadgeSuppressed, isChannelRecentlyCleared, visualSuppressionTrigger]
   );
 
   // call on pointerdown of a channel row
   const enterChannel = useCallback((cid: string, freezeMs = 240) => {
     const ts = Date.now();
     lastSeenRef.current.set(cid, ts);
+    
+    // Immediate visual suppression to prevent any flicker
+    visuallySuppressedRef.current.add(cid);
+    setVisualSuppressionTrigger(prev => prev + 1); // Force re-render
     
     // Immediately zero the count and create freeze snapshot with zero
     const currentCounts = { ...countsRef.current };
@@ -83,6 +97,12 @@ export function useSidebarBadgeStore(opts: {
     
     // Update React state (this might cause a brief re-render, but freeze snapshot protects us)
     setCounts(currentCounts);
+    
+    // Clear visual suppression after a short delay
+    setTimeout(() => {
+      visuallySuppressedRef.current.delete(cid);
+      setVisualSuppressionTrigger(prev => prev + 1);
+    }, 500);
     
     console.log('🔒 Badge store: entering channel, zeroing badge:', cid, 'freeze until:', freezeUntilRef.current);
   }, []);
