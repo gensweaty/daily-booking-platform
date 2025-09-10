@@ -262,11 +262,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // 🔁 Provider-level polling for external/public users (works even when chat UI is closed)
   useEffect(() => {
     // Preconditions: public board, has identity, external user (no dashboard session), and board owner resolved
+    console.log('🔍 Polling preconditions check:', {
+      isOnPublicBoard,
+      shouldShowChat,
+      isExternalUser,
+      boardOwnerId,
+      meId: me?.id,
+      willStartPolling: !(!isOnPublicBoard || !shouldShowChat || !isExternalUser || !boardOwnerId || !me?.id)
+    });
     if (!isOnPublicBoard || !shouldShowChat || !isExternalUser || !boardOwnerId || !me?.id) return;
 
     let alive = true;
     // Start slightly in the past to avoid edge drops on first run
     let lastSeenISO = new Date(Date.now() - 2000).toISOString();
+    console.log('🚀 Starting polling for external user, lastSeenISO:', lastSeenISO);
 
     const poll = async () => {
       if (!alive) return;
@@ -284,8 +293,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         if (!data || data.length === 0) return;
 
         // Dispatch each as if it arrived realtime; onPolledMessage will dedupe + notify
+        console.log('🔔 Polling found', data.length, 'new messages, dispatching events');
         for (const m of data) {
           const msg = { ...m, owner_id: m.owner_id || boardOwnerId };
+          console.log('📨 Dispatching polled message:', msg.id, 'from channel:', msg.channel_id);
           window.dispatchEvent(
             new CustomEvent('chat-message-received', { detail: { message: msg } })
           );
@@ -312,6 +323,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       alive = false;
       clearInterval(id);
+      console.log('🛑 Stopping polling for external user');
       window.removeEventListener('focus', kick);
       document.removeEventListener('visibilitychange', kick);
       window.removeEventListener('online', kick);
@@ -381,11 +393,19 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
         // 2) notifications (don't redispatch event here to avoid loops)
         const skipBecauseOpen = isOpen && currentChannelId === message.channel_id;
+        console.log('🔔 Polled message notification check:', {
+          messageId: message.id,
+          channelId: message.channel_id,
+          skipBecauseOpen,
+          isOnPublicBoard,
+          shouldShow: isOnPublicBoard ? true : userChannels.has(message.channel_id)
+        });
         if (!skipBecauseOpen) {
           // PUBLIC BOARD: trust the polling source (visibility already enforced by the RPC).
           // INTERNAL BOARD: keep the membership guard for safety.
           const shouldShow = isOnPublicBoard ? true : userChannels.has(message.channel_id);
           if (shouldShow) {
+            console.log('✅ Playing notification for polled message:', message.id);
             import('@/utils/audioManager')
               .then(({ playNotificationSound }) => playNotificationSound())
               .catch(() => {});
