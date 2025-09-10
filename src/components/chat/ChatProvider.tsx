@@ -999,7 +999,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Create an immutable snapshot to ensure consumers re-render on bumps
   const channelUnreadsSnapshot = useMemo(
     () => ({ ...channelUnreads }),
-    [channelUnreads, rtBump]
+    [JSON.stringify(channelUnreads), rtBump]
   );
 
   // Context value - memoized to prevent unnecessary re-renders
