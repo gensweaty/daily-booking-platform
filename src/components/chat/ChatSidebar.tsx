@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { Hash, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,7 +24,7 @@ interface ChatSidebarProps {
 export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {}) => {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, isChannelRecentlyCleared, isPeerRecentlyCleared, isChannelAboutToOpen } = useChat();
+  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed } = useChat();
   const location = useLocation();
   const isPublicBoard = location.pathname.startsWith('/board/');
   const publicAccess = useMemo(() => {
@@ -505,6 +506,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
       <div className="space-y-2">
         {/* General Channel */}
         <button
+          onPointerDown={() => {
+            if (generalChannelId) flushSync(() => suppressChannelBadge(generalChannelId));
+          }}
           onClick={() => {
             if (generalChannelId) {
               // Tell the header explicitly: this is a Channel called "General"
@@ -534,10 +538,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           {generalChannelId && 
            (channelUnreads[generalChannelId] ?? 0) > 0 && 
            !isChannelRecentlyCleared(generalChannelId) && 
-           !isChannelAboutToOpen(generalChannelId) && (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
-              {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
-            </span>
+           !isChannelBadgeSuppressed(generalChannelId) && (
+             <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+               {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
+             </span>
           )}
         </button>
 
@@ -744,7 +748,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   </div>
                 </div>
                 
-                {peerUnread > 0 && !isPeerRecentlyCleared(member.id, member.type) && (
+                {peerUnread > 0 && !isPeerRecentlyCleared(member.id, member.type) && !isPeerBadgeSuppressed(member.id, member.type) && (
                   <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
                     {peerUnread > 99 ? '99+' : peerUnread}
                   </span>
@@ -798,7 +802,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     <Hash className="h-4 w-4 flex-shrink-0" />
                     <span className="font-medium truncate">{chat.name}</span>
                     
-                    {chat.id && (channelUnreads[chat.id] ?? 0) > 0 && !isChannelRecentlyCleared(chat.id) && !isChannelAboutToOpen(chat.id) && (
+                    {chat.id && (channelUnreads[chat.id] ?? 0) > 0 && !isChannelRecentlyCleared(chat.id) && !isChannelBadgeSuppressed(chat.id) && (
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
                         {(channelUnreads[chat.id] ?? 0) > 99 ? '99+' : channelUnreads[chat.id]}
                       </span>

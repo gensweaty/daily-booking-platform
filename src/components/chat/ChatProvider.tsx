@@ -41,7 +41,10 @@ type ChatCtx = {
   realtimeEnabled: boolean;
   isChannelRecentlyCleared: (channelId: string) => boolean;
   isPeerRecentlyCleared: (peerId: string, peerType: 'admin' | 'sub_user') => boolean;
-  isChannelAboutToOpen: (channelId: string) => boolean;
+  suppressChannelBadge: (channelId: string, ms?: number) => void;
+  suppressPeerBadge: (peerId: string, peerType: 'admin' | 'sub_user', ms?: number) => void;
+  isChannelBadgeSuppressed: (channelId: string) => boolean;
+  isPeerBadgeSuppressed: (peerId: string, peerType: 'admin' | 'sub_user') => boolean;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -92,8 +95,38 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [recentlyClearedChannels, setRecentlyClearedChannels] = useState<Map<string, number>>(new Map());
   const [recentlyClearedPeers, setRecentlyClearedPeers] = useState<Map<string, number>>(new Map());
   
-  // Optimistic state to immediately hide badges when switching channels
-  const [aboutToOpenChannelId, setAboutToOpenChannelId] = useState<string | null>(null);
+  // Badge suppression system with TTL
+  const [suppressPulse, setSuppressPulse] = useState(0);
+  const bumpSuppressPulse = useCallback(() => setSuppressPulse(p => (p + 1) & 0x7fffffff), []);
+
+  const channelSuppressRef = React.useRef<Map<string, number>>(new Map());
+  const peerSuppressRef = React.useRef<Map<string, number>>(new Map());
+  const pk = (id: string, type: 'admin' | 'sub_user') => `${type}:${id}`;
+
+  const suppressChannelBadge = useCallback((channelId: string, ms = 1800) => {
+    channelSuppressRef.current.set(channelId, Date.now() + ms);
+    bumpSuppressPulse();
+  }, [bumpSuppressPulse]);
+
+  const suppressPeerBadge = useCallback((peerId: string, peerType: 'admin' | 'sub_user', ms = 1800) => {
+    peerSuppressRef.current.set(pk(peerId, peerType), Date.now() + ms);
+    bumpSuppressPulse();
+  }, [bumpSuppressPulse]);
+
+  const isChannelBadgeSuppressed = useCallback((channelId: string) => {
+    const now = Date.now();
+    const t = channelSuppressRef.current.get(channelId) || 0;
+    if (t && t <= now) { channelSuppressRef.current.delete(channelId); return false; }
+    return t > now;
+  }, []);
+
+  const isPeerBadgeSuppressed = useCallback((peerId: string, peerType: 'admin' | 'sub_user') => {
+    const now = Date.now();
+    const key = pk(peerId, peerType);
+    const t = peerSuppressRef.current.get(key) || 0;
+    if (t && t <= now) { peerSuppressRef.current.delete(key); return false; }
+    return t > now;
+  }, []);
   
   // Show chat window when ready - minimal requirements
   const chatReady = !!boardOwnerId && !!me && isInitialized;
@@ -239,7 +272,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       setCurrentChannelId(null);
       refreshUnread();
       setIsOpen(false);
-      setAboutToOpenChannelId(null); // Clear optimistic state
+      channelSuppressRef.current.clear();
+      peerSuppressRef.current.clear();
+      setSuppressPulse(0);
 
       // tell ChatArea to drop its caches & timers
       window.dispatchEvent(new CustomEvent('chat-reset'));
@@ -255,7 +290,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       setBoardOwnerId(null);
       setCurrentChannelId(null);
       setIsOpen(false);
-      setAboutToOpenChannelId(null); // Clear optimistic state
+      channelSuppressRef.current.clear();
+      peerSuppressRef.current.clear();
+      setSuppressPulse(0);
       refreshUnread();
       window.dispatchEvent(new CustomEvent('chat-reset'));
     }
@@ -616,9 +653,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [shouldShowChat, currentChannelId, defaultChannelId, isOnPublicBoard, me?.id, clearChannel]);
 
   const openChannel = useCallback(async (channelId: string) => {
-    // Immediately set optimistic state to hide badge
-    setAboutToOpenChannelId(channelId);
-    
     setCurrentChannelId(channelId);
     setIsOpen(true);
     
@@ -627,6 +661,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       // Check if me.id is a valid UUID for mark_channel_read
       const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id);
       const isExternalUser = !isValidUUID;
+      
+      // Suppress badge during the operation (longer for external users)
+      suppressChannelBadge(channelId, isExternalUser ? 2500 : 1800);
       
       try {
         if (isValidUUID) {
@@ -665,12 +702,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         if (isValidUUID) {
           refreshUnread();
         }
-      } finally {
-        // Clear optimistic state after operation completes (success or failure)
-        setAboutToOpenChannelId(null);
       }
     }
-  }, [boardOwnerId, me, clearChannel, refreshUnread, currentChannelId]);
+  }, [boardOwnerId, me, clearChannel, refreshUnread, currentChannelId, suppressChannelBadge]);
 
   // Check if a channel was recently cleared (within 4 seconds)
   const isChannelRecentlyCleared = useCallback((channelId: string) => {
@@ -686,11 +720,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!clearedAt) return false;
     return Date.now() - clearedAt < 4000; // 4 second grace period
   }, [recentlyClearedPeers]);
-
-  // Check if a channel is about to be opened (optimistic badge hiding)
-  const isChannelAboutToOpen = useCallback((channelId: string) => {
-    return aboutToOpenChannelId === channelId;
-  }, [aboutToOpenChannelId]);
 
   // Clean up old entries from recentlyClearedChannels and peers every 5 seconds
   useEffect(() => {
@@ -982,16 +1011,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('✅ Canonical DM channel created/found:', channelId);
       
-      // Immediately set optimistic state to hide badges
-      if (channelId) {
-        setAboutToOpenChannelId(channelId as string);
-      }
-      
       setCurrentChannelId(channelId as string);
       setIsOpen(true);
 
       // Mark DM channel as read on server and clear local unread
       if (channelId) {
+        // Suppress badge for this channel during operation
+        suppressChannelBadge(channelId as string);
+        
         try {
           await supabase.rpc('mark_channel_read', {
             p_owner_id: boardOwnerId,
@@ -1006,9 +1033,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           refreshUnread();
         } catch (error) {
           console.error('❌ Error marking DM as read:', error);
-        } finally {
-          // Clear optimistic state after operation completes
-          setAboutToOpenChannelId(null);
         }
       }
 
@@ -1019,10 +1043,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         description: error.message || 'Failed to start direct message',
         variant: 'destructive',
       });
-      // Clear optimistic state on error
-      setAboutToOpenChannelId(null);
+      // Error occurred, but no additional cleanup needed for suppression system
     }
-  }, [boardOwnerId, me, toast, clearChannel, clearPeer, refreshUnread]);
+  }, [boardOwnerId, me, toast, clearChannel, clearPeer, refreshUnread, suppressChannelBadge]);
 
   // Create an immutable snapshot to ensure consumers re-render on bumps
   const channelUnreadsSnapshot = useMemo(
@@ -1052,8 +1075,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     realtimeEnabled: realtimeEnabled && !isExternalUser,
     isChannelRecentlyCleared,
     isPeerRecentlyCleared,
-    isChannelAboutToOpen,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreadsSnapshot, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, isChannelAboutToOpen]);
+    suppressChannelBadge,
+    suppressPeerBadge,
+    isChannelBadgeSuppressed,
+    isPeerBadgeSuppressed,
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreadsSnapshot, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed]);
 
   return (
     <ChatContext.Provider value={contextValue}>
