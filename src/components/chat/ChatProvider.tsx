@@ -376,17 +376,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
 
-        // 1) unread bump (kept)
-        setRtBump({
-          channelId: message.channel_id,
-          createdAt: message.created_at,
-          senderType: message.sender_user_id ? 'admin' : 'sub_user',
-          senderId: message.sender_user_id || message.sender_sub_user_id,
-          isSelf: false
-        });
+        const skipBecauseOpen = isOpen && currentChannelId === message.channel_id;
+
+        // ⛔ NEW: Don't bump unread while the user is viewing this channel
+        if (!skipBecauseOpen) {
+          setRtBump({
+            channelId: message.channel_id,
+            createdAt: message.created_at,
+            senderType: message.sender_user_id ? 'admin' : 'sub_user',
+            senderId: message.sender_user_id || message.sender_sub_user_id,
+            isSelf: false
+          });
+        }
 
         // 2) notifications (don't redispatch event here to avoid loops)
-        const skipBecauseOpen = isOpen && currentChannelId === message.channel_id;
         if (!skipBecauseOpen) {
           // PUBLIC BOARD: trust the polling source (visibility already enforced by the RPC).
           // INTERNAL BOARD: keep the membership guard for safety.
@@ -449,14 +452,19 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       : message.sender_sub_user_id === me.id;
 
     if (!isMyMessage && !isUpdate) {
-      // Create realtime bump for unread tracking (only for new messages, not updates)
-      setRtBump({
-        channelId: message.channel_id,
-        createdAt: message.created_at,
-        senderType: message.sender_user_id ? 'admin' : 'sub_user',
-        senderId: message.sender_user_id || message.sender_sub_user_id,
-        isSelf: false
-      });
+      // ⛔ NEW: Don't bump unread while the user is viewing this channel
+      const isViewingThisChannel = isOpen && currentChannelId === message.channel_id;
+      
+      if (!isViewingThisChannel) {
+        // Create realtime bump for unread tracking (only for new messages, not updates)
+        setRtBump({
+          channelId: message.channel_id,
+          createdAt: message.created_at,
+          senderType: message.sender_user_id ? 'admin' : 'sub_user',
+          senderId: message.sender_user_id || message.sender_sub_user_id,
+          isSelf: false
+        });
+      }
 
       // FIXED: Enhanced notification logic - only alert if user is a participant of the channel
       const shouldAlert = async () => {
