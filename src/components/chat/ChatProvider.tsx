@@ -653,17 +653,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [shouldShowChat, currentChannelId, defaultChannelId, isOnPublicBoard, me?.id, clearChannel]);
 
   const openChannel = useCallback(async (channelId: string) => {
+    // Suppress first so the very next render can't show the badge
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me?.id || '');
+    const isExternalUser = !isValidUUID;
+    suppressChannelBadge(channelId, isExternalUser ? 2500 : 1800);
+
+    // now switch channel
     setCurrentChannelId(channelId);
     setIsOpen(true);
     
     // Mark channel as read on server and clear local unread
     if (boardOwnerId && me?.type && me?.id) {
-      // Check if me.id is a valid UUID for mark_channel_read
-      const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id);
-      const isExternalUser = !isValidUUID;
-      
-      // Suppress badge during the operation (longer for external users)
-      suppressChannelBadge(channelId, isExternalUser ? 2500 : 1800);
       
       try {
         if (isValidUUID) {
