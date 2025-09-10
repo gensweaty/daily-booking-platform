@@ -660,28 +660,19 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [boardOwnerId, me, clearChannel, refreshUnread, currentChannelId]);
 
-  // Check if a channel was recently cleared (within grace period)
+  // Check if a channel was recently cleared (within 4 seconds)
   const isChannelRecentlyCleared = useCallback((channelId: string) => {
     const clearedAt = recentlyClearedChannels.get(channelId);
     if (!clearedAt) return false;
-    
-    // If this is the currently active channel, use longer grace period to prevent beaming
-    if (currentChannelId === channelId) {
-      return Date.now() - clearedAt < 4000; // 4 seconds for active channel
-    }
-    
-    // For other channels, use much shorter grace period to allow legitimate badges
-    return Date.now() - clearedAt < 1000; // 1 second for inactive channels
-  }, [recentlyClearedChannels, currentChannelId]);
+    return Date.now() - clearedAt < 4000; // 4 second grace period
+  }, [recentlyClearedChannels]);
 
-  // Check if a peer was recently cleared (within grace period)
+  // Check if a peer was recently cleared (within 4 seconds)
   const isPeerRecentlyCleared = useCallback((peerId: string, peerType: 'admin' | 'sub_user') => {
     const peerKey = `${peerId}_${peerType}`;
     const clearedAt = recentlyClearedPeers.get(peerKey);
     if (!clearedAt) return false;
-    
-    // Use shorter grace period to allow legitimate badges while preventing beaming
-    return Date.now() - clearedAt < 1000; // 1 second grace period
+    return Date.now() - clearedAt < 4000; // 4 second grace period
   }, [recentlyClearedPeers]);
 
   // Clean up old entries from recentlyClearedChannels and peers every 5 seconds
