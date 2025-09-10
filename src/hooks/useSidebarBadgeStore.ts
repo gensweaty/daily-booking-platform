@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 
 type Counts = Record<string, number>;
+type UserType = 'admin' | 'sub_user';
 
 export function useSidebarBadgeStore(opts: {
   boardOwnerId: string | null;
   meId?: string | null;
+  meType?: UserType | null;
   currentChannelId: string | null;
   providerUnreads: Counts;
 }) {
-  const { boardOwnerId, meId, currentChannelId, providerUnreads } = opts;
+  const { boardOwnerId, meId, meType, currentChannelId, providerUnreads } = opts;
 
   const ident = useMemo(
     () => `${boardOwnerId || 'none'}:${meId || 'anon'}`,
@@ -24,13 +26,14 @@ export function useSidebarBadgeStore(opts: {
   const [freezeSnapshot, setFreezeSnapshot] = useState<Counts | null>(null);
   const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
-  // full reset on identity change (same effect as a page refresh)
+  // reset on identity change (same effect as a page refresh)
   useEffect(() => {
     countsRef.current = {};
     setCounts({});
     lastSeenRef.current.clear();
     freezeUntilRef.current = 0;
     setFreezeSnapshot(null);
+    seededRef.current = false;
   }, [ident]);
 
   const setCount = useCallback((cid: string, v: number) => {
@@ -53,29 +56,55 @@ export function useSidebarBadgeStore(opts: {
   const enterChannel = useCallback((cid: string, freezeMs = 240) => {
     const ts = Date.now();
     lastSeenRef.current.set(cid, ts);
-    setCount(cid, 0);
-    // freeze list for a tick while provider/server settles
+    setCount(cid, 0); // local, immediate zero
+    // freeze the list briefly while server/provider settles
     freezeUntilRef.current = nowMs() + freezeMs;
     setFreezeSnapshot({ ...countsRef.current, [cid]: 0 });
   }, [setCount]);
 
-  // Never seed from provider - start fresh with zeros.
-  // Badges only show for genuinely new messages after we mark channels as "seen".
-
-  // Always adopt provider zeros (never re-inflate)
+  // seed once from provider
+  const seededRef = useRef(false);
   useEffect(() => {
+    if (seededRef.current) return;
+    const snapshot: Counts = {};
+    for (const [cid, v] of Object.entries(providerUnreads || {})) {
+      snapshot[cid] = Math.max(0, v || 0);
+    }
+    countsRef.current = snapshot;
+    setCounts(snapshot);
+    seededRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ident]);
+
+  // Always adopt provider zeros and active-channel zero.
+  // Also adopt provider increases (missed bumps) when allowed (not frozen, not active).
+  useEffect(() => {
+    const now = nowMs();
+    const frozen = now < freezeUntilRef.current;
+
     setCounts(prev => {
       let changed = false;
       const next = { ...prev };
 
-      for (const [cid, v] of Object.entries(providerUnreads || {})) {
-        if ((v || 0) === 0 && (next[cid] || 0) !== 0) {
+      for (const [cid, pv] of Object.entries(providerUnreads || {})) {
+        const cur = next[cid] || 0;
+
+        // 1) zeros always win
+        if ((pv || 0) === 0 && cur !== 0) {
           next[cid] = 0;
+          changed = true;
+          continue;
+        }
+
+        // 2) adopt provider increases if we somehow missed an event,
+        //    but only when not frozen and not the active channel
+        if (pv > cur && !frozen && cid !== currentChannelId) {
+          next[cid] = pv;
           changed = true;
         }
       }
 
-      // active channel must always be zero in the sidebar
+      // 3) active channel must stay zero on the sidebar
       if (currentChannelId && (next[currentChannelId] || 0) !== 0) {
         next[currentChannelId] = 0;
         changed = true;
@@ -89,24 +118,28 @@ export function useSidebarBadgeStore(opts: {
     });
   }, [providerUnreads, currentChannelId]);
 
-  // Increment on new messages, but gate by lastSeen and active channel
+  // Increment on new messages, ignore own messages, gate by lastSeen and active channel
   useEffect(() => {
     const onMsg = (evt: any) => {
       const m = evt?.detail?.message;
       const cid: string | undefined = m?.channel_id;
       if (!cid) return;
 
+      // Ignore own messages so you don't badge yourself
+      if (meType === 'admin' && m?.sender_user_id && meId && m.sender_user_id === meId) return;
+      if (meType === 'sub_user' && m?.sender_sub_user_id && meId && m.sender_sub_user_id === meId) return;
+
       const createdAt = m?.created_at ? new Date(m.created_at).getTime() : Date.now();
 
-      // If it's the currently open channel, keep it zero and advance lastSeen
+      // Active channel stays clear; also advance lastSeen so later bumps compare correctly
       if (currentChannelId === cid) {
         if ((countsRef.current[cid] || 0) !== 0) setCount(cid, 0);
-        const prev = lastSeenRef.current.get(cid) || 0;
-        if (createdAt > prev) lastSeenRef.current.set(cid, createdAt);
+        const prevSeen = lastSeenRef.current.get(cid) || 0;
+        if (createdAt > prevSeen) lastSeenRef.current.set(cid, createdAt);
         return;
       }
 
-      // Ignore messages that are not newer than lastSeen (we already "entered" after them)
+      // Only count if strictly newer than our lastSeen for that channel
       const lastSeen = lastSeenRef.current.get(cid) || 0;
       if (createdAt <= lastSeen) return;
 
@@ -115,7 +148,7 @@ export function useSidebarBadgeStore(opts: {
 
     window.addEventListener('chat-message-received', onMsg as EventListener);
     return () => window.removeEventListener('chat-message-received', onMsg as EventListener);
-  }, [currentChannelId, setCount]);
+  }, [currentChannelId, setCount, meId, meType]);
 
   return { get, enterChannel, counts };
 }
