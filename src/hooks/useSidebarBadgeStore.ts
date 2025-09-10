@@ -56,11 +56,21 @@ export function useSidebarBadgeStore(opts: {
   const enterChannel = useCallback((cid: string, freezeMs = 240) => {
     const ts = Date.now();
     lastSeenRef.current.set(cid, ts);
-    setCount(cid, 0); // local, immediate zero
-    // freeze the list briefly while server/provider settles
+    
+    // Immediately zero the count and create freeze snapshot with zero
+    const currentCounts = { ...countsRef.current };
+    currentCounts[cid] = 0;
+    countsRef.current = currentCounts;
+    
+    // Set freeze snapshot with the zero already applied
     freezeUntilRef.current = nowMs() + freezeMs;
-    setFreezeSnapshot({ ...countsRef.current, [cid]: 0 });
-  }, [setCount]);
+    setFreezeSnapshot(currentCounts);
+    
+    // Update React state (this might cause a brief re-render, but freeze snapshot protects us)
+    setCounts(currentCounts);
+    
+    console.log('🔒 Badge store: entering channel, zeroing badge:', cid, 'freeze until:', freezeUntilRef.current);
+  }, []);
 
   // seed once from provider, but wait for actual data
   const seededRef = useRef(false);
