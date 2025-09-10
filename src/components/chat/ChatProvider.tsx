@@ -95,7 +95,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [recentlyClearedChannels, setRecentlyClearedChannels] = useState<Map<string, number>>(new Map());
   const [recentlyClearedPeers, setRecentlyClearedPeers] = useState<Map<string, number>>(new Map());
   
-  // Badge suppression system with TTL
+  // Suppression system - force cache refresh
   const [suppressPulse, setSuppressPulse] = useState(0);
   const bumpSuppressPulse = useCallback(() => setSuppressPulse(p => (p + 1) & 0x7fffffff), []);
 
