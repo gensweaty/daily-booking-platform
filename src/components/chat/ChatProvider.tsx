@@ -996,6 +996,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [boardOwnerId, me, toast, clearChannel, clearPeer, refreshUnread]);
 
+  // Create an immutable snapshot to ensure consumers re-render on bumps
+  const channelUnreadsSnapshot = useMemo(
+    () => ({ ...channelUnreads }),
+    [channelUnreads, rtBump]
+  );
+
   // Context value - memoized to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     isOpen,
@@ -1010,7 +1016,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     openChannel,
     startDM,
     unreadTotal,
-    channelUnreads,
+    channelUnreads: channelUnreadsSnapshot,
     getUserUnreadCount,
     channelMemberMap,
     boardOwnerId,
@@ -1018,7 +1024,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     realtimeEnabled: realtimeEnabled && !isExternalUser,
     isChannelRecentlyCleared,
     isPeerRecentlyCleared,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared]);
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreadsSnapshot, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared]);
 
   return (
     <ChatContext.Provider value={contextValue}>
