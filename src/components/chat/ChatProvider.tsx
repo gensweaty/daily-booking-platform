@@ -481,8 +481,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('📋 Database participation check result:', participation);
           if (participation && participation.length > 0) {
             console.log('✅ Database confirms user is participant of channel:', message.channel_id);
-            // Trigger a refresh to update the userChannels cache
-            refreshUnread();
+            // Debounced refresh to prevent badge flickering - let natural refresh cycle handle it
+            setTimeout(() => {
+              refreshUnread();
+            }, 1000);
             return true;
           }
         } catch (error) {
