@@ -481,10 +481,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('📋 Database participation check result:', participation);
           if (participation && participation.length > 0) {
             console.log('✅ Database confirms user is participant of channel:', message.channel_id);
-            // Debounced refresh to prevent badge flickering - let natural refresh cycle handle it
-            setTimeout(() => {
+            // Only delay refresh if chat is open to prevent beaming, otherwise refresh immediately for notifications
+            if (isOpen) {
+              setTimeout(() => {
+                refreshUnread();
+              }, 1000);
+            } else {
               refreshUnread();
-            }, 1000);
+            }
             return true;
           }
         } catch (error) {
