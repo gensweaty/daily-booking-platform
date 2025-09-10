@@ -173,6 +173,19 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean, ch
     });
   }, []);
 
+  // BULLETPROOF: Immediately zero out channel unread count (synchronous)
+  const clearChannelUnreadImmediate = useCallback((channelId: string) => {
+    console.log('⚡ IMMEDIATE clear unread for channel:', channelId);
+    setChannelUnreads(prev => {
+      if (prev[channelId]) {
+        const updated = { ...prev };
+        delete updated[channelId];
+        return updated;
+      }
+      return prev;
+    });
+  }, []);
+
   const clearUserUnread = useCallback((userId: string, userType: 'admin' | 'sub_user') => {
     const memberKey = `${userId}_${userType}`;
     console.log('🧹 Clearing unread for member:', memberKey);
@@ -217,6 +230,7 @@ export const useUnreadManager = (currentChannelId?: string, isOpen?: boolean, ch
     memberUnreads,
     incrementUnread,
     clearChannelUnread,
+    clearChannelUnreadImmediate,
     clearUserUnread,
     getUserUnreadCount,
     clearAllUnread,

@@ -24,7 +24,7 @@ interface ChatSidebarProps {
 export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {}) => {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed } = useChat();
+  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel } = useChat();
   const location = useLocation();
   const isPublicBoard = location.pathname.startsWith('/board/');
   const publicAccess = useMemo(() => {
@@ -507,7 +507,13 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         {/* General Channel */}
         <button
           onPointerDown={() => {
-            if (generalChannelId) flushSync(() => suppressChannelBadge(generalChannelId));
+            if (generalChannelId) {
+              flushSync(() => {
+                // Clear the actual unread count immediately - bulletproof fix
+                clearChannel(generalChannelId);
+                suppressChannelBadge(generalChannelId);
+              });
+            }
           }}
           onClick={() => {
             if (generalChannelId) {
@@ -779,7 +785,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               {customChats.map((chat) => (
                 <div key={chat.id} className="group flex items-center">
                   <button
-                    onPointerDown={() => flushSync(() => suppressChannelBadge(chat.id))}
+                    onPointerDown={() => flushSync(() => {
+                      clearChannel(chat.id);
+                      suppressChannelBadge(chat.id);
+                    })}
                     onClick={() => {
                       // Tell the header this is a custom channel
                       window.dispatchEvent(new CustomEvent('chat-header', {

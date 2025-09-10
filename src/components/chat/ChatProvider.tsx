@@ -45,6 +45,7 @@ type ChatCtx = {
   suppressPeerBadge: (peerId: string, peerType: 'admin' | 'sub_user', ms?: number) => void;
   isChannelBadgeSuppressed: (channelId: string) => boolean;
   isPeerBadgeSuppressed: (peerId: string, peerType: 'admin' | 'sub_user') => boolean;
+  clearChannel: (channelId: string) => void;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -665,7 +666,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [shouldShowChat, currentChannelId, defaultChannelId, isOnPublicBoard, me?.id, clearChannel]);
 
   const openChannel = useCallback(async (channelId: string) => {
-    // PRE-PAINT mask — do this first
+    // BULLETPROOF FIX: Clear unread count IMMEDIATELY before any other operations
+    // This prevents React from ever rendering the old count
+    clearChannel(channelId);
+    
     const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me?.id || '');
     const isExternalUser = !isValidUUID;
 
@@ -1131,7 +1135,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     suppressPeerBadge,
     isChannelBadgeSuppressed,
     isPeerBadgeSuppressed,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, uiUnreadTotal, uiChannelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed]);
+    clearChannel,
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, uiUnreadTotal, uiChannelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel]);
 
   return (
     <ChatContext.Provider value={contextValue}>
