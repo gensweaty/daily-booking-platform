@@ -28,7 +28,7 @@ export function useSidebarBadgeStore(opts: {
 
   // post-read quarantine to prevent stale provider increases
   const quarantineRef = useRef<Map<string, number>>(new Map());
-  const QUARANTINE_MS = 1200; // Longer quarantine to handle server latency
+  const QUARANTINE_MS = 600;
 
   // reset on identity change (same effect as a page refresh)
   useEffect(() => {
@@ -49,12 +49,6 @@ export function useSidebarBadgeStore(opts: {
 
   const get = useCallback(
     (cid: string) => {
-      // Always check quarantine first - if quarantined, force zero
-      const quarantineUntil = quarantineRef.current.get(cid) || 0;
-      if (Date.now() < quarantineUntil) {
-        return 0;
-      }
-      
       if (freezeSnapshot && nowMs() < freezeUntilRef.current) {
         return Math.max(0, freezeSnapshot[cid] || 0);
       }
@@ -64,16 +58,11 @@ export function useSidebarBadgeStore(opts: {
   );
 
   // call on pointerdown of a channel row
-  const enterChannel = useCallback((cid: string, freezeMs = 300) => {
+  const enterChannel = useCallback((cid: string, freezeMs = 240) => {
     const ts = Date.now();
-    const quarantineUntil = ts + QUARANTINE_MS;
-    
     lastSeenRef.current.set(cid, ts);
     
-    // CRITICAL: Set quarantine FIRST to block any provider updates during the zero operation
-    quarantineRef.current.set(cid, quarantineUntil);
-    
-    // Immediately zero the count and create freeze snapshot with zero  
+    // Immediately zero the count and create freeze snapshot with zero
     const currentCounts = { ...countsRef.current };
     currentCounts[cid] = 0;
     countsRef.current = currentCounts;
@@ -82,10 +71,13 @@ export function useSidebarBadgeStore(opts: {
     freezeUntilRef.current = nowMs() + freezeMs;
     setFreezeSnapshot(currentCounts);
     
-    // Update React state 
+    // Start quarantine to ignore stale provider increases for this channel
+    quarantineRef.current.set(cid, Date.now() + QUARANTINE_MS);
+    
+    // Update React state (this might cause a brief re-render, but freeze snapshot protects us)
     setCounts(currentCounts);
     
-    console.log('🔒 Badge store: entering channel, zeroing badge:', cid, 'quarantine until:', quarantineUntil);
+    console.log('🔒 Badge store: entering channel, zeroing badge:', cid, 'freeze until:', freezeUntilRef.current);
   }, []);
 
   // seed once from provider, but wait for actual data
