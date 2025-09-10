@@ -9,8 +9,10 @@ export function useSidebarBadgeStore(opts: {
   meType?: UserType | null;
   currentChannelId: string | null;
   providerUnreads: Counts;
+  isChannelBadgeSuppressed?: (channelId: string) => boolean;
+  isChannelRecentlyCleared?: (channelId: string) => boolean;
 }) {
-  const { boardOwnerId, meId, meType, currentChannelId, providerUnreads } = opts;
+  const { boardOwnerId, meId, meType, currentChannelId, providerUnreads, isChannelBadgeSuppressed, isChannelRecentlyCleared } = opts;
 
   const ident = useMemo(
     () => `${boardOwnerId || 'none'}:${meId || 'anon'}`,
@@ -49,12 +51,17 @@ export function useSidebarBadgeStore(opts: {
 
   const get = useCallback(
     (cid: string) => {
+      // Check ChatProvider suppressions first
+      if (isChannelBadgeSuppressed?.(cid) || isChannelRecentlyCleared?.(cid)) {
+        return 0;
+      }
+      
       if (freezeSnapshot && nowMs() < freezeUntilRef.current) {
         return Math.max(0, freezeSnapshot[cid] || 0);
       }
       return Math.max(0, (countsRef.current[cid] || 0));
     },
-    [freezeSnapshot]
+    [freezeSnapshot, isChannelBadgeSuppressed, isChannelRecentlyCleared]
   );
 
   // call on pointerdown of a channel row

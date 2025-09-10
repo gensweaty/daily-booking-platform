@@ -42,7 +42,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     meId: me?.id,
     meType: me?.type,
     currentChannelId,
-    providerUnreads: channelUnreads
+    providerUnreads: channelUnreads,
+    isChannelBadgeSuppressed,
+    isChannelRecentlyCleared
   });
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   const [members, setMembers] = useState<Array<{ 
