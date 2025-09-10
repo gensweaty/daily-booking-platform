@@ -41,6 +41,8 @@ type ChatCtx = {
   realtimeEnabled: boolean;
   isChannelRecentlyCleared: (channelId: string) => boolean;
   isPeerRecentlyCleared: (peerId: string, peerType: 'admin' | 'sub_user') => boolean;
+  // Internal version pulse to re-render consumers when unread data changes
+  __unreadPulse: number;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -187,16 +189,33 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // State for realtime bumps
   const [rtBump, setRtBump] = useState<{ channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean } | undefined>(undefined);
 
+  // Rerender trigger for any unread changes (consumers don't need to use it)
+  const [unreadPulse, setUnreadPulse] = useState(0);
+  const tickUnread = useCallback(() => {
+    // small bounded counter to avoid huge growth
+    setUnreadPulse(p => (p + 1) & 0x7fffffff);
+  }, []);
+
+  // Optimistic DM bump for ~1.5s to avoid "momentary zero" on peers
+  const peerOptimisticRef = React.useRef<Map<string, number>>(new Map()); // key -> expiresAt ms
+
   // --- Sticky anti-flicker for sidebar badges ---
   const [uiChannelUnreads, setUiChannelUnreads] = useState<{ [id: string]: number }>({});
   const lastBumpByChannelRef = React.useRef<Map<string, number>>(new Map());
 
-  // Peer (DM) sticky cache (no state to avoid render loops)
+  // Peer (DM) sticky cache (no state to avoid render loops)  
   const lastBumpByPeerRef = React.useRef<Map<string, number>>(new Map());
   const peerStickyRef = React.useRef<Map<string, { value: number; lastBump: number }>>(new Map());
 
   // Helper
   const peerKey = (id: string, type: 'admin' | 'sub_user') => `${type}:${id}`;
+
+  const scheduleOptimisticExpiryTick = useCallback((delayMs: number = 1500) => {
+    // One-shot pulse to drop the optimistic 1 when it expires (if server hasn't set real count)
+    setTimeout(() => {
+      tickUnread();
+    }, delayMs);
+  }, [tickUnread]);
 
   // Server-based unread management
   const {
@@ -252,6 +271,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       lastBumpByChannelRef.current.clear();
       lastBumpByPeerRef.current.clear();
       peerStickyRef.current.clear();
+      setUnreadPulse(0);
+      peerOptimisticRef.current.clear();
 
       // tell ChatArea to drop its caches & timers
       window.dispatchEvent(new CustomEvent('chat-reset'));
@@ -411,6 +432,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           if (memberRef && !String(memberRef.id).startsWith('custom_')) {
             lastBumpByPeerRef.current.set(peerKey(memberRef.id, memberRef.type), Date.now());
           }
+
+          // Nudge consumers immediately so sidebars re-render now
+          tickUnread();
+
+          // Optimistic DM 1-count for ~1.5s (only for DM, not custom channel id)
+          const memberRef2 = channelMemberMap.get(message.channel_id);
+          if (memberRef2 && !String(memberRef2.id).startsWith('custom_')) {
+            const key = peerKey(memberRef2.id, memberRef2.type);
+            peerOptimisticRef.current.set(key, Date.now() + 1500);
+            scheduleOptimisticExpiryTick(1500);
+          }
         }
 
         // 2) notifications (don't redispatch event here to avoid loops)
@@ -494,6 +526,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         const memberRef = channelMemberMap.get(message.channel_id);
         if (memberRef && !String(memberRef.id).startsWith('custom_')) {
           lastBumpByPeerRef.current.set(peerKey(memberRef.id, memberRef.type), Date.now());
+        }
+
+        // Nudge consumers immediately so sidebars re-render now
+        tickUnread();
+
+        // Optimistic DM 1-count for ~1.5s (only for DM, not custom channel id)
+        const memberRef2 = channelMemberMap.get(message.channel_id);
+        if (memberRef2 && !String(memberRef2.id).startsWith('custom_')) {
+          const key = peerKey(memberRef2.id, memberRef2.type);
+          peerOptimisticRef.current.set(key, Date.now() + 1500);
+          scheduleOptimisticExpiryTick(1500);
         }
       }
 
@@ -1039,6 +1082,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     [JSON.stringify(channelUnreads), rtBump]
   );
 
+  useEffect(() => {
+    // Whenever the underlying unread map or total changes, nudge consumers
+    tickUnread();
+  }, [JSON.stringify(channelUnreads), unreadTotal, tickUnread]);
+
   // Build a sticky UI map for channel badges
   useEffect(() => {
     const now = Date.now();
@@ -1064,13 +1112,28 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       // Keep any previous channels that aren't present yet in the snapshot
       return next;
     });
-  }, [channelUnreadsSnapshot, isOpen, currentChannelId]);
+  }, [channelUnreadsSnapshot, isOpen, currentChannelId, unreadPulse]);
 
   // Make DM (peer) counts sticky, but pure (no setState in render)
   const getUserUnreadCountSticky = useCallback(
     (userId: string, userType: 'admin' | 'sub_user') => {
-      const raw = getPeerUnread(userId, userType) || 0;
+      const now = Date.now();
       const key = peerKey(userId, userType);
+
+      // Clear expired optimistic entries
+      const optimisticUntil = peerOptimisticRef.current.get(key) || 0;
+      if (optimisticUntil && optimisticUntil <= now) {
+        peerOptimisticRef.current.delete(key);
+      }
+
+      // Base value from server hook
+      const base = getPeerUnread(userId, userType) || 0;
+
+      // If we still have an active optimistic window, reflect at least 1
+      const optimistic = (peerOptimisticRef.current.get(key) || 0) > now ? 1 : 0;
+      const raw = Math.max(base, optimistic);
+
+      // Sticky smoothing (your existing logic)
       const rec = peerStickyRef.current.get(key) || { value: 0, lastBump: 0 };
       const bumpAt = lastBumpByPeerRef.current.get(key) || 0;
       if (bumpAt > rec.lastBump) rec.lastBump = bumpAt;
@@ -1078,7 +1141,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       if (raw > 0) {
         rec.value = raw; // increases are immediate
       } else {
-        const withinSticky = Date.now() - rec.lastBump < 1200;
+        const withinSticky = now - rec.lastBump < 1200;
         if (!withinSticky) rec.value = 0; // drop only outside sticky window
         // else keep last non-zero value to avoid flicker
       }
@@ -1111,7 +1174,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     realtimeEnabled: realtimeEnabled && !isExternalUser,
     isChannelRecentlyCleared,
     isPeerRecentlyCleared,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, uiChannelUnreads, getUserUnreadCountSticky, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared]);
+    __unreadPulse: unreadPulse, // ← forces consumers to update
+  }), [
+    isOpen, open, close, toggle,
+    isInitialized, hasSubUsers, me,
+    currentChannelId, openChannel, startDM,
+    unreadTotal, uiChannelUnreads, getUserUnreadCountSticky,
+    channelMemberMap, boardOwnerId, connectionStatus,
+    realtimeEnabled, isExternalUser,
+    isChannelRecentlyCleared, isPeerRecentlyCleared,
+    unreadPulse, // ← include in deps
+  ]);
 
   return (
     <ChatContext.Provider value={contextValue}>
