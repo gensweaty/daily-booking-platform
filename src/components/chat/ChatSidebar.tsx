@@ -576,30 +576,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               }
             }
             
-            // Only show peer badges for DM channels, not for general/custom channel messages
-            // Find if there's a DM channel between current user and this member
-            const dmChannelId = Array.from(channelMemberMap.entries()).find(([channelId, member_info]) => {
-              // Check if this channel has exactly 2 participants: current user and this member
-              const channelMembers = Array.from(channelMemberMap.entries())
-                .filter(([cId]) => cId === channelId)
-                .map(([, memberInfo]) => memberInfo);
-              
-              if (channelMembers.length !== 2) return false;
-              
-              // Check if one member is current user and other is the target member
-              const hasCurrentUser = channelMembers.some(m => 
-                (me?.type === 'admin' && m.type === 'admin' && m.id === me.id) ||
-                (me?.type === 'sub_user' && m.type === 'sub_user' && m.id === me.id)
-              );
-              const hasTargetMember = channelMembers.some(m => 
-                m.type === member.type && m.id === member.id
-              );
-              
-              return hasCurrentUser && hasTargetMember;
-            })?.[0];
-            
-            // Only show peer unread if there's an actual DM channel with unread messages
-            const peerUnread = dmChannelId ? (channelUnreads[dmChannelId] ?? 0) : 0;
+            // Get peer unread count for DM conversations only
+            const peerUnread = getUserUnreadCount(member.id, member.type);
             
             // Hide current user from the list
             if (isMe) {

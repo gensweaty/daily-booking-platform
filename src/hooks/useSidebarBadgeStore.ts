@@ -31,6 +31,7 @@ export function useSidebarBadgeStore(opts: {
     lastSeenRef.current.clear();
     freezeUntilRef.current = 0;
     setFreezeSnapshot(null);
+    seededRef.current = false;
   }, [ident]);
 
   const setCount = useCallback((cid: string, v: number) => {
@@ -59,8 +60,19 @@ export function useSidebarBadgeStore(opts: {
     setFreezeSnapshot({ ...countsRef.current, [cid]: 0 });
   }, [setCount]);
 
-  // Never seed from provider - start fresh with zeros.
-  // Badges only show for genuinely new messages after we mark channels as "seen".
+  // Seed once from provider (initial state). After that we ignore provider increases.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    const snapshot: Counts = {};
+    for (const [cid, v] of Object.entries(providerUnreads || {})) {
+      snapshot[cid] = Math.max(0, v || 0);
+    }
+    countsRef.current = snapshot;
+    setCounts(snapshot);
+    seededRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ident]);
 
   // Always adopt provider zeros (never re-inflate)
   useEffect(() => {
