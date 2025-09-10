@@ -48,6 +48,56 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   }>>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<{ id: string; name: string } | null>(null);
+  
+  // Local badge mute system - independent of provider logic
+  const [badgeMute, setBadgeMute] = useState<Map<string, number>>(new Map());
+
+  // helper — mute a badge immediately for ms
+  const muteBadge = (id: string, ms = 2000) => {
+    setBadgeMute(prev => {
+      const next = new Map(prev);
+      next.set(id, Date.now() + ms);
+      return next;
+    });
+  };
+
+  // helper — is a badge currently muted?
+  const isMuted = (id: string) => {
+    const until = badgeMute.get(id) ?? 0;
+    if (!until) return false;
+    if (until <= Date.now()) {
+      // expire quietly
+      setBadgeMute(prev => {
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
+      });
+      return false;
+    }
+    return true;
+  };
+
+  // effect — if the provider brings a channel to 0, clear its mute early
+  useEffect(() => {
+    if (badgeMute.size === 0) return;
+    setBadgeMute(prev => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const [id] of prev) {
+        // provider already at 0? drop mute
+        if ((channelUnreads[id] ?? 0) === 0) {
+          next.delete(id);
+          changed = true;
+        }
+        // if this is the active channel, also drop mute
+        if (currentChannelId === id) {
+          next.delete(id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [channelUnreads, currentChannelId, badgeMute.size]);
 
   // Load general channel with improved selection logic
   useEffect(() => {
@@ -509,8 +559,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           onPointerDown={() => {
             if (generalChannelId) {
               flushSync(() => {
-                // Clear the actual unread count immediately - bulletproof fix
-                clearChannel(generalChannelId);
+                muteBadge(generalChannelId);           // local, instant mute
+                clearChannel(generalChannelId);         // keep existing immediate clears
                 suppressChannelBadge(generalChannelId);
               });
             }
@@ -542,6 +592,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             </span>
           </div>
           {generalChannelId && 
+           !isMuted(generalChannelId) &&
            (channelUnreads[generalChannelId] ?? 0) > 0 && (
               <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
                 {(channelUnreads[generalChannelId] ?? 0) > 99 ? '99+' : channelUnreads[generalChannelId]}
@@ -786,7 +837,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                 <div key={chat.id} className="group flex items-center">
                   <button
                     onPointerDown={() => flushSync(() => {
-                      clearChannel(chat.id);
+                      muteBadge(chat.id);                   // local, instant mute
+                      clearChannel(chat.id);                // keep existing immediate clears
                       suppressChannelBadge(chat.id);
                     })}
                     onClick={() => {
@@ -810,7 +862,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     <Hash className="h-4 w-4 flex-shrink-0" />
                     <span className="font-medium truncate">{chat.name}</span>
                     
-                    {chat.id && (channelUnreads[chat.id] ?? 0) > 0 && (
+                    {chat.id && 
+                     !isMuted(chat.id) &&
+                     (channelUnreads[chat.id] ?? 0) > 0 && (
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
                         {(channelUnreads[chat.id] ?? 0) > 99 ? '99+' : channelUnreads[chat.id]}
                       </span>
