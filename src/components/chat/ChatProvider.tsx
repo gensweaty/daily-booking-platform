@@ -205,6 +205,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     me?.email ?? null
   );
 
+  // Create an immutable snapshot to ensure consumers re-render on bumps
+  const channelUnreadsSnapshot = useMemo(
+    () => ({ ...channelUnreads }),
+    // include rtBump primitives so a new message forces a fresh snapshot even if the hook mutated in place
+    [channelUnreads, rtBump?.channelId, rtBump?.createdAt]
+  );
+
   // Wrapper for getUserUnreadCount to match old interface
   const getUserUnreadCount = useCallback((userId: string, userType: 'admin' | 'sub_user') => {
     return getPeerUnread(userId, userType);
@@ -1010,7 +1017,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     openChannel,
     startDM,
     unreadTotal,
-    channelUnreads,
+    channelUnreads: channelUnreadsSnapshot,   // ← use snapshot here
     getUserUnreadCount,
     channelMemberMap,
     boardOwnerId,
@@ -1018,7 +1025,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     realtimeEnabled: realtimeEnabled && !isExternalUser,
     isChannelRecentlyCleared,
     isPeerRecentlyCleared,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared]);
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, unreadTotal, channelUnreadsSnapshot, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared]);
 
   return (
     <ChatContext.Provider value={contextValue}>
