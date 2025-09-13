@@ -25,7 +25,7 @@ interface ChatSidebarProps {
 export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {}) => {
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel } = useChat();
+  const { me, boardOwnerId, currentChannelId, openChannel, startDM, unreadTotal, channelUnreads, getUserUnreadCount, channelMemberMap, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel, userChannels } = useChat();
   const location = useLocation();
   const isPublicBoard = location.pathname.startsWith('/board/');
   const publicAccess = useMemo(() => {
@@ -43,6 +43,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     meType: me?.type,
     currentChannelId,
     providerUnreads: channelUnreads,
+    userChannels,
     isChannelBadgeSuppressed,
     isChannelRecentlyCleared
   });

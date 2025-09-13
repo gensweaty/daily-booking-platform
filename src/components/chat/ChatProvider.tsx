@@ -46,6 +46,7 @@ type ChatCtx = {
   isChannelBadgeSuppressed: (channelId: string) => boolean;
   isPeerBadgeSuppressed: (peerId: string, peerType: 'admin' | 'sub_user') => boolean;
   clearChannel: (channelId: string) => void;
+  userChannels: Set<string>;
 };
 
 const ChatContext = createContext<ChatCtx | null>(null);
@@ -447,9 +448,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
         // 2) notifications (don't redispatch event here to avoid loops)
         if (!skipBecauseOpen) {
-          // PUBLIC BOARD: trust the polling source (visibility already enforced by the RPC).
-          // INTERNAL BOARD: keep the membership guard for safety.
-          const shouldShow = isOnPublicBoard ? true : userChannels.has(message.channel_id);
+          // FIXED: Always check channel participation, even for public boards
+          const shouldShow = userChannels.has(message.channel_id);
           if (shouldShow) {
             import('@/utils/audioManager')
               .then(({ playNotificationSound }) => playNotificationSound())
@@ -1136,7 +1136,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     isChannelBadgeSuppressed,
     isPeerBadgeSuppressed,
     clearChannel,
-  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, uiUnreadTotal, uiChannelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel]);
+    userChannels,
+  }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, uiUnreadTotal, uiChannelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel, userChannels]);
 
   return (
     <ChatContext.Provider value={contextValue}>

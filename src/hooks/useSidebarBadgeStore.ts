@@ -9,10 +9,11 @@ export function useSidebarBadgeStore(opts: {
   meType?: UserType | null;
   currentChannelId: string | null;
   providerUnreads: Counts;
+  userChannels: Set<string>; // Add user channels to check participation
   isChannelBadgeSuppressed?: (channelId: string) => boolean;
   isChannelRecentlyCleared?: (channelId: string) => boolean;
 }) {
-  const { boardOwnerId, meId, meType, currentChannelId, providerUnreads, isChannelBadgeSuppressed, isChannelRecentlyCleared } = opts;
+  const { boardOwnerId, meId, meType, currentChannelId, providerUnreads, userChannels, isChannelBadgeSuppressed, isChannelRecentlyCleared } = opts;
 
   const ident = useMemo(
     () => `${boardOwnerId || 'none'}:${meId || 'anon'}`,
@@ -185,6 +186,12 @@ export function useSidebarBadgeStore(opts: {
       const cid: string | undefined = m?.channel_id;
       if (!cid) return;
 
+      // CRITICAL: Only process messages from channels the user participates in
+      if (!userChannels.has(cid)) {
+        console.log('🚫 Badge store: ignoring message from non-participating channel:', cid);
+        return;
+      }
+
       // Ignore own messages so you don't badge yourself
       if (meType === 'admin' && m?.sender_user_id && meId && m.sender_user_id === meId) {
         console.log('🚫 Badge store: ignoring own message from admin:', meId);
@@ -225,7 +232,7 @@ export function useSidebarBadgeStore(opts: {
 
     window.addEventListener('chat-message-received', onMsg as EventListener);
     return () => window.removeEventListener('chat-message-received', onMsg as EventListener);
-  }, [currentChannelId, setCount, meId, meType]);
+  }, [currentChannelId, setCount, meId, meType, userChannels]);
 
   return { get, enterChannel, counts };
 }
