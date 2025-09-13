@@ -977,6 +977,66 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               console.log('📍 Added custom chat to channel map:', { channelId: channel.id, name: channel.name });
             }
           });
+        } else if (me.type === 'sub_user') {
+          // Handle sub-users (for external/public board users)
+          console.log('👤 Fetching channel member map for sub-user:', me.id);
+          
+          // Get DM channels for sub-user - map to the "other" participant
+          const { data: dmChannels } = await supabase
+            .from('chat_channels')
+            .select('id, chat_participants(user_id, sub_user_id, user_type)')
+            .eq('owner_id', boardOwnerId)
+            .eq('is_dm', true);
+
+          dmChannels?.forEach((channel: any) => {
+            const participants = channel.chat_participants || [];
+            // Check if this sub-user is a participant
+            const isMyChannel = participants.some((p: any) => 
+              p.user_type === 'sub_user' && p.sub_user_id === me.id
+            );
+            
+            if (isMyChannel) {
+              // Find the other participant (not me)
+              const otherParticipant = participants.find((p: any) => 
+                !(p.user_type === 'sub_user' && p.sub_user_id === me.id)
+              );
+
+              if (otherParticipant) {
+                const memberId = otherParticipant.user_id || otherParticipant.sub_user_id;
+                const memberType = otherParticipant.user_type as 'admin' | 'sub_user';
+                
+                if (memberId && memberType) {
+                  newMap.set(channel.id, { id: memberId, type: memberType });
+                  console.log('📍 Added DM channel for sub-user:', { channelId: channel.id, otherMember: { id: memberId, type: memberType } });
+                }
+              }
+            }
+          });
+
+          // Get custom chats for sub-user
+          const { data: customChannels } = await supabase
+            .from('chat_channels')
+            .select('id, name, created_by_type, created_by_id, chat_participants(user_id, sub_user_id, user_type)')
+            .eq('owner_id', boardOwnerId)
+            .eq('is_custom', true)
+            .eq('is_deleted', false);
+
+          customChannels?.forEach((channel: any) => {
+            // Check if current sub-user is a participant in this custom chat
+            const participants = channel.chat_participants || [];
+            const isParticipant = participants.some((p: any) => 
+              p.user_type === 'sub_user' && p.sub_user_id === me.id
+            );
+
+            if (isParticipant) {
+              // For custom chats, use a special identifier to prevent DM attribution but allow unread tracking
+              newMap.set(channel.id, { 
+                id: `custom_${channel.id}`, // Use channel ID to avoid collisions
+                type: channel.created_by_type as 'admin' | 'sub_user' 
+              });
+              console.log('📍 Added custom chat to channel map for sub-user:', { channelId: channel.id, name: channel.name });
+            }
+          });
         }
 
         setChannelMemberMap(newMap);
