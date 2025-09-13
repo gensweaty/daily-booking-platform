@@ -33,16 +33,34 @@ export function useSidebarBadgeStore(opts: {
   const countsRef = useRef<Counts>({});
   const lastSeenRef = useRef<Map<string, number>>(new Map());
 
-  // Simple visual suppression during channel switching - only affects display
-  const visualSuppressionRef = useRef<Map<string, number>>(new Map());
-  const SUPPRESSION_MS = 1500; // Brief visual suppression during switching
+  // freeze snapshot during switch (prevents list churn)
+  const freezeUntilRef = useRef<number>(0);
+  const [freezeSnapshot, setFreezeSnapshot] = useState<Counts | null>(null);
+  const nowMs = () =>
+    (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+
+  // ignore provider increases for a bit after entering
+  const quarantineRef = useRef<Map<string, number>>(new Map());
+  const QUARANTINE_MS = 1400;
+
+  // guard the channel being switched TO
+  const switchingUntilRef = useRef<Map<string, number>>(new Map());
+  const SWITCH_MS = 1300;
+
+  // NEW: guard the channel being switched FROM
+  const leavingUntilRef = useRef<Map<string, number>>(new Map());
+  const LEAVE_MS = 1300;
 
   // reset on identity change
   useEffect(() => {
     countsRef.current = {};
     setCounts({});
     lastSeenRef.current.clear();
-    visualSuppressionRef.current.clear();
+    freezeUntilRef.current = 0;
+    setFreezeSnapshot(null);
+    quarantineRef.current.clear();
+    switchingUntilRef.current.clear();
+    leavingUntilRef.current.clear();
     seededRef.current = false;
   }, [ident]);
 
@@ -54,29 +72,50 @@ export function useSidebarBadgeStore(opts: {
 
   const get = useCallback(
     (cid: string) => {
-      // Simple visual suppression check - only affects badge display
-      const nowTs = Date.now();
-      if ((visualSuppressionRef.current.get(cid) || 0) > nowTs) return 0;
-      
-      // Standard checks - don't interfere with core notification logic
+      const now = Date.now();
+      // hard guards first
+      if ((switchingUntilRef.current.get(cid) || 0) > now) return 0;
+      if ((leavingUntilRef.current.get(cid) || 0) > now) return 0;
+
       if (isChannelBadgeSuppressed?.(cid) || isChannelRecentlyCleared?.(cid)) return 0;
       if (currentChannelId === cid) return 0;
-      
+
+      if (freezeSnapshot && nowMs() < freezeUntilRef.current) {
+        return Math.max(0, freezeSnapshot[cid] || 0);
+      }
       return Math.max(0, countsRef.current[cid] || 0);
     },
-    [isChannelBadgeSuppressed, isChannelRecentlyCleared, currentChannelId]
+    [freezeSnapshot, isChannelBadgeSuppressed, isChannelRecentlyCleared, currentChannelId]
   );
 
-  // Simple visual suppression during channel switching - doesn't affect data
-  const enterChannel = useCallback((nextCid: string) => {
+  // call on pre-interaction; also safe to call again on click
+  const enterChannel = useCallback((nextCid: string, freezeMs = 1100) => {
     const ts = Date.now();
     lastSeenRef.current.set(nextCid, ts);
-    
-    // Brief visual suppression of both entering and leaving channels
-    visualSuppressionRef.current.set(nextCid, ts + SUPPRESSION_MS);
+
+    // guard the channel we're going TO
+    switchingUntilRef.current.set(nextCid, ts + SWITCH_MS);
+    quarantineRef.current.set(nextCid, ts + QUARANTINE_MS);
+
+    // guard the channel we're leaving (current active), if any
+    // NOTE: currentChannelId here is the "old" one at the moment you click.
     if (currentChannelId && currentChannelId !== nextCid) {
-      visualSuppressionRef.current.set(currentChannelId, ts + SUPPRESSION_MS);
+      leavingUntilRef.current.set(currentChannelId, ts + LEAVE_MS);
+      // ensure the leaving channel stays visually zero
+      if ((countsRef.current[currentChannelId] || 0) !== 0) {
+        countsRef.current[currentChannelId] = 0;
+      }
     }
+
+    // zero entering channel immediately
+    const currentCounts = { ...countsRef.current, [nextCid]: 0 };
+    countsRef.current = currentCounts;
+
+    // freeze list briefly
+    freezeUntilRef.current = nowMs() + freezeMs;
+    setFreezeSnapshot(currentCounts);
+
+    setCounts({ ...currentCounts });
   }, [currentChannelId]);
 
   // seed once from provider
@@ -95,23 +134,44 @@ export function useSidebarBadgeStore(opts: {
     seededRef.current = true;
   }, [ident, providerUnreads]);
 
-  // Normal provider synchronization - don't interfere with core data
+  // adopt provider zeros; cautiously adopt increases
   useEffect(() => {
+    const now = nowMs();
+    const frozen = now < freezeUntilRef.current;
+
     setCounts(prev => {
       let changed = false;
       const next = { ...prev };
 
       for (const [cid, pv] of Object.entries(providerUnreads || {})) {
         const cur = next[cid] || 0;
-        
-        // Always adopt provider updates - let the provider handle the logic
-        if ((pv || 0) !== cur) {
-          next[cid] = Math.max(0, pv || 0);
+
+        // zeros always win
+        if ((pv || 0) === 0 && cur !== 0) {
+          next[cid] = 0;
           changed = true;
+          continue;
+        }
+
+        // adopt provider increases only if:
+        // - not frozen
+        // - not the active channel
+        // - outside quarantine
+        // - outside switch-guard
+        // - outside leaving-guard
+        if (pv > cur && !frozen && cid !== currentChannelId) {
+          const nowTs = Date.now();
+          const qUntil = quarantineRef.current.get(cid) || 0;
+          const swUntil = switchingUntilRef.current.get(cid) || 0;
+          const lvUntil = leavingUntilRef.current.get(cid) || 0;
+          if (nowTs > qUntil && nowTs > swUntil && nowTs > lvUntil) {
+            next[cid] = pv;
+            changed = true;
+          }
         }
       }
 
-      // Active channel is always zero
+      // active channel must always be zero
       if (currentChannelId && (next[currentChannelId] || 0) !== 0) {
         next[currentChannelId] = 0;
         changed = true;
@@ -146,6 +206,9 @@ export function useSidebarBadgeStore(opts: {
         if ((countsRef.current[cid] || 0) !== 0) setCount(cid, 0);
         const prevSeen = lastSeenRef.current.get(cid) || 0;
         if (createdAt > prevSeen) lastSeenRef.current.set(cid, createdAt);
+        // entering/leaving guards not needed for active channel
+        switchingUntilRef.current.delete(cid);
+        leavingUntilRef.current.delete(cid);
         return;
       }
 
@@ -153,8 +216,10 @@ export function useSidebarBadgeStore(opts: {
       const lastSeen = lastSeenRef.current.get(cid) || 0;
       if (createdAt <= lastSeen) return;
 
-      // Real new message clears visual suppression to show immediately
-      visualSuppressionRef.current.delete(cid);
+      // real new message → clear guards for that channel
+      switchingUntilRef.current.delete(cid);
+      leavingUntilRef.current.delete(cid);
+      quarantineRef.current.delete(cid);
 
       setCount(cid, (countsRef.current[cid] || 0) + 1);
     };

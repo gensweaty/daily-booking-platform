@@ -23,7 +23,6 @@ export function useServerUnread(
 
   const refresh = useCallback(async () => {
     if (!ownerId || !viewerType || !viewerId || fetching.current) return;
-    
     fetching.current = true;
     try {
       let effectiveViewerId = viewerId;
