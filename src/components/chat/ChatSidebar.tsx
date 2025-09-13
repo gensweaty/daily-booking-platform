@@ -609,7 +609,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
             "bg-muted hover:bg-muted/80 border border-muted/80 hover:border-muted",
             "dark:bg-muted/60 dark:hover:bg-muted/80 dark:border-muted/70 dark:hover:border-muted/90",
-            currentChannelId === generalChannelId ? "!bg-primary/20 !text-primary !border-primary/30 font-medium" : ""
+            currentChannelId === generalChannelId ? "!bg-primary/20 !text-primary !border-primary/30 font-medium dark:!bg-primary/30 dark:!text-primary-foreground" : ""
           )}
         >
           <div className="flex items-center gap-2">
@@ -653,25 +653,19 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               return null;
             })();
             
-            // Enhanced DM active state detection
+            // Simplified and reliable DM active state detection
             const isActiveDM = (() => {
               if (!currentChannelId) return false;
               
-              // Primary check: exact channel match
-              if (dmChannelId && dmChannelId === currentChannelId) return true;
-              
-              // Secondary check: current channel is mapped to this member
-              const mappedMember = channelMemberMap.get(currentChannelId);
-              if (mappedMember && mappedMember.id === member.id && mappedMember.type === member.type) {
+              // Primary check: exact channel match using dmChannelId
+              if (dmChannelId && dmChannelId === currentChannelId) {
                 return true;
               }
               
-              // Tertiary check: look for DM pattern in channel ID
-              // DM channels often contain both participant IDs
-              if (currentChannelId.includes(member.id)) {
-                // Additional validation - ensure it's actually a DM channel
-                const isDMChannel = channelMemberMap.has(currentChannelId);
-                if (isDMChannel) return true;
+              // Fallback: check if current channel is mapped to this member in channelMemberMap
+              const mappedMember = channelMemberMap.get(currentChannelId);
+              if (mappedMember && mappedMember.id === member.id && mappedMember.type === member.type) {
+                return true;
               }
               
               return false;
@@ -876,7 +870,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
                   "bg-muted hover:bg-muted/80 border border-muted/80 hover:border-muted",
                   "dark:bg-muted/60 dark:hover:bg-muted/80 dark:border-muted/70 dark:hover:border-muted/90",
-                  isActiveDM ? "!bg-primary/20 !text-primary !border-primary/30 font-medium" : ""
+                  isActiveDM ? "!bg-primary/20 !text-primary !border-primary/30 font-medium dark:!bg-primary/30 dark:!text-primary-foreground" : ""
                 )}
                 title={`Start conversation with ${member.name}`}
               >
@@ -1006,7 +1000,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       "flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-left",
                       "bg-muted hover:bg-muted/80 border border-muted/80 hover:border-muted",
                       "dark:bg-muted/60 dark:hover:bg-muted/80 dark:border-muted/70 dark:hover:border-muted/90",
-                      currentChannelId === chat.id ? "!bg-primary/20 !text-primary !border-primary/30 font-medium" : ""
+                      currentChannelId === chat.id ? "!bg-primary/20 !text-primary !border-primary/30 font-medium dark:!bg-primary/30 dark:!text-primary-foreground" : ""
                     )}
                   >
                     <Hash className="h-4 w-4 flex-shrink-0" />
