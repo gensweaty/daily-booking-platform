@@ -523,13 +523,37 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           onPointerDown={() => {
             if (generalChannelId) {
               flushSync(() => {
-                // Synchronous: mark as read locally + freeze list for a beat.
+                enterChannel(generalChannelId);
+              });
+            }
+          }}
+          onMouseDown={() => {
+            if (generalChannelId) {
+              flushSync(() => {
+                enterChannel(generalChannelId);
+              });
+            }
+          }}
+          onTouchStart={() => {
+            if (generalChannelId) {
+              flushSync(() => {
+                enterChannel(generalChannelId);
+              });
+            }
+          }}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && generalChannelId) {
+              flushSync(() => {
                 enterChannel(generalChannelId);
               });
             }
           }}
           onClick={() => {
             if (generalChannelId) {
+              // call again (idempotent) in case pointerdown didn't fire
+              flushSync(() => {
+                enterChannel(generalChannelId);
+              });
               // Tell the header explicitly: this is a Channel called "General"
               window.dispatchEvent(new CustomEvent('chat-header', {
                 detail: {
@@ -811,7 +835,28 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                         enterChannel(chat.id);
                       });
                     }}
+                    onMouseDown={() => {
+                      flushSync(() => {
+                        enterChannel(chat.id);
+                      });
+                    }}
+                    onTouchStart={() => {
+                      flushSync(() => {
+                        enterChannel(chat.id);
+                      });
+                    }}
+                    onKeyDown={(e) => {
+                      if ((e.key === 'Enter' || e.key === ' ')) {
+                        flushSync(() => {
+                          enterChannel(chat.id);
+                        });
+                      }
+                    }}
                     onClick={() => {
+                      // call again (idempotent) in case pointerdown didn't fire
+                      flushSync(() => {
+                        enterChannel(chat.id);
+                      });
                       // Tell the header this is a custom channel
                       window.dispatchEvent(new CustomEvent('chat-header', {
                         detail: {
