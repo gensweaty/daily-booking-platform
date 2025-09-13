@@ -78,10 +78,18 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   
   // Participant dropdown state
   const [showParticipants, setShowParticipants] = useState(false);
-  const { fetchChannelParticipants, isLoading: participantsLoading } = useChannelParticipants([]);
+  const [teamMembers, setTeamMembers] = useState<Array<{
+    id: string;
+    name: string;
+    email?: string;
+    avatar_url?: string;
+    type: 'admin' | 'sub_user';
+  }>>([]);
+  const { fetchChannelParticipants, isLoading: participantsLoading } = useChannelParticipants(teamMembers);
   const [participants, setParticipants] = useState<Array<{
     id: string;
     name: string;
+    email?: string;
     avatar_url?: string;
     type: 'admin' | 'sub_user';
     isCurrentUser?: boolean;
@@ -466,10 +474,64 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     }
   }, [activeChannelId, hasMoreMessages, loadingOlder, loadMessages]);
 
+  // Fetch team members for participant dropdown
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      if (!boardOwnerId) return;
+
+      try {
+        // Fetch admin info
+        const { data: adminProfile } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .eq('id', boardOwnerId)
+          .single();
+
+        // Fetch sub-users
+        const { data: subUsers } = await supabase
+          .from('sub_users')
+          .select('id, fullname, email, avatar_url')
+          .eq('board_owner_id', boardOwnerId);
+
+        const members = [];
+        
+        // Add admin
+        if (adminProfile) {
+          members.push({
+            id: adminProfile.id,
+            name: adminProfile.username || 'Admin',
+            avatar_url: adminProfile.avatar_url,
+            type: 'admin' as const
+          });
+        }
+
+        // Add sub-users
+        if (subUsers) {
+          subUsers.forEach(subUser => {
+            members.push({
+              id: subUser.id,
+              name: subUser.fullname || 'User',
+              email: subUser.email,
+              avatar_url: subUser.avatar_url,
+              type: 'sub_user' as const
+            });
+          });
+        }
+
+        setTeamMembers(members);
+      } catch (error) {
+        console.error('Error fetching team members:', error);
+        setTeamMembers([]);
+      }
+    };
+
+    fetchTeamMembers();
+  }, [boardOwnerId]);
+
   // Fetch participants when channel changes
   useEffect(() => {
     const loadParticipants = async () => {
-      if (!activeChannelId || !boardOwnerId) {
+      if (!activeChannelId || !boardOwnerId || teamMembers.length === 0) {
         setParticipants([]);
         return;
       }
@@ -484,7 +546,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     };
 
     loadParticipants();
-  }, [activeChannelId, boardOwnerId, fetchChannelParticipants]);
+  }, [activeChannelId, boardOwnerId, teamMembers, fetchChannelParticipants]);
 
   // Scroll management
   const scrollToBottom = useCallback(() => {
