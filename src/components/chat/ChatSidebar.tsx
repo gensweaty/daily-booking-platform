@@ -653,10 +653,27 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               return null;
             })();
             
-            // Additional check: if we're in a DM and currentChannelId contains member info
-            const isActiveDM = dmChannelId === currentChannelId || 
-              (currentChannelId && currentChannelId.includes(member.id)) ||
-              (currentChannelId && currentChannelId.includes(`-${member.type}-`));
+            // Enhanced DM active state detection
+            const isActiveDM = (() => {
+              if (!currentChannelId) return false;
+              
+              // Primary check: exact channel match
+              if (dmChannelId && dmChannelId === currentChannelId) return true;
+              
+              // Secondary checks: analyze currentChannelId for DM patterns
+              // Check if current channel is mapped to this member in channelMemberMap
+              const mappedMember = channelMemberMap.get(currentChannelId);
+              if (mappedMember && mappedMember.id === member.id && mappedMember.type === member.type) {
+                return true;
+              }
+              
+              // Fallback: check if currentChannelId contains member identifier patterns
+              if (currentChannelId.includes(member.id) && currentChannelId.includes(member.type)) {
+                return true;
+              }
+              
+              return false;
+            })();
               
             // Only badge DMs, and use the sidebar store (no flicker and consistent with channel badges)
             const peerUnread = dmChannelId ? getBadge(dmChannelId) : 0;
