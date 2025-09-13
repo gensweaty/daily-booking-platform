@@ -607,8 +607,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           }}
           className={cn(
             "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
-            "bg-muted/20 hover:bg-muted/70 border border-muted/30 hover:border-muted/50",
-            currentChannelId === generalChannelId ? "bg-primary/15 text-primary border-primary/20" : ""
+            "bg-muted/30 hover:bg-muted/60 border border-muted/40 hover:border-muted/60",
+            currentChannelId === generalChannelId ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
           )}
         >
           <div className="flex items-center gap-2">
@@ -848,8 +848,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                 }}
                 className={cn(
                   "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
-                  "bg-muted/20 hover:bg-muted/70 border border-muted/30 hover:border-muted/50",
-                  dmChannelId === currentChannelId ? "bg-primary/15 text-primary border-primary/20" : ""
+                  "bg-muted/30 hover:bg-muted/60 border border-muted/40 hover:border-muted/60",
+                  dmChannelId === currentChannelId ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
                 )}
                 title={`Start conversation with ${member.name}`}
               >
@@ -977,8 +977,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     }}
                     className={cn(
                       "flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-left",
-                      "bg-muted/20 hover:bg-muted/70 border border-muted/30 hover:border-muted/50",
-                      currentChannelId === chat.id ? "bg-primary/15 text-primary border-primary/20" : ""
+                      "bg-muted/30 hover:bg-muted/60 border border-muted/40 hover:border-muted/60",
+                      currentChannelId === chat.id ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
                     )}
                   >
                     <Hash className="h-4 w-4 flex-shrink-0" />
