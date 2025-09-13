@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageCircle, Loader2 } from 'lucide-react';
+import { MessageCircle, Loader2, Users } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +12,8 @@ import { MessageList } from './MessageList';
 import { getEffectivePublicEmail } from '@/utils/chatEmail';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { detectNetworkQuality, isSlowNetwork, getOptimalPageSize, getOptimalPollingInterval } from '@/utils/networkDetector';
+import { ParticipantDropdown } from './ParticipantDropdown';
+import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 
 type Message = {
   id: string;
@@ -73,6 +75,17 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   } | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  
+  // Participant dropdown state
+  const [showParticipants, setShowParticipants] = useState(false);
+  const { fetchChannelParticipants, isLoading: participantsLoading } = useChannelParticipants([]);
+  const [participants, setParticipants] = useState<Array<{
+    id: string;
+    name: string;
+    avatar_url?: string;
+    type: 'admin' | 'sub_user';
+    isCurrentUser?: boolean;
+  }>>([]);
   
   // Refs for pagination and scroll management
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -453,6 +466,26 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     }
   }, [activeChannelId, hasMoreMessages, loadingOlder, loadMessages]);
 
+  // Fetch participants when channel changes
+  useEffect(() => {
+    const loadParticipants = async () => {
+      if (!activeChannelId || !boardOwnerId) {
+        setParticipants([]);
+        return;
+      }
+
+      try {
+        const fetchedParticipants = await fetchChannelParticipants(activeChannelId);
+        setParticipants(fetchedParticipants);
+      } catch (error) {
+        console.error('Error loading participants:', error);
+        setParticipants([]);
+      }
+    };
+
+    loadParticipants();
+  }, [activeChannelId, boardOwnerId, fetchChannelParticipants]);
+
   // Scroll management
   const scrollToBottom = useCallback(() => {
     if (bottomRef.current) {
@@ -570,7 +603,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="border-b p-4">
+      <div className="border-b p-4 relative">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {channelInfo?.dmPartner?.avatar && (
@@ -581,13 +614,26 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               />
             )}
             <div>
-              <h2 className="font-semibold">{channelInfo?.name || t('chat.loading')}</h2>
+              <button
+                onClick={() => setShowParticipants(!showParticipants)}
+                className="flex items-center space-x-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
+              >
+                <h2 className="font-semibold">{channelInfo?.name || t('chat.loading')}</h2>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </button>
               {isSlowNet.current && (
                 <p className="text-xs text-muted-foreground">{t('chat.optimizedForSlowNetwork')}</p>
               )}
             </div>
           </div>
         </div>
+        
+        <ParticipantDropdown
+          isOpen={showParticipants}
+          participants={participants}
+          loading={participantsLoading(activeChannelId || '')}
+          onClose={() => setShowParticipants(false)}
+        />
       </div>
 
       {/* Messages */}
