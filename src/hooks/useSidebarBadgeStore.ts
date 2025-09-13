@@ -103,12 +103,17 @@ export function useSidebarBadgeStore(opts: {
     switchingUntilRef.current.clear();
     leavingUntilRef.current.clear();
     
+    // CRITICAL: Reset seeding to prevent provider interference
+    seededRef.current = false;
+    
     // Set fresh lastSeen for the channel we're entering
     lastSeenRef.current.set(nextCid, ts);
     
-    // Guard the entering channel
-    switchingUntilRef.current.set(nextCid, ts + SWITCH_MS);
-    quarantineRef.current.set(nextCid, ts + QUARANTINE_MS);
+    // Guard ALL channels during transition (prevent ANY provider updates)
+    for (const cid of userChannels) {
+      switchingUntilRef.current.set(cid, ts + SWITCH_MS);
+      quarantineRef.current.set(cid, ts + QUARANTINE_MS);
+    }
     
     // Freeze with fresh state
     freezeUntilRef.current = nowMs() + freezeMs;
@@ -116,7 +121,7 @@ export function useSidebarBadgeStore(opts: {
     
     // Apply fresh state immediately
     setCounts(freshCounts);
-  }, []);
+  }, [userChannels]);
 
   // seed once from provider
   const seededRef = useRef(false);
