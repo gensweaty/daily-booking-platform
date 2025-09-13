@@ -1652,13 +1652,22 @@ export type Database = {
         }[]
       }
       create_custom_chat: {
-        Args: {
-          p_creator_id: string
-          p_creator_type: string
-          p_name: string
-          p_owner_id: string
-          p_participants: Json
-        }
+        Args:
+          | {
+              p_avatar_url?: string
+              p_creator_id: string
+              p_creator_type: string
+              p_name: string
+              p_owner_id: string
+              p_participants: Json
+            }
+          | {
+              p_creator_id: string
+              p_creator_type: string
+              p_name: string
+              p_owner_id: string
+              p_participants: Json
+            }
         Returns: string
       }
       create_subscription: {

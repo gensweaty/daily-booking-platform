@@ -61,6 +61,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     name: string;
     created_by_type: string;
     created_by_id: string;
+    avatar_url?: string;
   }>>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<{ id: string; name: string } | null>(null);
@@ -363,7 +364,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         membershipQuery = supabase
           .from('chat_channels')
           .select(`
-            id, name, is_custom, is_deleted, created_by_type, created_by_id,
+            id, name, is_custom, is_deleted, created_by_type, created_by_id, avatar_url,
             chat_participants!inner(user_type, user_id, sub_user_id)
           `)
           .eq('owner_id', boardOwnerId)
@@ -395,7 +396,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         membershipQuery = supabase
           .from('chat_channels')
           .select(`
-            id, name, is_custom, is_deleted, created_by_type, created_by_id,
+            id, name, is_custom, is_deleted, created_by_type, created_by_id, avatar_url,
             chat_participants!inner(user_type, user_id, sub_user_id)
           `)
           .eq('owner_id', boardOwnerId)
@@ -976,14 +977,14 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                           suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
                           enterChannel(chat.id);
                         });
-                        window.dispatchEvent(new CustomEvent('chat-header', {
-                          detail: {
-                            channelId: chat.id,
-                            isDM: false,
-                            title: chat.name,
-                            avatar: null
-                          }
-                        }));
+                         window.dispatchEvent(new CustomEvent('chat-header', {
+                           detail: {
+                             channelId: chat.id,
+                             isDM: false,
+                             title: chat.name,
+                             avatar: chat.avatar_url || null
+                           }
+                         }));
                         openChannel(chat.id);
                         onChannelSelect?.();
                       }}
@@ -993,9 +994,18 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                         "dark:bg-muted/60 dark:hover:bg-muted/80 dark:border-muted/70 dark:hover:border-muted/90",
                         currentChannelId === chat.id ? "!bg-primary/20 !text-primary !border-primary/30 font-medium dark:!bg-primary/30 dark:!text-primary-foreground" : ""
                       )}
-                    >
-                      <Hash className="h-4 w-4 flex-shrink-0" />
-                      <span className="font-medium truncate">{chat.name}</span>
+                     >
+                       {chat.avatar_url ? (
+                         <Avatar className="h-4 w-4 flex-shrink-0">
+                           <AvatarImage src={chat.avatar_url} alt={chat.name} />
+                           <AvatarFallback className="text-xs">
+                             <Hash className="h-3 w-3" />
+                           </AvatarFallback>
+                         </Avatar>
+                       ) : (
+                         <Hash className="h-4 w-4 flex-shrink-0" />
+                       )}
+                       <span className="font-medium truncate">{chat.name}</span>
                       
                       {chat.id && getVisibleBadge(chat.id) > 0 && (
                         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">

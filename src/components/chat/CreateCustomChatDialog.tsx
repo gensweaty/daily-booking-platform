@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, X, Upload, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
@@ -180,14 +180,17 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
       console.log('🔧 Selected participants for custom chat:', selectedParticipants);
       console.log('🔧 Transformed participants:', participants);
 
-      const { data: channelId, error } = await supabase.rpc('create_custom_chat', {
+      // Call the RPC function with avatar_url
+      const rpcParams: any = {
         p_owner_id: boardOwnerId,
         p_creator_type: me.type,
         p_creator_id: creatorId,
         p_name: chatName.trim(),
         p_participants: participants,
         p_avatar_url: avatarUrl
-      });
+      };
+
+      const { data: channelId, error } = await supabase.rpc('create_custom_chat', rpcParams);
 
       if (error) {
         console.error('❌ Error creating custom chat:', error);
@@ -241,6 +244,15 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
     removeAvatar();
     setOpen(false);
   };
+
+  // Cleanup effect for avatar preview URL
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+      }
+    };
+  }, [avatarPreview]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

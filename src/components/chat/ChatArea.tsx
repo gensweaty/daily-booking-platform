@@ -69,7 +69,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const [channelInfo, setChannelInfo] = useState<{ 
     name: string; 
     isDM: boolean; 
-    dmPartner?: { name: string; avatar?: string } 
+    dmPartner?: { name: string; avatar?: string };
+    avatar_url?: string; 
   } | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -97,7 +98,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
   const activeChannelId = currentChannelId;
-  const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } }>>(new Map());
+  const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string }; avatar_url?: string }>>(new Map());
   const [generalId, setGeneralId] = useState<string | null>(null);
   const [generalIdLoading, setGeneralIdLoading] = useState(true);
 
@@ -220,7 +221,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       // What kind of channel is this?
       const { data: ch, error: chErr } = await supabase
         .from('chat_channels')
-        .select('name, is_dm')
+        .select('name, is_dm, avatar_url')
         .eq('id', activeChannelId)
         .maybeSingle();
       if (chErr) {
@@ -230,7 +231,11 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       // Non-DM: trust channel's own name (or General fallback)
       if (!ch?.is_dm) {
-        const info = { name: ch?.name || t('chat.general'), isDM: false } as const;
+        const info = { 
+          name: ch?.name || t('chat.general'), 
+          isDM: false,
+          avatar_url: ch?.avatar_url 
+        } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
         return;
@@ -1314,6 +1319,14 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 <img
                   src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
                   alt={channelInfo.dmPartner.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : !channelInfo?.isDM && channelInfo?.avatar_url ? (
+              <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                <img
+                  src={channelInfo.avatar_url}
+                  alt={channelInfo.name}
                   className="h-full w-full object-cover"
                 />
               </div>

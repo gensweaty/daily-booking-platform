@@ -71,7 +71,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const [channelInfo, setChannelInfo] = useState<{ 
     name: string; 
     isDM: boolean; 
-    dmPartner?: { name: string; avatar?: string } 
+    dmPartner?: { name: string; avatar?: string };
+    avatar_url?: string;
   } | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -100,7 +101,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const oldestMessageId = useRef<string | null>(null);
   const cacheRef = useRef<Map<string, { messages: Message[], hasMore: boolean }>>(new Map());
-  const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string } }>>(new Map());
+  const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string }; avatar_url?: string }>>(new Map());
   
   const activeChannelId = currentChannelId;
   const [generalId, setGeneralId] = useState<string | null>(null);
@@ -208,12 +209,16 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       const { data: ch } = await supabase
         .from('chat_channels')
-        .select('name, is_dm')
+        .select('name, is_dm, avatar_url')
         .eq('id', activeChannelId)
         .maybeSingle();
 
       if (!ch?.is_dm) {
-        const info = { name: ch?.name || t('chat.general'), isDM: false } as const;
+        const info = { 
+          name: ch?.name || t('chat.general'), 
+          isDM: false,
+          avatar_url: ch?.avatar_url 
+        } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
         return;
@@ -668,12 +673,26 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       <div className="border-b p-4 relative">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {channelInfo?.dmPartner?.avatar && (
+            {channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
               <img 
                 src={resolveAvatarUrl(channelInfo.dmPartner.avatar)}
                 alt={channelInfo.name}
                 className="w-8 h-8 rounded-full"
               />
+            ) : channelInfo?.avatar_url ? (
+              <img 
+                src={channelInfo.avatar_url}
+                alt={channelInfo.name}
+                className="w-8 h-8 rounded-full"
+              />
+            ) : channelInfo?.isDM ? (
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                <span className="text-sm font-semibold">
+                  {(channelInfo?.dmPartner?.name || "U").slice(0, 2).toUpperCase()}
+                </span>
+              </div>
+            ) : (
+              <MessageCircle className="h-5 w-5" />
             )}
             <div>
               <button
