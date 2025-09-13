@@ -91,32 +91,32 @@ export function useSidebarBadgeStore(opts: {
   // call on pre-interaction; also safe to call again on click
   const enterChannel = useCallback((nextCid: string, freezeMs = 1100) => {
     const ts = Date.now();
+    
+    // FRESH START RESET - mimic page refresh behavior
+    // Clear all badge counts to eliminate flicker
+    const freshCounts: Counts = {};
+    countsRef.current = freshCounts;
+    
+    // Reset all tracking state for clean start
+    lastSeenRef.current.clear();
+    quarantineRef.current.clear();
+    switchingUntilRef.current.clear();
+    leavingUntilRef.current.clear();
+    
+    // Set fresh lastSeen for the channel we're entering
     lastSeenRef.current.set(nextCid, ts);
-
-    // guard the channel we're going TO
+    
+    // Guard the entering channel
     switchingUntilRef.current.set(nextCid, ts + SWITCH_MS);
     quarantineRef.current.set(nextCid, ts + QUARANTINE_MS);
-
-    // guard the channel we're leaving (current active), if any
-    // NOTE: currentChannelId here is the "old" one at the moment you click.
-    if (currentChannelId && currentChannelId !== nextCid) {
-      leavingUntilRef.current.set(currentChannelId, ts + LEAVE_MS);
-      // ensure the leaving channel stays visually zero
-      if ((countsRef.current[currentChannelId] || 0) !== 0) {
-        countsRef.current[currentChannelId] = 0;
-      }
-    }
-
-    // zero entering channel immediately
-    const currentCounts = { ...countsRef.current, [nextCid]: 0 };
-    countsRef.current = currentCounts;
-
-    // freeze list briefly
+    
+    // Freeze with fresh state
     freezeUntilRef.current = nowMs() + freezeMs;
-    setFreezeSnapshot(currentCounts);
-
-    setCounts({ ...currentCounts });
-  }, [currentChannelId]);
+    setFreezeSnapshot(freshCounts);
+    
+    // Apply fresh state immediately
+    setCounts(freshCounts);
+  }, []);
 
   // seed once from provider
   const seededRef = useRef(false);
