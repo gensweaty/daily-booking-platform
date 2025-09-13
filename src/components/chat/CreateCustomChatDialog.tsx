@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, Upload, Image } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface TeamMember {
   id: string;
@@ -32,6 +33,9 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
   const [chatName, setChatName] = useState('');
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const availableParticipants = teamMembers.filter(member => {
     // Exclude current user from participant selection
@@ -46,6 +50,45 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
         ? prev.filter(id => id !== participantKey)
         : [...prev, participantKey]
     );
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please select an image file (PNG, JPG, WEBP)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File too large',
+        description: 'Please select an image smaller than 5MB',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setAvatarFile(file);
+    
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
+  };
+
+  const removeAvatar = () => {
+    setAvatarFile(null);
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+      setAvatarPreview(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,6 +139,30 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
         }
       }
 
+      // Upload avatar if provided
+      let avatarUrl: string | null = null;
+      if (avatarFile) {
+        setIsUploading(true);
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('chat-avatars')
+          .upload(fileName, avatarFile);
+
+        if (uploadError) {
+          throw new Error(`Failed to upload avatar: ${uploadError.message}`);
+        }
+
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage
+          .from('chat-avatars')
+          .getPublicUrl(fileName);
+        
+        avatarUrl = publicUrlData.publicUrl;
+        setIsUploading(false);
+      }
+
       // Transform participants to expected format
       const participants = selectedParticipants.map(participantKey => {
         const [type, id] = participantKey.split(':');
@@ -118,7 +185,8 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
         p_creator_type: me.type,
         p_creator_id: creatorId,
         p_name: chatName.trim(),
-        p_participants: participants
+        p_participants: participants,
+        p_avatar_url: avatarUrl
       });
 
       if (error) {
@@ -137,6 +205,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
       // Reset form and close dialog
       setChatName('');
       setSelectedParticipants([]);
+      removeAvatar();
       setOpen(false);
       
       // Refresh the custom chats list
@@ -169,6 +238,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
   const handleCancel = () => {
     setChatName('');
     setSelectedParticipants([]);
+    removeAvatar();
     setOpen(false);
   };
 
@@ -201,6 +271,60 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
               disabled={isCreating}
               autoFocus
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              <LanguageText>Chat Avatar (Optional)</LanguageText>
+            </Label>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                {avatarPreview ? (
+                  <AvatarImage src={avatarPreview} alt="Chat avatar preview" />
+                ) : (
+                  <AvatarFallback>
+                    <Image className="h-6 w-6 text-muted-foreground" />
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('avatar-upload')?.click()}
+                  disabled={isCreating || isUploading}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {avatarFile ? 'Change' : 'Upload'}
+                </Button>
+                
+                {avatarFile && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={removeAvatar}
+                    disabled={isCreating || isUploading}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            
+            <input
+              id="avatar-upload"
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="hidden"
+            />
+            
+            <p className="text-xs text-muted-foreground">
+              Upload an image (PNG, JPG, WEBP) up to 5MB
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -261,9 +385,9 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
             </Button>
             <Button
               type="submit"
-              disabled={isCreating || !chatName.trim() || selectedParticipants.length < 2}
+              disabled={isCreating || isUploading || !chatName.trim() || selectedParticipants.length < 2}
             >
-              {isCreating ? 'Creating...' : 'Create Chat'}
+              {isCreating ? (isUploading ? 'Uploading...' : 'Creating...') : 'Create Chat'}
             </Button>
           </div>
         </form>
