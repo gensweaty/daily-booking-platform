@@ -677,6 +677,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             )}
             <div>
               <button
+                data-participant-trigger
                 onClick={() => setShowParticipants(!showParticipants)}
                 className="flex items-center space-x-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
               >
