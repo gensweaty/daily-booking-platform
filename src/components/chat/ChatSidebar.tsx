@@ -69,7 +69,10 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   
   // Enhanced badge getter with visual suppression
   const getVisibleBadge = (channelId: string) => {
+    // Hide badge if switching to this specific channel
     if (switchingChannelId === channelId) return 0;
+    // Hide badge if switching to a DM (broader suppression during DM switches)
+    if (switchingChannelId?.startsWith('dm-')) return 0;
     return getBadge(channelId);
   };
 
@@ -657,8 +660,49 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             
             return (
               <button
+                onPointerDown={() => {
+                  flushSync(() => {
+                    // Visual suppression for DM member
+                    setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                  });
+                }}
+                onMouseDown={() => {
+                  flushSync(() => {
+                    // Visual suppression for DM member
+                    setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                  });
+                }}
+                onTouchStart={() => {
+                  flushSync(() => {
+                    // Visual suppression for DM member
+                    setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                  });
+                }}
+                onKeyDown={(e) => {
+                  if ((e.key === 'Enter' || e.key === ' ')) {
+                    flushSync(() => {
+                      // Visual suppression for DM member
+                      setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                      if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                      suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                    });
+                  }
+                }}
                 key={`${member.type}-${member.id}`}
                 onClick={async () => {
+                  // Ensure suppression is active on click too (failsafe)
+                  flushSync(() => {
+                    setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                  });
+                  
                   console.log('🖱️ Starting DM with:', { 
                     member, 
                     currentUser: me,
