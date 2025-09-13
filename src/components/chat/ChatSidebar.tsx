@@ -607,7 +607,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           }}
           className={cn(
             "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
-            "bg-muted/40 hover:bg-muted/60 border border-muted/50 hover:border-muted/70",
+            "bg-muted/50 hover:bg-muted/70 border border-muted/60 hover:border-muted/80",
             currentChannelId === generalChannelId ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
           )}
         >
@@ -651,6 +651,12 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               }
               return null;
             })();
+            
+            // Additional check: if we're in a DM and currentChannelId contains member info
+            const isActiveDM = dmChannelId === currentChannelId || 
+              (currentChannelId && currentChannelId.includes(member.id)) ||
+              (currentChannelId && currentChannelId.includes(`-${member.type}-`));
+              
             // Only badge DMs, and use the sidebar store (no flicker and consistent with channel badges)
             const peerUnread = dmChannelId ? getBadge(dmChannelId) : 0;
             
@@ -848,8 +854,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                 }}
                 className={cn(
                   "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
-                  "bg-muted/40 hover:bg-muted/60 border border-muted/50 hover:border-muted/70",
-                  dmChannelId === currentChannelId ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
+                  "bg-muted/50 hover:bg-muted/70 border border-muted/60 hover:border-muted/80",
+                  isActiveDM ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
                 )}
                 title={`Start conversation with ${member.name}`}
               >
@@ -977,7 +983,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     }}
                     className={cn(
                       "flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-left",
-                      "bg-muted/40 hover:bg-muted/60 border border-muted/50 hover:border-muted/70",
+                      "bg-muted/50 hover:bg-muted/70 border border-muted/60 hover:border-muted/80",
                       currentChannelId === chat.id ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
                     )}
                   >
