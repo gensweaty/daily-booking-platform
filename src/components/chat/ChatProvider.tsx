@@ -251,7 +251,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     me?.id ?? null,
     rtBump,
     isExternalUser,
-    me?.email ?? null
+    me?.email ?? null,
+    new Set() // Suppressed channels - will be enhanced later if needed
   );
 
   // Wrapper for getUserUnreadCount to match old interface

@@ -33,23 +33,29 @@ export function useSidebarBadgeStore(opts: {
   const countsRef = useRef<Counts>({});
   const lastSeenRef = useRef<Map<string, number>>(new Map());
 
-  // freeze snapshot during switch (prevents list churn)
+  // UNIFIED TIMESTAMP SYSTEM - only use Date.now() for consistency
+  const now = () => Date.now();
+
+  // BULLETPROOF SUPPRESSION SYSTEM
+  // Global freeze during switches (prevents list churn)
   const freezeUntilRef = useRef<number>(0);
   const [freezeSnapshot, setFreezeSnapshot] = useState<Counts | null>(null);
-  const nowMs = () =>
-    (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
-  // ignore provider increases for a bit after entering
+  // Extended guard windows for slower networks/devices
   const quarantineRef = useRef<Map<string, number>>(new Map());
-  const QUARANTINE_MS = 1400;
+  const QUARANTINE_MS = 2000; // Extended for bulletproof coverage
 
-  // guard the channel being switched TO
+  // Guard the channel being switched TO
   const switchingUntilRef = useRef<Map<string, number>>(new Map());
-  const SWITCH_MS = 1300;
+  const SWITCH_MS = 2000; // Extended
 
-  // NEW: guard the channel being switched FROM
+  // Guard the channel being switched FROM
   const leavingUntilRef = useRef<Map<string, number>>(new Map());
-  const LEAVE_MS = 1300;
+  const LEAVE_MS = 2000; // Extended
+
+  // NUCLEAR OPTION: Force zero for any channel during interaction
+  const nuclearSuppressUntilRef = useRef<Map<string, number>>(new Map());
+  const NUCLEAR_MS = 2500; // Longest guard
 
   // reset on identity change
   useEffect(() => {
@@ -61,6 +67,7 @@ export function useSidebarBadgeStore(opts: {
     quarantineRef.current.clear();
     switchingUntilRef.current.clear();
     leavingUntilRef.current.clear();
+    nuclearSuppressUntilRef.current.clear();
     seededRef.current = false;
   }, [ident]);
 
@@ -72,49 +79,65 @@ export function useSidebarBadgeStore(opts: {
 
   const get = useCallback(
     (cid: string) => {
-      const now = Date.now();
-      // hard guards first
-      if ((switchingUntilRef.current.get(cid) || 0) > now) return 0;
-      if ((leavingUntilRef.current.get(cid) || 0) > now) return 0;
+      const nowTs = now();
+      
+      // BULLETPROOF SUPPRESSION: Check all guard levels
+      // Level 1: Nuclear option (absolute zero during any interaction)
+      if ((nuclearSuppressUntilRef.current.get(cid) || 0) > nowTs) return 0;
+      
+      // Level 2: Switching guards (channel-specific)
+      if ((switchingUntilRef.current.get(cid) || 0) > nowTs) return 0;
+      if ((leavingUntilRef.current.get(cid) || 0) > nowTs) return 0;
 
+      // Level 3: Provider-level suppressions & active channel
       if (isChannelBadgeSuppressed?.(cid) || isChannelRecentlyCleared?.(cid)) return 0;
       if (currentChannelId === cid) return 0;
 
-      if (freezeSnapshot && nowMs() < freezeUntilRef.current) {
+      // Level 4: Freeze snapshot during transitions
+      if (freezeSnapshot && nowTs < freezeUntilRef.current) {
         return Math.max(0, freezeSnapshot[cid] || 0);
       }
+      
+      // Level 5: Current counts (always non-negative)
       return Math.max(0, countsRef.current[cid] || 0);
     },
     [freezeSnapshot, isChannelBadgeSuppressed, isChannelRecentlyCleared, currentChannelId]
   );
 
-  // call on pre-interaction; also safe to call again on click
-  const enterChannel = useCallback((nextCid: string, freezeMs = 1100) => {
-    const ts = Date.now();
+  // BULLETPROOF CHANNEL ENTRY: Call on any interaction (idempotent)
+  const enterChannel = useCallback((nextCid: string, freezeMs = 1500) => {
+    const ts = now();
+    
+    // IMMEDIATE VISUAL SUPPRESSION: Force zero synchronously
     lastSeenRef.current.set(nextCid, ts);
 
-    // guard the channel we're going TO
+    // NUCLEAR OPTION: Absolutely force zero for this channel
+    nuclearSuppressUntilRef.current.set(nextCid, ts + NUCLEAR_MS);
+
+    // REDUNDANT SUPPRESSION: Multiple guard levels
     switchingUntilRef.current.set(nextCid, ts + SWITCH_MS);
     quarantineRef.current.set(nextCid, ts + QUARANTINE_MS);
 
-    // guard the channel we're leaving (current active), if any
-    // NOTE: currentChannelId here is the "old" one at the moment you click.
+    // Guard the channel we're leaving (current active), if any
     if (currentChannelId && currentChannelId !== nextCid) {
       leavingUntilRef.current.set(currentChannelId, ts + LEAVE_MS);
-      // ensure the leaving channel stays visually zero
+      nuclearSuppressUntilRef.current.set(currentChannelId, ts + NUCLEAR_MS);
+      
+      // Synchronously zero the leaving channel
       if ((countsRef.current[currentChannelId] || 0) !== 0) {
         countsRef.current[currentChannelId] = 0;
       }
     }
 
-    // zero entering channel immediately
+    // SYNCHRONOUS UPDATE: Zero immediately in all places
     const currentCounts = { ...countsRef.current, [nextCid]: 0 };
     countsRef.current = currentCounts;
 
-    // freeze list briefly
-    freezeUntilRef.current = nowMs() + freezeMs;
+    // Global freeze for visual stability
+    freezeUntilRef.current = ts + freezeMs;
     setFreezeSnapshot(currentCounts);
 
+    // Force immediate React update
     setCounts({ ...currentCounts });
   }, [currentChannelId]);
 
@@ -134,10 +157,10 @@ export function useSidebarBadgeStore(opts: {
     seededRef.current = true;
   }, [ident, providerUnreads]);
 
-  // adopt provider zeros; cautiously adopt increases
+  // PROVIDER SYNCHRONIZATION: Adopt zeros immediately, increases cautiously
   useEffect(() => {
-    const now = nowMs();
-    const frozen = now < freezeUntilRef.current;
+    const nowTs = now();
+    const frozen = nowTs < freezeUntilRef.current;
 
     setCounts(prev => {
       let changed = false;
@@ -146,32 +169,29 @@ export function useSidebarBadgeStore(opts: {
       for (const [cid, pv] of Object.entries(providerUnreads || {})) {
         const cur = next[cid] || 0;
 
-        // zeros always win
+        // BULLETPROOF RULE: Zeros always win immediately
         if ((pv || 0) === 0 && cur !== 0) {
           next[cid] = 0;
           changed = true;
           continue;
         }
 
-        // adopt provider increases only if:
-        // - not frozen
-        // - not the active channel
-        // - outside quarantine
-        // - outside switch-guard
-        // - outside leaving-guard
+        // CAUTIOUS ADOPTION: Provider increases only if ALL guards are clear
         if (pv > cur && !frozen && cid !== currentChannelId) {
-          const nowTs = Date.now();
           const qUntil = quarantineRef.current.get(cid) || 0;
           const swUntil = switchingUntilRef.current.get(cid) || 0;
           const lvUntil = leavingUntilRef.current.get(cid) || 0;
-          if (nowTs > qUntil && nowTs > swUntil && nowTs > lvUntil) {
+          const nuclearUntil = nuclearSuppressUntilRef.current.get(cid) || 0;
+          
+          // All suppression mechanisms must be clear
+          if (nowTs > qUntil && nowTs > swUntil && nowTs > lvUntil && nowTs > nuclearUntil) {
             next[cid] = pv;
             changed = true;
           }
         }
       }
 
-      // active channel must always be zero
+      // ENFORCED RULE: Active channel is always zero
       if (currentChannelId && (next[currentChannelId] || 0) !== 0) {
         next[currentChannelId] = 0;
         changed = true;
@@ -206,9 +226,10 @@ export function useSidebarBadgeStore(opts: {
         if ((countsRef.current[cid] || 0) !== 0) setCount(cid, 0);
         const prevSeen = lastSeenRef.current.get(cid) || 0;
         if (createdAt > prevSeen) lastSeenRef.current.set(cid, createdAt);
-        // entering/leaving guards not needed for active channel
+        // Clear all guards for active channel (no suppression needed)
         switchingUntilRef.current.delete(cid);
         leavingUntilRef.current.delete(cid);
+        nuclearSuppressUntilRef.current.delete(cid);
         return;
       }
 
@@ -216,10 +237,11 @@ export function useSidebarBadgeStore(opts: {
       const lastSeen = lastSeenRef.current.get(cid) || 0;
       if (createdAt <= lastSeen) return;
 
-      // real new message → clear guards for that channel
+      // REAL NEW MESSAGE: Clear all suppression for that channel (allows instant reaction)
       switchingUntilRef.current.delete(cid);
       leavingUntilRef.current.delete(cid);
       quarantineRef.current.delete(cid);
+      nuclearSuppressUntilRef.current.delete(cid);
 
       setCount(cid, (countsRef.current[cid] || 0) + 1);
     };
