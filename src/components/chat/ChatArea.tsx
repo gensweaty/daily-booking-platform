@@ -1327,11 +1327,10 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               <MessageCircle className="h-5 w-5" />
             )}
             <div>
-                <button
-                  data-participant-trigger
-                  onClick={() => setShowParticipants(!showParticipants)}
-                  className="flex items-center space-x-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
-                >
+              <button
+                onClick={() => setShowParticipants(!showParticipants)}
+                className="flex items-center space-x-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
+              >
                 <h2 className="font-semibold">
                   {channelInfo?.isDM
                     ? (channelInfo?.dmPartner?.name || t('chat.directMessage'))

@@ -30,7 +30,7 @@ export const ParticipantDropdown = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
-      if (isOpen && !target.closest('[data-participant-dropdown]') && !target.closest('[data-participant-trigger]')) {
+      if (isOpen && !target.closest('[data-participant-dropdown]')) {
         onClose?.();
       }
     };
