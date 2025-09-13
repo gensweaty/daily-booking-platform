@@ -1330,6 +1330,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               <button
                 onClick={() => setShowParticipants(!showParticipants)}
                 className="flex items-center space-x-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
+                data-participant-trigger
               >
                 <h2 className="font-semibold">
                   {channelInfo?.isDM
