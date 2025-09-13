@@ -68,45 +68,48 @@ export const ParticipantDropdown = ({
                 <div className="sticky top-0 bg-background/98 backdrop-blur-sm border-b px-2 py-1.5 text-xs font-medium text-muted-foreground">
                   Participants ({participants.length})
                 </div>
-                <div className="p-1">
+                <div className="p-2">
                   {participants.map((participant) => (
                     <div
                       key={`${participant.type}-${participant.id}`}
-                      className="flex items-center gap-1.5 px-1.5 py-1.5 rounded hover:bg-muted/50 transition-colors min-w-0"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded hover:bg-muted/50 transition-colors"
                     >
-                      <Avatar className="h-5 w-5 flex-shrink-0">
+                      <Avatar className="h-8 w-8 flex-shrink-0">
                         <AvatarImage src={participant.avatar_url} />
-                        <AvatarFallback className="text-xs">
+                        <AvatarFallback className="text-sm">
                           {participant.type === 'admin' ? (
-                            <User className="h-2.5 w-2.5" />
+                            <User className="h-4 w-4" />
                           ) : (
                             participant.name?.charAt(0)?.toUpperCase() || 'U'
                           )}
                         </AvatarFallback>
                       </Avatar>
                       
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <div className="text-xs font-medium truncate flex items-center gap-1">
-                          <span className="truncate max-w-[120px]">{participant.name}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate flex items-center gap-2">
+                          <span className="truncate">{participant.name}</span>
                           {participant.isCurrentUser && (
-                            <span className="text-xs text-muted-foreground flex-shrink-0">(You)</span>
+                            <span className="text-xs text-muted-foreground">(You)</span>
                           )}
                         </div>
                         {participant.email && (
-                          <div className="text-xs text-muted-foreground truncate max-w-[140px]">
+                          <div className="text-xs text-muted-foreground truncate">
                             {participant.email}
                           </div>
                         )}
                       </div>
                       
                       <div className="flex-shrink-0">
-                        <div 
-                          className="w-1.5 h-1.5 rounded-full"
-                          style={{
-                            backgroundColor: participant.type === 'admin' ? '#10b981' : '#6b7280'
-                          }}
-                          title={participant.type === 'admin' ? 'Admin' : 'Member'}
-                        />
+                        <Badge 
+                          variant={participant.type === 'admin' ? 'default' : 'secondary'}
+                          className={`text-xs px-2 py-1 ${
+                            participant.type === 'admin' 
+                              ? 'bg-green-500 hover:bg-green-600 text-white' 
+                              : 'bg-green-500/20 hover:bg-green-500/30 text-green-700 dark:text-green-400'
+                          }`}
+                        >
+                          {participant.type === 'admin' ? 'Admin' : 'Member'}
+                        </Badge>
                       </div>
                     </div>
                   ))}
