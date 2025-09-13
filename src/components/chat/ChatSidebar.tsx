@@ -950,7 +950,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             <div className="space-y-1">
               {customChats.map((chat) => (
                 <div key={chat.id} className="space-y-1">
-                  <div className="flex items-center">
+                  <div className="flex items-center group">
                     {/* Dropdown toggle button */}
                     {/* Channel navigation button */}
                     <button
@@ -996,15 +996,15 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       )}
                      >
                        {chat.avatar_url ? (
-                         <Avatar className="h-4 w-4 flex-shrink-0">
-                           <AvatarImage src={chat.avatar_url} alt={chat.name} />
-                           <AvatarFallback className="text-xs">
-                             <Hash className="h-3 w-3" />
-                           </AvatarFallback>
-                         </Avatar>
-                       ) : (
-                         <Hash className="h-4 w-4 flex-shrink-0" />
-                       )}
+                          <Avatar className="h-8 w-8 flex-shrink-0">
+                            <AvatarImage src={chat.avatar_url} alt={chat.name} />
+                            <AvatarFallback className="text-sm">
+                              <Hash className="h-4 w-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <Hash className="h-4 w-4 flex-shrink-0" />
+                        )}
                        <span className="font-medium truncate">{chat.name}</span>
                       
                       {chat.id && getVisibleBadge(chat.id) > 0 && (

@@ -1315,7 +1315,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
-              <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+              <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
                 <img
                   src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
                   alt={channelInfo.dmPartner.name}
@@ -1323,7 +1323,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 />
               </div>
             ) : !channelInfo?.isDM && channelInfo?.avatar_url ? (
-              <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+              <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
                 <img
                   src={channelInfo.avatar_url}
                   alt={channelInfo.name}
@@ -1331,7 +1331,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 />
               </div>
             ) : channelInfo?.isDM ? (
-              <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+              <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
                 <span className="text-sm font-semibold text-foreground">
                   {(channelInfo?.dmPartner?.name || "U").slice(0, 2).toUpperCase()}
                 </span>

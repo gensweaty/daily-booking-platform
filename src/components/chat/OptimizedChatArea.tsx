@@ -677,16 +677,16 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               <img 
                 src={resolveAvatarUrl(channelInfo.dmPartner.avatar)}
                 alt={channelInfo.name}
-                className="w-8 h-8 rounded-full"
+                className="w-10 h-10 rounded-full"
               />
             ) : channelInfo?.avatar_url ? (
               <img 
                 src={channelInfo.avatar_url}
                 alt={channelInfo.name}
-                className="w-8 h-8 rounded-full"
+                className="w-10 h-10 rounded-full"
               />
             ) : channelInfo?.isDM ? (
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
                 <span className="text-sm font-semibold">
                   {(channelInfo?.dmPartner?.name || "U").slice(0, 2).toUpperCase()}
                 </span>
