@@ -215,6 +215,7 @@ export type Database = {
       }
       chat_channels: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
           created_by_id: string | null
           created_by_type: string | null
@@ -233,6 +234,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
           created_by_id?: string | null
           created_by_type?: string | null
@@ -251,6 +253,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
           created_by_id?: string | null
           created_by_type?: string | null
