@@ -63,30 +63,18 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<{ id: string; name: string } | null>(null);
   
-  // NEW: Remember the DM the user just clicked until channelMemberMap catches up
-  const [pendingDm, setPendingDm] = useState<{ id: string; type: 'admin' | 'sub_user' } | null>(null);
-  const pendingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const clearPending = () => {
-    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
-    pendingTimerRef.current = null;
-    setPendingDm(null);
+  // Visual suppression layer to prevent badge flicker during channel switches
+  const [switchingChannelId, setSwitchingChannelId] = useState<string | null>(null);
+  const suppressionTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  // Enhanced badge getter with visual suppression
+  const getVisibleBadge = (channelId: string) => {
+    // Hide badge if switching to this specific channel
+    if (switchingChannelId === channelId) return 0;
+    // Hide badge if switching to a DM (broader suppression during DM switches)
+    if (switchingChannelId?.startsWith('dm-')) return 0;
+    return getBadge(channelId);
   };
-
-  // If currentChannelId is not a DM anymore, clear the pending flag
-  useEffect(() => {
-    if (!currentChannelId) { clearPending(); return; }
-    // a DM channel is any channel id that exists as a key in channelMemberMap
-    const isCurrentDM = channelMemberMap.has(currentChannelId);
-    if (!isCurrentDM) clearPending();
-  }, [currentChannelId, channelMemberMap]);
-
-  // Shared item classes (slightly greyer in light mode, subtle in dark mode)
-  const baseItemClasses =
-    "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group " +
-    "border bg-muted/60 hover:bg-muted/80 border-muted/60 hover:border-muted/80 " +
-    "dark:bg-muted/30 dark:hover:bg-muted/40 dark:border-muted/20 dark:hover:border-muted/30";
-
-  const activeItemClasses = "bg-primary/20 text-primary border-primary/30 font-medium";
 
   // Load general channel with improved selection logic
   useEffect(() => {
@@ -548,41 +536,63 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           onPointerDown={() => {
             if (generalChannelId) {
               flushSync(() => {
+                // Visual suppression
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
-                clearPending();
               });
             }
           }}
           onMouseDown={() => {
             if (generalChannelId) {
               flushSync(() => {
+                // Visual suppression
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
-                clearPending();
               });
             }
           }}
           onTouchStart={() => {
             if (generalChannelId) {
               flushSync(() => {
+                // Visual suppression
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
-                clearPending();
               });
             }
           }}
           onKeyDown={(e) => {
             if ((e.key === 'Enter' || e.key === ' ') && generalChannelId) {
               flushSync(() => {
+                // Visual suppression
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
-                clearPending();
               });
             }
           }}
           onClick={() => {
             if (generalChannelId) {
+              // call again (idempotent) in case pointerdown didn't fire
               flushSync(() => {
+                // Visual suppression (failsafe)
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
-                clearPending();
               });
+              // Tell the header explicitly: this is a Channel called "General"
               window.dispatchEvent(new CustomEvent('chat-header', {
                 detail: {
                   channelId: generalChannelId,
@@ -595,7 +605,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               onChannelSelect?.();
             }
           }}
-          className={cn(baseItemClasses, currentChannelId === generalChannelId && activeItemClasses)}
+          className={cn(
+            "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
+            "bg-muted/50 hover:bg-muted/70 border border-muted/60 hover:border-muted/80",
+            currentChannelId === generalChannelId ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
+          )}
         >
           <div className="flex items-center gap-2">
             <Hash className="h-4 w-4 flex-shrink-0" />
@@ -603,9 +617,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               <LanguageText>{t('chat.general')}</LanguageText>
             </span>
           </div>
-          {generalChannelId && getBadge(generalChannelId) > 0 && (
+          {generalChannelId && getVisibleBadge(generalChannelId) > 0 && (
               <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
-                {getBadge(generalChannelId) > 99 ? '99+' : getBadge(generalChannelId)}
+                {getVisibleBadge(generalChannelId) > 99 ? '99+' : getVisibleBadge(generalChannelId)}
               </span>
            )}
         </button>
@@ -629,73 +643,81 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               }
             }
             
-            if (isMe) return null;
-
-            // Resolve DM channel for this member via channelMemberMap
+            // channelMemberMap maps DM channelId -> "the other participant".
+            // So the DM channel for this member is the one whose mapped participant equals this member.
             const dmChannelId = (() => {
               for (const [cid, m] of channelMemberMap.entries()) {
                 if (m.id === member.id && m.type === member.type) return cid;
               }
               return null;
             })();
-
-            // Consistent "active DM" logic:
-            // 1) If we know its DM channel, compare with currentChannelId.
-            // 2) If we don't (first open), treat it as active while pendingDm matches and the current channel is a DM.
-            const isCurrentDM = channelMemberMap.has(currentChannelId || '');
-            const isActiveDM =
-              (!!dmChannelId && currentChannelId === dmChannelId) ||
-              (!dmChannelId && pendingDm?.id === member.id && pendingDm?.type === member.type && isCurrentDM);
-
+            
+            // Additional check: if we're in a DM and currentChannelId contains member info
+            const isActiveDM = dmChannelId === currentChannelId || 
+              (currentChannelId && currentChannelId.includes(member.id)) ||
+              (currentChannelId && currentChannelId.includes(`-${member.type}-`));
+              
+            // Only badge DMs, and use the sidebar store (no flicker and consistent with channel badges)
             const peerUnread = dmChannelId ? getBadge(dmChannelId) : 0;
-
+            
+            // Hide current user from the list
+            if (isMe) {
+              return null;
+            }
+            
             return (
               <button
-                key={`${member.type}-${member.id}`}
                 onPointerDown={() => {
                   flushSync(() => {
-                    enterChannel(dmChannelId || '');  // safe no-op if ''
-                    // mark as pending active until map catches up
-                    setPendingDm({ id: member.id, type: member.type });
-                    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
-                    pendingTimerRef.current = setTimeout(clearPending, 4000);
+                    // Visual suppression for DM member
+                    setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
                   });
                 }}
                 onMouseDown={() => {
                   flushSync(() => {
-                    enterChannel(dmChannelId || '');
-                    setPendingDm({ id: member.id, type: member.type });
-                    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
-                    pendingTimerRef.current = setTimeout(clearPending, 4000);
+                    // Visual suppression for DM member
+                    setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
                   });
                 }}
                 onTouchStart={() => {
                   flushSync(() => {
-                    enterChannel(dmChannelId || '');
-                    setPendingDm({ id: member.id, type: member.type });
-                    if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
-                    pendingTimerRef.current = setTimeout(clearPending, 4000);
+                    // Visual suppression for DM member
+                    setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
                   });
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
+                  if ((e.key === 'Enter' || e.key === ' ')) {
                     flushSync(() => {
-                      enterChannel(dmChannelId || '');
-                      setPendingDm({ id: member.id, type: member.type });
-                      if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
-                      pendingTimerRef.current = setTimeout(clearPending, 4000);
+                      // Visual suppression for DM member
+                      setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                      if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                      suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
                     });
                   }
                 }}
+                key={`${member.type}-${member.id}`}
                 onClick={async () => {
+                  // Ensure suppression is active on click too (failsafe)
+                  flushSync(() => {
+                    setSwitchingChannelId(`dm-${member.id}-${member.type}`);
+                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                  });
+                  
+                  console.log('🖱️ Starting DM with:', { 
+                    member, 
+                    currentUser: me,
+                    boardOwnerId,
+                    isPublicBoard: location.pathname.startsWith('/board/')
+                  });
+                  
                   try {
-                    console.log('🖱️ Starting DM with:', { 
-                      member, 
-                      currentUser: me,
-                      boardOwnerId,
-                      isPublicBoard: location.pathname.startsWith('/board/')
-                    });
-
                     if (isPublicBoard && (me as any)?.type === 'sub_user') {
                       // Public board sub-user path: use public RPC and sender email
                       console.log('🔍 Public board sub-user DM creation starting...');
@@ -830,7 +852,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     });
                   }
                 }}
-                className={cn(baseItemClasses, isActiveDM && activeItemClasses)}
+                className={cn(
+                  "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
+                  "bg-muted/50 hover:bg-muted/70 border border-muted/60 hover:border-muted/80",
+                  isActiveDM ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
+                )}
                 title={`Start conversation with ${member.name}`}
               >
                 <div className="flex items-center gap-3">
@@ -891,16 +917,59 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               {customChats.map((chat) => (
                 <div key={chat.id} className="group flex items-center">
                   <button
-                    onPointerDown={() => flushSync(() => { enterChannel(chat.id); clearPending(); })}
-                    onMouseDown={() => flushSync(() => { enterChannel(chat.id); clearPending(); })}
-                    onTouchStart={() => flushSync(() => { enterChannel(chat.id); clearPending(); })}
+                    onPointerDown={() => {
+                      flushSync(() => {
+                        // Visual suppression
+                        setSwitchingChannelId(chat.id);
+                        if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                        suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                        
+                        enterChannel(chat.id);
+                      });
+                    }}
+                    onMouseDown={() => {
+                      flushSync(() => {
+                        // Visual suppression
+                        setSwitchingChannelId(chat.id);
+                        if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                        suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                        
+                        enterChannel(chat.id);
+                      });
+                    }}
+                    onTouchStart={() => {
+                      flushSync(() => {
+                        // Visual suppression
+                        setSwitchingChannelId(chat.id);
+                        if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                        suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                        
+                        enterChannel(chat.id);
+                      });
+                    }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        flushSync(() => { enterChannel(chat.id); clearPending(); });
+                      if ((e.key === 'Enter' || e.key === ' ')) {
+                        flushSync(() => {
+                          // Visual suppression
+                          setSwitchingChannelId(chat.id);
+                          if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                          suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                          
+                          enterChannel(chat.id);
+                        });
                       }
                     }}
                     onClick={() => {
-                      flushSync(() => { enterChannel(chat.id); clearPending(); });
+                      // call again (idempotent) in case pointerdown didn't fire
+                      flushSync(() => {
+                        // Visual suppression (failsafe)
+                        setSwitchingChannelId(chat.id);
+                        if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                        suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                        
+                        enterChannel(chat.id);
+                      });
+                      // Tell the header this is a custom channel
                       window.dispatchEvent(new CustomEvent('chat-header', {
                         detail: {
                           channelId: chat.id,
@@ -912,14 +981,18 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       openChannel(chat.id);
                       onChannelSelect?.();
                     }}
-                    className={cn(baseItemClasses, currentChannelId === chat.id && activeItemClasses)}
+                    className={cn(
+                      "flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-left",
+                      "bg-muted/50 hover:bg-muted/70 border border-muted/60 hover:border-muted/80",
+                      currentChannelId === chat.id ? "bg-primary/20 text-primary border-primary/30 font-medium" : ""
+                    )}
                   >
                     <Hash className="h-4 w-4 flex-shrink-0" />
                     <span className="font-medium truncate">{chat.name}</span>
                     
-                    {getBadge(chat.id) > 0 && (
+                    {chat.id && getVisibleBadge(chat.id) > 0 && (
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
-                        {getBadge(chat.id) > 99 ? '99+' : getBadge(chat.id)}
+                        {getVisibleBadge(chat.id) > 99 ? '99+' : getVisibleBadge(chat.id)}
                       </span>
                     )}
                   </button>
