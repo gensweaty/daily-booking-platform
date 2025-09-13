@@ -35,7 +35,9 @@ export function useSidebarBadgeStore(opts: {
 
   // immediate visual suppression for channel switching
   const visuallySuppressedRef = useRef<Set<string>>(new Set());
-  const [visualSuppressionTrigger, setVisualSuppressionTrigger] = useState(0);
+
+  // CRITICAL: Track channel being switched to (before currentChannelId updates)
+  const switchingToRef = useRef<string | null>(null);
 
   // reset on identity change (same effect as a page refresh)
   useEffect(() => {
@@ -57,13 +59,23 @@ export function useSidebarBadgeStore(opts: {
 
   const get = useCallback(
     (cid: string) => {
-      // Check immediate visual suppression first
+      // IMMEDIATE: Check if this is the channel being switched to (before currentChannelId updates)
+      if (switchingToRef.current === cid) {
+        return 0;
+      }
+      
+      // IMMEDIATE: Check visual suppression first (no React dependency)
       if (visuallySuppressedRef.current.has(cid)) {
         return 0;
       }
       
-      // Check ChatProvider suppressions
+      // IMMEDIATE: Check ChatProvider suppressions
       if (isChannelBadgeSuppressed?.(cid) || isChannelRecentlyCleared?.(cid)) {
+        return 0;
+      }
+      
+      // IMMEDIATE: Check if this is the active channel
+      if (currentChannelId === cid) {
         return 0;
       }
       
@@ -72,40 +84,41 @@ export function useSidebarBadgeStore(opts: {
       }
       return Math.max(0, (countsRef.current[cid] || 0));
     },
-    [freezeSnapshot, isChannelBadgeSuppressed, isChannelRecentlyCleared, visualSuppressionTrigger]
+    [freezeSnapshot, isChannelBadgeSuppressed, isChannelRecentlyCleared, currentChannelId]
   );
 
-  // call on pointerdown of a channel row
+  // call on pointerdown of a channel row - INSTANT suppression
   const enterChannel = useCallback((cid: string, freezeMs = 240) => {
     const ts = Date.now();
     lastSeenRef.current.set(cid, ts);
     
-    // Immediate visual suppression to prevent any flicker
-    visuallySuppressedRef.current.add(cid);
-    setVisualSuppressionTrigger(prev => prev + 1); // Force re-render
+    // INSTANT: Mark this as the channel being switched to
+    switchingToRef.current = cid;
     
-    // Immediately zero the count and create freeze snapshot with zero
+    // INSTANT: Triple-layer suppression for zero flicker
+    visuallySuppressedRef.current.add(cid);
+    
+    // INSTANT: Zero the count immediately
     const currentCounts = { ...countsRef.current };
     currentCounts[cid] = 0;
     countsRef.current = currentCounts;
     
-    // Set freeze snapshot with the zero already applied
+    // INSTANT: Set freeze snapshot with zero
     freezeUntilRef.current = nowMs() + freezeMs;
     setFreezeSnapshot(currentCounts);
     
-    // Start quarantine to ignore stale provider increases for this channel
+    // INSTANT: Start quarantine
     quarantineRef.current.set(cid, Date.now() + QUARANTINE_MS);
     
-    // Update React state (this might cause a brief re-render, but freeze snapshot protects us)
-    setCounts(currentCounts);
+    // Force immediate synchronous re-render of any components using this
+    setCounts({ ...currentCounts });
     
-    // Clear visual suppression after a short delay
+    // Clear visual suppression after channel switch completes
     setTimeout(() => {
       visuallySuppressedRef.current.delete(cid);
-      setVisualSuppressionTrigger(prev => prev + 1);
-    }, 500);
+    }, 1000); // Longer delay to ensure no flicker
     
-    console.log('🔒 Badge store: entering channel, zeroing badge:', cid, 'freeze until:', freezeUntilRef.current);
+    console.log('🔒 Badge store: INSTANT zero for channel:', cid, 'switching-to set, freeze until:', freezeUntilRef.current);
   }, []);
 
   // seed once from provider, but wait for actual data
