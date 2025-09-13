@@ -606,11 +606,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             }
           }}
           className={cn(
-            "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 text-left relative group",
-            // Default state - subtle background with visible border
-            "bg-secondary/40 hover:bg-secondary/60 border border-border/50 hover:border-border",
-            // Active state - primary colored with stronger emphasis
-            currentChannelId === generalChannelId ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/15" : ""
+            "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
+            // Active state - primary colored with emphasis
+            currentChannelId === generalChannelId ? "bg-primary/15 text-primary border border-primary/20" : "hover:bg-muted/70"
           )}
         >
           <div className="flex items-center gap-2">
@@ -849,11 +847,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   }
                 }}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 text-left relative group",
-                  // Default state - subtle background with visible border  
-                  "bg-secondary/40 hover:bg-secondary/60 border border-border/50 hover:border-border",
-                  // Active state - primary colored with stronger emphasis
-                  dmChannelId === currentChannelId ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/15" : ""
+                  "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
+                  // Green background by default
+                  "bg-secondary hover:bg-secondary/80",
+                  // Active state - primary colored with emphasis
+                  dmChannelId === currentChannelId ? "bg-primary/15 text-primary border border-primary/20 hover:bg-primary/20" : ""
                 )}
                 title={`Start conversation with ${member.name}`}
               >
@@ -980,11 +978,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                       onChannelSelect?.();
                     }}
                     className={cn(
-                      "flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-200 text-left",
-                      // Default state - subtle background with visible border
-                      "bg-secondary/40 hover:bg-secondary/60 border border-border/50 hover:border-border",
-                      // Active state - primary colored with stronger emphasis
-                      currentChannelId === chat.id ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/15" : ""
+                      "flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-left",
+                      // Green background by default
+                      "bg-secondary hover:bg-secondary/80",
+                      // Active state - primary colored with emphasis  
+                      currentChannelId === chat.id ? "bg-primary/15 text-primary border border-primary/20 hover:bg-primary/20" : ""
                     )}
                   >
                     <Hash className="h-4 w-4 flex-shrink-0" />
