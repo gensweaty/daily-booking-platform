@@ -15,8 +15,7 @@ export function useServerUnread(
   viewerId: string | null,
   realtimeBump?: { channelId?: string; createdAt?: string; senderType?: 'admin'|'sub_user'; senderId?: string; isSelf?: boolean },
   isExternalUser?: boolean,
-  viewerEmail?: string | null,
-  suppressedChannels?: Set<string> // NEW: channels currently being suppressed by badge store
+  viewerEmail?: string | null
 ) {
   const [maps, setMaps] = useState<Maps>({ channel: {}, peer: {}, total: 0 });
   const [userChannels, setUserChannels] = useState<Set<string>>(new Set());
@@ -24,13 +23,6 @@ export function useServerUnread(
 
   const refresh = useCallback(async () => {
     if (!ownerId || !viewerType || !viewerId || fetching.current) return;
-    
-    // SUPPRESSION AWARENESS: Skip refresh if too many channels are being suppressed
-    // This prevents provider from interfering during channel switches
-    if (suppressedChannels && suppressedChannels.size > 0) {
-      console.log('🔇 Delaying server refresh - channels being suppressed:', suppressedChannels.size);
-      return;
-    }
     
     fetching.current = true;
     try {
@@ -78,25 +70,14 @@ export function useServerUnread(
         }
       });
 
-      // SUPPRESSION AWARENESS: Don't override suppressed channels
-      const finalChannel = { ...channel };
-      if (suppressedChannels) {
-        suppressedChannels.forEach(cid => {
-          if (finalChannel[cid] > 0) {
-            console.log('🔇 Server refresh: keeping suppressed channel at 0:', cid);
-            finalChannel[cid] = 0;
-          }
-        });
-      }
-
-      const total = Object.values(finalChannel).reduce((s, n) => s + (n || 0), 0);
-      setMaps({ channel: finalChannel, peer, total });
+      const total = Object.values(channel).reduce((s, n) => s + (n || 0), 0);
+      setMaps({ channel, peer, total });
     } catch (error) {
       console.error('Error fetching unread counters:', error);
     } finally {
       fetching.current = false;
     }
-  }, [ownerId, viewerType, viewerId, viewerEmail, suppressedChannels]);
+  }, [ownerId, viewerType, viewerId, viewerEmail]);
 
   // Initial + periodic refresh - optimized to prevent flickering
   useEffect(() => { refresh(); }, [refresh]);
