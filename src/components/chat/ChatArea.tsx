@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Users } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
@@ -10,6 +10,8 @@ import { MessageInput } from './MessageInput';
 import { MessageList } from './MessageList';
 import { getEffectivePublicEmail } from '@/utils/chatEmail';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ParticipantDropdown } from './ParticipantDropdown';
+import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 
 type Message = {
   id: string;
@@ -73,6 +75,25 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [resolvedCurrentUserId, setResolvedCurrentUserId] = useState<string | null>(null);
+
+  // Participant dropdown state
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<Array<{
+    id: string;
+    name: string;
+    email?: string;
+    avatar_url?: string;
+    type: 'admin' | 'sub_user';
+  }>>([]);
+  const { fetchChannelParticipants, isLoading: participantsLoading } = useChannelParticipants(teamMembers);
+  const [participants, setParticipants] = useState<Array<{
+    id: string;
+    name: string;
+    email?: string;
+    avatar_url?: string;
+    type: 'admin' | 'sub_user';
+    isCurrentUser?: boolean;
+  }>>([]);
 
   const cacheRef = useRef<Map<string, Message[]>>(new Map());
   const activeChannelId = currentChannelId;
@@ -728,6 +749,80 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
+  // Fetch team members for participant dropdown
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      if (!boardOwnerId) return;
+
+      try {
+        // Fetch admin info
+        const { data: adminProfile } = await supabase
+          .from('profiles')
+          .select('id, username, avatar_url')
+          .eq('id', boardOwnerId)
+          .single();
+
+        // Fetch sub-users
+        const { data: subUsers } = await supabase
+          .from('sub_users')
+          .select('id, fullname, email, avatar_url')
+          .eq('board_owner_id', boardOwnerId);
+
+        const members = [];
+        
+        // Add admin
+        if (adminProfile) {
+          members.push({
+            id: adminProfile.id,
+            name: adminProfile.username || 'Admin',
+            avatar_url: adminProfile.avatar_url,
+            type: 'admin' as const
+          });
+        }
+
+        // Add sub-users
+        if (subUsers) {
+          subUsers.forEach(subUser => {
+            members.push({
+              id: subUser.id,
+              name: subUser.fullname || 'User',
+              email: subUser.email,
+              avatar_url: subUser.avatar_url,
+              type: 'sub_user' as const
+            });
+          });
+        }
+
+        setTeamMembers(members);
+      } catch (error) {
+        console.error('Error fetching team members:', error);
+        setTeamMembers([]);
+      }
+    };
+
+    fetchTeamMembers();
+  }, [boardOwnerId]);
+
+  // Fetch participants when channel changes
+  useEffect(() => {
+    const loadParticipants = async () => {
+      if (!activeChannelId || !boardOwnerId || teamMembers.length === 0) {
+        setParticipants([]);
+        return;
+      }
+
+      try {
+        const channelParticipants = await fetchChannelParticipants(activeChannelId);
+        setParticipants(channelParticipants);
+      } catch (error) {
+        console.error('Error loading participants:', error);
+        setParticipants([]);
+      }
+    };
+
+    loadParticipants();
+  }, [activeChannelId, boardOwnerId, teamMembers, fetchChannelParticipants]);
+
   const send = async (content: string, attachments: any[] = []) => {
     if (!content.trim() && attachments.length === 0) return;
     if (!activeChannelId || !boardOwnerId || !me) return;
@@ -1211,32 +1306,48 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   return (
     <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b bg-muted/30">
-        {channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
-          <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-            <img
-              src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
-              alt={channelInfo.dmPartner.name}
-              className="h-full w-full object-cover"
-            />
+      <div className="border-b p-4 bg-muted/30 relative">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
+              <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                <img
+                  src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
+                  alt={channelInfo.dmPartner.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ) : channelInfo?.isDM ? (
+              <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                <span className="text-sm font-semibold text-foreground">
+                  {(channelInfo?.dmPartner?.name || "U").slice(0, 2).toUpperCase()}
+                </span>
+              </div>
+            ) : (
+              <MessageCircle className="h-5 w-5" />
+            )}
+            <div>
+              <button
+                onClick={() => setShowParticipants(!showParticipants)}
+                className="flex items-center space-x-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
+              >
+                <h2 className="font-semibold">
+                  {channelInfo?.isDM
+                    ? (channelInfo?.dmPartner?.name || t('chat.directMessage'))
+                    : (channelInfo?.name || t('chat.general'))}
+                </h2>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
           </div>
-        ) : channelInfo?.isDM ? (
-          <div className="h-8 w-8 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-semibold text-foreground">
-              {(channelInfo?.dmPartner?.name || "U").slice(0, 2).toUpperCase()}
-            </span>
-          </div>
-        ) : (
-          <MessageCircle className="h-5 w-5" />
-        )}
-        <h2 className="font-semibold">
-          {channelInfo?.isDM
-            ? (channelInfo?.dmPartner?.name || t('chat.directMessage'))
-            : (channelInfo?.name || t('chat.general'))}
-        </h2>
-        <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-600">
-          {channelInfo?.isDM ? t('chat.directMessage') : t('chat.channel')}
-        </span>
+        </div>
+        
+        <ParticipantDropdown
+          isOpen={showParticipants}
+          participants={participants}
+          loading={participantsLoading(activeChannelId || '')}
+          onClose={() => setShowParticipants(false)}
+        />
       </div>
 
       {/* Messages */}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
-import { Hash, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
+import { Hash, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
@@ -571,21 +571,6 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           <div className="space-y-1">
             <div className="flex items-center">
               {/* Dropdown toggle button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDropdownToggle(generalChannelId, e);
-                }}
-                className="p-2 hover:bg-muted/50 rounded-l-lg transition-colors flex items-center justify-center"
-                title="Show participants"
-              >
-                {openDropdown === generalChannelId ? (
-                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                )}
-              </button>
-              
               {/* Channel navigation button */}
               <button
                 onPointerDown={() => {
@@ -966,21 +951,6 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                 <div key={chat.id} className="space-y-1">
                   <div className="flex items-center">
                     {/* Dropdown toggle button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDropdownToggle(chat.id, e);
-                      }}
-                      className="p-2 hover:bg-muted/50 rounded-l-lg transition-colors flex items-center justify-center"
-                      title="Show participants"
-                    >
-                      {openDropdown === chat.id ? (
-                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                      ) : (
-                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                      )}
-                    </button>
-                    
                     {/* Channel navigation button */}
                     <button
                       onPointerDown={() => {
