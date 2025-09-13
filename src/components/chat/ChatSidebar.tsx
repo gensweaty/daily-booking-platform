@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { Hash, Trash2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
@@ -62,6 +62,16 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   }>>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<{ id: string; name: string } | null>(null);
+  
+  // Visual suppression layer to prevent badge flicker during channel switches
+  const [switchingChannelId, setSwitchingChannelId] = useState<string | null>(null);
+  const suppressionTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  // Enhanced badge getter with visual suppression
+  const getVisibleBadge = (channelId: string) => {
+    if (switchingChannelId === channelId) return 0;
+    return getBadge(channelId);
+  };
 
   // Load general channel with improved selection logic
   useEffect(() => {
@@ -523,6 +533,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           onPointerDown={() => {
             if (generalChannelId) {
               flushSync(() => {
+                // Visual suppression
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
               });
             }
@@ -530,6 +545,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           onMouseDown={() => {
             if (generalChannelId) {
               flushSync(() => {
+                // Visual suppression
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
               });
             }
@@ -537,6 +557,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           onTouchStart={() => {
             if (generalChannelId) {
               flushSync(() => {
+                // Visual suppression
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
               });
             }
@@ -544,6 +569,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           onKeyDown={(e) => {
             if ((e.key === 'Enter' || e.key === ' ') && generalChannelId) {
               flushSync(() => {
+                // Visual suppression
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
               });
             }
@@ -552,6 +582,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             if (generalChannelId) {
               // call again (idempotent) in case pointerdown didn't fire
               flushSync(() => {
+                // Visual suppression (failsafe)
+                setSwitchingChannelId(generalChannelId);
+                if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                
                 enterChannel(generalChannelId);
               });
               // Tell the header explicitly: this is a Channel called "General"
@@ -578,9 +613,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               <LanguageText>{t('chat.general')}</LanguageText>
             </span>
           </div>
-          {generalChannelId && getBadge(generalChannelId) > 0 && (
+          {generalChannelId && getVisibleBadge(generalChannelId) > 0 && (
               <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
-                {getBadge(generalChannelId) > 99 ? '99+' : getBadge(generalChannelId)}
+                {getVisibleBadge(generalChannelId) > 99 ? '99+' : getVisibleBadge(generalChannelId)}
               </span>
            )}
         </button>
@@ -832,22 +867,42 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   <button
                     onPointerDown={() => {
                       flushSync(() => {
+                        // Visual suppression
+                        setSwitchingChannelId(chat.id);
+                        if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                        suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                        
                         enterChannel(chat.id);
                       });
                     }}
                     onMouseDown={() => {
                       flushSync(() => {
+                        // Visual suppression
+                        setSwitchingChannelId(chat.id);
+                        if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                        suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                        
                         enterChannel(chat.id);
                       });
                     }}
                     onTouchStart={() => {
                       flushSync(() => {
+                        // Visual suppression
+                        setSwitchingChannelId(chat.id);
+                        if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                        suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                        
                         enterChannel(chat.id);
                       });
                     }}
                     onKeyDown={(e) => {
                       if ((e.key === 'Enter' || e.key === ' ')) {
                         flushSync(() => {
+                          // Visual suppression
+                          setSwitchingChannelId(chat.id);
+                          if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                          suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                          
                           enterChannel(chat.id);
                         });
                       }
@@ -855,6 +910,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     onClick={() => {
                       // call again (idempotent) in case pointerdown didn't fire
                       flushSync(() => {
+                        // Visual suppression (failsafe)
+                        setSwitchingChannelId(chat.id);
+                        if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                        suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                        
                         enterChannel(chat.id);
                       });
                       // Tell the header this is a custom channel
@@ -877,9 +937,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                     <Hash className="h-4 w-4 flex-shrink-0" />
                     <span className="font-medium truncate">{chat.name}</span>
                     
-                    {chat.id && getBadge(chat.id) > 0 && (
+                    {chat.id && getVisibleBadge(chat.id) > 0 && (
                       <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
-                        {getBadge(chat.id) > 99 ? '99+' : getBadge(chat.id)}
+                        {getVisibleBadge(chat.id) > 99 ? '99+' : getVisibleBadge(chat.id)}
                       </span>
                     )}
                   </button>
