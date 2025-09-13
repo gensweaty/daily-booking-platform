@@ -85,19 +85,23 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   // Handle dropdown toggle
   const handleDropdownToggle = async (channelId: string, event?: React.MouseEvent) => {
     event?.stopPropagation();
+    console.log('🔽 Dropdown toggle clicked for channel:', channelId, 'current state:', openDropdown);
     
     if (openDropdown === channelId) {
+      console.log('🔼 Closing dropdown');
       setOpenDropdown(null);
       return;
     }
 
+    console.log('🔽 Opening dropdown and fetching participants');
     setOpenDropdown(channelId);
     
     try {
       const participants = await fetchChannelParticipants(channelId);
+      console.log('✅ Participants loaded:', participants.length, 'participants');
       setDropdownParticipants(participants);
     } catch (error) {
-      console.error('Error fetching participants:', error);
+      console.error('❌ Error fetching participants:', error);
       setDropdownParticipants([]);
     }
   };
@@ -565,108 +569,85 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         {/* General Channel */}
         {generalChannelId && (
           <div className="space-y-1">
-            <button
-              onPointerDown={() => {
-                if (generalChannelId) {
-                  flushSync(() => {
-                    // Visual suppression
-                    setSwitchingChannelId(generalChannelId);
-                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
-                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                    
-                    enterChannel(generalChannelId);
-                  });
-                }
-              }}
-              onMouseDown={() => {
-                if (generalChannelId) {
-                  flushSync(() => {
-                    // Visual suppression
-                    setSwitchingChannelId(generalChannelId);
-                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
-                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                    
-                    enterChannel(generalChannelId);
-                  });
-                }
-              }}
-              onTouchStart={() => {
-                if (generalChannelId) {
-                  flushSync(() => {
-                    // Visual suppression
-                    setSwitchingChannelId(generalChannelId);
-                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
-                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                    
-                    enterChannel(generalChannelId);
-                  });
-                }
-              }}
-              onKeyDown={(e) => {
-                if ((e.key === 'Enter' || e.key === ' ') && generalChannelId) {
-                  flushSync(() => {
-                    // Visual suppression
-                    setSwitchingChannelId(generalChannelId);
-                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
-                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                    
-                    enterChannel(generalChannelId);
-                  });
-                }
-              }}
-              onClick={() => {
-                if (generalChannelId) {
-                  // call again (idempotent) in case pointerdown didn't fire
-                  flushSync(() => {
-                    // Visual suppression (failsafe)
-                    setSwitchingChannelId(generalChannelId);
-                    if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
-                    suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                    
-                    enterChannel(generalChannelId);
-                  });
-                  // Tell the header explicitly: this is a Channel called "General"
-                  window.dispatchEvent(new CustomEvent('chat-header', {
-                    detail: {
-                      channelId: generalChannelId,
-                      isDM: false,
-                      title: 'General',
-                      avatar: null
-                    }
-                  }));
-                  openChannel(generalChannelId);
-                  onChannelSelect?.();
-                }
-              }}
-              className={cn(
-                "w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all text-left relative group",
-                "bg-muted hover:bg-muted/80 border border-muted/80 hover:border-muted",
-                "dark:bg-muted/60 dark:hover:bg-muted/80 dark:border-muted/70 dark:hover:border-muted/90",
-                currentChannelId === generalChannelId ? "!bg-primary/20 !text-primary !border-primary/30 font-medium dark:!bg-primary/30 dark:!text-primary-foreground" : ""
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <div 
-                  className="flex items-center gap-2 flex-1 cursor-pointer hover:opacity-80"
-                  onClick={(e) => handleDropdownToggle(generalChannelId, e)}
-                >
+            <div className="flex items-center">
+              {/* Dropdown toggle button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDropdownToggle(generalChannelId, e);
+                }}
+                className="p-2 hover:bg-muted/50 rounded-l-lg transition-colors flex items-center justify-center"
+                title="Show participants"
+              >
+                {openDropdown === generalChannelId ? (
+                  <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                )}
+              </button>
+              
+              {/* Channel navigation button */}
+              <button
+                onPointerDown={() => {
+                  if (generalChannelId) {
+                    flushSync(() => {
+                      setSwitchingChannelId(generalChannelId);
+                      if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                      suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                      enterChannel(generalChannelId);
+                    });
+                  }
+                }}
+                onMouseDown={() => {
+                  if (generalChannelId) {
+                    flushSync(() => {
+                      setSwitchingChannelId(generalChannelId);
+                      if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                      suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                      enterChannel(generalChannelId);
+                    });
+                  }
+                }}
+                onClick={() => {
+                  if (generalChannelId) {
+                    flushSync(() => {
+                      setSwitchingChannelId(generalChannelId);
+                      if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+                      suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
+                      enterChannel(generalChannelId);
+                    });
+                    window.dispatchEvent(new CustomEvent('chat-header', {
+                      detail: {
+                        channelId: generalChannelId,
+                        isDM: false,
+                        title: 'General',
+                        avatar: null
+                      }
+                    }));
+                    openChannel(generalChannelId);
+                    onChannelSelect?.();
+                  }
+                }}
+                className={cn(
+                  "flex-1 flex items-center justify-between px-3 py-2.5 rounded-r-lg transition-all text-left relative group",
+                  "bg-muted hover:bg-muted/80 border border-muted/80 hover:border-muted border-l-0",
+                  "dark:bg-muted/60 dark:hover:bg-muted/80 dark:border-muted/70 dark:hover:border-muted/90",
+                  currentChannelId === generalChannelId ? "!bg-primary/20 !text-primary !border-primary/30 font-medium dark:!bg-primary/30 dark:!text-primary-foreground" : ""
+                )}
+              >
+                <div className="flex items-center gap-2">
                   <Hash className="h-4 w-4 flex-shrink-0" />
                   <span className="font-medium">
                     <LanguageText>{t('chat.general')}</LanguageText>
                   </span>
-                  {openDropdown === generalChannelId ? (
-                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                  )}
                 </div>
-              </div>
-              {generalChannelId && getVisibleBadge(generalChannelId) > 0 && (
-                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
-                    {getVisibleBadge(generalChannelId) > 99 ? '99+' : getVisibleBadge(generalChannelId)}
-                  </span>
-               )}
-            </button>
+                {generalChannelId && getVisibleBadge(generalChannelId) > 0 && (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">
+                      {getVisibleBadge(generalChannelId) > 99 ? '99+' : getVisibleBadge(generalChannelId)}
+                    </span>
+                 )}
+              </button>
+            </div>
             
             <ParticipantDropdown 
               isOpen={openDropdown === generalChannelId}
@@ -983,61 +964,48 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             <div className="space-y-1">
               {customChats.map((chat) => (
                 <div key={chat.id} className="space-y-1">
-                  <div className="group flex items-center">
+                  <div className="flex items-center">
+                    {/* Dropdown toggle button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDropdownToggle(chat.id, e);
+                      }}
+                      className="p-2 hover:bg-muted/50 rounded-l-lg transition-colors flex items-center justify-center"
+                      title="Show participants"
+                    >
+                      {openDropdown === chat.id ? (
+                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </button>
+                    
+                    {/* Channel navigation button */}
                     <button
                       onPointerDown={() => {
                         flushSync(() => {
-                          // Visual suppression
                           setSwitchingChannelId(chat.id);
                           if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
                           suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                          
                           enterChannel(chat.id);
                         });
                       }}
                       onMouseDown={() => {
                         flushSync(() => {
-                          // Visual suppression
                           setSwitchingChannelId(chat.id);
                           if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
                           suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                          
                           enterChannel(chat.id);
                         });
-                      }}
-                      onTouchStart={() => {
-                        flushSync(() => {
-                          // Visual suppression
-                          setSwitchingChannelId(chat.id);
-                          if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
-                          suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                          
-                          enterChannel(chat.id);
-                        });
-                      }}
-                      onKeyDown={(e) => {
-                        if ((e.key === 'Enter' || e.key === ' ')) {
-                          flushSync(() => {
-                            // Visual suppression
-                            setSwitchingChannelId(chat.id);
-                            if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
-                            suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                            
-                            enterChannel(chat.id);
-                          });
-                        }
                       }}
                       onClick={() => {
-                        // call again (idempotent) in case pointerdown didn't fire
                         flushSync(() => {
-                          // Visual suppression (failsafe)
                           setSwitchingChannelId(chat.id);
                           if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
                           suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 1500);
-                          
                           enterChannel(chat.id);
                         });
-                        // Tell the header this is a custom channel
                         window.dispatchEvent(new CustomEvent('chat-header', {
                           detail: {
                             channelId: chat.id,
@@ -1050,24 +1018,14 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                         onChannelSelect?.();
                       }}
                       className={cn(
-                        "flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg transition-all text-left",
+                        "flex-1 flex items-center gap-2 px-3 py-2.5 rounded-r-lg transition-all text-left border-l-0",
                         "bg-muted hover:bg-muted/80 border border-muted/80 hover:border-muted",
                         "dark:bg-muted/60 dark:hover:bg-muted/80 dark:border-muted/70 dark:hover:border-muted/90",
                         currentChannelId === chat.id ? "!bg-primary/20 !text-primary !border-primary/30 font-medium dark:!bg-primary/30 dark:!text-primary-foreground" : ""
                       )}
                     >
-                      <div 
-                        className="flex items-center gap-2 flex-1 cursor-pointer hover:opacity-80"
-                        onClick={(e) => handleDropdownToggle(chat.id, e)}
-                      >
-                        <Hash className="h-4 w-4 flex-shrink-0" />
-                        <span className="font-medium truncate">{chat.name}</span>
-                        {openDropdown === chat.id ? (
-                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                        )}
-                      </div>
+                      <Hash className="h-4 w-4 flex-shrink-0" />
+                      <span className="font-medium truncate">{chat.name}</span>
                       
                       {chat.id && getVisibleBadge(chat.id) > 0 && (
                         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground ml-auto">
