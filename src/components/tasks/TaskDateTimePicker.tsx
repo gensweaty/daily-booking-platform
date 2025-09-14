@@ -142,12 +142,8 @@ export const TaskDateTimePicker = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent 
-            className="w-auto p-0 min-w-[300px] max-w-[95vw]" 
-            align="start" 
-            side="top"
-            sideOffset={8}
-            avoidCollisions={false}
-            collisionPadding={10}
+            className="w-auto p-0 min-w-[300px] max-w-[95vw] z-50" 
+            align="start"
           >
             <div className="p-3">
               {/* Current time display */}
