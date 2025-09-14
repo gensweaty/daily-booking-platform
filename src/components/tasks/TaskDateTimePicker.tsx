@@ -142,7 +142,7 @@ export const TaskDateTimePicker = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent 
-            className="w-auto p-0 min-w-[300px] max-w-[95vw] z-50" 
+            className="w-auto p-0 min-w-[300px] max-w-[95vw] z-50 bg-background border shadow-md" 
             align="start"
           >
             <div className="p-3">
@@ -172,14 +172,7 @@ export const TaskDateTimePicker = ({
                     <SelectTrigger className="w-full sm:w-20">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent 
-                      className="max-h-[200px] z-[100]" 
-                      position="popper" 
-                      side="top" 
-                      sideOffset={4}
-                      avoidCollisions={false}
-                      collisionPadding={8}
-                    >
+                    <SelectContent className="max-h-[200px] z-[100]">
                       {hours.map((hour) => (
                         <SelectItem key={hour} value={hour}>
                           {hour}
@@ -191,14 +184,7 @@ export const TaskDateTimePicker = ({
                     <SelectTrigger className="w-full sm:w-20">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent 
-                      className="max-h-[200px] z-[100]" 
-                      position="popper" 
-                      side="top" 
-                      sideOffset={4}
-                      avoidCollisions={false}
-                      collisionPadding={8}
-                    >
+                    <SelectContent className="max-h-[200px] z-[100]">
                       {minutes.map((minute) => (
                         <SelectItem key={minute} value={minute}>
                           {minute}
