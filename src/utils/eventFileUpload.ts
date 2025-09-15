@@ -18,25 +18,25 @@ export const uploadEventFiles = async (options: UploadFilesOptions): Promise<voi
   
   if (files.length === 0) return;
   
-  console.log(`📤 [${isPublicMode ? 'Public' : 'Internal'}] Uploading ${files.length} files for event:`, eventId);
+  console.log(`📤 Uploading ${files.length} files for event:`, eventId);
   
   const uploadPromises = files.map(async (file) => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${eventId}/${Date.now()}.${fileExt}`;
     
-    // 1) Upload file to storage (unchanged)
+    // Upload file to storage
     const { error: uploadError } = await supabase.storage
       .from('event_attachments')
       .upload(fileName, file);
 
     if (uploadError) {
-      console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error uploading file:`, uploadError);
+      console.error('❌ Error uploading file:', uploadError);
       throw uploadError;
     }
 
-    // 2) Create record in event_files table
+    // Create record in event_files table - simple direct insert
     if (isPublicMode && ownerId) {
-      // PUBLIC: insert via RPC
+      // PUBLIC: use RPC for public boards
       const { error: rpcError } = await supabase.rpc('public_insert_event_file', {
         p_owner_id: ownerId,
         p_event_id: eventId,
@@ -47,11 +47,11 @@ export const uploadEventFiles = async (options: UploadFilesOptions): Promise<voi
       });
 
       if (rpcError) {
-        console.error(`❌ [Public] Error saving file record via RPC:`, rpcError);
+        console.error('❌ Error saving file record via RPC:', rpcError);
         throw rpcError;
       }
     } else {
-      // INTERNAL: regular insert respects RLS
+      // INTERNAL: direct insert (RLS is now disabled)
       const { error: dbError } = await supabase
         .from('event_files')
         .insert({
@@ -64,17 +64,17 @@ export const uploadEventFiles = async (options: UploadFilesOptions): Promise<voi
         });
 
       if (dbError) {
-        console.error(`❌ [Internal] Error saving file record:`, dbError);
+        console.error('❌ Error saving file record:', dbError);
         throw dbError;
       }
     }
 
-    console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File uploaded successfully:`, file.name);
+    console.log('✅ File uploaded successfully:', file.name);
     return fileName;
   });
 
   await Promise.all(uploadPromises);
-  console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] All files uploaded successfully for event:`, eventId);
+  console.log('✅ All files uploaded successfully for event:', eventId);
 };
 
 /**
