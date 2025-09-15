@@ -739,7 +739,7 @@ export const translations: TranslationType = {
     cancelButton: "არა",
     edited: "რედაქტირებული",
     customChats: "მორგებული ჩატები",
-    createCustomChat: "მორგებული ჩატის შექმნა",
+    createCustomChat: "ჩათის შექმნა",
     chatName: "ჩატის სახელი",
     selectParticipants: "მონაწილეების არჩევა",
     noCustomChats: "მორგებული ჩატები არ არის",
