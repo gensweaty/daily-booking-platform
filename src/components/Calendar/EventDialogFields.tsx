@@ -542,7 +542,7 @@ export const EventDialogFields = ({
                   <SelectTrigger id="repeatPattern" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                     <SelectValue placeholder={isGeorgian ? "აირჩიეთ..." : "Select..."} />
                   </SelectTrigger>
-                  <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
+                  <SelectContent className={cn("bg-background z-[10001]", isGeorgian ? "font-georgian" : "")}>
                     {repeatOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                         {option.label}
