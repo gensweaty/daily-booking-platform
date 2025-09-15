@@ -209,8 +209,19 @@ export const PublicEventDialog = ({
         actualEventId,
         isVirtualEvent,
         parentEventId: initialData?.parent_event_id,
-        isRecurring: initialData?.is_recurring
+        isRecurring: initialData?.is_recurring,
+        publicBoardUserId,
+        isAuthenticated: !!supabase.auth.getUser()
       });
+
+      // Enhanced debugging with explicit RLS context check
+      if (publicBoardUserId) {
+        const debugResult = await supabase.rpc('debug_customers_access', {
+          p_event_id: actualEventId,
+          p_user_id: publicBoardUserId
+        });
+        console.log('🔧 [PublicEventDialog] Debug customers access:', debugResult);
+      }
 
       const { data: customers, error } = await supabase
         .from('customers')
