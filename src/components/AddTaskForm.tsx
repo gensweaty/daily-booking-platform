@@ -16,7 +16,6 @@ import { GeorgianAuthText } from "./shared/GeorgianAuthText";
 import { Archive, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 
@@ -440,22 +439,24 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
   );
 
 
-  if (renderMode === 'mobile') {
-    return (
-      <>
-        <Sheet open={true} onOpenChange={onClose}>
-          <SheetContent 
-            side="bottom" 
-            className="h-[90vh] w-full p-0 overflow-y-auto"
-          >
-            {formContent}
-          </SheetContent>
-        </Sheet>
-        
-        {/* Delete Confirmation Dialog - Outside the Sheet */}
-        {showDeleteConfirmation && (
-          <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-          <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10002]">
+  return (
+    <>
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent
+          className={
+            isMobile
+              ? "fixed inset-0 m-0 h-[90vh] w-[100vw] translate-x-0 translate-y-0 rounded-none p-0 overflow-y-auto"
+              : "max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto"
+          }
+        >
+          {formContent}
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirmation && (
+        <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+          <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[11002]">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-sm sm:text-base">
                 {isGeorgian ? "დავალების წაშლა" : t("tasks.deleteTaskConfirmTitle")}
@@ -480,47 +481,6 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        )}
-      </>
-    );
-  }
-
-  return (
-    <>
-      <Dialog open={true} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto">
-          {formContent}
-        </DialogContent>
-      </Dialog>
-      
-      {/* Delete Confirmation Dialog - Outside the Dialog */}
-      {showDeleteConfirmation && (
-        <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10002]">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm sm:text-base">
-              {isGeorgian ? "დავალების წაშლა" : t("tasks.deleteTaskConfirmTitle")}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs sm:text-sm">
-              {isGeorgian 
-                ? "ნამდვილად გსურთ ამ დავალების წაშლა? ეს მოქმედება შეუქცევადია." 
-                : t("tasks.deleteTaskConfirmation")
-              }
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)} className="text-xs sm:text-sm">
-              {isGeorgian ? "გაუქმება" : t("common.cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm"
-            >
-              {isGeorgian ? "წაშლა" : t("common.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       )}
     </>
   );
