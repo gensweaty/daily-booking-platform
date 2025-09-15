@@ -309,7 +309,9 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
                   disabled={isCreating || isUploading}
                 >
                   <Upload className="h-4 w-4 mr-2" />
-                  {avatarFile ? 'Change' : 'Upload'}
+                  <LanguageText>
+                    {avatarFile ? t('profile.changeAvatar') : t('profile.uploadAvatar')}
+                  </LanguageText>
                 </Button>
                 
                 {avatarFile && (
@@ -370,7 +372,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
                         </div>
                         <span className="text-sm">{member.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          ({member.type === 'admin' ? 'Admin' : 'Member'})
+                          (<LanguageText>{member.type === 'admin' ? 'Admin' : t('chat.teamMember')}</LanguageText>)
                         </span>
                       </Label>
                     </div>
@@ -393,13 +395,15 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
               onClick={handleCancel}
               disabled={isCreating}
             >
-              Cancel
+              <LanguageText>{t('common.cancel')}</LanguageText>
             </Button>
             <Button
               type="submit"
               disabled={isCreating || isUploading || !chatName.trim() || selectedParticipants.length < 2}
             >
-              {isCreating ? (isUploading ? 'Uploading...' : 'Creating...') : 'Create Chat'}
+              <LanguageText>
+                {isCreating ? t('subscription.processing') : t('crm.create') + ' ' + t('chat.customChats').slice(0, -1)}
+              </LanguageText>
             </Button>
           </div>
         </form>
