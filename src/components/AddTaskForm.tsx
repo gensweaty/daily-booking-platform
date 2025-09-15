@@ -48,6 +48,16 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
   const { validateDateTime } = useTimezoneValidation();
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery("(max-width: 640px)");
+  const [renderMode, setRenderMode] = useState<'mobile' | 'desktop' | null>(null);
+
+  useEffect(() => {
+    // Delay render mode selection to prevent both components from rendering
+    const timer = setTimeout(() => {
+      setRenderMode(isMobile ? 'mobile' : 'desktop');
+    }, 10);
+    
+    return () => clearTimeout(timer);
+  }, [isMobile]);
 
   useEffect(() => {
     if (editingTask) {
@@ -331,9 +341,9 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
   };
 
   const formContent = (
-    <div className={`w-full ${isMobile ? 'space-y-1 px-1 pb-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
+    <div className={`w-full ${renderMode === 'mobile' ? 'space-y-1 px-1 pb-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
       <TaskFormHeader editingTask={editingTask} />
-      <form onSubmit={handleSubmit} className={isMobile ? 'space-y-1' : 'space-y-3 sm:space-y-6'}>
+      <form onSubmit={handleSubmit} className={renderMode === 'mobile' ? 'space-y-1' : 'space-y-3 sm:space-y-6'}>
         <TaskFormFields
           title={title}
           setTitle={setTitle}
@@ -369,7 +379,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           </div>
         )}
         
-        <div className={`flex justify-end gap-1 sm:gap-2 ${isMobile ? 'pt-1 border-t border-muted/20 mt-0' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
+        <div className={`flex justify-end gap-1 sm:gap-2 ${renderMode === 'mobile' ? 'pt-1 border-t border-muted/20 mt-0' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
           {editingTask && (
             <>
               <Button 
@@ -466,7 +476,12 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
     </div>
   );
 
-  if (isMobile) {
+  // Don't render anything until render mode is determined
+  if (!renderMode) {
+    return null;
+  }
+
+  if (renderMode === 'mobile') {
     return (
       <Sheet open={true} onOpenChange={onClose}>
         <SheetContent 
