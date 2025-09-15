@@ -34,39 +34,21 @@ export const uploadCustomerFiles = async (options: UploadCustomerFilesOptions): 
       throw uploadError;
     }
 
-    // Create record in customer_files_new table - simple direct insert
-    if (isPublicMode && ownerId) {
-      // PUBLIC: use RPC for public boards
-      const { error: rpcError } = await supabase.rpc('public_insert_customer_file', {
-        p_owner_id: ownerId,
-        p_customer_id: customerId,
-        p_filename: file.name,
-        p_file_path: fileName,
-        p_content_type: file.type,
-        p_size: file.size
+    // Simple direct insert - RLS is disabled so this works for both internal and external
+    const { error: dbError } = await supabase
+      .from('customer_files_new')
+      .insert({
+        filename: file.name,
+        file_path: fileName,
+        content_type: file.type,
+        size: file.size,
+        user_id: isPublicMode && ownerId ? ownerId : userId,
+        customer_id: customerId
       });
 
-      if (rpcError) {
-        console.error('❌ Error saving customer file record via RPC:', rpcError);
-        throw rpcError;
-      }
-    } else {
-      // INTERNAL: direct insert (RLS has simple policies now)
-      const { error: dbError } = await supabase
-        .from('customer_files_new')
-        .insert({
-          filename: file.name,
-          file_path: fileName,
-          content_type: file.type,
-          size: file.size,
-          user_id: userId,
-          customer_id: customerId
-        });
-
-      if (dbError) {
-        console.error('❌ Error saving customer file record:', dbError);
-        throw dbError;
-      }
+    if (dbError) {
+      console.error('❌ Error saving customer file record:', dbError);
+      throw dbError;
     }
 
     console.log('✅ Customer file uploaded successfully:', file.name);

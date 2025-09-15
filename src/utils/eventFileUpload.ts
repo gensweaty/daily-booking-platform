@@ -34,39 +34,21 @@ export const uploadEventFiles = async (options: UploadFilesOptions): Promise<voi
       throw uploadError;
     }
 
-    // Create record in event_files table - simple direct insert
-    if (isPublicMode && ownerId) {
-      // PUBLIC: use RPC for public boards
-      const { error: rpcError } = await supabase.rpc('public_insert_event_file', {
-        p_owner_id: ownerId,
-        p_event_id: eventId,
-        p_filename: file.name,
-        p_file_path: fileName,
-        p_content_type: file.type,
-        p_size: file.size
+    // Simple direct insert - RLS is disabled so this works for both internal and external
+    const { error: dbError } = await supabase
+      .from('event_files')
+      .insert({
+        filename: file.name,
+        file_path: fileName,
+        content_type: file.type,
+        size: file.size,
+        user_id: isPublicMode && ownerId ? ownerId : userId,
+        event_id: eventId
       });
 
-      if (rpcError) {
-        console.error('❌ Error saving file record via RPC:', rpcError);
-        throw rpcError;
-      }
-    } else {
-      // INTERNAL: direct insert (RLS is now disabled)
-      const { error: dbError } = await supabase
-        .from('event_files')
-        .insert({
-          filename: file.name,
-          file_path: fileName,
-          content_type: file.type,
-          size: file.size,
-          user_id: userId,
-          event_id: eventId
-        });
-
-      if (dbError) {
-        console.error('❌ Error saving file record:', dbError);
-        throw dbError;
-      }
+    if (dbError) {
+      console.error('❌ Error saving file record:', dbError);
+      throw dbError;
     }
 
     console.log('✅ File uploaded successfully:', file.name);
