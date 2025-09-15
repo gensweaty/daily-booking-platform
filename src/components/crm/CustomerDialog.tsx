@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
-import { uploadCustomerFiles } from "@/utils/customerFileUpload";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -63,7 +62,6 @@ export const CustomerDialog = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
-  const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
@@ -193,7 +191,6 @@ export const CustomerDialog = ({
       loadFiles();
       setSelectedFile(null);
       setFileError("");
-      setFiles([]);
     }
   }, [open, customerId]);
 
@@ -246,26 +243,72 @@ export const CustomerDialog = ({
     }
   };
 
-  // Helper function to upload files after customer/event creation
-  const uploadFilesForCustomer = async (customerId: string, files: File[]) => {
-    if (files.length === 0) return;
-    
-    const effectiveUserId = getEffectiveUserId();
-    
+  const uploadFile = async (customerId: string, file: File) => {
     try {
-      await uploadCustomerFiles({
-        files,
-        customerId,
-        userId: effectiveUserId,
-        isPublicMode
+      const effectiveUserId = getEffectiveUserId();
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
+
+      console.log(`📤 [${isPublicMode ? 'Public' : 'Internal'}] Uploading file:`, {
+        filePath,
+        fileName: file.name,
+        fileSize: file.size,
+        isPublicMode,
+        effectiveUserId,
+        publicBoardUserId,
+        customerId
       });
-      
-      console.log(`✅ Successfully uploaded ${files.length} files for customer:`, customerId);
-    } catch (error) {
-      console.error("❌ Failed to upload files:", error);
+
+      console.log('🔍 File upload debug:', {
+        customerId,
+        filePath,
+        fileSize: file.size,
+        fileType: file.type,
+        isPublicMode,
+        effectiveUserId: getEffectiveUserId(),
+        publicBoardUserId,
+        authUid: user?.id,
+        fileName: file.name
+      });
+
+      const { error: uploadError } = await supabase.storage
+        .from('customer_attachments')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('❌ Storage upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('✅ File uploaded to storage successfully');
+
+      const fileData = {
+        filename: file.name,
+        file_path: filePath,
+        content_type: file.type,
+        size: file.size,
+        user_id: effectiveUserId,
+        customer_id: customerId,
+      };
+
+      console.log('📝 Creating file record:', fileData);
+
+      const { error: fileRecordError } = await supabase
+        .from('customer_files_new')
+        .insert(fileData);
+
+      if (fileRecordError) {
+        console.error('❌ Database insert error:', fileRecordError);
+        throw fileRecordError;
+      }
+
+      console.log('✅ File record created successfully');
+      return fileData;
+    } catch (error: any) {
+      console.error("❌ Complete upload error:", error);
       toast({
         title: t("common.error"),
-        description: t("common.uploadError"),
+        description: error.message || t("common.uploadError"),
         variant: "destructive",
       });
       throw error;
@@ -522,18 +565,11 @@ export const CustomerDialog = ({
 
         if (error) throw error;
 
-        // Upload pending files after update
-        const filesToUpload = [...files];
-        if (selectedFile) filesToUpload.push(selectedFile);
-        
-        if (filesToUpload.length > 0 && customerId && !customerId.startsWith('event-')) {
+        let uploadedFileData = null;
+        if (selectedFile && customerId && !customerId.startsWith('event-')) {
           try {
-            await uploadFilesForCustomer(customerId, filesToUpload);
-            console.log("Files uploaded for updated customer");
-            
-            // Clear files after successful upload
-            setFiles([]);
-            setSelectedFile(null);
+            uploadedFileData = await uploadFile(customerId, selectedFile);
+            console.log("File uploaded for customer:", uploadedFileData);
           } catch (uploadError) {
             console.error("File upload failed:", uploadError);
           }
@@ -613,7 +649,9 @@ export const CustomerDialog = ({
             }
           }
 
-          // Note: File uploads are handled after successful customer/event operations
+          if (uploadedFileData && createdEventId) {
+            await copyFileFromCustomerToEvent(createdEventId, uploadedFileData);
+          }
         }
       } else {
         const newCustomer = {
@@ -661,18 +699,11 @@ export const CustomerDialog = ({
 
         console.log("Customer created:", customerData);
 
-        // Upload pending files after customer creation
-        const filesToUpload = [...files];
-        if (selectedFile) filesToUpload.push(selectedFile);
-        
-        if (filesToUpload.length > 0 && customerData) {
+        let uploadedFileData = null;
+        if (selectedFile && customerData) {
           try {
-            await uploadFilesForCustomer(customerData.id, filesToUpload);
-            console.log("Files uploaded for new customer");
-            
-            // Clear files after successful upload
-            setFiles([]);
-            setSelectedFile(null);
+            uploadedFileData = await uploadFile(customerData.id, selectedFile);
+            console.log("File uploaded for customer:", uploadedFileData);
           } catch (uploadError) {
             console.error("File upload failed:", uploadError);
           }
@@ -741,7 +772,9 @@ export const CustomerDialog = ({
               });
             }
             
-            // Note: File uploads are handled after successful customer/event operations
+            if (uploadedFileData && eventResult) {
+              await copyFileFromCustomerToEvent(eventResult.id, uploadedFileData);
+            }
           }
         }
       }
@@ -932,8 +965,6 @@ export const CustomerDialog = ({
               setCustomerNotes={(value) => setFormData({ ...formData, event_notes: value })}
               selectedFile={selectedFile}
               setSelectedFile={setSelectedFile}
-              files={files}
-              setFiles={setFiles}
               fileError={fileError}
               setFileError={setFileError}
               isEventBased={customerId?.startsWith('event-') || false}

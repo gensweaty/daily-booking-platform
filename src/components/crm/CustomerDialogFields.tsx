@@ -39,8 +39,6 @@ interface CustomerDialogFieldsProps {
   setCustomerNotes: (value: string) => void;
   selectedFile: File | null;
   setSelectedFile: (file: File | null) => void;
-  files: File[];
-  setFiles: (files: File[]) => void;
   fileError: string;
   setFileError: (error: string) => void;
   isEventBased?: boolean;
@@ -82,8 +80,6 @@ export const CustomerDialogFields = ({
   setCustomerNotes,
   selectedFile,
   setSelectedFile,
-  files,
-  setFiles,
   fileError,
   setFileError,
   isEventBased = false,
@@ -568,50 +564,11 @@ export const CustomerDialogFields = ({
 
       <div className="space-y-2">
         <FileUploadField 
-          onChange={(file) => {
-            if (file) {
-              setFiles([...files, file]);
-              setSelectedFile(null); // Clear selectedFile since we're using files array
-            }
-          }}
+          onChange={setSelectedFile}
           fileError={fileError}
           setFileError={setFileError}
         />
       </div>
-
-      {/* Show pending files to be uploaded */}
-      {files.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-sm font-medium">
-            {isGeorgian ? <GeorgianAuthText>ახალი ფაილები ატვირთვისთვის</GeorgianAuthText> : "New Files to Upload:"}
-          </div>
-          <FileDisplay 
-            files={files.map((file, index) => ({
-              id: `temp-${index}`,
-              filename: file.name,
-              file_path: '',
-              content_type: file.type,
-              size: file.size,
-              created_at: new Date().toISOString(),
-              user_id: '',
-              source: 'customer'
-            }))}
-            bucketName={fileBucketName}
-            allowDelete
-            onFileDeleted={(fileId) => {
-              const fileIndex = parseInt(fileId.replace('temp-', ''));
-              const newFiles = [...files];
-              newFiles.splice(fileIndex, 1);
-              setFiles(newFiles);
-            }}
-            parentType="customer"
-            fallbackBuckets={fallbackBuckets}
-            currentUserName={currentUserName}
-            currentUserType={currentUserType}
-            isSubUser={isSubUser}
-          />
-        </div>
-      )}
 
       {/* Metadata display for created and updated info */}
       {initialData && (
