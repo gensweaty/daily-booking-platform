@@ -466,7 +466,8 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
         </Sheet>
         
         {/* Delete Confirmation Dialog - Outside the Sheet */}
-        <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        {showDeleteConfirmation && (
+          <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
           <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10002]">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-sm sm:text-base">
@@ -492,6 +493,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        )}
       </>
     );
   }
@@ -505,7 +507,8 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
       </Dialog>
       
       {/* Delete Confirmation Dialog - Outside the Dialog */}
-      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+      {showDeleteConfirmation && (
+        <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
         <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10002]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm sm:text-base">
@@ -531,6 +534,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      )}
     </>
   );
 };
