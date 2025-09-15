@@ -17,24 +17,33 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
 
-  // Force stop loading after timeout to prevent infinite loading
+  // Immediate loading optimization
   useEffect(() => {
     console.log("[External Calendar] Mounted with business ID:", businessId);
     clearCalendarCache();
     
-    // Always stop loading after max 3 seconds to ensure calendar is functional
+    // Quick timeout to ensure calendar shows immediately
     const loadingTimeout = setTimeout(() => {
-      console.log("[External Calendar] Force stopping loading after timeout");
+      console.log("[External Calendar] Quick loading timeout");
       setIsInitialLoading(false);
-    }, 3000);
+    }, 500);
     
     return () => clearTimeout(loadingTimeout);
   }, [businessId]);
 
-  // Step 1: Get the business user ID - simplified without retry loops
+  // Fast business user ID lookup with immediate cache check
   useEffect(() => {
     const getBusinessUserId = async () => {
       if (!businessId) {
+        setIsInitialLoading(false);
+        return;
+      }
+      
+      // Check cache first for instant loading
+      const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
+      if (cachedUserId) {
+        console.log("[External Calendar] Using cached business user ID:", cachedUserId);
+        setBusinessUserId(cachedUserId);
         setIsInitialLoading(false);
         return;
       }
@@ -45,44 +54,20 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           .from("business_profiles")
           .select("user_id")
           .eq("id", businessId)
-          .single();
+          .maybeSingle();
         
-        if (error) {
-          console.error("Error fetching business profile:", error);
-          // Try to recover from cache
-          const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
-          if (cachedUserId) {
-            console.log("[External Calendar] Using cached business user ID:", cachedUserId);
-            setBusinessUserId(cachedUserId);
-          }
-          // Always stop loading even if error
+        if (error || !data?.user_id) {
+          console.error("Error fetching business user ID:", error);
           setIsInitialLoading(false);
           return;
         }
         
-        if (data?.user_id) {
-          console.log("[External Calendar] Found business user ID:", data.user_id);
-          setBusinessUserId(data.user_id);
-          sessionStorage.setItem(`business_user_id_${businessId}`, data.user_id);
-        } else {
-          console.error("No user ID found for business:", businessId);
-          // Try to recover from cache
-          const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
-          if (cachedUserId) {
-            console.log("[External Calendar] Using cached business user ID:", cachedUserId);
-            setBusinessUserId(cachedUserId);
-          }
-        }
+        console.log("[External Calendar] Found business user ID:", data.user_id);
+        setBusinessUserId(data.user_id);
+        sessionStorage.setItem(`business_user_id_${businessId}`, data.user_id);
       } catch (error) {
         console.error("Exception fetching business user ID:", error);
-        // Try to recover from cache
-        const cachedUserId = sessionStorage.getItem(`business_user_id_${businessId}`);
-        if (cachedUserId) {
-          console.log("[External Calendar] Using cached business user ID:", cachedUserId);
-          setBusinessUserId(cachedUserId);
-        }
       } finally {
-        // Always stop loading after user ID fetch
         setIsInitialLoading(false);
       }
     };
@@ -151,10 +136,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       console.log("[External Calendar] Have business ID and user ID, fetching events");
       fetchAllEvents();
       
-      // Set up polling for updates every 15 seconds
+      // Reduced polling frequency for better performance
       const intervalId = setInterval(() => {
         fetchAllEvents();
-      }, 15000);
+      }, 30000);
       
       return () => {
         isMounted = false;

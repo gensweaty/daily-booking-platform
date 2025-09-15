@@ -71,16 +71,7 @@ export const PublicBusinessPage = () => {
   console.log("[PublicBusinessPage] Current path:", location.pathname);
   console.log("[PublicBusinessPage] Current URL:", window.location.href);
 
-  // Retry logic for fetching the business profile
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (retryCount < 3 && !business) {
-        setRetryCount(prev => prev + 1);
-      }
-    }, 5000);
-    
-    return () => clearInterval(intervalId);
-  }, [business, retryCount]);
+  // Fast loading - removed slow retry logic
 
   // Cache the business slug for future visits
   useEffect(() => {
@@ -89,7 +80,7 @@ export const PublicBusinessPage = () => {
     }
   }, [businessSlug]);
 
-  // Fetch the business profile
+  // Fetch the business profile - optimized for fast loading
   useEffect(() => {
     const fetchBusinessProfile = async () => {
       if (!businessSlug) {
@@ -99,30 +90,46 @@ export const PublicBusinessPage = () => {
       }
       
       try {
-        setIsLoading(true);
+        // Check cache first for instant loading
+        const cachedBusiness = sessionStorage.getItem(`business_profile_${businessSlug}`);
+        if (cachedBusiness) {
+          try {
+            const parsed = JSON.parse(cachedBusiness);
+            setBusiness(parsed);
+            if (parsed.cover_photo_url) {
+              setCoverPhotoUrl(parsed.cover_photo_url);
+            }
+            setIsLoading(false);
+          } catch (e) {
+            console.log("Invalid cached data, fetching fresh");
+          }
+        }
+        
         console.log("[PublicBusinessPage] Fetching business profile for slug:", businessSlug);
         
-        // Try direct exact match first
-        let { data, error } = await supabase
-          .from("business_profiles")
-          .select("*")
-          .eq("slug", businessSlug)
-          .maybeSingle();
-
-        // If exact match fails, try case-insensitive search
-        if (!data && !error) {
-          console.log("[PublicBusinessPage] Exact match failed, trying case-insensitive search");
-          const { data: caseInsensitiveData, error: caseInsensitiveError } = await supabase
-            .from("business_profiles")
-            .select("*")
-            .ilike("slug", businessSlug)
-            .maybeSingle();
-          
-          data = caseInsensitiveData;
-          error = caseInsensitiveError;
+        // Parallel fetch - try both exact and case-insensitive at once
+        const [exactMatch, caseInsensitiveMatch] = await Promise.allSettled([
+          supabase.from("business_profiles").select("*").eq("slug", businessSlug).maybeSingle(),
+          supabase.from("business_profiles").select("*").ilike("slug", businessSlug).maybeSingle()
+        ]);
+        
+        let data = null;
+        let error = null;
+        
+        if (exactMatch.status === 'fulfilled' && exactMatch.value.data) {
+          data = exactMatch.value.data;
+        } else if (caseInsensitiveMatch.status === 'fulfilled' && caseInsensitiveMatch.value.data) {
+          data = caseInsensitiveMatch.value.data;
+        } else {
+          // Use the first error if both failed
+          if (exactMatch.status === 'fulfilled') {
+            error = exactMatch.value.error;
+          } else if (caseInsensitiveMatch.status === 'fulfilled') {
+            error = caseInsensitiveMatch.value.error;
+          }
         }
 
-        if (error) {
+        if (error && !data) {
           console.error("Error fetching business profile:", error);
           setError(`Database error: ${error.message}`);
           return;
@@ -137,13 +144,15 @@ export const PublicBusinessPage = () => {
         console.log("[PublicBusinessPage] Fetched business profile:", data);
         setBusiness(data as BusinessProfile);
         
+        // Cache the business profile for fast subsequent loads
+        try {
+          sessionStorage.setItem(`business_profile_${businessSlug}`, JSON.stringify(data));
+        } catch (e) {
+          // Ignore cache storage errors
+        }
+        
         if (data?.cover_photo_url) {
-          const timestamp = Date.now();
-          let photoUrl = data.cover_photo_url.split('?')[0];
-          photoUrl = `${photoUrl}?t=${timestamp}`;
-          
-          console.log("[PublicBusinessPage] Setting cover photo URL with cache busting:", photoUrl);
-          setCoverPhotoUrl(photoUrl);
+          setCoverPhotoUrl(data.cover_photo_url);
           setImageLoaded(false);
           imageRetryCount.current = 0;
         }
@@ -176,7 +185,7 @@ export const PublicBusinessPage = () => {
     };
 
     fetchBusinessProfile();
-  }, [businessSlug, retryCount]);
+  }, [businessSlug]);
 
   const handleImageLoad = () => {
     console.log("[PublicBusinessPage] Cover photo loaded successfully");
@@ -186,21 +195,8 @@ export const PublicBusinessPage = () => {
 
   const handleImageError = () => {
     console.error("[PublicBusinessPage] Error loading cover photo:", coverPhotoUrl);
-    
-    if (imageRetryCount.current < maxRetryCount && business?.cover_photo_url && !business.cover_photo_url.startsWith('blob:')) {
-      imageRetryCount.current++;
-      
-      const baseUrl = business.cover_photo_url.split('?')[0];
-      const refreshedUrl = `${baseUrl}?t=${Date.now()}&retry=${imageRetryCount.current}`;
-      console.log(`[PublicBusinessPage] Retry #${imageRetryCount.current} with refreshed URL:`, refreshedUrl);
-      
-      setTimeout(() => {
-        setCoverPhotoUrl(refreshedUrl);
-      }, 1000);
-    } else {
-      console.log("[PublicBusinessPage] Max retries reached, using default cover");
-      setImageLoaded(false);
-    }
+    // Fast fallback - no retries to prevent slow loading
+    setImageLoaded(false);
   };
 
   if (isLoading) {
@@ -245,10 +241,10 @@ export const PublicBusinessPage = () => {
         <LanguageSwitcher />
       </div>
       
-      {/* Hero section with cover photo */}
+      {/* Hero section with cover photo - optimized loading */}
       <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white dark:from-blue-800 dark:to-indigo-900"
         style={{
-          backgroundImage: `url(${displayCoverUrl})`,
+          backgroundImage: imageLoaded ? `url(${displayCoverUrl})` : `url(${defaultCoverUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           minHeight: '44vh',
@@ -344,6 +340,7 @@ export const PublicBusinessPage = () => {
           src={coverPhotoUrl} 
           alt=""
           className="hidden" 
+          loading="eager"
           onLoad={handleImageLoad}
           onError={handleImageError}
         />
