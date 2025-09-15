@@ -224,7 +224,7 @@ export const CustomerDialog = ({
         file_path: newFilePath,
         content_type: uploadedFileData.content_type,
         size: uploadedFileData.size,
-        user_id: user.id
+        user_id: isPublicMode && publicBoardUserId ? publicBoardUserId : user.id // Use board owner for public mode
       };
       
       console.log("Creating event file record:", eventFileData);
@@ -262,7 +262,7 @@ export const CustomerDialog = ({
         file_path: filePath,
         content_type: file.type,
         size: file.size,
-        user_id: user?.id,
+        user_id: getEffectiveUserId(), // Use effectiveUserId for proper RLS
         customer_id: customerId,
       };
 
