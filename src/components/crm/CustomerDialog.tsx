@@ -259,6 +259,18 @@ export const CustomerDialog = ({
         customerId
       });
 
+      console.log('🔍 File upload debug:', {
+        customerId,
+        filePath,
+        fileSize: file.size,
+        fileType: file.type,
+        isPublicMode,
+        effectiveUserId: getEffectiveUserId(),
+        publicBoardUserId,
+        authUid: user?.id,
+        fileName: file.name
+      });
+
       const { error: uploadError } = await supabase.storage
         .from('customer_attachments')
         .upload(filePath, file);
