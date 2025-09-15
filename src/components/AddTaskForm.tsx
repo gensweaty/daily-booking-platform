@@ -443,6 +443,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
     <>
       <Dialog open={true} onOpenChange={onClose}>
         <DialogContent
+          hideCloseButton={true}
           className={
             isMobile
               ? "fixed inset-0 m-0 h-[90vh] w-[100vw] translate-x-0 translate-y-0 rounded-none p-0 overflow-y-auto"
