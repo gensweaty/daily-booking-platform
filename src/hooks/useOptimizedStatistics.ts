@@ -464,30 +464,44 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // Fetch additional persons (customers) for the last 3 months - THIS WAS MISSING!
-      const { data: threeMonthAdditionalPersons, error: threeMonthPersonsError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('start_date', threeMonthStartDate.toISOString())
-        .lte('start_date', threeMonthEndDate.toISOString())
-        .is('deleted_at', null);
+      // Fetch additional persons (customers) for the last 3 months - Use same logic as main calculation
+      // Get events first, then get customers linked to those events (not by customer date)
+      const threeMonthEventIds = threeMonthEvents
+        ?.filter(event => !event.parent_event_id) // Only parent events
+        .map(event => event.id) || [];
 
-      if (!threeMonthPersonsError && threeMonthAdditionalPersons) {
+      let threeMonthAdditionalPersons: any[] = [];
+      if (threeMonthEventIds.length > 0) {
+        const { data: threeMonthCustomers, error: threeMonthCustomersError } = await supabase
+          .from('customers')
+          .select('*')
+          .in('event_id', threeMonthEventIds) // Link to events, not filter by customer date
+          .eq('type', 'customer')
+          .is('deleted_at', null);
+
+        if (!threeMonthCustomersError && threeMonthCustomers) {
+          threeMonthAdditionalPersons = threeMonthCustomers;
+        }
+      }
+
+      if (threeMonthAdditionalPersons.length > 0) {
         threeMonthAdditionalPersons.forEach(person => {
           const personPaymentStatus = person.payment_status || '';
           if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
             const amount = typeof person.payment_amount === 'number' 
               ? person.payment_amount 
               : parseFloat(String(person.payment_amount));
-            if (!isNaN(amount) && amount > 0 && person.start_date) {
-              try {
-                const personDate = parseISO(person.start_date);
-                const month = format(personDate, 'MMM yyyy');
-                threeMonthIncomeMap.set(month, (threeMonthIncomeMap.get(month) || 0) + amount);
-                console.log(`Added ${amount} from additional person in 3-month data for ${month}`);
-              } catch (dateError) {
-                console.warn('Invalid date in 3-month additional person:', person.start_date);
+            if (!isNaN(amount) && amount > 0) {
+              // Use the event's start_date (from person.start_date) to determine the month
+              if (person.start_date) {
+                try {
+                  const personDate = parseISO(person.start_date);
+                  const month = format(personDate, 'MMM yyyy');
+                  threeMonthIncomeMap.set(month, (threeMonthIncomeMap.get(month) || 0) + amount);
+                  console.log(`Added ${amount} from additional person in 3-month data for ${month}`);
+                } catch (dateError) {
+                  console.warn('Invalid date in 3-month additional person:', person.start_date);
+                }
               }
             }
           }
