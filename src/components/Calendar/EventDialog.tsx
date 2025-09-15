@@ -15,6 +15,7 @@ import { Clock, RefreshCcw, History } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
+import { uploadEventFiles, loadEventFiles } from "@/utils/eventFileUpload";
 
 interface EventDialogProps {
   open: boolean;
@@ -331,18 +332,8 @@ export const EventDialog = ({
         isRecurring: initialData?.is_recurring
       });
 
-      const { data: eventFiles, error } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', actualEventId);
-
-      if (error) {
-        console.error('Error loading event files:', error);
-        return;
-      }
-
-      console.log('✅ Loaded existing files:', eventFiles?.length || 0, 'files for actualEventId:', actualEventId);
-      setExistingFiles(eventFiles || []);
+      const eventFiles = await loadEventFiles(actualEventId);
+      setExistingFiles(eventFiles);
     } catch (error) {
       console.error('Error loading existing files:', error);
     }
@@ -515,43 +506,12 @@ export const EventDialog = ({
   };
 
   const uploadFiles = async (eventId: string) => {
-    if (files.length === 0) return;
-    
-    console.log('📤 Uploading', files.length, 'files for event:', eventId);
-    
-    const uploadPromises = files.map(async file => {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${eventId}/${Date.now()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from('event_attachments')
-        .upload(fileName, file);
-
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        return null;
-      }
-
-      const { error: dbError } = await supabase
-        .from('event_files')
-        .insert({
-          filename: file.name,
-          file_path: fileName,
-          content_type: file.type,
-          size: file.size,
-          user_id: getEffectiveUserId(),
-          event_id: eventId
-        });
-
-      if (dbError) {
-        console.error('Error saving file record:', dbError);
-        return null;
-      }
-
-      return fileName;
+    await uploadEventFiles({
+      files,
+      eventId,
+      userId: getEffectiveUserId(),
+      isPublicMode: false
     });
-
-    await Promise.all(uploadPromises);
-    console.log('✅ Files uploaded successfully');
   };
 
   const sendEmailToAllPersons = async (eventData: any, additionalPersons: any[] = []) => {

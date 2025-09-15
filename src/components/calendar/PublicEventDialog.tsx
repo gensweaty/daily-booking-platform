@@ -10,6 +10,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { Clock, RefreshCcw, User, Calendar, History } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { uploadEventFiles, loadEventFiles } from "@/utils/eventFileUpload";
 
 interface PublicEventDialogProps {
   open: boolean;
@@ -190,20 +191,8 @@ export const PublicEventDialog = ({
   // Load existing files for event
   const loadExistingFiles = async (targetEventId: string) => {
     try {
-      console.log('[PublicEventDialog] Loading existing files for event:', targetEventId);
-
-      const { data: eventFiles, error } = await supabase
-        .from('event_files')
-        .select('*')
-        .eq('event_id', targetEventId);
-
-      if (error) {
-        console.error('[PublicEventDialog] Error loading event files:', error);
-        return;
-      }
-
-      console.log('[PublicEventDialog] Loaded existing files:', eventFiles?.length || 0, 'files for event:', targetEventId);
-      setExistingFiles(eventFiles || []);
+      const eventFiles = await loadEventFiles(targetEventId);
+      setExistingFiles(eventFiles);
     } catch (error) {
       console.error('[PublicEventDialog] Error loading existing files:', error);
     }
@@ -294,6 +283,16 @@ export const PublicEventDialog = ({
     setEndDate("");
   };
 
+  // Upload files function for public events
+  const uploadFiles = async (targetEventId: string) => {
+    await uploadEventFiles({
+      files,
+      eventId: targetEventId,
+      userId: publicBoardUserId,
+      isPublicMode: true
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -343,6 +342,27 @@ export const PublicEventDialog = ({
         
         console.log('[PublicEventDialog] Event updated successfully:', updatedEvent);
         
+        // Upload files after successful event update
+        if (files.length > 0) {
+          try {
+            await uploadFiles(eventId || initialData?.id!);
+            console.log('[PublicEventDialog] ✅ Files uploaded successfully after event update');
+            
+            // Clear files state after successful upload
+            setFiles([]);
+            
+            // Refresh the existing files list to show newly uploaded files
+            await loadExistingFiles(eventId || initialData?.id!);
+          } catch (fileError) {
+            console.error('[PublicEventDialog] ❌ Error uploading files during event update:', fileError);
+            toast({
+              title: t("common.warning"),
+              description: "Event updated successfully, but some files failed to upload",
+              variant: "destructive"
+            });
+          }
+        }
+        
         toast({
           title: t("common.success"),
           description: t("events.eventUpdated")
@@ -356,6 +376,24 @@ export const PublicEventDialog = ({
         const createdEvent = await onSave(eventData);
         
         console.log('[PublicEventDialog] Event created successfully:', createdEvent);
+
+        // Upload files after successful event creation
+        if (files.length > 0 && createdEvent?.id) {
+          try {
+            await uploadFiles(createdEvent.id);
+            console.log('[PublicEventDialog] ✅ Files uploaded successfully after event creation');
+            
+            // Clear files state after successful upload
+            setFiles([]);
+          } catch (fileError) {
+            console.error('[PublicEventDialog] ❌ Error uploading files during event creation:', fileError);
+            toast({
+              title: t("common.warning"),
+              description: "Event created successfully, but some files failed to upload",
+              variant: "destructive"
+            });
+          }
+        }
 
         if (isRecurring) {
           toast({
