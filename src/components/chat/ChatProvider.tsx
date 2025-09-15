@@ -226,9 +226,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [location.pathname, publicBoardUser?.id]);
 
-  // Gate the icon on public login pages and show immediately on localStorage access
+  // Gate the icon on public login pages and business pages - chat should only appear on dashboard and public boards
   const onPublicLoginPage = isOnPublicBoard && location.pathname.includes('/login');
-  const shouldShowChat = !onPublicLoginPage && (isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id);
+  const onBusinessPage = location.pathname.startsWith('/business/');
+  const shouldShowChat = !onPublicLoginPage && !onBusinessPage && (isOnPublicBoard ? (!!publicBoardUser?.id || hasPublicAccess) : !!user?.id);
   
   // Detect external users for different handling
   const isExternalUser = isOnPublicBoard && hasPublicAccess && !user?.id;

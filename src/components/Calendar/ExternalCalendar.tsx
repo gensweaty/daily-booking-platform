@@ -29,9 +29,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     
     // Set a shorter timeout to ensure booking functionality is always available
     const loadingTimeout = setTimeout(() => {
-      console.log("[External Calendar] Loading timeout reached, stopping loading");
       setIsInitialLoading(false);
-    }, 5000); // Reduced from 10 seconds to 5 seconds
+    }, 2000); // Optimized for faster perceived performance
     
     return () => clearTimeout(loadingTimeout);
   }, [businessId]);
@@ -136,11 +135,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
         console.log(`[External Calendar] Final unique events to display: ${uniqueEvents.length}`);
         
         if (isMounted) {
-          // Store events in session storage for recovery
-          try {
-            sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(uniqueEvents));
-          } catch (e) {
-            console.warn("Failed to store events in session storage:", e);
+          // Store events in session storage for recovery (debounced to reduce writes)
+          if (showLoading || Date.now() % 30000 < 1000) { // Only store every 30 seconds for background updates
+            try {
+              sessionStorage.setItem(`calendar_events_${businessId}`, JSON.stringify(uniqueEvents));
+            } catch (e) {
+              // Silent fail for storage issues
+            }
           }
           
           setEvents(uniqueEvents);
@@ -179,11 +180,11 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       // Initial load with loading indicator
       fetchAllEvents(true);
       
-      // Background polling every 3 seconds (reduced from 1 second to avoid excessive loading)
+      // Optimized background polling - 10 seconds for better performance on slow connections
       const intervalId = setInterval(() => {
         // Background update without loading indicator
         fetchAllEvents(false);
-      }, 3000);
+      }, 10000);
       
       return () => {
         isMounted = false;
@@ -234,9 +235,9 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
 
     console.log("[External Calendar] Setting up real-time subscriptions");
 
-    // Subscribe to changes in events table
-    const eventsChannel = supabase
-      .channel(`external_calendar_events_${businessId}_${Date.now()}`)
+    // Single optimized real-time subscription for both events and bookings
+    const realtimeChannel = supabase
+      .channel(`external_calendar_${businessId}`)
       .on(
         'postgres_changes',
         {
@@ -245,20 +246,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           table: 'events',
           filter: `user_id=eq.${businessUserId}`
         },
-        (payload) => {
-          console.log('[External Calendar] Events table changed:', payload);
+        () => {
           clearCalendarCache();
-          // Invalidate React Query cache
           queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
           queryClient.invalidateQueries({ queryKey: ['events', businessUserId] });
           setRetryCount(prev => prev + 1);
         }
       )
-      .subscribe();
-
-    // Subscribe to changes in booking_requests table
-    const bookingsChannel = supabase
-      .channel(`external_calendar_bookings_${businessId}_${Date.now()}`)
       .on(
         'postgres_changes',
         {
@@ -267,10 +261,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           table: 'booking_requests',
           filter: `business_id=eq.${businessId}`
         },
-        (payload) => {
-          console.log('[External Calendar] Booking requests table changed:', payload);
+        () => {
           clearCalendarCache();
-          // Invalidate React Query cache
           queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
           queryClient.invalidateQueries({ queryKey: ['events', businessUserId] });
           setRetryCount(prev => prev + 1);
@@ -279,9 +271,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
       .subscribe();
 
     return () => {
-      console.log('[External Calendar] Cleaning up real-time subscriptions');
-      supabase.removeChannel(eventsChannel);
-      supabase.removeChannel(bookingsChannel);
+      supabase.removeChannel(realtimeChannel);
     };
   }, [businessId, businessUserId, queryClient]);
 
