@@ -48,16 +48,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
   const { validateDateTime } = useTimezoneValidation();
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery("(max-width: 640px)");
-  const [renderMode, setRenderMode] = useState<'mobile' | 'desktop' | null>(null);
-
-  useEffect(() => {
-    // Delay render mode selection to prevent both components from rendering
-    const timer = setTimeout(() => {
-      setRenderMode(isMobile ? 'mobile' : 'desktop');
-    }, 10);
-    
-    return () => clearTimeout(timer);
-  }, [isMobile]);
+  const renderMode: 'mobile' | 'desktop' = isMobile ? 'mobile' : 'desktop';
 
   useEffect(() => {
     if (editingTask) {
@@ -448,10 +439,6 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
     </div>
   );
 
-  // Don't render anything until render mode is determined
-  if (!renderMode) {
-    return null;
-  }
 
   if (renderMode === 'mobile') {
     return (
