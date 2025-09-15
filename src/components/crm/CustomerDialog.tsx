@@ -245,67 +245,39 @@ export const CustomerDialog = ({
 
   const uploadFile = async (customerId: string, file: File) => {
     try {
-      const effectiveUserId = getEffectiveUserId();
       const fileExt = file.name.split('.').pop();
       const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
-
-      console.log(`📤 [${isPublicMode ? 'Public' : 'Internal'}] Uploading file:`, {
-        filePath,
-        fileName: file.name,
-        fileSize: file.size,
-        isPublicMode,
-        effectiveUserId,
-        publicBoardUserId,
-        customerId
-      });
-
-      console.log('🔍 File upload debug:', {
-        customerId,
-        filePath,
-        fileSize: file.size,
-        fileType: file.type,
-        isPublicMode,
-        effectiveUserId: getEffectiveUserId(),
-        publicBoardUserId,
-        authUid: user?.id,
-        fileName: file.name
-      });
 
       const { error: uploadError } = await supabase.storage
         .from('customer_attachments')
         .upload(filePath, file);
 
       if (uploadError) {
-        console.error('❌ Storage upload error:', uploadError);
+        console.error('Error uploading file:', uploadError);
         throw uploadError;
       }
-
-      console.log('✅ File uploaded to storage successfully');
 
       const fileData = {
         filename: file.name,
         file_path: filePath,
         content_type: file.type,
         size: file.size,
-        user_id: effectiveUserId,
+        user_id: getEffectiveUserId(), // Use effectiveUserId for proper RLS
         customer_id: customerId,
       };
-
-      console.log('📝 Creating file record:', fileData);
 
       const { error: fileRecordError } = await supabase
         .from('customer_files_new')
         .insert(fileData);
 
       if (fileRecordError) {
-        console.error('❌ Database insert error:', fileRecordError);
+        console.error('Error creating file record:', fileRecordError);
         throw fileRecordError;
       }
 
-      console.log('✅ File record created successfully');
       return fileData;
     } catch (error: any) {
-      console.error("❌ Complete upload error:", error);
+      console.error("Error during file upload:", error);
       toast({
         title: t("common.error"),
         description: error.message || t("common.uploadError"),
