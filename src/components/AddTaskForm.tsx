@@ -445,10 +445,68 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           </Button>
         </div>
       </form>
+    </div>
+  );
+
+  // Don't render anything until render mode is determined
+  if (!renderMode) {
+    return null;
+  }
+
+  if (renderMode === 'mobile') {
+    return (
+      <>
+        <Sheet open={true} onOpenChange={onClose}>
+          <SheetContent 
+            side="bottom" 
+            className="h-[90vh] w-full p-0 overflow-y-auto"
+          >
+            {formContent}
+          </SheetContent>
+        </Sheet>
+        
+        {/* Delete Confirmation Dialog - Outside the Sheet */}
+        <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+          <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10002]">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-sm sm:text-base">
+                {isGeorgian ? "დავალების წაშლა" : t("tasks.deleteTaskConfirmTitle")}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="text-xs sm:text-sm">
+                {isGeorgian 
+                  ? "ნამდვილად გსურთ ამ დავალების წაშლა? ეს მოქმედება შეუქცევადია." 
+                  : t("tasks.deleteTaskConfirmation")
+                }
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+              <AlertDialogCancel onClick={() => setShowDeleteConfirmation(false)} className="text-xs sm:text-sm">
+                {isGeorgian ? "გაუქმება" : t("common.cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm"
+              >
+                {isGeorgian ? "წაშლა" : t("common.delete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto">
+          {formContent}
+        </DialogContent>
+      </Dialog>
       
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog - Outside the Dialog */}
       <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10001]">
+        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10002]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm sm:text-base">
               {isGeorgian ? "დავალების წაშლა" : t("tasks.deleteTaskConfirmTitle")}
@@ -473,33 +531,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-
-  // Don't render anything until render mode is determined
-  if (!renderMode) {
-    return null;
-  }
-
-  if (renderMode === 'mobile') {
-    return (
-      <Sheet open={true} onOpenChange={onClose}>
-        <SheetContent 
-          side="bottom" 
-          className="h-[90vh] w-full p-0 overflow-y-auto"
-        >
-          {formContent}
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto">
-        {formContent}
-      </DialogContent>
-    </Dialog>
+    </>
   );
 };
 
