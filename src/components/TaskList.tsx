@@ -310,7 +310,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
       <AnimatePresence>
         {editingTask && (
           <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto">
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
