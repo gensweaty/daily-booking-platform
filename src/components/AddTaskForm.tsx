@@ -438,7 +438,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
       
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
-        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
+        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10001]">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm sm:text-base">
               {isGeorgian ? "დავალების წაშლა" : t("tasks.deleteTaskConfirmTitle")}
