@@ -188,10 +188,88 @@ export const PublicEventDialog = ({
     fetchCurrentUserProfile();
   }, [publicBoardUserId]);
 
+  // Load additional persons for event
+  const loadAdditionalPersons = async (targetEventId: string) => {
+    try {
+      let actualEventId = targetEventId;
+
+      if (isVirtualInstance(targetEventId)) {
+        actualEventId = getParentEventId(targetEventId);
+        console.log('🔍 [PublicEventDialog] Virtual instance detected, using parent ID:', actualEventId);
+      } else if (initialData?.parent_event_id) {
+        actualEventId = initialData.parent_event_id;
+        console.log('🔍 [PublicEventDialog] Child instance detected, using parent ID:', actualEventId);
+      } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
+        actualEventId = targetEventId;
+        console.log('🔍 [PublicEventDialog] Parent recurring event, using own ID:', actualEventId);
+      }
+
+      console.log('🔍 [PublicEventDialog] Loading additional persons:', {
+        targetEventId,
+        actualEventId,
+        isVirtualEvent,
+        parentEventId: initialData?.parent_event_id,
+        isRecurring: initialData?.is_recurring
+      });
+
+      const { data: customers, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('event_id', actualEventId)
+        .eq('type', 'customer')
+        .is('deleted_at', null);
+
+      if (error) {
+        console.error('[PublicEventDialog] Error loading additional persons:', error);
+        return;
+      }
+
+      if (customers && customers.length > 0) {
+        const mappedPersons = customers.map(customer => ({
+          id: customer.id,
+          userSurname: customer.user_surname || customer.title || '',
+          userNumber: customer.user_number || '',
+          socialNetworkLink: customer.social_network_link || '',
+          eventNotes: customer.event_notes || '',
+          paymentStatus: customer.payment_status || '',
+          paymentAmount: customer.payment_amount?.toString() || ''
+        }));
+        console.log('✅ [PublicEventDialog] Loaded additional persons:', mappedPersons.length, 'persons for actualEventId:', actualEventId);
+        setAdditionalPersons(mappedPersons);
+      } else {
+        console.log('ℹ️ [PublicEventDialog] No additional persons found for actualEventId:', actualEventId);
+        setAdditionalPersons([]);
+      }
+    } catch (error) {
+      console.error('[PublicEventDialog] Error loading additional persons:', error);
+    }
+  };
+
   // Load existing files for event
   const loadExistingFiles = async (targetEventId: string) => {
     try {
-      const eventFiles = await loadEventFiles(targetEventId);
+      let actualEventId = targetEventId;
+
+      if (isVirtualInstance(targetEventId)) {
+        actualEventId = getParentEventId(targetEventId);
+        console.log('📁 [PublicEventDialog] Virtual instance detected, using parent ID for files:', actualEventId);
+      } else if (initialData?.parent_event_id) {
+        actualEventId = initialData.parent_event_id;
+        console.log('📁 [PublicEventDialog] Child instance detected, using parent ID for files:', actualEventId);
+      } else if (initialData?.is_recurring && !initialData?.parent_event_id) {
+        actualEventId = targetEventId;
+        console.log('📁 [PublicEventDialog] Parent recurring event, using own ID for files:', actualEventId);
+      }
+
+      console.log('📁 [PublicEventDialog] Loading existing files:', {
+        targetEventId,
+        actualEventId,
+        isVirtualEvent,
+        parentEventId: initialData?.parent_event_id,
+        isRecurring: initialData?.is_recurring
+      });
+
+      const eventFiles = await loadEventFiles(actualEventId);
       setExistingFiles(eventFiles);
     } catch (error) {
       console.error('[PublicEventDialog] Error loading existing files:', error);
@@ -206,9 +284,10 @@ export const PublicEventDialog = ({
           const targetEventId = eventId || initialData?.id;
           const eventData = initialData;
           
-          // Load existing files if we have an event ID
+          // Load existing files and additional persons if we have an event ID
           if (targetEventId) {
-            loadExistingFiles(targetEventId);
+            await loadExistingFiles(targetEventId);
+            await loadAdditionalPersons(targetEventId);
           }
           
           if (eventData) {
@@ -342,9 +421,53 @@ export const PublicEventDialog = ({
         
         console.log('[PublicEventDialog] Event updated successfully:', updatedEvent);
         
+        // Save additional persons using Supabase RPC
+        if (additionalPersons.length > 0) {
+          try {
+            console.log('[PublicEventDialog] Saving additional persons:', additionalPersons);
+            const additionalPersonsData = additionalPersons.map(person => ({
+              userSurname: person.userSurname,
+              userNumber: person.userNumber, 
+              socialNetworkLink: person.socialNetworkLink,
+              eventNotes: person.eventNotes,
+              paymentStatus: person.paymentStatus,
+              paymentAmount: person.paymentAmount
+            }));
+
+            const { error: rpcError } = await supabase.rpc('save_event_with_persons', {
+              p_event_data: {
+                ...eventData,
+                id: eventId || initialData?.id
+              },
+              p_additional_persons: additionalPersonsData,
+              p_user_id: publicBoardUserId,
+              p_event_id: eventId || initialData?.id,
+              p_created_by_type: 'sub_user',
+              p_created_by_name: externalUserName,
+              p_last_edited_by_type: 'sub_user',
+              p_last_edited_by_name: externalUserName
+            });
+
+            if (rpcError) {
+              console.error('[PublicEventDialog] Error saving additional persons:', rpcError);
+              throw rpcError;
+            }
+            
+            console.log('[PublicEventDialog] ✅ Additional persons saved successfully');
+          } catch (personError) {
+            console.error('[PublicEventDialog] ❌ Error saving additional persons:', personError);
+            toast({
+              title: t("common.warning"),
+              description: "Event updated but failed to save additional persons",
+              variant: "destructive"
+            });
+          }
+        }
+        
         // Upload files after successful event update
         if (files.length > 0) {
           try {
+            console.log('[PublicEventDialog] 📤 Starting file upload for event update. Files:', files.length, 'PublicBoardUserId:', publicBoardUserId);
             await uploadFiles(eventId || initialData?.id!);
             console.log('[PublicEventDialog] ✅ Files uploaded successfully after event update');
             
@@ -357,7 +480,7 @@ export const PublicEventDialog = ({
             console.error('[PublicEventDialog] ❌ Error uploading files during event update:', fileError);
             toast({
               title: t("common.warning"),
-              description: "Event updated successfully, but some files failed to upload",
+              description: "Event updated successfully, but some files failed to upload. Check console for details.",
               variant: "destructive"
             });
           }
@@ -373,13 +496,46 @@ export const PublicEventDialog = ({
         // Create new event
         if (!onSave) throw new Error("Save function not provided");
         
-        const createdEvent = await onSave(eventData);
-        
-        console.log('[PublicEventDialog] Event created successfully:', createdEvent);
+        // Save main event with additional persons using RPC
+        let createdEvent;
+        if (additionalPersons.length > 0) {
+          console.log('[PublicEventDialog] Creating event with additional persons using RPC');
+          const additionalPersonsData = additionalPersons.map(person => ({
+            userSurname: person.userSurname,
+            userNumber: person.userNumber, 
+            socialNetworkLink: person.socialNetworkLink,
+            eventNotes: person.eventNotes,
+            paymentStatus: person.paymentStatus,
+            paymentAmount: person.paymentAmount
+          }));
+
+          const { data: eventId, error: rpcError } = await supabase.rpc('save_event_with_persons', {
+            p_event_data: eventData,
+            p_additional_persons: additionalPersonsData,
+            p_user_id: publicBoardUserId,
+            p_created_by_type: 'sub_user',
+            p_created_by_name: externalUserName,
+            p_last_edited_by_type: 'sub_user',
+            p_last_edited_by_name: externalUserName
+          });
+
+          if (rpcError) {
+            console.error('[PublicEventDialog] Error creating event with persons via RPC:', rpcError);
+            throw rpcError;
+          }
+
+          createdEvent = { ...eventData, id: eventId };
+          console.log('[PublicEventDialog] ✅ Event with additional persons created via RPC:', createdEvent);
+        } else {
+          // Create event without additional persons using regular save function
+          createdEvent = await onSave(eventData);
+          console.log('[PublicEventDialog] ✅ Event created without additional persons:', createdEvent);
+        }
 
         // Upload files after successful event creation
         if (files.length > 0 && createdEvent?.id) {
           try {
+            console.log('[PublicEventDialog] 📤 Starting file upload for new event. Files:', files.length, 'PublicBoardUserId:', publicBoardUserId);
             await uploadFiles(createdEvent.id);
             console.log('[PublicEventDialog] ✅ Files uploaded successfully after event creation');
             
@@ -389,7 +545,7 @@ export const PublicEventDialog = ({
             console.error('[PublicEventDialog] ❌ Error uploading files during event creation:', fileError);
             toast({
               title: t("common.warning"),
-              description: "Event created successfully, but some files failed to upload",
+              description: "Event created successfully, but some files failed to upload. Check console for details.",
               variant: "destructive"
             });
           }
