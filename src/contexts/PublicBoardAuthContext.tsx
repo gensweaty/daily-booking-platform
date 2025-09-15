@@ -68,16 +68,49 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
               console.log('🔍 PublicBoardAuth: Token data:', { fullName, email, boardOwnerId, isExpired });
               
               if (!isExpired && fullName && email && boardOwnerId) {
-                // For chat to work, we need the actual sub-user database ID
-                // This will be resolved in ChatProvider when it queries the sub_users table
-                const publicUser = {
-                  id: email, // Use email as temporary ID, ChatProvider will resolve to real DB ID
-                  email,
-                  fullName,
-                  boardOwnerId
-                };
-                setUser(publicUser);
-                console.log('🔍 PublicBoardAuth: Set user from stored data:', publicUser);
+                // Fetch the actual sub-user UUID from database
+                console.log('🔍 PublicBoardAuth: Resolving sub-user UUID for email:', email);
+                
+                // Import supabase client dynamically to avoid circular dependencies
+                import('@/integrations/supabase/client').then(({ supabase }) => {
+                  supabase
+                    .from('sub_users')
+                    .select('id')
+                    .eq('email', email)
+                    .eq('board_owner_id', boardOwnerId)
+                    .single()
+                    .then(({ data: subUser, error }) => {
+                      if (error || !subUser) {
+                        console.error('❌ Failed to resolve sub-user UUID:', error);
+                        setUser(null);
+                        clearTimeout(authTimeout);
+                        setLoading(false);
+                        return;
+                      }
+                      
+                      const publicUser = {
+                        id: subUser.id, // Use actual database UUID
+                        email,
+                        fullName,
+                        boardOwnerId
+                      };
+                      setUser(publicUser);
+                      console.log('✅ PublicBoardAuth: Resolved sub-user UUID:', publicUser);
+                      
+                      // Clear timeout and complete authentication
+                      clearTimeout(authTimeout);
+                      setTimeout(() => {
+                        setLoading(false);
+                        console.log('🔍 PublicBoardAuth: Loading complete after UUID resolution');
+                      }, 150);
+                    });
+                }).catch((importError) => {
+                  console.error('Failed to import supabase client:', importError);
+                  setUser(null);
+                  clearTimeout(authTimeout);
+                  setLoading(false);
+                });
+              } else {
                 
                 // Clear timeout and complete authentication
                 clearTimeout(authTimeout);
