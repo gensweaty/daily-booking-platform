@@ -279,7 +279,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
               id="chatName"
               value={chatName}
               onChange={(e) => setChatName(e.target.value)}
-              placeholder="Enter chat name..."
+              placeholder={t('chat.chatName') + '...'}
               disabled={isCreating}
               autoFocus
             />
@@ -287,7 +287,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
 
           <div className="space-y-2">
             <Label>
-              <LanguageText>Chat Avatar (Optional)</LanguageText>
+              <LanguageText>{t('profile.uploadAvatar')} ({t('common.select')})</LanguageText>
             </Label>
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">
@@ -337,7 +337,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
             />
             
             <p className="text-xs text-muted-foreground">
-              Upload an image (PNG, JPG, WEBP) up to 5MB
+              <LanguageText>{t('business.uploadImageCover').replace('(JPEG, PNG, WebP)', '(PNG, JPG, WEBP)')}</LanguageText>
             </p>
           </div>
 
@@ -381,7 +381,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
                 
                 {availableParticipants.length === 0 && (
                   <div className="text-center text-muted-foreground text-sm py-4">
-                    No other team members available
+                    <LanguageText>{t('chat.noTeamMembers')}</LanguageText>
                   </div>
                 )}
               </div>
@@ -402,7 +402,7 @@ export const CreateCustomChatDialog = ({ teamMembers, onChatCreated }: CreateCus
               disabled={isCreating || isUploading || !chatName.trim() || selectedParticipants.length < 2}
             >
               <LanguageText>
-                {isCreating ? t('subscription.processing') : t('crm.create') + ' ' + t('chat.customChats').slice(0, -1)}
+                {isCreating ? t('common.saving') : t('chat.createCustomChat')}
               </LanguageText>
             </Button>
           </div>
