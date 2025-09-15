@@ -111,15 +111,6 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
                   setLoading(false);
                 });
               } else {
-                
-                // Clear timeout and complete authentication
-                clearTimeout(authTimeout);
-                // Ensure sufficient time for state propagation
-                setTimeout(() => {
-                  setLoading(false);
-                  console.log('🔍 PublicBoardAuth: Loading complete after user resolution');
-                }, 150);
-              } else {
                 setUser(null);
                 console.log('🔍 PublicBoardAuth: Token expired or incomplete');
                 clearTimeout(authTimeout);
