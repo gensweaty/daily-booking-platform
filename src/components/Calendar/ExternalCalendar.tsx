@@ -27,10 +27,10 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     setLoadingError(null);
     clearCalendarCache();
     
-    // Set a shorter timeout to ensure booking functionality is always available
-    const loadingTimeout = setTimeout(() => {
-      setIsInitialLoading(false);
-    }, 2000); // Optimized for faster perceived performance
+  // Set a shorter timeout to ensure booking functionality is always available
+  const loadingTimeout = setTimeout(() => {
+    setIsInitialLoading(false);
+  }, 1000); // Further optimized for desktop compatibility
     
     return () => clearTimeout(loadingTimeout);
   }, [businessId]);
@@ -99,7 +99,13 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
     let isMounted = true;
     
     const fetchAllEvents = async (showLoading = false) => {
-      if (!businessId || !businessUserId) return;
+      if (!businessId || !businessUserId) {
+        // Always stop loading if no business data to prevent infinite loading
+        if (showLoading) {
+          setIsInitialLoading(false);
+        }
+        return;
+      }
       
       if (showLoading) {
         setIsInitialLoading(true);
@@ -146,9 +152,8 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
           
           setEvents(uniqueEvents);
           setLoadingError(null);
-          if (showLoading) {
-            setIsInitialLoading(false);
-          }
+          // Always ensure loading stops
+          setIsInitialLoading(false);
         }
       } catch (error) {
         console.error("Exception in ExternalCalendar.fetchAllEvents:", error);
