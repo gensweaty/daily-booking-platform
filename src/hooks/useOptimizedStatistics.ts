@@ -464,6 +464,36 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
+      // Fetch additional persons (customers) for the last 3 months - THIS WAS MISSING!
+      const { data: threeMonthAdditionalPersons, error: threeMonthPersonsError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('start_date', threeMonthStartDate.toISOString())
+        .lte('start_date', threeMonthEndDate.toISOString())
+        .is('deleted_at', null);
+
+      if (!threeMonthPersonsError && threeMonthAdditionalPersons) {
+        threeMonthAdditionalPersons.forEach(person => {
+          const personPaymentStatus = person.payment_status || '';
+          if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+            const amount = typeof person.payment_amount === 'number' 
+              ? person.payment_amount 
+              : parseFloat(String(person.payment_amount));
+            if (!isNaN(amount) && amount > 0 && person.start_date) {
+              try {
+                const personDate = parseISO(person.start_date);
+                const month = format(personDate, 'MMM yyyy');
+                threeMonthIncomeMap.set(month, (threeMonthIncomeMap.get(month) || 0) + amount);
+                console.log(`Added ${amount} from additional person in 3-month data for ${month}`);
+              } catch (dateError) {
+                console.warn('Invalid date in 3-month additional person:', person.start_date);
+              }
+            }
+          }
+        });
+      }
+
       // Generate the 3-month array with actual data
       for (let i = 0; i < 3; i++) {
         const monthDate = subMonths(today, 2 - i);
