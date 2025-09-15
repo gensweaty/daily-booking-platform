@@ -49,7 +49,14 @@ export const translations: TranslationType = {
     feature2: "Custom date range filtering",
     feature3: "Month-over-month revenue comparison",
     feature4: "Visual metrics and interactive charts",
-    feature5: "One-click Excel download"
+    feature5: "One-click Excel download",
+    totalBookingsGrowth: "Total Bookings Growth",
+    bookingDates: "Booking Dates",
+    totalBookings: "Total Bookings",
+    threeMonthIncomeComparison: "Three Month Income Comparison",
+    monthIncomeComparison: "Month Income Comparison",
+    months: "Months",
+    income: "Income"
   },
   crm: {
     title: "Customer Relationship Management",

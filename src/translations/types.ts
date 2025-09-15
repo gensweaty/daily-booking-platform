@@ -55,6 +55,13 @@ export interface TranslationType {
     feature3: string;
     feature4: string;
     feature5: string;
+    totalBookingsGrowth: string;
+    bookingDates: string;
+    totalBookings: string;
+    threeMonthIncomeComparison: string;
+    monthIncomeComparison: string;
+    months: string;
+    income: string;
   };
   crm: {
     title: string;

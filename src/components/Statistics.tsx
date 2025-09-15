@@ -142,7 +142,7 @@ const StatisticsContent = () => {
   const currentEventStats = useMemo(() => eventStats || defaultEventStats, [eventStats, defaultEventStats]);
   const currentCustomerStats = useMemo(() => customerStats || defaultCustomerStats, [customerStats, defaultCustomerStats]);
   const chartData = useMemo(() => eventStats?.dailyStats || [], [eventStats?.dailyStats]);
-  const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
+  const incomeData = useMemo(() => eventStats?.threeMonthIncome || [], [eventStats?.threeMonthIncome]);
 
   // Additional debugging to verify data
   useEffect(() => {

@@ -60,7 +60,14 @@ export const translations: TranslationType = {
     feature2: "მორგებული ფილტრი თარიღების მიხედვით",
     feature3: "თვიური შემოსავალების შედარება",
     feature4: "ვიზუალური მეტრიკები და ინტერაქტიული გრაფიკები",
-    feature5: "Excel-ის ჩამოტვირთვა ერთი კლიკით"
+    feature5: "Excel-ის ჩამოტვირთვა ერთი კლიკით",
+    totalBookingsGrowth: "დაჯავშნების ზრდა",
+    bookingDates: "დაჯავშნის თარიღები",
+    totalBookings: "დაჯავშნების რაოდენობა",
+    threeMonthIncomeComparison: "სამ თვის შემოსავლის შედარება",
+    monthIncomeComparison: "თვის შემოსავლის შედარება",
+    months: "თვეები",
+    income: "შემოსავალი"
   },
   crm: {
     title: "კლიენტების მართვა",

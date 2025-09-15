@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { format, parseISO, startOfMonth, endOfMonth, addMonths, endOfDay } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, addMonths, endOfDay, subMonths } from 'date-fns';
 
 interface OptimizedTaskStats {
   total: number;
@@ -16,6 +16,7 @@ interface OptimizedEventStats {
   fullyPaid: number;
   totalIncome: number;
   monthlyIncome: Array<{ month: string; income: number }>;
+  threeMonthIncome: Array<{ month: string; income: number }>;
   dailyStats: Array<{ day: string; date: Date; month: string; bookings: number }>;
   events: Array<any>;
 }
@@ -80,6 +81,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         fullyPaid: 0,
         totalIncome: 0,
         monthlyIncome: [],
+        threeMonthIncome: [],
         dailyStats: [],
         events: []
       };
@@ -106,6 +108,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           fullyPaid: 0,
           totalIncome: 0,
           monthlyIncome: [],
+          threeMonthIncome: [],
           dailyStats: [],
           events: []
         };
@@ -129,6 +132,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           fullyPaid: 0,
           totalIncome: 0,
           monthlyIncome: [],
+          threeMonthIncome: [],
           dailyStats: [],
           events: []
         };
@@ -387,12 +391,28 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         income
       }));
 
+      // Generate 3-month income comparison data (always last 3 months)
+      const today = new Date();
+      const threeMonthsAgo = subMonths(today, 2);
+      const threeMonthIncome = [];
+      
+      for (let i = 0; i < 3; i++) {
+        const monthDate = subMonths(today, 2 - i);
+        const monthKey = format(monthDate, 'MMM yyyy');
+        const income = monthlyIncomeMap.get(monthKey) || 0;
+        threeMonthIncome.push({
+          month: format(monthDate, 'MMM'),
+          income
+        });
+      }
+
       const result = {
         total: totalEvents,
         partlyPaid,
         fullyPaid,
         totalIncome,
         monthlyIncome,
+        threeMonthIncome,
         dailyStats,
         events: allEvents || []
       };

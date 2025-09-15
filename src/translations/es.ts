@@ -60,7 +60,14 @@ export const translations: TranslationType = {
     feature2: "Filtrado personalizado por rango de fechas",
     feature3: "Comparación de ingresos mes a mes",
     feature4: "Métricas visuales y gráficos interactivos",
-    feature5: "Descarga de Excel con un solo clic"
+    feature5: "Descarga de Excel con un solo clic",
+    totalBookingsGrowth: "Crecimiento Total de Reservas",
+    bookingDates: "Fechas de Reserva",
+    totalBookings: "Total de Reservas",
+    threeMonthIncomeComparison: "Comparación de Ingresos de Tres Meses",
+    monthIncomeComparison: "Comparación de Ingresos de Meses",
+    months: "Meses",
+    income: "Ingresos"
   },
   crm: {
     title: "Gestión de Relaciones con los Clientes",
