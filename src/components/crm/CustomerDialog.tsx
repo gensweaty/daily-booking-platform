@@ -245,39 +245,55 @@ export const CustomerDialog = ({
 
   const uploadFile = async (customerId: string, file: File) => {
     try {
+      const effectiveUserId = getEffectiveUserId();
       const fileExt = file.name.split('.').pop();
       const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
+
+      console.log(`📤 [${isPublicMode ? 'Public' : 'Internal'}] Uploading file:`, {
+        filePath,
+        fileName: file.name,
+        fileSize: file.size,
+        isPublicMode,
+        effectiveUserId,
+        publicBoardUserId,
+        customerId
+      });
 
       const { error: uploadError } = await supabase.storage
         .from('customer_attachments')
         .upload(filePath, file);
 
       if (uploadError) {
-        console.error('Error uploading file:', uploadError);
+        console.error('❌ Storage upload error:', uploadError);
         throw uploadError;
       }
+
+      console.log('✅ File uploaded to storage successfully');
 
       const fileData = {
         filename: file.name,
         file_path: filePath,
         content_type: file.type,
         size: file.size,
-        user_id: getEffectiveUserId(), // Use effectiveUserId for proper RLS
+        user_id: effectiveUserId,
         customer_id: customerId,
       };
+
+      console.log('📝 Creating file record:', fileData);
 
       const { error: fileRecordError } = await supabase
         .from('customer_files_new')
         .insert(fileData);
 
       if (fileRecordError) {
-        console.error('Error creating file record:', fileRecordError);
+        console.error('❌ Database insert error:', fileRecordError);
         throw fileRecordError;
       }
 
+      console.log('✅ File record created successfully');
       return fileData;
     } catch (error: any) {
-      console.error("Error during file upload:", error);
+      console.error("❌ Complete upload error:", error);
       toast({
         title: t("common.error"),
         description: error.message || t("common.uploadError"),
