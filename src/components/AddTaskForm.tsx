@@ -16,7 +16,6 @@ import { GeorgianAuthText } from "./shared/GeorgianAuthText";
 import { Archive, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 
 interface AddTaskFormProps {
@@ -47,7 +46,6 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
   const { validateDateTime } = useTimezoneValidation();
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery("(max-width: 640px)");
-  const renderMode: 'mobile' | 'desktop' = isMobile ? 'mobile' : 'desktop';
 
   useEffect(() => {
     if (editingTask) {
@@ -330,10 +328,10 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
     }
   };
 
-  const formContent = (
-    <div className={`w-full ${renderMode === 'mobile' ? 'space-y-1 px-1 pb-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
+  return (
+    <div className={`w-full ${isMobile ? 'space-y-1 px-1 pb-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
       <TaskFormHeader editingTask={editingTask} />
-      <form onSubmit={handleSubmit} className={renderMode === 'mobile' ? 'space-y-1' : 'space-y-3 sm:space-y-6'}>
+      <form onSubmit={handleSubmit} className={isMobile ? 'space-y-1' : 'space-y-3 sm:space-y-6'}>
         <TaskFormFields
           title={title}
           setTitle={setTitle}
@@ -369,7 +367,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           </div>
         )}
         
-        <div className={`flex justify-end gap-1 sm:gap-2 ${renderMode === 'mobile' ? 'pt-1 border-t border-muted/20 mt-0' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
+        <div className={`flex justify-end gap-1 sm:gap-2 ${isMobile ? 'pt-1 border-t border-muted/20 mt-0' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
           {editingTask && (
             <>
               <Button 
@@ -435,24 +433,6 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           </Button>
         </div>
       </form>
-    </div>
-  );
-
-
-  return (
-    <>
-      <Dialog open={true} onOpenChange={onClose}>
-        <DialogContent
-          hideCloseButton={true}
-          className={
-            isMobile
-              ? "fixed inset-0 m-0 h-[90vh] w-[100vw] translate-x-0 translate-y-0 rounded-none p-0 overflow-y-auto"
-              : "max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto"
-          }
-        >
-          {formContent}
-        </DialogContent>
-      </Dialog>
       
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirmation && (
@@ -483,7 +463,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           </AlertDialogContent>
         </AlertDialog>
       )}
-    </>
+    </div>
   );
 };
 
