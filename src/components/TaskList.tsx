@@ -310,26 +310,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
       <AnimatePresence>
         {editingTask && (
           <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-            <DialogContent
-              className="
-                w-full 
-                max-w-[95vw] 
-                sm:max-w-2xl 
-                max-h-[90vh] 
-                overflow-y-auto 
-                p-4
-                rounded-xl
-                !left-1/2 !-translate-x-1/2
-              "
-              style={{
-                width: '100%',
-                maxWidth: '95vw',
-                padding: '1rem',
-                borderRadius: '1.5rem',
-                left: '50%',
-                transform: 'translateX(-50%)',
-              }}
-            >
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
