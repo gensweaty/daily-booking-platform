@@ -2243,18 +2243,6 @@ export type Database = {
           peer_unread: number
         }[]
       }
-      upload_public_board_customer_file: {
-        Args: {
-          p_board_owner_id: string
-          p_content_type: string
-          p_customer_id: string
-          p_file_path: string
-          p_filename: string
-          p_sender_email: string
-          p_size: number
-        }
-        Returns: string
-      }
       validate_and_use_redeem_code: {
         Args: { p_code: string; p_user_id: string }
         Returns: boolean
