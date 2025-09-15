@@ -218,25 +218,45 @@ export const CustomerDialog = ({
         throw uploadError;
       }
       
-      const eventFileData = {
-        event_id: eventId,
-        filename: uploadedFileData.filename,
-        file_path: newFilePath,
-        content_type: uploadedFileData.content_type,
-        size: uploadedFileData.size,
-        user_id: isPublicMode && publicBoardUserId ? publicBoardUserId : user.id // Use board owner for public mode
-      };
-      
-      console.log("Creating event file record:", eventFileData);
-      
-      const { error: eventFileError } = await supabase
-        .from('event_files')
-        .insert(eventFileData);
+      // DB record creation for event file
+      if (isPublicMode && publicBoardUserId) {
+        // PUBLIC: insert via RPC
+        const { error: rpcError } = await supabase.rpc('public_insert_event_file', {
+          p_owner_id: publicBoardUserId,
+          p_event_id: eventId,
+          p_filename: uploadedFileData.filename,
+          p_file_path: newFilePath,
+          p_content_type: uploadedFileData.content_type,
+          p_size: uploadedFileData.size
+        });
         
-      if (eventFileError) {
-        console.error("Error associating file with event:", eventFileError);
+        if (rpcError) {
+          console.error("Error associating file with event via RPC:", rpcError);
+        } else {
+          console.log("File associated with event successfully via RPC");
+        }
       } else {
-        console.log("File associated with event successfully");
+        // INTERNAL: regular insert (authenticated)
+        const eventFileData = {
+          event_id: eventId,
+          filename: uploadedFileData.filename,
+          file_path: newFilePath,
+          content_type: uploadedFileData.content_type,
+          size: uploadedFileData.size,
+          user_id: getEffectiveUserId()
+        };
+        
+        console.log("Creating event file record:", eventFileData);
+        
+        const { error: eventFileError } = await supabase
+          .from('event_files')
+          .insert(eventFileData);
+          
+        if (eventFileError) {
+          console.error("Error associating file with event:", eventFileError);
+        } else {
+          console.log("File associated with event successfully");
+        }
       }
     } catch (fileAssociationError) {
       console.error("Error copying file from customer to event:", fileAssociationError);
@@ -247,35 +267,64 @@ export const CustomerDialog = ({
     try {
       const fileExt = file.name.split('.').pop();
       const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
-
+      
+      // Storage upload (unchanged)
       const { error: uploadError } = await supabase.storage
         .from('customer_attachments')
         .upload(filePath, file);
-
+        
       if (uploadError) {
-        console.error('Error uploading file:', uploadError);
+        console.error("Error uploading file to customer bucket:", uploadError);
         throw uploadError;
       }
 
-      const fileData = {
-        filename: file.name,
-        file_path: filePath,
-        content_type: file.type,
-        size: file.size,
-        user_id: getEffectiveUserId(), // Use effectiveUserId for proper RLS
-        customer_id: customerId,
-      };
+      // DB record creation
+      if (isPublicMode && publicBoardUserId) {
+        // PUBLIC: insert via RPC
+        const { error: rpcError } = await supabase.rpc('public_insert_customer_file', {
+          p_owner_id: publicBoardUserId,
+          p_customer_id: customerId,
+          p_filename: file.name,
+          p_file_path: filePath,
+          p_content_type: file.type,
+          p_size: file.size
+        });
 
-      const { error: fileRecordError } = await supabase
-        .from('customer_files_new')
-        .insert(fileData);
+        if (rpcError) {
+          console.error("Error creating file record via RPC:", rpcError);
+          throw rpcError;
+        }
 
-      if (fileRecordError) {
-        console.error('Error creating file record:', fileRecordError);
-        throw fileRecordError;
+        return {
+          filename: file.name,
+          file_path: filePath,
+          content_type: file.type,
+          size: file.size,
+          user_id: publicBoardUserId,
+          customer_id: customerId,
+        };
+      } else {
+        // INTERNAL: regular insert (authenticated)
+        const fileData = {
+          filename: file.name,
+          file_path: filePath,
+          content_type: file.type,
+          size: file.size,
+          user_id: getEffectiveUserId(),
+          customer_id: customerId,
+        };
+
+        const { error: fileRecordError } = await supabase
+          .from('customer_files_new')
+          .insert(fileData);
+
+        if (fileRecordError) {
+          console.error("Error creating file record:", fileRecordError);
+          throw fileRecordError;
+        }
+
+        return fileData;
       }
-
-      return fileData;
     } catch (error: any) {
       console.error("Error during file upload:", error);
       toast({

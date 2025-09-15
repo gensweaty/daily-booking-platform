@@ -2151,6 +2151,46 @@ export type Database = {
         }
         Returns: undefined
       }
+      public_insert_customer_file: {
+        Args: {
+          p_content_type: string
+          p_customer_id: string
+          p_file_path: string
+          p_filename: string
+          p_owner_id: string
+          p_size: number
+        }
+        Returns: {
+          content_type: string | null
+          created_at: string | null
+          customer_id: string | null
+          file_path: string
+          filename: string
+          id: string
+          size: number | null
+          user_id: string | null
+        }
+      }
+      public_insert_event_file: {
+        Args: {
+          p_content_type: string
+          p_event_id: string
+          p_file_path: string
+          p_filename: string
+          p_owner_id: string
+          p_size: number
+        }
+        Returns: {
+          content_type: string | null
+          created_at: string | null
+          event_id: string | null
+          file_path: string
+          filename: string
+          id: string
+          size: number | null
+          user_id: string | null
+        }
+      }
       save_event_with_persons: {
         Args:
           | {

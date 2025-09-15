@@ -5,6 +5,7 @@ export interface UploadFilesOptions {
   eventId: string;
   userId: string;
   isPublicMode?: boolean;
+  ownerId?: string; // board owner id for public mode
 }
 
 /**
@@ -13,7 +14,7 @@ export interface UploadFilesOptions {
  * @returns Promise that resolves when all files are uploaded
  */
 export const uploadEventFiles = async (options: UploadFilesOptions): Promise<void> => {
-  const { files, eventId, userId, isPublicMode = false } = options;
+  const { files, eventId, userId, isPublicMode = false, ownerId } = options;
   
   if (files.length === 0) return;
   
@@ -23,31 +24,49 @@ export const uploadEventFiles = async (options: UploadFilesOptions): Promise<voi
     const fileExt = file.name.split('.').pop();
     const fileName = `${eventId}/${Date.now()}.${fileExt}`;
     
-    // Upload file to storage
+    // 1) Upload file to storage (unchanged)
     const { error: uploadError } = await supabase.storage
       .from('event_attachments')
       .upload(fileName, file);
 
     if (uploadError) {
       console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error uploading file:`, uploadError);
-      return null;
+      throw uploadError;
     }
 
-    // Create record in event_files table
-    const { error: dbError } = await supabase
-      .from('event_files')
-      .insert({
-        filename: file.name,
-        file_path: fileName,
-        content_type: file.type,
-        size: file.size,
-        user_id: userId, // Always use the provided userId (board owner for public events)
-        event_id: eventId
+    // 2) Create record in event_files table
+    if (isPublicMode && ownerId) {
+      // PUBLIC: insert via RPC
+      const { error: rpcError } = await supabase.rpc('public_insert_event_file', {
+        p_owner_id: ownerId,
+        p_event_id: eventId,
+        p_filename: file.name,
+        p_file_path: fileName,
+        p_content_type: file.type,
+        p_size: file.size
       });
 
-    if (dbError) {
-      console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error saving file record:`, dbError);
-      return null;
+      if (rpcError) {
+        console.error(`❌ [Public] Error saving file record via RPC:`, rpcError);
+        throw rpcError;
+      }
+    } else {
+      // INTERNAL: regular insert respects RLS
+      const { error: dbError } = await supabase
+        .from('event_files')
+        .insert({
+          filename: file.name,
+          file_path: fileName,
+          content_type: file.type,
+          size: file.size,
+          user_id: userId,
+          event_id: eventId
+        });
+
+      if (dbError) {
+        console.error(`❌ [Internal] Error saving file record:`, dbError);
+        throw dbError;
+      }
     }
 
     console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File uploaded successfully:`, file.name);
