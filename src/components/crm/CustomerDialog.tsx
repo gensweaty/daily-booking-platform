@@ -304,9 +304,29 @@ export const CustomerDialog = ({
         supabaseAuthUid: (await supabase.auth.getUser()).data.user?.id
       });
 
-      const { error: fileRecordError } = await supabase
-        .from('customer_files_new')
-        .insert(fileData);
+      let fileRecordError = null;
+
+      if (isPublicMode && publicBoardUserId && externalUserEmail) {
+        // Use RPC function for public board uploads
+        console.log('🔧 Using RPC function for public board file upload');
+        const { error: rpcError } = await supabase.rpc('upload_public_board_customer_file', {
+          p_board_owner_id: publicBoardUserId,
+          p_customer_id: customerId,
+          p_filename: file.name,
+          p_file_path: filePath,
+          p_content_type: file.type,
+          p_size: file.size,
+          p_sender_email: externalUserEmail
+        });
+        fileRecordError = rpcError;
+      } else {
+        // Use direct insert for authenticated users
+        console.log('🔧 Using direct insert for authenticated users');
+        const { error } = await supabase
+          .from('customer_files_new')
+          .insert(fileData);
+        fileRecordError = error;
+      }
 
       if (fileRecordError) {
         console.error('❌ Database insert error:', fileRecordError);
