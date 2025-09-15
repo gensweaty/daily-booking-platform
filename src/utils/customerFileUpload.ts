@@ -19,9 +19,9 @@ export const uploadCustomerFiles = async (options: UploadCustomerFilesOptions): 
   
   console.log(`📤 [${isPublicMode ? 'Public' : 'Internal'}] Uploading ${files.length} files for customer:`, customerId);
   
-  const uploadPromises = files.map(async (file) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${customerId}/${Date.now()}.${fileExt}`;
+  for (const file of files) {
+    const fileExt = file.name.split('.').pop() || 'bin';
+    const fileName = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
     
     // Upload file to storage
     const { error: uploadError } = await supabase.storage
@@ -30,7 +30,7 @@ export const uploadCustomerFiles = async (options: UploadCustomerFilesOptions): 
 
     if (uploadError) {
       console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error uploading file:`, uploadError);
-      return null;
+      throw uploadError; // Surface the real error
     }
 
     // Create record in customer_files_new table
@@ -47,14 +47,12 @@ export const uploadCustomerFiles = async (options: UploadCustomerFilesOptions): 
 
     if (dbError) {
       console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error saving file record:`, dbError);
-      return null;
+      throw dbError; // Surface the real error for RLS debugging
     }
 
     console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File uploaded successfully:`, file.name);
-    return fileName;
-  });
-
-  await Promise.all(uploadPromises);
+  }
+  
   console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] All files uploaded successfully for customer:`, customerId);
 };
 
