@@ -26,7 +26,12 @@ export const uploadEventFiles = async (options: UploadFilesOptions): Promise<voi
     // Upload file to storage
     const { error: uploadError } = await supabase.storage
       .from('event_attachments')
-      .upload(fileName, file);
+      .upload(fileName, file, {
+        upsert: true,
+        metadata: {
+          owner: userId // Set the provided userId as owner for proper RLS
+        }
+      });
 
     if (uploadError) {
       console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error uploading file:`, uploadError);

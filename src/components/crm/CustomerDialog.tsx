@@ -211,7 +211,12 @@ export const CustomerDialog = ({
       
       const { error: uploadError } = await supabase.storage
         .from('event_attachments')
-        .upload(newFilePath, fileData);
+        .upload(newFilePath, fileData, {
+          upsert: true,
+          metadata: {
+            owner: isPublicMode && publicBoardUserId ? publicBoardUserId : user.id // Set the effective user as owner
+          }
+        });
         
       if (uploadError) {
         console.error("Error uploading file to event bucket:", uploadError);
@@ -250,7 +255,12 @@ export const CustomerDialog = ({
 
       const { error: uploadError } = await supabase.storage
         .from('customer_attachments')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          upsert: true,
+          metadata: {
+            owner: getEffectiveUserId() // Set the effective user as owner for proper RLS
+          }
+        });
 
       if (uploadError) {
         console.error('Error uploading file:', uploadError);
