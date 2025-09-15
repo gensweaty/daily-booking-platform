@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { format, parseISO, startOfMonth, endOfMonth, addMonths, endOfDay, subMonths } from 'date-fns';
+import { format, parseISO, endOfDay, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 interface OptimizedTaskStats {
   total: number;
@@ -391,20 +391,92 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         income
       }));
 
-      // Generate 3-month income comparison data (always last 3 months)
+      // Generate 3-month income comparison data (always last 3 months - independent of selected date range)
       const today = new Date();
-      const threeMonthsAgo = subMonths(today, 2);
       const threeMonthIncome = [];
       
+      // Create a separate map for 3-month data that's independent of the selected range
+      const threeMonthIncomeMap = new Map<string, number>();
+      
+      // Calculate the date range for the last 3 months
+      const threeMonthStartDate = startOfMonth(subMonths(today, 2));
+      const threeMonthEndDate = endOfMonth(today);
+      
+      console.log('Fetching 3-month data from:', threeMonthStartDate, 'to:', threeMonthEndDate);
+      
+      // Fetch events for the last 3 months (separate from the main query)
+      const { data: threeMonthEvents, error: threeMonthEventsError } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('start_date', threeMonthStartDate.toISOString())
+        .lte('start_date', threeMonthEndDate.toISOString())
+        .is('parent_event_id', null)
+        .is('deleted_at', null);
+
+      if (!threeMonthEventsError && threeMonthEvents) {
+        threeMonthEvents.forEach(event => {
+          const paymentStatus = event.payment_status || '';
+          if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && event.payment_amount) {
+            const amount = typeof event.payment_amount === 'number' 
+              ? event.payment_amount 
+              : parseFloat(String(event.payment_amount));
+            if (!isNaN(amount) && amount > 0 && event.start_date) {
+              try {
+                const eventDate = parseISO(event.start_date);
+                const month = format(eventDate, 'MMM yyyy');
+                threeMonthIncomeMap.set(month, (threeMonthIncomeMap.get(month) || 0) + amount);
+              } catch (dateError) {
+                console.warn('Invalid date in 3-month event:', event.start_date);
+              }
+            }
+          }
+        });
+      }
+
+      // Fetch booking requests for the last 3 months
+      const { data: threeMonthBookingRequests, error: threeMonthBookingError } = await supabase
+        .from('booking_requests')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('start_date', threeMonthStartDate.toISOString())
+        .lte('start_date', threeMonthEndDate.toISOString())
+        .eq('status', 'approved')
+        .is('deleted_at', null);
+
+      if (!threeMonthBookingError && threeMonthBookingRequests) {
+        threeMonthBookingRequests.forEach(booking => {
+          const paymentStatus = booking.payment_status || '';
+          if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && booking.payment_amount) {
+            const amount = typeof booking.payment_amount === 'number' 
+              ? booking.payment_amount 
+              : parseFloat(String(booking.payment_amount));
+            if (!isNaN(amount) && amount > 0 && booking.start_date) {
+              try {
+                const eventDate = parseISO(booking.start_date);
+                const month = format(eventDate, 'MMM yyyy');
+                threeMonthIncomeMap.set(month, (threeMonthIncomeMap.get(month) || 0) + amount);
+              } catch (dateError) {
+                console.warn('Invalid date in 3-month booking:', booking.start_date);
+              }
+            }
+          }
+        });
+      }
+
+      // Generate the 3-month array with actual data
       for (let i = 0; i < 3; i++) {
         const monthDate = subMonths(today, 2 - i);
         const monthKey = format(monthDate, 'MMM yyyy');
-        const income = monthlyIncomeMap.get(monthKey) || 0;
+        const income = threeMonthIncomeMap.get(monthKey) || 0;
         threeMonthIncome.push({
           month: format(monthDate, 'MMM'),
           income
         });
       }
+      
+      console.log('Three month income data:', threeMonthIncome);
+      console.log('Three month income map:', Array.from(threeMonthIncomeMap.entries()));
 
       const result = {
         total: totalEvents,
