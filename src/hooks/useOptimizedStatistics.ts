@@ -391,136 +391,163 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         income
       }));
 
-      // Generate 3-month income comparison data (always last 3 months - independent of selected date range)
+      // Generate 3-month income comparison using the SAME logic as main calculation
       const today = new Date();
       const threeMonthIncome = [];
       
-      // Create a separate map for 3-month data that's independent of the selected range
-      const threeMonthIncomeMap = new Map<string, number>();
-      
-      // Calculate the date range for the last 3 months
-      const threeMonthStartDate = startOfMonth(subMonths(today, 2));
-      const threeMonthEndDate = endOfMonth(today);
-      
-      console.log('Fetching 3-month data from:', threeMonthStartDate, 'to:', threeMonthEndDate);
-      
-      // Fetch events for the last 3 months (separate from the main query)
-      const { data: threeMonthEvents, error: threeMonthEventsError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('start_date', threeMonthStartDate.toISOString())
-        .lte('start_date', threeMonthEndDate.toISOString())
-        .is('parent_event_id', null)
-        .is('deleted_at', null);
-
-      if (!threeMonthEventsError && threeMonthEvents) {
-        threeMonthEvents.forEach(event => {
-          const paymentStatus = event.payment_status || '';
-          if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && event.payment_amount) {
-            const amount = typeof event.payment_amount === 'number' 
-              ? event.payment_amount 
-              : parseFloat(String(event.payment_amount));
-            if (!isNaN(amount) && amount > 0 && event.start_date) {
-              try {
-                const eventDate = parseISO(event.start_date);
-                const month = format(eventDate, 'MMM yyyy');
-                threeMonthIncomeMap.set(month, (threeMonthIncomeMap.get(month) || 0) + amount);
-              } catch (dateError) {
-                console.warn('Invalid date in 3-month event:', event.start_date);
-              }
-            }
-          }
-        });
-      }
-
-      // Fetch booking requests for the last 3 months
-      const { data: threeMonthBookingRequests, error: threeMonthBookingError } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('start_date', threeMonthStartDate.toISOString())
-        .lte('start_date', threeMonthEndDate.toISOString())
-        .eq('status', 'approved')
-        .is('deleted_at', null);
-
-      if (!threeMonthBookingError && threeMonthBookingRequests) {
-        threeMonthBookingRequests.forEach(booking => {
-          const paymentStatus = booking.payment_status || '';
-          if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && booking.payment_amount) {
-            const amount = typeof booking.payment_amount === 'number' 
-              ? booking.payment_amount 
-              : parseFloat(String(booking.payment_amount));
-            if (!isNaN(amount) && amount > 0 && booking.start_date) {
-              try {
-                const eventDate = parseISO(booking.start_date);
-                const month = format(eventDate, 'MMM yyyy');
-                threeMonthIncomeMap.set(month, (threeMonthIncomeMap.get(month) || 0) + amount);
-              } catch (dateError) {
-                console.warn('Invalid date in 3-month booking:', booking.start_date);
-              }
-            }
-          }
-        });
-      }
-
-      // Fetch additional persons (customers) for the last 3 months - Use same logic as main calculation
-      // Get events first, then get customers linked to those events (not by customer date)
-      const threeMonthEventIds = threeMonthEvents
-        ?.filter(event => !event.parent_event_id) // Only parent events
-        .map(event => event.id) || [];
-
-      let threeMonthAdditionalPersons: any[] = [];
-      if (threeMonthEventIds.length > 0) {
-        const { data: threeMonthCustomers, error: threeMonthCustomersError } = await supabase
-          .from('customers')
-          .select('*')
-          .in('event_id', threeMonthEventIds) // Link to events, not filter by customer date
-          .eq('type', 'customer')
-          .is('deleted_at', null);
-
-        if (!threeMonthCustomersError && threeMonthCustomers) {
-          threeMonthAdditionalPersons = threeMonthCustomers;
-        }
-      }
-
-      if (threeMonthAdditionalPersons.length > 0) {
-        threeMonthAdditionalPersons.forEach(person => {
-          const personPaymentStatus = person.payment_status || '';
-          if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
-            const amount = typeof person.payment_amount === 'number' 
-              ? person.payment_amount 
-              : parseFloat(String(person.payment_amount));
-            if (!isNaN(amount) && amount > 0) {
-              // Use the event's start_date (from person.start_date) to determine the month
-              if (person.start_date) {
-                try {
-                  const personDate = parseISO(person.start_date);
-                  const month = format(personDate, 'MMM yyyy');
-                  threeMonthIncomeMap.set(month, (threeMonthIncomeMap.get(month) || 0) + amount);
-                  console.log(`Added ${amount} from additional person in 3-month data for ${month}`);
-                } catch (dateError) {
-                  console.warn('Invalid date in 3-month additional person:', person.start_date);
-                }
-              }
-            }
-          }
-        });
-      }
-
-      // Generate the 3-month array with actual data
+      // Calculate each month individually using the exact same logic as the main calculation
       for (let i = 0; i < 3; i++) {
         const monthDate = subMonths(today, 2 - i);
+        const monthStart = startOfMonth(monthDate);
+        const monthEnd = endOfMonth(monthDate);
         const monthKey = format(monthDate, 'MMM yyyy');
-        const income = threeMonthIncomeMap.get(monthKey) || 0;
+        const monthShort = format(monthDate, 'MMM');
+        
+        console.log(`Calculating 3-month data for ${monthKey} (${monthStart.toISOString()} to ${monthEnd.toISOString()})`);
+        
+        // Use EXACT same logic as main calculation but for this specific month
+        let monthIncome = 0;
+        
+        // Query events for this specific month
+        const { data: monthEvents, error: monthEventsError } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('start_date', monthStart.toISOString())
+          .lte('start_date', monthEnd.toISOString())
+          .is('deleted_at', null);
+
+        // Query booking requests for this specific month  
+        const { data: monthBookingRequests, error: monthBookingError } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('start_date', monthStart.toISOString())
+          .lte('start_date', monthEnd.toISOString())
+          .eq('status', 'approved')
+          .is('deleted_at', null);
+
+        if (!monthEventsError && monthEvents) {
+          // Transform booking requests to look like events (same as main logic)
+          const transformedMonthBookings = (monthBookingRequests || []).map((booking: any) => ({
+            ...booking,
+            is_recurring: false,
+            parent_event_id: null,
+            type: 'booking_request'
+          }));
+
+          const allMonthEvents = [
+            ...monthEvents,
+            ...transformedMonthBookings
+          ];
+
+          // Apply EXACT same recurring logic as main calculation
+          const monthRecurringSeriesMap = new Map<string, any[]>();
+          const monthNonRecurringEvents: any[] = [];
+
+          allMonthEvents.forEach(event => {
+            if (event.is_recurring && event.parent_event_id) {
+              const parentId = event.parent_event_id;
+              if (!monthRecurringSeriesMap.has(parentId)) {
+                monthRecurringSeriesMap.set(parentId, []);
+              }
+              monthRecurringSeriesMap.get(parentId)?.push(event);
+            } else if (event.is_recurring && !event.parent_event_id) {
+              if (!monthRecurringSeriesMap.has(event.id)) {
+                monthRecurringSeriesMap.set(event.id, []);
+              }
+              monthRecurringSeriesMap.get(event.id)?.push(event);
+            } else {
+              monthNonRecurringEvents.push(event);
+            }
+          });
+
+          // Process non-recurring events (same as main logic)
+          monthNonRecurringEvents.forEach(event => {
+            if ((event.payment_status?.includes('partly') || event.payment_status?.includes('fully')) && event.payment_amount) {
+              const amount = typeof event.payment_amount === 'number' 
+                ? event.payment_amount 
+                : parseFloat(String(event.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                monthIncome += amount;
+              }
+            }
+          });
+
+          // Process recurring series (same as main logic - count once per series)
+          for (const [seriesId, seriesEvents] of monthRecurringSeriesMap) {
+            const firstInstance = seriesEvents[0];
+            if ((firstInstance.payment_status?.includes('partly') || firstInstance.payment_status?.includes('fully')) && firstInstance.payment_amount) {
+              const amount = typeof firstInstance.payment_amount === 'number' 
+                ? firstInstance.payment_amount 
+                : parseFloat(String(firstInstance.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                monthIncome += amount;
+              }
+            }
+          }
+
+          // Get additional persons (customers) for events in this month (same as main logic)
+          const monthParentEventIds = monthEvents
+            ?.filter(event => !event.parent_event_id)
+            .map(event => event.id) || [];
+
+          if (monthParentEventIds.length > 0) {
+            const { data: monthCustomers, error: monthCustomersError } = await supabase
+              .from('customers')
+              .select('*')
+              .in('event_id', monthParentEventIds)
+              .eq('type', 'customer')
+              .is('deleted_at', null);
+
+            if (!monthCustomersError && monthCustomers) {
+              // Process customers for recurring series (same as main logic)
+              for (const [seriesId] of monthRecurringSeriesMap) {
+                const seriesAdditionalPersons = monthCustomers.filter(person => 
+                  person.event_id === seriesId
+                );
+
+                seriesAdditionalPersons.forEach(person => {
+                  const personPaymentStatus = person.payment_status || '';
+                  if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+                    const amount = typeof person.payment_amount === 'number' 
+                      ? person.payment_amount 
+                      : parseFloat(String(person.payment_amount));
+                    if (!isNaN(amount) && amount > 0) {
+                      monthIncome += amount;
+                    }
+                  }
+                });
+              }
+
+              // Process customers for non-recurring events (same as main logic)
+              const nonRecurringAdditionalPersons = monthCustomers.filter(person => 
+                !monthRecurringSeriesMap.has(person.event_id || '')
+              );
+
+              nonRecurringAdditionalPersons.forEach(person => {
+                const personPaymentStatus = person.payment_status || '';
+                if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+                  const amount = typeof person.payment_amount === 'number' 
+                    ? person.payment_amount 
+                    : parseFloat(String(person.payment_amount));
+                  if (!isNaN(amount) && amount > 0) {
+                    monthIncome += amount;
+                  }
+                }
+              });
+            }
+          }
+        }
+
         threeMonthIncome.push({
-          month: format(monthDate, 'MMM'),
-          income
+          month: monthShort,
+          income: monthIncome
         });
+
+        console.log(`Month ${monthKey} income: ${monthIncome}`);
       }
-      
-      console.log('Three month income data:', threeMonthIncome);
-      console.log('Three month income map:', Array.from(threeMonthIncomeMap.entries()));
+
 
       const result = {
         total: totalEvents,
