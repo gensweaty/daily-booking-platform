@@ -277,10 +277,6 @@ export const CustomerDialog = ({
 
       if (uploadError) {
         console.error('❌ Storage upload error:', uploadError);
-        console.error('❌ Storage error details:', {
-          message: uploadError.message,
-          details: uploadError
-        });
         throw uploadError;
       }
 
@@ -296,28 +292,13 @@ export const CustomerDialog = ({
       };
 
       console.log('📝 Creating file record:', fileData);
-      console.log('🔍 Auth context for file upload:', {
-        authUserId: user?.id,
-        isPublicMode,
-        publicBoardUserId,
-        effectiveUserId,
-        supabaseAuthUid: (await supabase.auth.getUser()).data.user?.id
-      });
 
-      // Use direct insert - works for both authenticated and public board users
-      console.log('📝 Inserting file record into database');
       const { error: fileRecordError } = await supabase
         .from('customer_files_new')
         .insert(fileData);
 
       if (fileRecordError) {
         console.error('❌ Database insert error:', fileRecordError);
-        console.error('❌ Error details:', {
-          message: fileRecordError.message,
-          details: fileRecordError.details,
-          hint: fileRecordError.hint,
-          code: fileRecordError.code
-        });
         throw fileRecordError;
       }
 
