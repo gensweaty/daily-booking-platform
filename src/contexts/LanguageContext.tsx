@@ -7,38 +7,56 @@ import { getCurrencySymbol } from '@/lib/currency'; // Import the centralized cu
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
+  console.log('[DEBUG] LanguageProvider rendering');
+  
   const [language, setLanguage] = useState<Language>(() => {
-    // Try to get language from URL first
-    const urlParams = new URLSearchParams(window.location.search);
-    const urlLang = urlParams.get('lang');
-    if (urlLang && ['en', 'es', 'ka'].includes(urlLang)) {
-      localStorage.setItem('language', urlLang as Language);
-      return urlLang as Language;
-    }
+    console.log('[DEBUG] LanguageProvider initializing state');
     
-    // Then try localStorage
-    const saved = localStorage.getItem('language');
-    if (saved && ['en', 'es', 'ka'].includes(saved)) {
-      return saved as Language;
+    try {
+      // Try to get language from URL first
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlLang = urlParams.get('lang');
+      if (urlLang && ['en', 'es', 'ka'].includes(urlLang)) {
+        localStorage.setItem('language', urlLang as Language);
+        console.log('[DEBUG] Language set from URL:', urlLang);
+        return urlLang as Language;
+      }
+      
+      // Then try localStorage
+      const saved = localStorage.getItem('language');
+      if (saved && ['en', 'es', 'ka'].includes(saved)) {
+        console.log('[DEBUG] Language set from localStorage:', saved);
+        return saved as Language;
+      }
+      
+      // Default to 'en'
+      console.log('[DEBUG] Language set to default: en');
+      return 'en';
+    } catch (error) {
+      console.error('[DEBUG] Error initializing language:', error);
+      return 'en';
     }
-    
-    // Default to 'en'
-    return 'en';
   });
 
   useEffect(() => {
-    localStorage.setItem('language', language);
+    console.log('[DEBUG] LanguageProvider useEffect triggered, language:', language);
     
-    // Update URL without reloading the page
-    const url = new URL(window.location.href);
-    url.searchParams.set('lang', language);
-    window.history.replaceState({}, '', url);
-    
-    // Update the lang attribute on the HTML element
-    document.documentElement.setAttribute('lang', language);
-    
-    // Add logging for debugging purposes
-    console.log(`Language context updated to: ${language}`);
+    try {
+      localStorage.setItem('language', language);
+      
+      // Update URL without reloading the page
+      const url = new URL(window.location.href);
+      url.searchParams.set('lang', language);
+      window.history.replaceState({}, '', url);
+      
+      // Update the lang attribute on the HTML element
+      document.documentElement.setAttribute('lang', language);
+      
+      // Add logging for debugging purposes
+      console.log(`Language context updated to: ${language}`);
+    } catch (error) {
+      console.error('[DEBUG] Error in LanguageProvider useEffect:', error);
+    }
   }, [language]);
 
   const t = (key: string, params?: Record<string, string | number>): string => {
@@ -76,8 +94,16 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
+  const contextValue = React.useMemo(() => ({
+    language,
+    setLanguage,
+    t
+  }), [language]);
+
+  console.log('[DEBUG] LanguageProvider providing context:', contextValue);
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={contextValue}>
       {children}
     </LanguageContext.Provider>
   );
@@ -85,7 +111,9 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
 
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
+  console.log('[DEBUG] useLanguage called, context:', context);
   if (context === undefined) {
+    console.error('[DEBUG] useLanguage called outside of provider! Stack:', new Error().stack);
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
   return context;
