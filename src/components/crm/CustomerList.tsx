@@ -160,6 +160,14 @@ export const CustomerList = ({
     return filteredData.slice(startIndex, endIndex);
   }, [filteredData, currentPage, pageSize]);
 
+  // Helper function to get the effective user ID for operations (same as CustomerDialog)
+  const getEffectiveUserId = useCallback(() => {
+    if (isPublicMode && publicBoardUserId) {
+      return publicBoardUserId;
+    }
+    return user?.id;
+  }, [isPublicMode, publicBoardUserId, user?.id]);
+
   const canEditDelete = useCallback((customer: any) => {
     // For non-public mode (regular authenticated users), check if they're a sub-user
     if (!isPublicMode && !isSubUser) return true;
@@ -223,19 +231,23 @@ export const CustomerList = ({
   }, [isPublicMode, externalUserName, publicBoardUserId, isSubUser, user?.email, user?.id]);
 
   const handleDeleteCustomer = useCallback(async (customer: any) => {
+    const effectiveUserId = getEffectiveUserId();
+    
     console.log('🗑️ Delete customer clicked:', {
       customerId: customer.id,
       hasPermissions,
       isPublicMode,
       userAgent: navigator.userAgent,
-      canEditDelete: canEditDelete(customer)
+      canEditDelete: canEditDelete(customer),
+      effectiveUserId,
+      publicBoardUserId
     });
     
-    if (!user?.id) {
-      console.log('❌ No user ID available');
+    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
+      console.log('❌ No effective user ID available');
       toast({
         title: t("common.error"),
-        description: t("common.missingUserInfo"),
+        description: isPublicMode ? "Board owner authentication required" : t("common.missingUserInfo"),
         variant: "destructive",
       });
       return;
@@ -255,10 +267,11 @@ export const CustomerList = ({
     console.log('✅ Opening delete confirmation dialog');
     setCustomerToDelete(customer);
     setIsDeleteConfirmOpen(true);
-  }, [user?.id, t, toast, hasPermissions, isPublicMode, canEditDelete]);
+  }, [getEffectiveUserId, t, toast, hasPermissions, isPublicMode, canEditDelete]);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!customerToDelete || !user?.id) return;
+    const effectiveUserId = getEffectiveUserId();
+    if (!customerToDelete || !effectiveUserId) return;
 
     // Check permissions in public mode
     if (isPublicMode && !canEditDelete(customerToDelete)) {
@@ -278,11 +291,11 @@ export const CustomerList = ({
           .update({ 
             deleted_at: new Date().toISOString(),
             last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
-            last_edited_by_name: isPublicMode ? externalUserName : user.email,
+            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
             last_edited_at: new Date().toISOString()
           })
           .eq('id', eventId)
-          .eq('user_id', isPublicMode ? publicBoardUserId : user.id);
+          .eq('user_id', effectiveUserId);
 
         if (error) throw error;
       } else {
@@ -291,11 +304,11 @@ export const CustomerList = ({
           .update({ 
             deleted_at: new Date().toISOString(),
             last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
-            last_edited_by_name: isPublicMode ? externalUserName : user.email,
+            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
             last_edited_at: new Date().toISOString()
           })
           .eq('id', customerToDelete.id)
-          .eq('user_id', isPublicMode ? publicBoardUserId : user.id);
+          .eq('user_id', effectiveUserId);
 
         if (error) throw error;
       }
@@ -320,7 +333,7 @@ export const CustomerList = ({
         variant: "destructive",
       });
     }
-  }, [customerToDelete, user?.id, queryClient, toast, t, isPublicMode, canEditDelete, externalUserName]);
+  }, [customerToDelete, getEffectiveUserId, queryClient, toast, t, isPublicMode, canEditDelete, externalUserName, user?.email]);
 
   const handleSearchSelect = useCallback((customer: any) => {
     openEditDialog(customer);
