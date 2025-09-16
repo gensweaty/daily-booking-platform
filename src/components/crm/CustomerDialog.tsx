@@ -262,7 +262,7 @@ export const CustomerDialog = ({
         file_path: filePath,
         content_type: file.type,
         size: file.size,
-        user_id: user?.id,
+        user_id: getEffectiveUserId(),
         customer_id: customerId,
       };
 
