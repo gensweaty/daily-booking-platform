@@ -86,7 +86,7 @@ export const PublicCRMList = ({
 
       {/* Direct CustomerList Component - No Auth Override */}
       <CustomerList 
-        isPublicMode={hasPermissions}
+        isPublicMode={true}
         externalUserName={externalUserName}
         externalUserEmail={externalUserEmail}
         publicBoardUserId={boardUserId}
