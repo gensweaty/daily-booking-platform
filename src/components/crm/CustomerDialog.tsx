@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
+import { uploadSingleCustomerFile } from "@/utils/customerFileUpload";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -243,49 +244,8 @@ export const CustomerDialog = ({
     }
   };
 
-  const uploadFile = async (customerId: string, file: File) => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('customer_attachments')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        console.error('Error uploading file:', uploadError);
-        throw uploadError;
-      }
-
-      const fileData = {
-        filename: file.name,
-        file_path: filePath,
-        content_type: file.type,
-        size: file.size,
-        user_id: getEffectiveUserId(),
-        customer_id: customerId,
-      };
-
-      const { error: fileRecordError } = await supabase
-        .from('customer_files_new')
-        .insert(fileData);
-
-      if (fileRecordError) {
-        console.error('Error creating file record:', fileRecordError);
-        throw fileRecordError;
-      }
-
-      return fileData;
-    } catch (error: any) {
-      console.error("Error during file upload:", error);
-      toast({
-        title: t("common.error"),
-        description: error.message || t("common.uploadError"),
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
+  // Remove the old uploadFile function since we're using the utility
+  // const uploadFile = async (customerId: string, file: File) => { ... }
 
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -540,7 +500,12 @@ export const CustomerDialog = ({
         let uploadedFileData = null;
         if (selectedFile && customerId && !customerId.startsWith('event-')) {
           try {
-            uploadedFileData = await uploadFile(customerId, selectedFile);
+            uploadedFileData = await uploadSingleCustomerFile(
+              customerId, 
+              selectedFile, 
+              getEffectiveUserId(), 
+              isPublicMode
+            );
             console.log("File uploaded for customer:", uploadedFileData);
           } catch (uploadError) {
             console.error("File upload failed:", uploadError);
@@ -674,7 +639,12 @@ export const CustomerDialog = ({
         let uploadedFileData = null;
         if (selectedFile && customerData) {
           try {
-            uploadedFileData = await uploadFile(customerData.id, selectedFile);
+            uploadedFileData = await uploadSingleCustomerFile(
+              customerData.id, 
+              selectedFile, 
+              effectiveUserId, 
+              isPublicMode
+            );
             console.log("File uploaded for customer:", uploadedFileData);
           } catch (uploadError) {
             console.error("File upload failed:", uploadError);
