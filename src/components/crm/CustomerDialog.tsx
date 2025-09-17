@@ -21,6 +21,7 @@ import {
 import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { uploadSingleCustomerFile } from "@/utils/customerFileUpload";
+import { useCRMFileRefresh } from "@/hooks/useCRMFileRefresh";
 
 interface CustomerDialogProps {
   open: boolean;
@@ -48,6 +49,7 @@ export const CustomerDialog = ({
   const { toast } = useToast();
   const { isSubUser } = useSubUserPermissions();
   const queryClient = useQueryClient();
+  const { refreshCRMData, refreshFilesForCustomer } = useCRMFileRefresh();
   const [subUserName, setSubUserName] = useState<string | null>(null);
   const [adminUserName, setAdminUserName] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -154,6 +156,7 @@ export const CustomerDialog = ({
       }
 
       try {
+        console.log(`🔍 [${isPublicMode ? 'Public' : 'Internal'}] Loading files for:`, customerId);
         let filesData: any[] = [];
         if (customerId.startsWith('event-')) {
           const eventId = customerId.replace('event-', '');
@@ -163,7 +166,7 @@ export const CustomerDialog = ({
             .eq('event_id', eventId);
 
           if (eventFilesError) {
-            console.error("Error loading event files:", eventFilesError);
+            console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error loading event files:`, eventFilesError);
           } else {
             filesData = eventFiles || [];
           }
@@ -174,16 +177,16 @@ export const CustomerDialog = ({
             .eq('customer_id', customerId);
 
           if (customerFilesError) {
-            console.error("Error loading customer files:", customerFilesError);
+            console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error loading customer files:`, customerFilesError);
           } else {
             filesData = customerFiles || [];
           }
         }
 
-        console.log("Files loaded for customer/event:", filesData);
+        console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] Files loaded for customer/event:`, filesData.length, 'files');
         setDisplayedFiles(filesData);
       } catch (error) {
-        console.error("Error loading files:", error);
+        console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error loading files:`, error);
         setDisplayedFiles([]);
       }
     };
@@ -193,7 +196,7 @@ export const CustomerDialog = ({
       setSelectedFile(null);
       setFileError("");
     }
-  }, [open, customerId]);
+  }, [open, customerId, isPublicMode]);
 
   const copyFileFromCustomerToEvent = async (eventId: string, uploadedFileData: any) => {
     try {
@@ -394,6 +397,10 @@ export const CustomerDialog = ({
     }
 
     setIsLoading(true);
+    
+    // Declare uploadedFileData at function scope to be accessible throughout
+    let uploadedFileData: any = null;
+    
     try {
       const { title, user_number, social_network_link, event_notes, payment_status, payment_amount } = formData;
 
@@ -497,18 +504,26 @@ export const CustomerDialog = ({
 
         if (error) throw error;
 
-        let uploadedFileData = null;
         if (selectedFile && customerId && !customerId.startsWith('event-')) {
           try {
+            console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Uploading file for customer:`, customerId);
             uploadedFileData = await uploadSingleCustomerFile(
               customerId, 
               selectedFile, 
               getEffectiveUserId(), 
               isPublicMode
             );
-            console.log("File uploaded for customer:", uploadedFileData);
+            console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File uploaded successfully:`, uploadedFileData);
+            
+            // Immediately update displayedFiles state to show the new file
+            setDisplayedFiles(prev => [...prev, uploadedFileData]);
           } catch (uploadError) {
-            console.error("File upload failed:", uploadError);
+            console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] File upload failed:`, uploadError);
+            toast({
+              title: t("common.error"),
+              description: "File upload failed",
+              variant: "destructive"
+            });
           }
         }
 
@@ -636,18 +651,26 @@ export const CustomerDialog = ({
 
         console.log("Customer created:", customerData);
 
-        let uploadedFileData = null;
         if (selectedFile && customerData) {
           try {
+            console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Uploading file for new customer:`, customerData.id);
             uploadedFileData = await uploadSingleCustomerFile(
               customerData.id, 
               selectedFile, 
               effectiveUserId, 
               isPublicMode
             );
-            console.log("File uploaded for customer:", uploadedFileData);
+            console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File uploaded successfully:`, uploadedFileData);
+            
+            // Immediately update displayedFiles state to show the new file
+            setDisplayedFiles(prev => [...prev, uploadedFileData]);
           } catch (uploadError) {
-            console.error("File upload failed:", uploadError);
+            console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] File upload failed:`, uploadError);
+            toast({
+              title: t("common.error"),
+              description: "File upload failed",
+              variant: "destructive"
+            });
           }
         }
 
@@ -721,10 +744,16 @@ export const CustomerDialog = ({
         }
       }
 
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      // Refresh CRM data and files after successful operation
+      console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Refreshing CRM data after customer operation`);
+      await refreshCRMData(isPublicMode);
+      
+      // Also refresh files for the specific customer if we have uploadedFileData
+      if (uploadedFileData && customerId && !customerId.startsWith('event-')) {
+        await refreshFilesForCustomer(customerId, isPublicMode);
+      }
+      
+      console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] CRM data refresh completed`);
 
       toast({
         title: t("common.success"),
@@ -787,10 +816,10 @@ export const CustomerDialog = ({
 
       if (error) throw error;
 
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      // Refresh CRM data after successful deletion
+      console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Refreshing CRM data after customer deletion`);
+      await refreshCRMData(isPublicMode);
+      console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] CRM data refresh completed`);
       
       toast({
         title: t("common.success"),

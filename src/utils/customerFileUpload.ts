@@ -72,37 +72,59 @@ export const uploadSingleCustomerFile = async (
   userId: string, 
   isPublicMode: boolean = false
 ) => {
-  const fileExt = file.name.split('.').pop();
-  const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
+  console.log(`📤 [${isPublicMode ? 'Public' : 'Internal'}] Starting single file upload for customer:`, {
+    customerId,
+    fileName: file.name,
+    fileSize: file.size,
+    userId,
+    isPublicMode
+  });
 
-  const { error: uploadError } = await supabase.storage
-    .from('customer_attachments')
-    .upload(filePath, file);
+  try {
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
 
-  if (uploadError) {
-    console.error('Error uploading file:', uploadError);
-    throw uploadError;
+    console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Uploading to storage path:`, filePath);
+
+    const { error: uploadError } = await supabase.storage
+      .from('customer_attachments')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Storage upload error:`, uploadError);
+      throw uploadError;
+    }
+
+    console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File uploaded to storage successfully`);
+
+    const fileData = {
+      filename: file.name,
+      file_path: filePath,
+      content_type: file.type,
+      size: file.size,
+      user_id: userId,
+      customer_id: customerId,
+    };
+
+    console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Creating database record:`, fileData);
+
+    const { data: insertedFile, error: fileRecordError } = await supabase
+      .from('customer_files_new')
+      .insert(fileData)
+      .select()
+      .single();
+
+    if (fileRecordError) {
+      console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Database record creation error:`, fileRecordError);
+      throw fileRecordError;
+    }
+
+    console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File record created successfully:`, insertedFile);
+    return insertedFile;
+  } catch (error) {
+    console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Upload single customer file failed:`, error);
+    throw error;
   }
-
-  const fileData = {
-    filename: file.name,
-    file_path: filePath,
-    content_type: file.type,
-    size: file.size,
-    user_id: userId,
-    customer_id: customerId,
-  };
-
-  const { error: fileRecordError } = await supabase
-    .from('customer_files_new')
-    .insert(fileData);
-
-  if (fileRecordError) {
-    console.error('Error creating file record:', fileRecordError);
-    throw fileRecordError;
-  }
-
-  return fileData;
 };
 
 /**
