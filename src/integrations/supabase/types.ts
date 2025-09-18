@@ -1906,6 +1906,10 @@ export type Database = {
           other_user_id: string
         }[]
       }
+      get_event_customers: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: Json
+      }
       get_new_messages_multi_channel: {
         Args: {
           p_owner_id: string

@@ -306,6 +306,16 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           title: eventData.user_surname || eventData.title || 'Untitled Event',
         } as CalendarEventType;
       } else {
+        // Get existing customer data to preserve it during update
+        const { data: existingCustomers, error: customersError } = await supabase.rpc('get_event_customers', {
+          p_event_id: eventData.id,
+          p_user_id: user.id
+        });
+
+        if (customersError) {
+          console.warn('Could not load existing customers, proceeding with empty array:', customersError);
+        }
+
         // Update regular event using the existing RPC function
         const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
           p_event_data: {
@@ -324,7 +334,7 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
             repeat_pattern: eventData.repeat_pattern,
             repeat_until: eventData.repeat_until
           },
-          p_additional_persons: [],
+          p_additional_persons: existingCustomers || [],
           p_user_id: user.id,
           p_event_id: eventData.id,
           p_created_by_type: 'admin',
