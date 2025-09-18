@@ -1689,15 +1689,6 @@ export type Database = {
         }
         Returns: string
       }
-      debug_customers_access: {
-        Args: { p_event_id: string; p_user_id: string }
-        Returns: {
-          customer_count: number
-          event_exists: boolean
-          public_board_active: boolean
-          user_matches: boolean
-        }[]
-      }
       delete_custom_chat: {
         Args: {
           p_channel_id: string
