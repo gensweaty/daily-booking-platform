@@ -5,6 +5,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { supabase } from "@/lib/supabase";
 import { EventDialogFields } from "../Calendar/EventDialogFields";
 import { RecurringDeleteDialog } from "../Calendar/RecurringDeleteDialog";
+import { RecurringEditDialog } from "../Calendar/RecurringEditDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
@@ -120,6 +121,7 @@ export const PublicEventDialog = ({
     size?: number;
   }>>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [additionalPersons, setAdditionalPersons] = useState<Array<{
     id: string;
@@ -134,6 +136,7 @@ export const PublicEventDialog = ({
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [currentUserProfileName, setCurrentUserProfileName] = useState<string>("");
+  const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
@@ -386,6 +389,18 @@ export const PublicEventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Check if this is a recurring event being edited and we need to show the choice dialog
+    if ((eventId || initialData) && isRecurringEvent && editChoice === null) {
+      setShowEditDialog(true);
+      return;
+    }
+    
+    // Continue with the actual submission
+    await performSubmit();
+  };
+
+  const performSubmit = async () => {
+    
     if (!startDate || !endDate) {
       toast({
         title: t("common.error"),
@@ -579,6 +594,7 @@ export const PublicEventDialog = ({
 
       resetForm();
       onOpenChange(false);
+      setEditChoice(null); // Reset edit choice for next time
     } catch (error: any) {
       console.error('[PublicEventDialog] Error saving event:', error);
       toast({
@@ -589,6 +605,18 @@ export const PublicEventDialog = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEditThis = () => {
+    setEditChoice("this");
+    setShowEditDialog(false);
+    performSubmit();
+  };
+
+  const handleEditSeries = () => {
+    setEditChoice("series");
+    setShowEditDialog(false);
+    performSubmit();
   };
 
   const handleDeleteThis = async () => {
@@ -780,6 +808,15 @@ export const PublicEventDialog = ({
         onDeleteSeries={handleDeleteSeries} 
         isRecurringEvent={isRecurringEvent} 
         isLoading={isLoading} 
+      />
+
+      <RecurringEditDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onEditThis={handleEditThis}
+        onEditSeries={handleEditSeries}
+        isRecurringEvent={isRecurringEvent}
+        isLoading={isLoading}
       />
     </>
   );

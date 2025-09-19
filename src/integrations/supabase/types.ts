@@ -2238,6 +2238,17 @@ export type Database = {
           peer_unread: number
         }[]
       }
+      update_event_series: {
+        Args: {
+          p_additional_persons: Json
+          p_edited_by_name?: string
+          p_edited_by_type?: string
+          p_event_data: Json
+          p_event_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       validate_and_use_redeem_code: {
         Args: { p_code: string; p_user_id: string }
         Returns: boolean

@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { EventDialogFields } from "./EventDialogFields";
 import { RecurringDeleteDialog } from "./RecurringDeleteDialog";
+import { RecurringEditDialog } from "./RecurringEditDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { sendEventCreationEmail } from "@/lib/api";
@@ -189,6 +190,7 @@ export const EventDialog = ({
     size?: number;
   }>>([]);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [additionalPersons, setAdditionalPersons] = useState<Array<{
     id: string;
@@ -203,6 +205,7 @@ export const EventDialog = ({
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [currentUserProfileName, setCurrentUserProfileName] = useState<string>("");
+  const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
@@ -625,6 +628,18 @@ export const EventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Check if this is a recurring event being edited and we need to show the choice dialog
+    if ((eventId || initialData) && isRecurringEvent && editChoice === null) {
+      setShowEditDialog(true);
+      return;
+    }
+    
+    // Continue with the actual submission
+    await performSubmit();
+  };
+
+  const performSubmit = async () => {
+    
     const effectiveUserId = getEffectiveUserId();
     
     console.log('🔍 Submit debug info:', {
@@ -858,65 +873,125 @@ export const EventDialog = ({
 
       let result;
       if (eventId || initialData) {
-        let actualEventId = eventId || initialData?.id;
-        if (isVirtualEvent && eventId) {
-          actualEventId = getParentEventId(eventId);
-          console.log('🔄 Virtual instance update - using parent ID:', actualEventId);
-        } else if (initialData?.parent_event_id) {
-          actualEventId = initialData.parent_event_id;
-          console.log('🔄 Child instance update - using parent ID:', actualEventId);
-        }
+        // Handle edit logic based on user choice
+        if (editChoice === "series") {
+          // Edit entire series using the new function
+          const seriesEventData = {
+            title: userSurname || title || 'Untitled Event',
+            user_surname: userSurname,
+            user_number: userNumber,
+            social_network_link: socialNetworkLink,
+            event_notes: eventNotes,
+            event_name: eventName,
+            payment_status: paymentStatus || 'not_paid',
+            payment_amount: paymentAmount || null,
+            reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+            email_reminder_enabled: emailReminderEnabled
+          };
 
-        result = await supabase.rpc('save_event_with_persons', {
-          p_event_data: eventData,
-          p_additional_persons: additionalPersons,
-          p_user_id: effectiveUserId,
-          p_event_id: actualEventId,
-          p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-          p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
-          p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-          p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
-        });
+          const seriesResult = await supabase.rpc('update_event_series', {
+            p_event_id: eventId || initialData?.id,
+            p_user_id: effectiveUserId,
+            p_event_data: seriesEventData,
+            p_additional_persons: additionalPersons,
+            p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+            p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
+          });
 
-        if (result.error) throw result.error;
+          if (seriesResult.error) throw seriesResult.error;
 
-        // Upload files after successful event update
-        if (files.length > 0) {
-          try {
-            await uploadFiles(actualEventId);
-            console.log('✅ Files uploaded successfully after event update');
-            
-            // Clear files state after successful upload
-            setFiles([]);
-            
-            // Refresh the existing files list to show newly uploaded files
-            await loadExistingFiles(actualEventId);
-          } catch (fileError) {
-            console.error('❌ Error uploading files during event update:', fileError);
-            toast({
-              title: t("common.warning"),
-              description: "Event updated successfully, but some files failed to upload",
-              variant: "destructive"
-            });
+          // Upload files to the main event being edited
+          let actualEventId = eventId || initialData?.id;
+          if (isVirtualEvent && eventId) {
+            actualEventId = getParentEventId(eventId);
+          } else if (initialData?.parent_event_id) {
+            actualEventId = initialData.parent_event_id;
           }
-        }
 
-        if (actualEventId) {
-          const freshEventData = await loadEventData(actualEventId);
-          if (freshEventData) {
-            setCurrentEventData(freshEventData);
+          if (files.length > 0 && actualEventId) {
+            try {
+              await uploadFiles(actualEventId);
+              setFiles([]);
+              await loadExistingFiles(actualEventId);
+            } catch (fileError) {
+              console.error('❌ Error uploading files during series update:', fileError);
+              toast({
+                title: t("common.warning"),
+                description: "Series updated successfully, but some files failed to upload",
+                variant: "destructive"
+              });
+            }
           }
+
+          toast({
+            title: t("common.success"),
+            description: t("events.eventSeriesUpdated")
+          });
+
+          await sendEmailToAllPersons({
+            ...seriesEventData,
+            id: actualEventId
+          }, additionalPersons);
+
+        } else {
+          // Edit only this event (existing logic)
+          let actualEventId = eventId || initialData?.id;
+          if (isVirtualEvent && eventId) {
+            actualEventId = getParentEventId(eventId);
+            console.log('🔄 Virtual instance update - using parent ID:', actualEventId);
+          } else if (initialData?.parent_event_id) {
+            actualEventId = initialData.parent_event_id;
+            console.log('🔄 Child instance update - using parent ID:', actualEventId);
+          }
+
+          result = await supabase.rpc('save_event_with_persons', {
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
+            p_user_id: effectiveUserId,
+            p_event_id: actualEventId,
+            p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+            p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+            p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+            p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+          });
+
+          if (result.error) throw result.error;
+
+          // Upload files after successful event update
+          if (files.length > 0) {
+            try {
+              await uploadFiles(actualEventId);
+              console.log('✅ Files uploaded successfully after event update');
+              
+              setFiles([]);
+              await loadExistingFiles(actualEventId);
+            } catch (fileError) {
+              console.error('❌ Error uploading files during event update:', fileError);
+              toast({
+                title: t("common.warning"),
+                description: "Event updated successfully, but some files failed to upload",
+                variant: "destructive"
+              });
+            }
+          }
+
+          if (actualEventId) {
+            const freshEventData = await loadEventData(actualEventId);
+            if (freshEventData) {
+              setCurrentEventData(freshEventData);
+            }
+          }
+
+          toast({
+            title: t("common.success"),
+            description: t("events.eventUpdated")
+          });
+
+          await sendEmailToAllPersons({
+            ...eventData,
+            id: actualEventId
+          }, additionalPersons);
         }
-
-        toast({
-          title: t("common.success"),
-          description: t("events.eventUpdated")
-        });
-
-        await sendEmailToAllPersons({
-          ...eventData,
-          id: actualEventId
-        }, additionalPersons);
 
         onEventUpdated?.();
       } else {
@@ -1016,6 +1091,7 @@ export const EventDialog = ({
 
       resetForm();
       onOpenChange(false);
+      setEditChoice(null); // Reset edit choice for next time
     } catch (error: any) {
       console.error('Error saving event:', error);
       toast({
@@ -1026,6 +1102,18 @@ export const EventDialog = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleEditThis = () => {
+    setEditChoice("this");
+    setShowEditDialog(false);
+    performSubmit();
+  };
+
+  const handleEditSeries = () => {
+    setEditChoice("series");
+    setShowEditDialog(false);
+    performSubmit();
   };
 
   const handleDeleteThis = async () => {
@@ -1222,6 +1310,15 @@ export const EventDialog = ({
         onDeleteSeries={handleDeleteSeries} 
         isRecurringEvent={isRecurringEvent} 
         isLoading={isLoading} 
+      />
+
+      <RecurringEditDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        onEditThis={handleEditThis}
+        onEditSeries={handleEditSeries}
+        isRecurringEvent={isRecurringEvent}
+        isLoading={isLoading}
       />
     </>
   );
