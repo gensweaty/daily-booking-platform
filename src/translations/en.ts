@@ -382,6 +382,7 @@ export const translations: TranslationType = {
     eventCreated: "Event created successfully",
     recurringEventCreated: "Recurring event series created successfully",
     eventSeriesDeleted: "Event series deleted successfully",
+    eventSeriesUpdated: "Event series updated successfully",
     timeSlotUnavailable: "Time Slot Unavailable",
     timeSlotConflict: "Time Slot Conflict",
     timeSlotNotAvailable: "This time slot is not available",
@@ -701,7 +702,11 @@ export const translations: TranslationType = {
     deleteEventTitle: "Delete Event",
     deleteEventBody: "Do you want to delete only this event or the whole series?",
     deleteOnlyThis: "Only this event",
-    deleteWholeSeries: "The whole series"
+    deleteWholeSeries: "The whole series",
+    editEventTitle: "Edit Event",
+    editEventBody: "Do you want to edit only this event or the whole series?",
+    editOnlyThis: "Only this event",
+    editWholeSeries: "The whole series"
   },
   months: {
     january: "January",

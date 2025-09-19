@@ -380,6 +380,7 @@ export const translations: TranslationType = {
     eventCreated: "Evento creado exitosamente",
     recurringEventCreated: "Serie de eventos recurrentes creada exitosamente",
     eventSeriesDeleted: "Serie de eventos eliminada exitosamente",
+    eventSeriesUpdated: "Serie de eventos actualizada exitosamente",
     timeSlotUnavailable: "Franja Horaria No Disponible",
     timeSlotConflict: "Conflicto de Franja Horaria",
     timeSlotNotAvailable: "Esta franja horaria no está disponible",
@@ -712,7 +713,11 @@ export const translations: TranslationType = {
     deleteEventTitle: "Eliminar Evento",
     deleteEventBody: "¿Desea eliminar solo este evento o toda la serie?",
     deleteOnlyThis: "Solo este evento",
-    deleteWholeSeries: "Toda la serie"
+    deleteWholeSeries: "Toda la serie",
+    editEventTitle: "Editar Evento",
+    editEventBody: "¿Desea editar solo este evento o toda la serie?",
+    editOnlyThis: "Solo este evento",
+    editWholeSeries: "Toda la serie"
   },
   months: {
     january: "Enero",

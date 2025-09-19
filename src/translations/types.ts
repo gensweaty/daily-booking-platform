@@ -374,6 +374,7 @@ export interface TranslationType {
     eventCreated: string;
     recurringEventCreated: string;
     eventSeriesDeleted: string;
+    eventSeriesUpdated: string;
     timeSlotUnavailable: string;
     timeSlotConflict: string;
     timeSlotNotAvailable: string;
@@ -702,6 +703,10 @@ export interface TranslationType {
     deleteEventBody: string;
     deleteOnlyThis: string;
     deleteWholeSeries: string;
+    editEventTitle: string;
+    editEventBody: string;
+    editOnlyThis: string;
+    editWholeSeries: string;
   };
   months: {
     january: string;

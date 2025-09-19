@@ -380,6 +380,7 @@ export const translations: TranslationType = {
     eventCreated: "ღონისძიება წარმატებით შეიქმნა",
     recurringEventCreated: "განმეორებადი ღონისძიებების სერია წარმატებით შეიქმნა",
     eventSeriesDeleted: "ღონისძიებების სერია წაიშალა",
+    eventSeriesUpdated: "ღონისძიებების სერია წარმატებით განახლდა",
     timeSlotUnavailable: "დროის სლოტი მიუწვდომელია",
     timeSlotConflict: "დროის სლოტის კონფლიქტი",
     timeSlotNotAvailable: "ეს დროის სლოტი არ არის ხელმისაწვდომი",
@@ -712,7 +713,11 @@ export const translations: TranslationType = {
     deleteEventTitle: "ღონისძიების წაშლა",
     deleteEventBody: "გსურთ წაშალოთ მხოლოდ ეს ღონისძიება თუ მთელი სერია?",
     deleteOnlyThis: "მხოლოდ ეს ღონისძიება",
-    deleteWholeSeries: "მთელი სერია"
+    deleteWholeSeries: "მთელი სერია",
+    editEventTitle: "ღონისძიების რედაქტირება",
+    editEventBody: "გსურთ რედაქტირება მხოლოდ ამ ღონისძიებისა თუ მთელი სერიისა?",
+    editOnlyThis: "მხოლოდ ეს ღონისძიება",
+    editWholeSeries: "მთელი სერია"
   },
   months: {
     january: "იანვარი",
