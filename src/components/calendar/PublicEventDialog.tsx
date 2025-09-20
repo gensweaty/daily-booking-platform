@@ -437,88 +437,206 @@ export const PublicEventDialog = ({
       console.log('[PublicEventDialog] Submitting event data:', eventData);
 
       if (eventId || initialData) {
-        // Update existing event
-        if (!onUpdate) throw new Error("Update function not provided");
-        
-        const updatedEvent = await onUpdate({
-          ...eventData,
-          id: eventId || initialData?.id
-        });
-        
-        console.log('[PublicEventDialog] Event updated successfully:', updatedEvent);
-        
-        // Save additional persons using Supabase RPC
-        if (additionalPersons.length > 0) {
-          try {
-            console.log('[PublicEventDialog] Saving additional persons:', additionalPersons);
-            const additionalPersonsData = additionalPersons.map(person => ({
-              userSurname: person.userSurname,
-              userNumber: person.userNumber, 
-              socialNetworkLink: person.socialNetworkLink,
-              eventNotes: person.eventNotes,
-              paymentStatus: person.paymentStatus,
-              paymentAmount: person.paymentAmount
-            }));
+        // Check if this is a recurring event being edited and handle accordingly
+        if ((eventId || initialData) && isRecurringEvent && (editChoice === "this" || editChoice === "series")) {
+          
+          if (editChoice === "series") {
+            // Edit entire series using the new function
+            const seriesEventData = {
+              title: userSurname || title || 'Untitled Event',
+              user_surname: userSurname,
+              user_number: userNumber,
+              social_network_link: socialNetworkLink,
+              event_notes: eventNotes,
+              event_name: eventName,
+              payment_status: paymentStatus || 'not_paid',
+              payment_amount: paymentAmount || null,
+              reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+              email_reminder_enabled: emailReminderEnabled
+            };
 
-            const { error: rpcError } = await supabase.rpc('save_event_with_persons', {
-              p_event_data: {
-                ...eventData,
-                id: eventId || initialData?.id
-              },
-              p_additional_persons: additionalPersonsData,
-              p_user_id: publicBoardUserId,
+            const seriesResult = await supabase.rpc('update_event_series', {
               p_event_id: eventId || initialData?.id,
+              p_user_id: publicBoardUserId,
+              p_event_data: seriesEventData,
+              p_additional_persons: additionalPersons.map(person => ({
+                userSurname: person.userSurname,
+                userNumber: person.userNumber,
+                socialNetworkLink: person.socialNetworkLink,
+                eventNotes: person.eventNotes,
+                paymentStatus: person.paymentStatus,
+                paymentAmount: person.paymentAmount
+              })),
+              p_edited_by_type: 'sub_user',
+              p_edited_by_name: externalUserName
+            });
+
+            if (seriesResult.error) throw seriesResult.error;
+
+            toast({
+              title: t("common.success"),
+              description: t("recurring.seriesUpdated")
+            });
+            
+          } else if (editChoice === "this") {
+            // Create a new standalone event for "edit only this event"
+            const { data: newEventId, error: createError } = await supabase.rpc('save_event_with_persons', {
+              p_event_data: {
+                title: userSurname || title || 'Untitled Event',
+                user_surname: userSurname,
+                user_number: userNumber,
+                social_network_link: socialNetworkLink,
+                event_notes: eventNotes,
+                event_name: eventName,
+                start_date: localDateTimeInputToISOString(startDate),
+                end_date: localDateTimeInputToISOString(endDate),
+                payment_status: paymentStatus || 'not_paid',
+                payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+                type: 'event',
+                is_recurring: false, // Make it standalone
+                repeat_pattern: null,
+                repeat_until: null,
+                parent_event_id: null, // No parent relationship
+                reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+                email_reminder_enabled: emailReminderEnabled,
+                language: language || 'en',
+                user_id: publicBoardUserId
+              },
+              p_additional_persons: additionalPersons.map(person => ({
+                userSurname: person.userSurname,
+                userNumber: person.userNumber,
+                socialNetworkLink: person.socialNetworkLink,
+                eventNotes: person.eventNotes,
+                paymentStatus: person.paymentStatus,
+                paymentAmount: person.paymentAmount
+              })),
+              p_user_id: publicBoardUserId,
+              p_event_id: null, // Create new event
               p_created_by_type: 'sub_user',
               p_created_by_name: externalUserName,
               p_last_edited_by_type: 'sub_user',
               p_last_edited_by_name: externalUserName
             });
 
-            if (rpcError) {
-              console.error('[PublicEventDialog] Error saving additional persons:', rpcError);
-              throw rpcError;
-            }
-            
-            console.log('[PublicEventDialog] ✅ Additional persons saved successfully');
-          } catch (personError) {
-            console.error('[PublicEventDialog] ❌ Error saving additional persons:', personError);
-            toast({
-              title: t("common.warning"),
-              description: "Event updated but failed to save additional persons",
-              variant: "destructive"
-            });
-          }
-        }
-        
-        // Upload files after successful event update
-        if (files.length > 0) {
-          try {
-            console.log('[PublicEventDialog] 📤 Starting file upload for event update. Files:', files.length, 'PublicBoardUserId:', publicBoardUserId);
-            await uploadFiles(eventId || initialData?.id!);
-            console.log('[PublicEventDialog] ✅ Files uploaded successfully after event update');
-            
-            // Clear files state after successful upload
-            setFiles([]);
-            
-            // Refresh the existing files list to show newly uploaded files
-            await loadExistingFiles(eventId || initialData?.id!);
-          } catch (fileError) {
-            console.error('[PublicEventDialog] ❌ Error uploading files during event update:', fileError);
-            toast({
-              title: t("common.warning"),
-              description: "Event updated successfully, but some files failed to upload. Check console for details.",
-              variant: "destructive"
-            });
-          }
-        }
-        
-        toast({
-          title: t("common.success"),
-          description: t("events.eventUpdated")
-        });
+            if (createError) throw createError;
 
-        onEventUpdated?.();
-      } else {
+            // Soft delete the original instance to remove it from the series
+            const originalEventId = eventId || initialData?.id;
+            if (originalEventId) {
+              await supabase
+                .from('events')
+                .update({ deleted_at: new Date().toISOString() })
+                .eq('id', originalEventId)
+                .eq('user_id', publicBoardUserId);
+            }
+
+            toast({
+              title: t("common.success"),
+              description: t("events.eventUpdated")
+            });
+          }
+
+          // Upload files after successful operation
+          if (files.length > 0) {
+            try {
+              const targetEventId = editChoice === "this" ? (await supabase.rpc('save_event_with_persons', {}).data) : (eventId || initialData?.id);
+              if (targetEventId) {
+                await uploadFiles(targetEventId);
+                setFiles([]);
+              }
+            } catch (fileError) {
+              console.error('[PublicEventDialog] ❌ Error uploading files:', fileError);
+              toast({
+                title: t("common.warning"),
+                description: "Event updated successfully, but some files failed to upload",
+                variant: "destructive"
+              });
+            }
+          }
+        } else {
+          // Regular single event update (non-recurring)
+          if (!onUpdate) throw new Error("Update function not provided");
+        
+          const updatedEvent = await onUpdate({
+            ...eventData,
+            id: eventId || initialData?.id
+          });
+          
+          console.log('[PublicEventDialog] Event updated successfully:', updatedEvent);
+          
+          // Save additional persons using Supabase RPC
+          if (additionalPersons.length > 0) {
+            try {
+              console.log('[PublicEventDialog] Saving additional persons:', additionalPersons);
+              const additionalPersonsData = additionalPersons.map(person => ({
+                userSurname: person.userSurname,
+                userNumber: person.userNumber, 
+                socialNetworkLink: person.socialNetworkLink,
+                eventNotes: person.eventNotes,
+                paymentStatus: person.paymentStatus,
+                paymentAmount: person.paymentAmount
+              }));
+
+              const { error: rpcError } = await supabase.rpc('save_event_with_persons', {
+                p_event_data: {
+                  ...eventData,
+                  id: eventId || initialData?.id
+                },
+                p_additional_persons: additionalPersonsData,
+                p_user_id: publicBoardUserId,
+                p_event_id: eventId || initialData?.id,
+                p_created_by_type: 'sub_user',
+                p_created_by_name: externalUserName,
+                p_last_edited_by_type: 'sub_user',
+                p_last_edited_by_name: externalUserName
+              });
+
+              if (rpcError) {
+                console.error('[PublicEventDialog] Error saving additional persons:', rpcError);
+                throw rpcError;
+              }
+              
+              console.log('[PublicEventDialog] ✅ Additional persons saved successfully');
+            } catch (personError) {
+              console.error('[PublicEventDialog] ❌ Error saving additional persons:', personError);
+              toast({
+                title: t("common.warning"),
+                description: "Event updated but failed to save additional persons",
+                variant: "destructive"
+              });
+            }
+          }
+          
+          // Upload files after successful event update
+          if (files.length > 0) {
+            try {
+              console.log('[PublicEventDialog] 📤 Starting file upload for event update. Files:', files.length, 'PublicBoardUserId:', publicBoardUserId);
+              await uploadFiles(eventId || initialData?.id!);
+              console.log('[PublicEventDialog] ✅ Files uploaded successfully after event update');
+              
+              // Clear files state after successful upload
+              setFiles([]);
+              
+              // Refresh the existing files list to show newly uploaded files
+              await loadExistingFiles(eventId || initialData?.id!);
+            } catch (fileError) {
+              console.error('[PublicEventDialog] ❌ Error uploading files during event update:', fileError);
+              toast({
+                title: t("common.warning"),
+                description: "Event updated successfully, but some files failed to upload. Check console for details.",
+                variant: "destructive"
+              });
+            }
+          }
+          
+          toast({
+            title: t("common.success"),
+            description: t("events.eventUpdated")
+          });
+
+          onEventUpdated?.();
+        }
+      }
         // Create new event
         if (!onSave) throw new Error("Save function not provided");
         
