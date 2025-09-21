@@ -323,7 +323,7 @@ export const PublicEventDialog = ({
     await performSubmit();
   };
 
-  const performSubmit = async () => {
+  const performSubmit = async (editChoiceParam?: "this" | "series") => {
     try {
       if (!startDate || !endDate) {
         toast({
@@ -335,18 +335,21 @@ export const PublicEventDialog = ({
       }
 
       setIsLoading(true);
-      console.log('[PublicEventDialog] 🚀 Starting performSubmit with editChoice:', editChoice);
+      console.log('[PublicEventDialog] 🚀 Starting performSubmit with editChoice:', editChoiceParam || editChoice);
 
       if (eventId || initialData) {
         console.log('[PublicEventDialog] 📝 Updating existing event');
         
+        // Use the parameter if provided, otherwise use state
+        const currentEditChoice = editChoiceParam || editChoice;
+        
         // Handle recurring event editing
-        if (isRecurringEvent && editChoice) {
-          console.log(`[PublicEventDialog] 🔄 Handling recurring event edit: ${editChoice}`);
+        if (isRecurringEvent && currentEditChoice) {
+          console.log(`[PublicEventDialog] 🔄 Handling recurring event edit: ${currentEditChoice}`);
           
           let targetFileUploadEventId = eventId || initialData?.id;
           
-          if (editChoice === "series") {
+          if (currentEditChoice === "series") {
             console.log('[PublicEventDialog] 📝 Updating entire series');
             // Update the entire series without changing dates/times
             const seriesEventData = {
@@ -384,7 +387,7 @@ export const PublicEventDialog = ({
               description: t("recurring.seriesUpdated")
             });
             
-          } else if (editChoice === "this") {
+          } else if (currentEditChoice === "this") {
             // Create a new standalone event for "edit only this event"
             const { data: newEventId, error: createError } = await supabase.rpc('save_event_with_persons', {
               p_event_data: {
@@ -657,7 +660,7 @@ export const PublicEventDialog = ({
 
       resetForm();
       onOpenChange(false);
-      setEditChoice(null); // Reset edit choice for next time
+      // editChoice will be reset naturally since it's passed as parameter
     } catch (error: any) {
       console.error('[PublicEventDialog] Error saving event:', error);
       toast({
@@ -671,15 +674,15 @@ export const PublicEventDialog = ({
   };
 
   const handleEditThis = () => {
-    setEditChoice("this");
     setShowEditDialog(false);
-    performSubmit();
+    // Pass edit choice directly to avoid state update race condition
+    performSubmit("this");
   };
 
   const handleEditSeries = () => {
-    setEditChoice("series");
     setShowEditDialog(false);
-    performSubmit();
+    // Pass edit choice directly to avoid state update race condition
+    performSubmit("series");
   };
 
   const handleDeleteThis = async () => {
