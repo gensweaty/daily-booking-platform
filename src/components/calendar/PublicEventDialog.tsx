@@ -466,7 +466,7 @@ export const PublicEventDialog = ({
           }
         } else {
           // Regular event update (non-recurring)
-          if (!onSave) throw new Error("Save function not provided");
+          if (!onUpdate) throw new Error("Update function not provided");
           
           const eventData = {
             title: userSurname || title || 'Untitled Event',
@@ -489,7 +489,7 @@ export const PublicEventDialog = ({
             user_id: publicBoardUserId
           };
 
-          const savedEvent = await onSave({ ...eventData, id: eventId || initialData?.id });
+          const savedEvent = await onUpdate({ ...eventData, id: eventId || initialData?.id });
           
           // Save additional persons if any
           if (additionalPersons.length > 0) {
