@@ -465,9 +465,7 @@ export const PublicEventDialog = ({
             }
           }
         } else {
-          // Regular event update (non-recurring)
-          if (!onUpdate) throw new Error("Update function not provided");
-          
+          // Regular event update (non-recurring) - use direct supabase call like original EventDialog
           const eventData = {
             title: userSurname || title || 'Untitled Event',
             user_surname: userSurname,
@@ -489,50 +487,26 @@ export const PublicEventDialog = ({
             user_id: publicBoardUserId
           };
 
-          const savedEvent = await onUpdate({ ...eventData, id: eventId || initialData?.id });
-          
-          // Save additional persons if any
-          if (additionalPersons.length > 0) {
-            try {
-              console.log('[PublicEventDialog] 📝 Saving additional persons for existing event');
-              const additionalPersonsData = additionalPersons.map(person => ({
-                userSurname: person.userSurname,
-                userNumber: person.userNumber,
-                socialNetworkLink: person.socialNetworkLink,
-                eventNotes: person.eventNotes,
-                paymentStatus: person.paymentStatus,
-                paymentAmount: person.paymentAmount
-              }));
+          // Use the same RPC function that the original EventDialog uses for consistency
+          const { data: updateResult, error: updateError } = await supabase.rpc('save_event_with_persons', {
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons.map(person => ({
+              userSurname: person.userSurname,
+              userNumber: person.userNumber,
+              socialNetworkLink: person.socialNetworkLink,
+              eventNotes: person.eventNotes,
+              paymentStatus: person.paymentStatus,
+              paymentAmount: person.paymentAmount
+            })),
+            p_user_id: publicBoardUserId,
+            p_event_id: eventId || initialData?.id,
+            p_created_by_type: 'sub_user',
+            p_created_by_name: externalUserName,
+            p_last_edited_by_type: 'sub_user',
+            p_last_edited_by_name: externalUserName
+          });
 
-              const { error: rpcError } = await supabase.rpc('save_event_with_persons', {
-                p_event_data: {
-                  ...eventData,
-                  id: eventId || initialData?.id
-                },
-                p_additional_persons: additionalPersonsData,
-                p_user_id: publicBoardUserId,
-                p_event_id: eventId || initialData?.id,
-                p_created_by_type: 'sub_user',
-                p_created_by_name: externalUserName,
-                p_last_edited_by_type: 'sub_user',
-                p_last_edited_by_name: externalUserName
-              });
-
-              if (rpcError) {
-                console.error('[PublicEventDialog] Error saving additional persons:', rpcError);
-                throw rpcError;
-              }
-              
-              console.log('[PublicEventDialog] ✅ Additional persons saved successfully');
-            } catch (personError) {
-              console.error('[PublicEventDialog] ❌ Error saving additional persons:', personError);
-              toast({
-                title: t("common.warning"),
-                description: "Event updated but failed to save additional persons",
-                variant: "destructive"
-              });
-            }
-          }
+          if (updateError) throw updateError;
           
           // Upload files after successful event update
           if (files.length > 0) {
