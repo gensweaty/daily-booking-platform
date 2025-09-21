@@ -124,7 +124,7 @@ export const PublicEventDialog = ({
   const [currentUserProfileName, setCurrentUserProfileName] = useState("");
 
   // Check if this is a virtual event (recurring instance)
-  const isVirtualEvent = isVirtualInstance(initialData);
+  const isVirtualEvent = initialData?.id ? isVirtualInstance(initialData.id) : false;
   const isRecurringEvent = initialData?.is_recurring || 
     (initialData && (initialData.repeat_pattern || initialData.parent_event_id));
 
@@ -214,11 +214,7 @@ export const PublicEventDialog = ({
     try {
       console.log('[PublicEventDialog] Loading existing files for event:', targetEventId);
       
-      const eventFiles = await loadEventFiles({
-        eventId: targetEventId,
-        userId: publicBoardUserId,
-        isPublicMode: true
-      });
+      const eventFiles = await loadEventFiles(targetEventId);
 
       console.log('[PublicEventDialog] Loaded existing files:', eventFiles);
       setExistingFiles(eventFiles || []);
@@ -348,6 +344,8 @@ export const PublicEventDialog = ({
         if (isRecurringEvent && editChoice) {
           console.log(`[PublicEventDialog] 🔄 Handling recurring event edit: ${editChoice}`);
           
+          let targetFileUploadEventId = eventId || initialData?.id;
+          
           if (editChoice === "series") {
             console.log('[PublicEventDialog] 📝 Updating entire series');
             // Update the entire series without changing dates/times
@@ -388,8 +386,7 @@ export const PublicEventDialog = ({
             
           } else if (editChoice === "this") {
             // Create a new standalone event for "edit only this event"
-            let newEventId;
-            const { data: createdEventId, error: createError } = await supabase.rpc('save_event_with_persons', {
+            const { data: newEventId, error: createError } = await supabase.rpc('save_event_with_persons', {
               p_event_data: {
                 title: userSurname || title || 'Untitled Event',
                 user_surname: userSurname,
@@ -428,7 +425,9 @@ export const PublicEventDialog = ({
             });
 
             if (createError) throw createError;
-            newEventId = createdEventId;
+            
+            // Use the new event ID for file uploads
+            targetFileUploadEventId = newEventId;
 
             // Soft delete the original instance to remove it from the series
             const originalEventId = eventId || initialData?.id;
@@ -449,9 +448,8 @@ export const PublicEventDialog = ({
           // Upload files after successful operation
           if (files.length > 0) {
             try {
-              const targetEventId = editChoice === "this" ? newEventId : (eventId || initialData?.id);
-              if (targetEventId) {
-                await uploadFiles(targetEventId);
+              if (targetFileUploadEventId) {
+                await uploadFiles(targetFileUploadEventId);
                 setFiles([]);
               }
             } catch (fileError) {
@@ -797,10 +795,7 @@ export const PublicEventDialog = ({
               setFiles={setFiles}
               existingFiles={existingFiles}
               setExistingFiles={setExistingFiles}
-              currentUserProfileName={currentUserProfileName}
-              isPublicDialog={true}
-              publicBoardUserId={publicBoardUserId}
-              externalUserName={externalUserName}
+              currentUserName={currentUserProfileName}
             />
 
             <div className="flex justify-end gap-2 pt-4">
