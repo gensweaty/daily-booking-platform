@@ -925,7 +925,7 @@ export const EventDialog = ({
 
           toast({
             title: t("common.success"),
-            description: t("recurring.seriesUpdated")
+            description: t("events.eventSeriesUpdated")
           });
 
           await sendEmailToAllPersons({
@@ -933,81 +933,7 @@ export const EventDialog = ({
             id: actualEventId
           }, additionalPersons);
 
-        } else if (editChoice === "this") {
-          // Create a new standalone event for "edit only this event"
-          const { data: newEventId, error: createError } = await supabase.rpc('save_event_with_persons', {
-            p_event_data: {
-              title: userSurname || title || 'Untitled Event',
-              user_surname: userSurname,
-              user_number: userNumber,
-              social_network_link: socialNetworkLink,
-              event_notes: eventNotes,
-              event_name: eventName,
-              start_date: localDateTimeInputToISOString(startDate),
-              end_date: localDateTimeInputToISOString(endDate),
-              payment_status: paymentStatus || 'not_paid',
-              payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
-              type: 'event',
-              is_recurring: false, // Make it standalone
-              repeat_pattern: null,
-              repeat_until: null,
-              parent_event_id: null, // No parent relationship
-              reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
-              email_reminder_enabled: emailReminderEnabled
-            },
-            p_additional_persons: additionalPersons,
-            p_user_id: effectiveUserId,
-            p_event_id: null, // Create new event
-            p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
-            p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
-          });
-
-          if (createError) throw createError;
-
-          // Soft delete the original instance to remove it from the series
-          const originalEventId = eventId || initialData?.id;
-          if (originalEventId) {
-            await supabase
-              .from('events')
-              .update({ deleted_at: new Date().toISOString() })
-              .eq('id', originalEventId)
-              .eq('user_id', effectiveUserId);
-          }
-
-          // Upload files to the new event
-          if (files.length > 0 && newEventId) {
-            try {
-              await uploadFiles(newEventId);
-              setFiles([]);
-              await loadExistingFiles(newEventId);
-            } catch (fileError) {
-              console.error('❌ Error uploading files during single event creation:', fileError);
-              toast({
-                title: t("common.warning"),
-                description: "Event updated successfully, but some files failed to upload",
-                variant: "destructive"
-              });
-            }
-          }
-
-          toast({
-            title: t("common.success"),
-            description: t("events.eventUpdated")
-          });
-
-          await sendEmailToAllPersons({
-            id: newEventId,
-            title: userSurname || title || 'Untitled Event',
-            user_surname: userSurname,
-            user_number: userNumber,
-            social_network_link: socialNetworkLink,
-            event_notes: eventNotes,
-            event_name: eventName,
-            payment_status: paymentStatus || 'not_paid',
-            payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined
-          }, additionalPersons);
+        } else {
           // Edit only this event (existing logic)
           let actualEventId = eventId || initialData?.id;
           if (isVirtualEvent && eventId) {
