@@ -875,7 +875,7 @@ export const EventDialog = ({
       if (eventId || initialData) {
         // Handle edit logic based on user choice
         if (editChoice === "series") {
-          // Edit entire series using the new function
+          // Edit entire series using the NEW SAFE function that preserves dates
           const seriesEventData = {
             title: userSurname || title || 'Untitled Event',
             user_surname: userSurname,
@@ -889,7 +889,7 @@ export const EventDialog = ({
             email_reminder_enabled: emailReminderEnabled
           };
 
-          const seriesResult = await supabase.rpc('update_event_series', {
+          const seriesResult = await supabase.rpc('update_event_series_safe', {
             p_event_id: eventId || initialData?.id,
             p_user_id: effectiveUserId,
             p_event_data: seriesEventData,
@@ -899,6 +899,9 @@ export const EventDialog = ({
           });
 
           if (seriesResult.error) throw seriesResult.error;
+          if (!seriesResult.data?.success) throw new Error(seriesResult.data?.error || 'Failed to update series safely');
+
+          console.log("✅ Series updated safely (dates preserved):", seriesResult.data);
 
           // Upload files to the main event being edited
           let actualEventId = eventId || initialData?.id;
@@ -932,6 +935,48 @@ export const EventDialog = ({
             ...seriesEventData,
             id: actualEventId
           }, additionalPersons);
+
+        } else if (editChoice === "this") {
+          // Edit only this event - create standalone event using NEW function
+          console.log("🔄 Creating standalone event from recurring series instance");
+          
+          const standaloneResult = await supabase.rpc('edit_single_event_instance', {
+            p_event_id: eventId || initialData?.id,
+            p_user_id: effectiveUserId,
+            p_event_data: eventData,
+            p_additional_persons: additionalPersons,
+            p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+            p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
+          });
+
+          if (standaloneResult.error) throw standaloneResult.error;
+          if (!standaloneResult.data?.success) throw new Error(standaloneResult.data?.error || 'Failed to create standalone event');
+
+          console.log("✅ Standalone event created:", standaloneResult.data);
+
+          // Use the new event ID for file uploads
+          const newEventId = standaloneResult.data.new_event_id;
+          
+          // Upload files to the new standalone event
+          if (files.length > 0 && newEventId) {
+            try {
+              await uploadFiles(newEventId);
+              setFiles([]);
+              await loadExistingFiles(newEventId);
+            } catch (fileError) {
+              console.error('❌ Error uploading files to standalone event:', fileError);
+              toast({
+                title: t("common.warning"),
+                description: "Event updated successfully, but some files failed to upload",
+                variant: "destructive"
+              });
+            }
+          }
+
+          toast({
+            title: t("common.success"),
+            description: t("events.eventUpdated")
+          });
 
         } else {
           // Edit only this event (existing logic)

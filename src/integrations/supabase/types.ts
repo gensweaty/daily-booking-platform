@@ -833,6 +833,7 @@ export type Database = {
           end_date: string
           event_name: string | null
           event_notes: string | null
+          excluded_from_series: boolean | null
           file_path: string | null
           file_size: number | null
           filename: string | null
@@ -877,6 +878,7 @@ export type Database = {
           end_date: string
           event_name?: string | null
           event_notes?: string | null
+          excluded_from_series?: boolean | null
           file_path?: string | null
           file_size?: number | null
           filename?: string | null
@@ -921,6 +923,7 @@ export type Database = {
           end_date?: string
           event_name?: string | null
           event_notes?: string | null
+          excluded_from_series?: boolean | null
           file_path?: string | null
           file_size?: number | null
           filename?: string | null
@@ -1740,6 +1743,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      edit_single_event_instance: {
+        Args: {
+          p_additional_persons: Json
+          p_edited_by_name?: string
+          p_edited_by_type?: string
+          p_event_data: Json
+          p_event_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       ensure_dm_channel: {
         Args: {
           p_a_id: string
@@ -1987,6 +2001,7 @@ export type Database = {
           end_date: string
           event_name: string | null
           event_notes: string | null
+          excluded_from_series: boolean | null
           file_path: string | null
           file_size: number | null
           filename: string | null
@@ -2239,6 +2254,17 @@ export type Database = {
         }[]
       }
       update_event_series: {
+        Args: {
+          p_additional_persons: Json
+          p_edited_by_name?: string
+          p_edited_by_type?: string
+          p_event_data: Json
+          p_event_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      update_event_series_safe: {
         Args: {
           p_additional_persons: Json
           p_edited_by_name?: string

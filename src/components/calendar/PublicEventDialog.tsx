@@ -437,56 +437,85 @@ export const PublicEventDialog = ({
       console.log('[PublicEventDialog] Submitting event data:', eventData);
 
       if (eventId || initialData) {
-        // Update existing event
-        if (!onUpdate) throw new Error("Update function not provided");
+        // Update existing event with new safe functions
+        const targetEventId = eventId || initialData?.id;
+        if (!targetEventId) throw new Error("No event ID available for update");
         
-        const updatedEvent = await onUpdate({
-          ...eventData,
-          id: eventId || initialData?.id
-        });
-        
-        console.log('[PublicEventDialog] Event updated successfully:', updatedEvent);
-        
-        // Save additional persons using Supabase RPC
-        if (additionalPersons.length > 0) {
-          try {
-            console.log('[PublicEventDialog] Saving additional persons:', additionalPersons);
-            const additionalPersonsData = additionalPersons.map(person => ({
-              userSurname: person.userSurname,
-              userNumber: person.userNumber, 
-              socialNetworkLink: person.socialNetworkLink,
-              eventNotes: person.eventNotes,
-              paymentStatus: person.paymentStatus,
-              paymentAmount: person.paymentAmount
-            }));
+        console.log('[PublicEventDialog] Updating event:', targetEventId, 'editChoice:', editChoice, 'isRecurringEvent:', isRecurringEvent);
 
+        const additionalPersonsData = additionalPersons.map(person => ({
+          userSurname: person.userSurname,
+          userNumber: person.userNumber, 
+          socialNetworkLink: person.socialNetworkLink,
+          eventNotes: person.eventNotes,
+          paymentStatus: person.paymentStatus,
+          paymentAmount: person.paymentAmount
+        }));
+
+        // Handle recurring event updates with new safe functions
+        if (isRecurringEvent && editChoice) {
+          if (editChoice === "series") {
+            console.log('[PublicEventDialog] Updating entire series safely (preserving individual dates)');
+            
+            const { data: updateResult, error: updateSeriesError } = await supabase.rpc('update_event_series_safe', {
+              p_event_id: targetEventId,
+              p_user_id: publicBoardUserId,
+              p_event_data: eventData,
+              p_additional_persons: additionalPersonsData,
+              p_edited_by_type: 'sub_user',
+              p_edited_by_name: externalUserName
+            });
+
+            if (updateSeriesError) throw updateSeriesError;
+            if (!updateResult?.success) throw new Error(updateResult?.error || 'Failed to update series');
+            
+            console.log('[PublicEventDialog] Recurring series updated safely:', updateResult);
+          } else if (editChoice === "this") {
+            console.log('[PublicEventDialog] Creating standalone event from series instance');
+            
+            const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance', {
+              p_event_id: targetEventId,
+              p_user_id: publicBoardUserId,
+              p_event_data: eventData,
+              p_additional_persons: additionalPersonsData,
+              p_edited_by_type: 'sub_user',
+              p_edited_by_name: externalUserName
+            });
+
+            if (editError) throw editError;
+            if (!editResult?.success) throw new Error(editResult?.error || 'Failed to edit single instance');
+            
+            console.log('[PublicEventDialog] Single instance edited (new standalone event created):', editResult);
+          }
+        } else {
+          // Regular single event update - use legacy approach for compatibility
+          if (!onUpdate) throw new Error("Update function not provided");
+          
+          const updatedEvent = await onUpdate({
+            ...eventData,
+            id: targetEventId
+          });
+          
+          console.log('[PublicEventDialog] Event updated successfully (legacy):', updatedEvent);
+          
+          // Save additional persons for regular events
+          if (additionalPersonsData.length > 0) {
             const { error: rpcError } = await supabase.rpc('save_event_with_persons', {
               p_event_data: {
                 ...eventData,
-                id: eventId || initialData?.id
+                id: targetEventId
               },
               p_additional_persons: additionalPersonsData,
               p_user_id: publicBoardUserId,
-              p_event_id: eventId || initialData?.id,
+              p_event_id: targetEventId,
               p_created_by_type: 'sub_user',
               p_created_by_name: externalUserName,
               p_last_edited_by_type: 'sub_user',
               p_last_edited_by_name: externalUserName
             });
 
-            if (rpcError) {
-              console.error('[PublicEventDialog] Error saving additional persons:', rpcError);
-              throw rpcError;
-            }
-            
-            console.log('[PublicEventDialog] ✅ Additional persons saved successfully');
-          } catch (personError) {
-            console.error('[PublicEventDialog] ❌ Error saving additional persons:', personError);
-            toast({
-              title: t("common.warning"),
-              description: "Event updated but failed to save additional persons",
-              variant: "destructive"
-            });
+            if (rpcError) throw rpcError;
+            console.log('[PublicEventDialog] Additional persons saved successfully');
           }
         }
         
