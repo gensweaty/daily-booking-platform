@@ -140,7 +140,7 @@ export const PublicEventDialog = ({
 
   const isNewEvent = !initialData && !eventId;
   const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
-  const isRecurringEvent = initialData?.is_recurring || isVirtualEvent || isRecurring;
+  const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
   
   // Check if current user is the creator of this event
   const isEventCreatedByCurrentUser = initialData ? 
@@ -292,6 +292,12 @@ export const PublicEventDialog = ({
 
   // Initialize form data
   useEffect(() => {
+    // Reset dialog states when opening
+    setEditChoice(null);
+    setShowEditDialog(false);
+    setShowDeleteDialog(false);
+    setIsLoading(false);
+    
     const loadAndSetEventData = async () => {
       if (open) {
         if (initialData || eventId) {
@@ -389,8 +395,19 @@ export const PublicEventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('[PublicEventDialog] submit - debugging recurring event logic:', {
+      eventId,
+      hasInitialData: !!initialData,
+      isRecurringEvent,
+      editChoice,
+      isRecurring: initialData?.is_recurring,
+      isVirtualEvent,
+      hasParentId: !!initialData?.parent_event_id
+    });
+    
     // Check if this is a recurring event being edited and we need to show the choice dialog
     if ((eventId || initialData) && isRecurringEvent && editChoice === null) {
+      console.log('[PublicEventDialog] Showing RecurringEditDialog for event edit choice');
       setShowEditDialog(true);
       return;
     }
