@@ -156,50 +156,58 @@ export const filterDeletedInstances = (instances: CalendarEventType[], deletionE
     exceptionsCount: deletionExceptions.length
   });
 
-  // Create a set of deleted dates from deletion exceptions
-  // Look for our special deletion markers
-  const deletedDates = new Set(
+  // Create a set of excluded dates from deletion exceptions
+  // Look for events with excluded_from_series = TRUE  
+  const excludedDates = new Set(
     deletionExceptions
       .filter(exception => {
-        // Look for our special deletion markers
-        const isDeletionException = exception.type === 'deletion_exception' || 
-                                   (exception.title && exception.title.startsWith('__DELETED_')) ||
-                                   (exception.user_surname === '__SYSTEM_DELETION_EXCEPTION__');
+        // Look for events marked as excluded from series (our new surgical approach)
+        const isExcludedFromSeries = exception.excluded_from_series === true;
+        
+        // Also support legacy deletion markers for backwards compatibility
+        const isLegacyDeletion = exception.type === 'deletion_exception' || 
+                                (exception.title && exception.title.startsWith('__DELETED_')) ||
+                                (exception.user_surname === '__SYSTEM_DELETION_EXCEPTION__');
+        
+        const isExcluded = isExcludedFromSeries || isLegacyDeletion;
         
         console.log("🚫 Checking exception:", {
           id: exception.id,
           title: exception.title,
           type: exception.type,
           user_surname: exception.user_surname,
-          isDeletionException,
+          excluded_from_series: exception.excluded_from_series,
+          isExcludedFromSeries,
+          isLegacyDeletion,
+          isExcluded,
           startDate: exception.start_date
         });
         
-        return isDeletionException;
+        return isExcluded;
       })
       .map(exception => {
         const dateStr = exception.start_date.split('T')[0];
-        console.log("📅 Adding deleted date:", dateStr);
+        console.log("📅 Adding excluded date:", dateStr);
         return dateStr;
       })
   );
   
-  console.log("🗑️ Deleted dates set:", Array.from(deletedDates));
+  console.log("🗑️ Excluded dates set:", Array.from(excludedDates));
   
-  // Filter out instances that match deleted dates
+  // Filter out instances that match excluded dates
   const filteredInstances = instances.filter(instance => {
     const instanceDate = instance.start_date.split('T')[0];
-    const isDeleted = deletedDates.has(instanceDate);
+    const isExcluded = excludedDates.has(instanceDate);
     
-    if (isDeleted) {
-      console.log("❌ Filtering out deleted instance:", {
+    if (isExcluded) {
+      console.log("❌ Filtering out excluded instance:", {
         id: instance.id,
         title: instance.title,
         date: instanceDate
       });
     }
     
-    return !isDeleted;
+    return !isExcluded;
   });
   
   console.log("✅ Filtered instances:", {

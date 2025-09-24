@@ -208,7 +208,9 @@ export const EventDialog = ({
   const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
 
   const isNewEvent = !initialData && !eventId;
-  const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
+  // CRITICAL: Detect virtual instance from either source
+  const eventKey = eventId || initialData?.id || "";
+  const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
   const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
 
   // Fetch current user's profile username for display
@@ -407,19 +409,22 @@ export const EventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            if (isVirtualEvent && eventId) {
-              const instanceDate = getInstanceDate(eventId);
-              if (instanceDate && eventData) {
+            // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
+            if (isVirtualEvent && (initialData || eventId)) {
+              const instanceDate = getInstanceDate(eventKey);
+              if (instanceDate) {
+                // Calculate the instance dates using parent's base time but instance's date
                 const baseStart = new Date(eventData.start_date);
                 const baseEnd = new Date(eventData.end_date);
-                const [year, month, day] = instanceDate.split('-');
+                const [year, month, day] = instanceDate.split('-').map(n => +n);
                 const newStart = new Date(baseStart);
-                newStart.setFullYear(+year, +month - 1, +day);
+                newStart.setFullYear(year, month - 1, day);
                 const newEnd = new Date(baseEnd);
-                newEnd.setFullYear(+year, +month - 1, +day);
+                newEnd.setFullYear(year, month - 1, day);
 
                 setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
                 setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+                console.log('🗓️ Set virtual instance dates:', instanceDate, 'Start:', newStart.toISOString());
               } else {
                 setStartDate(isoToLocalDateTimeInput(eventData.start_date));
                 setEndDate(isoToLocalDateTimeInput(eventData.end_date));
@@ -954,14 +959,22 @@ export const EventDialog = ({
           }, additionalPersons);
 
         } else if (editChoice === "this") {
-          // Edit only this event - create standalone event using NEW function
-          console.log("🔄 Creating standalone event from recurring series instance");
+          // Edit only this event - create standalone event using SURGICAL V2 function
+          console.log("🔄 Creating standalone event from recurring series instance (surgical v2)");
           
-          const standaloneResult = await supabase.rpc('edit_single_event_instance', {
-            p_event_id: eventId || initialData?.id,
+          const instanceIsoStart = localDateTimeInputToISOString(startDate);
+          const instanceIsoEnd = localDateTimeInputToISOString(endDate);
+          
+          // Use parent id when editing a virtual instance
+          const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : (eventId || initialData?.id);
+          
+          const standaloneResult = await supabase.rpc('edit_single_event_instance_v2', {
+            p_event_id: rpcTargetId,
             p_user_id: effectiveUserId,
             p_event_data: eventData,
             p_additional_persons: additionalPersons,
+            p_instance_start: instanceIsoStart,
+            p_instance_end: instanceIsoEnd,
             p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
             p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
           });
@@ -969,7 +982,7 @@ export const EventDialog = ({
           if (standaloneResult.error) throw standaloneResult.error;
           if (!standaloneResult.data?.success) throw new Error(standaloneResult.data?.error || 'Failed to create standalone event');
 
-          console.log("✅ Standalone event created:", standaloneResult.data);
+          console.log("✅ Standalone event created with surgical v2:", standaloneResult.data);
 
           // Use the new event ID for file uploads
           const newEventId = standaloneResult.data.new_event_id;

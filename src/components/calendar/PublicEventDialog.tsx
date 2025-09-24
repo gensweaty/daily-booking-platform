@@ -139,7 +139,9 @@ export const PublicEventDialog = ({
   const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
 
   const isNewEvent = !initialData && !eventId;
-  const isVirtualEvent = eventId ? isVirtualInstance(eventId) : false;
+  // CRITICAL: Detect virtual instance from either source
+  const eventKey = eventId || initialData?.id || "";
+  const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
   const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
   
   // Check if current user is the creator of this event
@@ -322,8 +324,30 @@ export const PublicEventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-            setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+            // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
+            if (isVirtualEvent && (initialData || eventId)) {
+              const instanceDate = getInstanceDate(eventKey);
+              if (instanceDate) {
+                // Calculate the instance dates using parent's base time but instance's date
+                const baseStart = new Date(eventData.start_date);
+                const baseEnd = new Date(eventData.end_date);
+                const [year, month, day] = instanceDate.split('-').map(n => +n);
+                const newStart = new Date(baseStart);
+                newStart.setFullYear(year, month - 1, day);
+                const newEnd = new Date(baseEnd);  
+                newEnd.setFullYear(year, month - 1, day);
+
+                setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
+                setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+                console.log('[PublicEventDialog] 🗓️ Set virtual instance dates:', instanceDate, 'Start:', newStart.toISOString());
+              } else {
+                setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+                setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+              }
+            } else {
+              setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+              setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+            }
 
             setIsRecurring(eventData.is_recurring || false);
             setRepeatPattern(eventData.repeat_pattern || "");
@@ -488,13 +512,21 @@ export const PublicEventDialog = ({
             
             console.log('[PublicEventDialog] Recurring series updated safely:', updateResult);
           } else if (editChoice === "this") {
-            console.log('[PublicEventDialog] Creating standalone event from series instance');
+            console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
             
-            const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance', {
-              p_event_id: targetEventId,
+            const instanceIsoStart = localDateTimeInputToISOString(startDate);
+            const instanceIsoEnd = localDateTimeInputToISOString(endDate);
+            
+            // Use parent id when editing a virtual instance
+            const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
+            
+            const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
+              p_event_id: rpcTargetId,
               p_user_id: publicBoardUserId,
               p_event_data: eventData,
               p_additional_persons: additionalPersonsData,
+              p_instance_start: instanceIsoStart,
+              p_instance_end: instanceIsoEnd,
               p_edited_by_type: 'sub_user',
               p_edited_by_name: externalUserName
             });
@@ -502,7 +534,7 @@ export const PublicEventDialog = ({
             if (editError) throw editError;
             if (!editResult?.success) throw new Error(editResult?.error || 'Failed to edit single instance');
             
-            console.log('[PublicEventDialog] Single instance edited (new standalone event created):', editResult);
+            console.log('[PublicEventDialog] Single instance edited with surgical v2 (new standalone event created):', editResult);
           }
         } else {
           // Regular single event update - use legacy approach for compatibility

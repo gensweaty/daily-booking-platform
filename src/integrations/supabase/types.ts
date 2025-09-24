@@ -1754,6 +1754,19 @@ export type Database = {
         }
         Returns: Json
       }
+      edit_single_event_instance_v2: {
+        Args: {
+          p_additional_persons: Json
+          p_edited_by_name?: string
+          p_edited_by_type?: string
+          p_event_data: Json
+          p_event_id: string
+          p_instance_end?: string
+          p_instance_start?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       ensure_dm_channel: {
         Args: {
           p_a_id: string
