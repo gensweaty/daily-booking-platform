@@ -498,8 +498,9 @@ export const PublicEventDialog = ({
           if (editChoice === "series") {
             console.log('[PublicEventDialog] Updating entire series safely (preserving individual dates)');
             
+            const seriesTargetId = resolveSeriesRootId();
             const { data: updateResult, error: updateSeriesError } = await supabase.rpc('update_event_series_safe', {
-              p_event_id: targetEventId,
+              p_event_id: seriesTargetId,
               p_user_id: publicBoardUserId,
               p_event_data: eventData,
               p_additional_persons: additionalPersonsData,
@@ -511,6 +512,22 @@ export const PublicEventDialog = ({
             if (!updateResult?.success) throw new Error(updateResult?.error || 'Failed to update series');
             
             console.log('[PublicEventDialog] Recurring series updated safely:', updateResult);
+
+            // file upload after series update -> parent
+            if (files.length > 0) {
+              try {
+                await uploadFiles(seriesTargetId);
+                setFiles([]);
+                await loadExistingFiles(seriesTargetId);
+              } catch (fileError) {
+                console.error('[PublicEventDialog] ❌ Error uploading files during series update:', fileError);
+                toast({
+                  title: t("common.warning"),
+                  description: "Series updated successfully, but some files failed to upload",
+                  variant: "destructive"
+                });
+              }
+            }
           } else if (editChoice === "this") {
             console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
             

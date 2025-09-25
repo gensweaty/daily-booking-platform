@@ -213,6 +213,15 @@ export const EventDialog = ({
   const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
   const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
 
+  // Resolve the real series root (parent) id regardless of what was clicked
+  const resolveSeriesRootId = React.useCallback(() => {
+    const key = eventId || initialData?.id || "";
+    if (!key) return "";
+    if (isVirtualInstance(key)) return getParentEventId(key);
+    if (initialData?.parent_event_id) return initialData.parent_event_id;
+    return key;
+  }, [eventId, initialData]);
+
   // Fetch current user's profile username for display
   useEffect(() => {
     const fetchCurrentUserProfile = async () => {
@@ -346,10 +355,13 @@ export const EventDialog = ({
 
   const loadEventData = async (targetEventId: string) => {
     try {
+      const realId = isVirtualInstance(targetEventId)
+        ? getParentEventId(targetEventId)
+        : targetEventId;
       const { data: eventData, error } = await supabase
         .from('events')
         .select('*')
-        .eq('id', targetEventId)
+        .eq('id', realId)
         .single();
 
       if (error) {
@@ -724,7 +736,8 @@ export const EventDialog = ({
     const newEndTime = new Date(localDateTimeInputToISOString(endDate));
 
     // Get existing events from React Query cache
-    const existingEvents = queryClient.getQueryData<CalendarEvent[]>(['events', user.id]) || [];
+    const existingEvents =
+      queryClient.getQueryData<CalendarEvent[]>(['events', effectiveUserId]) || [];
     
     // **CRITICAL FIX: Determine all event IDs to exclude from conflict checking**
     let eventIdsToExclude: string[] = [];
@@ -911,8 +924,9 @@ export const EventDialog = ({
             email_reminder_enabled: emailReminderEnabled
           };
 
+          const seriesTargetId = resolveSeriesRootId();
           const seriesResult = await supabase.rpc('update_event_series_safe', {
-            p_event_id: eventId || initialData?.id,
+            p_event_id: seriesTargetId,
             p_user_id: effectiveUserId,
             p_event_data: seriesEventData,
             p_additional_persons: additionalPersons,
@@ -925,13 +939,8 @@ export const EventDialog = ({
 
           console.log("✅ Series updated safely (dates preserved):", seriesResult.data);
 
-          // Upload files to the main event being edited
-          let actualEventId = eventId || initialData?.id;
-          if (isVirtualEvent && eventId) {
-            actualEventId = getParentEventId(eventId);
-          } else if (initialData?.parent_event_id) {
-            actualEventId = initialData.parent_event_id;
-          }
+          // file upload should also go to the parent
+          const actualEventId = seriesTargetId;
 
           if (files.length > 0 && actualEventId) {
             try {
