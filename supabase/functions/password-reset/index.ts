@@ -51,11 +51,7 @@ serve(async (req) => {
 
       try {
         // Check if user exists
-        const { data: user, error: userError } = await supabaseAdmin.auth.admin.listUsers({
-          filter: {
-            email: email,
-          }
-        });
+        const { data: user, error: userError } = await supabaseAdmin.auth.admin.listUsers();
 
         if (userError) {
           console.error('Error checking user:', userError);
@@ -73,7 +69,8 @@ serve(async (req) => {
         }
 
         // Check if user exists in the database
-        if (!user || user.users.length === 0) {
+        const targetUser = user?.users?.find(u => u.email === email);
+        if (!user || user.users.length === 0 || !targetUser) {
           console.log(`No user found with email: ${email}`);
           // For security reasons, return success even if the user doesn't exist
           return new Response(
@@ -182,7 +179,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "An unexpected error occurred",
+        error: (error as Error).message || "An unexpected error occurred",
         success: false
       }),
       {

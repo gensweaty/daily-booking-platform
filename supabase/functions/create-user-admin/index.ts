@@ -214,6 +214,7 @@ serve(async (req) => {
         const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'signup',
           email,
+          password,
           options: {
             redirectTo: `${domain}/dashboard?verified=true`,
           }
@@ -287,7 +288,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            message: createError.message || "Error creating user",
+            message: (createError as Error).message || "Error creating user",
             error: createError
           }),
           {
@@ -312,7 +313,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "An unexpected error occurred",
+        error: (error as Error).message || "An unexpected error occurred",
         success: false
       }),
       {

@@ -153,7 +153,7 @@ serve(async (req) => {
       JSON.stringify({ 
         valid: false, 
         message: 'Server error during validation',
-        error: error.message 
+        error: (error as Error).message 
       }),
       { 
         status: 500, 

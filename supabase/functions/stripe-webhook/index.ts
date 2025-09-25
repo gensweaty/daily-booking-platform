@@ -77,7 +77,7 @@ async function verifyStripeSignature(payload: string, signature: string, secret:
     return isValid;
     
   } catch (error) {
-    logStep("Signature verification error", { error: error.message });
+    logStep("Signature verification error", { error: (error as Error).message });
     return false;
   }
 }
@@ -258,7 +258,7 @@ async function handleCheckoutCompleted(session: any) {
     });
   } catch (error) {
     logStep("Error processing checkout", {
-      error: error.message
+      error: (error as Error).message
     });
     throw error;
   }
@@ -343,7 +343,7 @@ async function handleSubscriptionEvent(subscription: any, previousAttributes?: a
     });
   } catch (error) {
     logStep("Error processing subscription event", {
-      error: error.message
+      error: (error as Error).message
     });
     throw error;
   }
@@ -464,7 +464,7 @@ async function handleSubscriptionCanceled(subscription: any) {
     logStep("Subscription canceled successfully");
   } catch (error) {
     logStep("Error processing cancellation", {
-      error: error.message
+      error: (error as Error).message
     });
     throw error;
   }
@@ -486,7 +486,7 @@ async function findUserByEmail(email: string): Promise<string | null> {
     const matchingUser = users.users.find(u => u.email === email);
     return matchingUser?.id || null;
   } catch (error) {
-    logStep("Error finding user by email", { error: error.message, email });
+    logStep("Error finding user by email", { error: (error as Error).message, email });
     return null;
   }
 }

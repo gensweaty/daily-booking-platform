@@ -85,7 +85,9 @@ serve(async (req) => {
         JSON.stringify({ 
           success: false, 
           message: "Failed to send test email",
-          error: emailError?.message || "Unknown error"
+          error: emailError && typeof emailError === 'object' && 'message' in emailError 
+            ? (emailError as Error).message 
+            : "Unknown error"
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -98,7 +100,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "An unexpected error occurred",
+        error: (error as Error).message || "An unexpected error occurred",
         success: false
       }),
       {

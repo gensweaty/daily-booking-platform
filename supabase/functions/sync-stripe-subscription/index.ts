@@ -134,7 +134,7 @@ function parseStripeTimestamp(value: any, fieldName: string): string | null {
     });
     return isoString;
   } catch (error) {
-    logStep(`Error converting timestamp for ${fieldName}`, { timestamp, error: error.message });
+    logStep(`Error converting timestamp for ${fieldName}`, { timestamp, error: (error as Error).message });
     return null;
   }
 }

@@ -5,7 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 // Supabase admin client
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,7 +43,7 @@ function safeTimestamp(timestamp: number | null | undefined): string | null {
     
     return date.toISOString();
   } catch (error) {
-    logStep("Error converting timestamp", { timestamp, error: error.message });
+    logStep("Error converting timestamp", { timestamp, error: (error as Error).message });
     return null;
   }
 }
@@ -243,7 +243,7 @@ async function handleCustomerSubscriptionUpdated(subscription: any) {
           }
         }
       } catch (error) {
-        logStep("Error looking up customer", { error: error.message, customerId });
+        logStep("Error looking up customer", { error: (error as Error).message, customerId });
       }
       
       return;

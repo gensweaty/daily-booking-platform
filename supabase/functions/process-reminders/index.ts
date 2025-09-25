@@ -88,13 +88,13 @@ const handler = async (req: Request): Promise<Response> => {
             }
           } catch (error) {
             console.error(`❌ Exception processing task ${task.id}:`, error);
-            result.errors.push(`Task ${task.id} exception: ${error.message}`);
+            result.errors.push(`Task ${task.id} exception: ${(error as Error).message}`);
           }
         }
       }
     } catch (error) {
       console.error('❌ Task processing exception:', error);
-      result.errors.push(`Task processing exception: ${error.message}`);
+      result.errors.push(`Task processing exception: ${(error as Error).message}`);
     }
 
     // Process Event Reminders
@@ -132,13 +132,13 @@ const handler = async (req: Request): Promise<Response> => {
             }
           } catch (error) {
             console.error(`❌ Exception processing event ${event.id}:`, error);
-            result.errors.push(`Event ${event.id} exception: ${error.message}`);
+            result.errors.push(`Event ${event.id} exception: ${(error as Error).message}`);
           }
         }
       }
     } catch (error) {
       console.error('❌ Event processing exception:', error);
-      result.errors.push(`Event processing exception: ${error.message}`);
+      result.errors.push(`Event processing exception: ${(error as Error).message}`);
     }
 
     // Log final results
@@ -169,7 +169,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: (error as Error).message,
       timestamp: new Date().toISOString()
     }), {
       status: 500,

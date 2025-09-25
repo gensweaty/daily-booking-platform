@@ -228,7 +228,7 @@ serve(async (req) => {
     let actorEmailResolved = actorEmail;
     if (!actorEmailResolved && payload.actorName) {
       const actorNameClean = cleanName(payload.actorName);
-      if (["owner","admin","user"].includes(actorType)) {
+      if (["owner","admin","user"].includes(actorType) && ownerEmailLower) {
         actorEmailResolved = ownerEmailLower;
       } else if (["external_user","sub_user"].includes(actorType) && actorNameClean) {
         // Fast lookup for sub-user email by name

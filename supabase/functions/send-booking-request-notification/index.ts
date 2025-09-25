@@ -411,7 +411,7 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ 
           success: false, 
           error: "Invalid JSON in request body",
-          details: error.message 
+          details: (error as Error).message 
         }),
         { 
           status: 400, 

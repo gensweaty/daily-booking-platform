@@ -478,7 +478,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error('❌ Error in event reminder email function:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: (error as Error).message }),
       { 
         status: 500, 
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
