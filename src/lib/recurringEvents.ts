@@ -91,7 +91,9 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
     return [baseEvent];
   }
 
-  const instances: CalendarEventType[] = [baseEvent]; // Include the original event
+  // CRITICAL FIX: For recurring events, do NOT include the parent event itself - only virtual instances
+  // This prevents duplicates where both parent and virtual instances appear at the same time
+  const instances: CalendarEventType[] = [];
   const startDate = new Date(baseEvent.start_date);
   const endDate = new Date(baseEvent.end_date);
   const eventDuration = endDate.getTime() - startDate.getTime();
