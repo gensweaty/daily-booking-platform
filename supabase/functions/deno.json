@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "noImplicitReturns": false
+  },
+  "imports": {
+    "supabase": "https://esm.sh/@supabase/supabase-js@2.47.2",
+    "stripe": "https://esm.sh/stripe@14.21.0", 
+    "resend": "https://esm.sh/resend@4.3.0"
+  }
+}

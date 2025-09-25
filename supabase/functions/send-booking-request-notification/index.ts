@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import { Resend } from "https://esm.sh/resend@4.3.0";
 
 // CORS headers to allow cross-origin requests
 const corsHeaders = {
@@ -582,7 +582,7 @@ const handler = async (req: Request): Promise<Response> => {
         subject: emailSubject,
         html: emailContent.html,
         text: emailContent.text,
-        reply_to: "no-reply@smartbookly.com",
+        replyTo: "no-reply@smartbookly.com",
       });
       
       console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
@@ -610,7 +610,7 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ 
           success: false, 
           error: "Failed to send email",
-          details: resendError.message
+          details: (resendError as Error).message
         }),
         { 
           status: 500, 

@@ -38,11 +38,18 @@ export const handler = async (req: Request): Promise<Response> => {
     const emailsNorm = emails.map(norm);
 
     // Get board owner user id via Auth Admin API
-    const { data: ownerUser, error: ownerErr } = await supabase.auth.admin.getUserByEmail(ownerEmailNorm);
-    if (ownerErr || !ownerUser?.user) {
-      return jsonResponse(404, { error: "Owner user not found", detail: ownerErr?.message });
+    const { data: ownerUsers, error: ownerErr } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000
+    });
+    
+    if (ownerErr) throw ownerErr;
+    
+    const ownerUser = ownerUsers.users.find(u => u.email?.toLowerCase() === ownerEmailNorm);
+    if (ownerErr || !ownerUser) {
+      return jsonResponse(404, { error: "Owner user not found", detail: String(ownerErr || 'Not found') });
     }
-    const ownerId = ownerUser.user.id;
+    const ownerId = ownerUser.id;
 
     // Get all public boards for this owner
     const { data: boards, error: boardsErr } = await supabase
