@@ -2279,7 +2279,7 @@ export type Database = {
       }
       update_event_series_safe: {
         Args: {
-          p_additional_persons: Json
+          p_additional_persons?: Json
           p_edited_by_name?: string
           p_edited_by_type?: string
           p_event_data: Json

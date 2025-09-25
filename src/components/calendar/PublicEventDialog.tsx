@@ -143,6 +143,15 @@ export const PublicEventDialog = ({
   const eventKey = eventId || initialData?.id || "";
   const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
   const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
+
+  // Resolve the real series root (parent) id regardless of what was clicked
+  const resolveSeriesRootId = React.useCallback(() => {
+    const key = eventId || initialData?.id || "";
+    if (!key) return "";
+    if (isVirtualInstance(key)) return getParentEventId(key);
+    if (initialData?.parent_event_id) return initialData.parent_event_id;
+    return key;
+  }, [eventId, initialData]);
   
   // Check if current user is the creator of this event
   const isEventCreatedByCurrentUser = initialData ? 
