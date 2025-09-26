@@ -1647,10 +1647,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      cleanup_recurring_event_conflicts: {
-        Args: { p_user_id?: string }
-        Returns: Json
-      }
       consolidate_duplicate_dm_channels: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -2286,7 +2282,7 @@ export type Database = {
           p_additional_persons?: Json
           p_edited_by_name?: string
           p_edited_by_type?: string
-          p_event_data?: Json
+          p_event_data: Json
           p_event_id: string
           p_user_id: string
         }
