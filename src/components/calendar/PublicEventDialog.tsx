@@ -80,21 +80,6 @@ const isoToLocalDateTimeInput = (isoString: string): string => {
   }
 };
 
-// Do NOT let instance-based dates leak into a "series" update.
-const sanitizeSeriesPayload = <T extends Record<string, any>>(data: T): Partial<T> => {
-  const copy = { ...data };
-  delete copy.start_date;
-  delete copy.end_date;
-  delete copy.is_recurring;
-  delete copy.repeat_pattern;
-  delete copy.repeat_until;
-  // safest: do not push a one-off reminder timestamp from an instance across the series
-  delete copy.reminder_at;
-  delete copy.recurrence_instance_date;
-  delete copy.parent_event_id;
-  return copy;
-};
-
 export const PublicEventDialog = ({
   open,
   onOpenChange,
@@ -523,14 +508,10 @@ export const PublicEventDialog = ({
             console.log('[PublicEventDialog] Updating entire series safely (preserving individual dates)');
             
             const seriesTargetId = resolveSeriesRootId();
-            
-            // NEW: strip date/recurrence fields so neither RPC nor local merge can reschedule the root.
-            const safeSeriesData = sanitizeSeriesPayload(eventData);
-            
             const { data: updateResult, error: updateSeriesError } = await supabase.rpc('update_event_series_safe', {
               p_event_id: seriesTargetId,
               p_user_id: publicBoardUserId,
-              p_event_data: safeSeriesData,
+              p_event_data: eventData,
               p_additional_persons: additionalPersonsData,
               p_edited_by_type: 'sub_user',
               p_edited_by_name: externalUserName
