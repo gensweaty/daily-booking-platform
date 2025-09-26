@@ -94,6 +94,8 @@ interface EventDialogFieldsProps {
   currentUserName?: string;
   currentUserType?: string;
   isSubUser?: boolean;
+  // NEW: Series editing restrictions
+  isEditingSeriesMode?: boolean;
 }
 
 export const EventDialogFields = ({
@@ -139,7 +141,8 @@ export const EventDialogFields = ({
   setEmailReminderEnabled,
   currentUserName,
   currentUserType = 'admin',
-  isSubUser = false
+  isSubUser = false,
+  isEditingSeriesMode = false
 }: EventDialogFieldsProps) => {
   const {
     t,
@@ -465,6 +468,32 @@ export const EventDialogFields = ({
         >
           <LanguageText>{t("events.dateAndTime")}</LanguageText>
         </Label>
+        
+        {/* Series Edit Warning */}
+        {isEditingSeriesMode && (
+          <div className="mt-2 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="flex items-start gap-2">
+              <Clock className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-blue-800">
+                <p className="font-medium">
+                  {isGeorgian ? (
+                    <GeorgianAuthText>სერიის რედაქტირება</GeorgianAuthText>
+                  ) : (
+                    "Editing entire series"
+                  )}
+                </p>
+                <p className={cn(isGeorgian ? "font-georgian" : "")}>
+                  {isGeorgian ? (
+                    <GeorgianAuthText>თარიღები და განმეორების პარამეტრები არ იცვლება სერიის რედაქტირებისას</GeorgianAuthText>
+                  ) : (
+                    "Dates and recurrence settings cannot be changed when editing the entire series"
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="grid grid-cols-2 gap-2">
           <div>
             <Label 
@@ -481,7 +510,11 @@ export const EventDialogFields = ({
                 value={startDate} 
                 onChange={e => setStartDate(e.target.value)} 
                 required 
-                className="w-full dark:text-white dark:[color-scheme:dark]" 
+                disabled={isEditingSeriesMode}
+                className={cn(
+                  "w-full dark:text-white dark:[color-scheme:dark]",
+                  isEditingSeriesMode && "opacity-50 cursor-not-allowed"
+                )} 
                 style={{ colorScheme: 'auto' }} 
               />
             </div>
@@ -501,7 +534,11 @@ export const EventDialogFields = ({
                 value={endDate} 
                 onChange={e => setEndDate(e.target.value)} 
                 required 
-                className="w-full dark:text-white dark:[color-scheme:dark]" 
+                disabled={isEditingSeriesMode}
+                className={cn(
+                  "w-full dark:text-white dark:[color-scheme:dark]",
+                  isEditingSeriesMode && "opacity-50 cursor-not-allowed"
+                )} 
                 style={{ colorScheme: 'auto' }} 
               />
             </div>
@@ -509,8 +546,8 @@ export const EventDialogFields = ({
         </div>
       </div>
 
-      {/* Repeat Options - Only show for new events */}
-      {isNewEvent && (
+      {/* Repeat Options - Only show for new events AND disable for series editing */}
+      {isNewEvent && !isEditingSeriesMode && (
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
             <Checkbox

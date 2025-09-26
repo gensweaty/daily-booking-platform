@@ -212,6 +212,9 @@ export const EventDialog = ({
   const eventKey = eventId || initialData?.id || "";
   const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
   const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
+  
+  // NEW: Determine if we're editing a series (and should restrict date fields)
+  const isEditingSeriesMode = isRecurringEvent && editChoice === "series";
 
   // Resolve the real series root (parent) id regardless of what was clicked
   const resolveSeriesRootId = React.useCallback(() => {
@@ -1331,6 +1334,7 @@ export const EventDialog = ({
               setReminderAt={setReminderAt}
               emailReminderEnabled={emailReminderEnabled}
               setEmailReminderEnabled={setEmailReminderEnabled}
+              isEditingSeriesMode={isEditingSeriesMode}
             />
             
             {(initialData || currentEventData) && (
