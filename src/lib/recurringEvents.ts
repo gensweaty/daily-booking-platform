@@ -88,13 +88,10 @@ export const getRepeatOptions = (selectedDate?: Date, t?: (key: string, params?:
 
 export const generateRecurringInstances = (baseEvent: CalendarEventType): CalendarEventType[] => {
   if (!baseEvent.is_recurring || !baseEvent.repeat_pattern) {
-    // For non-recurring events, return the event itself
     return [baseEvent];
   }
 
-  // CRITICAL FIX: For recurring events, return ONLY virtual instances, NOT the parent event
-  // The parent event should be displayed separately to prevent duplicates at the same time
-  const instances: CalendarEventType[] = [];
+  const instances: CalendarEventType[] = [baseEvent]; // Include the original event
   const startDate = new Date(baseEvent.start_date);
   const endDate = new Date(baseEvent.end_date);
   const eventDuration = endDate.getTime() - startDate.getTime();
@@ -150,26 +147,7 @@ export const generateRecurringInstances = (baseEvent: CalendarEventType): Calend
     instances.push(virtualInstance);
   }
 
-  // PHASE 3: Deduplication safety net - remove any instances that conflict with parent date
-  const parentDateStr = baseEvent.start_date.split('T')[0];
-  const deduplicatedInstances = instances.filter(instance => {
-    const instanceDateStr = instance.start_date.split('T')[0];
-    const conflicts = instanceDateStr === parentDateStr;
-    if (conflicts) {
-      console.log('🚫 Removing conflicting virtual instance:', instanceDateStr, 'conflicts with parent');
-    }
-    return !conflicts;
-  });
-
-  console.log('✅ Generated recurring instances:', {
-    parentId: baseEvent.id,
-    parentDate: parentDateStr,
-    totalGenerated: instances.length,
-    afterDeduplication: deduplicatedInstances.length,
-    removedConflicts: instances.length - deduplicatedInstances.length
-  });
-
-  return deduplicatedInstances;
+  return instances;
 };
 
 export const filterDeletedInstances = (instances: CalendarEventType[], deletionExceptions: CalendarEventType[]): CalendarEventType[] => {

@@ -301,7 +301,7 @@ export const PublicEventDialog = ({
     }
   };
 
-  // Initialize form data - FIX: Remove isVirtualEvent from dependencies to prevent form resets
+  // Initialize form data
   useEffect(() => {
     // Reset dialog states when opening
     setEditChoice(null);
@@ -324,10 +324,6 @@ export const PublicEventDialog = ({
           if (eventData) {
             console.log('[PublicEventDialog] Loading event data for editing:', eventData);
             
-            // Compute isVirtual locally to avoid dependency issues
-            const currentEventKey = eventId || initialData?.id || "";
-            const isCurrentlyVirtual = !!currentEventKey && isVirtualInstance(currentEventKey);
-            
             setTitle(eventData.title || "");
             setUserSurname(eventData.user_surname || "");
             setUserNumber(eventData.user_number || "");
@@ -337,11 +333,9 @@ export const PublicEventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            // CRITICAL: Enhanced virtual instance date handling
-            if (isCurrentlyVirtual && (initialData || eventId)) {
-              const instanceDate = getInstanceDate(currentEventKey);
-              console.log('[PublicEventDialog] 🔍 Virtual instance detected:', currentEventKey, 'instanceDate:', instanceDate);
-              
+            // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
+            if (isVirtualEvent && (initialData || eventId)) {
+              const instanceDate = getInstanceDate(eventKey);
               if (instanceDate) {
                 // Calculate the instance dates using parent's base time but instance's date
                 const baseStart = new Date(eventData.start_date);
@@ -358,12 +352,10 @@ export const PublicEventDialog = ({
               } else {
                 setStartDate(isoToLocalDateTimeInput(eventData.start_date));
                 setEndDate(isoToLocalDateTimeInput(eventData.end_date));
-                console.log('[PublicEventDialog] ⚠️ No instance date found for virtual event, using base dates');
               }
             } else {
               setStartDate(isoToLocalDateTimeInput(eventData.start_date));
               setEndDate(isoToLocalDateTimeInput(eventData.end_date));
-              console.log('[PublicEventDialog] 📅 Set regular event dates from eventData');
             }
 
             setIsRecurring(eventData.is_recurring || false);
@@ -393,7 +385,7 @@ export const PublicEventDialog = ({
     };
 
     loadAndSetEventData();
-  }, [open, selectedDate, initialData, eventId]); // REMOVED: isVirtualEvent from deps
+  }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
 
   const resetFormFields = () => {
     setAdditionalPersons([]);
@@ -516,23 +508,10 @@ export const PublicEventDialog = ({
             console.log('[PublicEventDialog] Updating entire series safely (preserving individual dates)');
             
             const seriesTargetId = resolveSeriesRootId();
-            // PHASE 1: Strip date/time fields from series updates to prevent parent event rescheduling
-            const seriesEventData = { ...eventData };
-            // Remove date fields that could cause conflicts
-            delete seriesEventData.start_date;
-            delete seriesEventData.end_date;
-            delete seriesEventData.is_recurring;
-            delete seriesEventData.repeat_pattern;
-            delete seriesEventData.repeat_until;
-            delete seriesEventData.reminder_at;
-            delete seriesEventData.email_reminder_enabled;
-            
-            console.log('[PublicEventDialog] 🛡️ Series update payload (dates stripped):', seriesEventData);
-            
             const { data: updateResult, error: updateSeriesError } = await supabase.rpc('update_event_series_safe', {
               p_event_id: seriesTargetId,
               p_user_id: publicBoardUserId,
-              p_event_data: seriesEventData,
+              p_event_data: eventData,
               p_additional_persons: additionalPersonsData,
               p_edited_by_type: 'sub_user',
               p_edited_by_name: externalUserName
