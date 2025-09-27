@@ -301,7 +301,7 @@ export const PublicEventDialog = ({
     }
   };
 
-  // Initialize form data
+  // Initialize form data - FIX: Remove isVirtualEvent from dependencies to prevent form resets
   useEffect(() => {
     // Reset dialog states when opening
     setEditChoice(null);
@@ -324,6 +324,10 @@ export const PublicEventDialog = ({
           if (eventData) {
             console.log('[PublicEventDialog] Loading event data for editing:', eventData);
             
+            // Compute isVirtual locally to avoid dependency issues
+            const currentEventKey = eventId || initialData?.id || "";
+            const isCurrentlyVirtual = !!currentEventKey && isVirtualInstance(currentEventKey);
+            
             setTitle(eventData.title || "");
             setUserSurname(eventData.user_surname || "");
             setUserNumber(eventData.user_number || "");
@@ -333,9 +337,11 @@ export const PublicEventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
-            if (isVirtualEvent && (initialData || eventId)) {
-              const instanceDate = getInstanceDate(eventKey);
+            // CRITICAL: Enhanced virtual instance date handling
+            if (isCurrentlyVirtual && (initialData || eventId)) {
+              const instanceDate = getInstanceDate(currentEventKey);
+              console.log('[PublicEventDialog] 🔍 Virtual instance detected:', currentEventKey, 'instanceDate:', instanceDate);
+              
               if (instanceDate) {
                 // Calculate the instance dates using parent's base time but instance's date
                 const baseStart = new Date(eventData.start_date);
@@ -352,10 +358,12 @@ export const PublicEventDialog = ({
               } else {
                 setStartDate(isoToLocalDateTimeInput(eventData.start_date));
                 setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+                console.log('[PublicEventDialog] ⚠️ No instance date found for virtual event, using base dates');
               }
             } else {
               setStartDate(isoToLocalDateTimeInput(eventData.start_date));
               setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+              console.log('[PublicEventDialog] 📅 Set regular event dates from eventData');
             }
 
             setIsRecurring(eventData.is_recurring || false);
@@ -385,7 +393,7 @@ export const PublicEventDialog = ({
     };
 
     loadAndSetEventData();
-  }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
+  }, [open, selectedDate, initialData, eventId]); // REMOVED: isVirtualEvent from deps
 
   const resetFormFields = () => {
     setAdditionalPersons([]);

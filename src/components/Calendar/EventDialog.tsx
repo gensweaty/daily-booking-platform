@@ -378,7 +378,7 @@ export const EventDialog = ({
     }
   };
 
-  // CRITICAL FIX: Enhanced form initialization with proper reminder data loading
+  // CRITICAL FIX: Enhanced form initialization with proper reminder data loading - FIXED DEPS
   useEffect(() => {
     // Reset dialog states when opening
     setEditChoice(null);
@@ -392,6 +392,10 @@ export const EventDialog = ({
           const targetEventId = eventId || initialData?.id;
           let eventData = initialData;
           
+          // Compute isVirtual locally to avoid dependency issues
+          const currentEventKey = eventId || initialData?.id || "";
+          const isCurrentlyVirtual = !!currentEventKey && isVirtualInstance(currentEventKey);
+          
           // CRITICAL: Load fresh data for edit mode to get latest reminder info
           if (targetEventId) {
             const freshData = await loadEventData(targetEventId);
@@ -402,7 +406,7 @@ export const EventDialog = ({
             loadAdditionalPersons(targetEventId);
           }
 
-          if (isVirtualEvent && eventId) {
+          if (isCurrentlyVirtual && eventId) {
             const parentId = getParentEventId(eventId);
             loadParentEventData(parentId);
           }
@@ -421,9 +425,11 @@ export const EventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
-            if (isVirtualEvent && (initialData || eventId)) {
-              const instanceDate = getInstanceDate(eventKey);
+            // CRITICAL: Enhanced virtual instance date handling
+            if (isCurrentlyVirtual && (initialData || eventId)) {
+              const instanceDate = getInstanceDate(currentEventKey);
+              console.log('🔍 Virtual instance detected:', currentEventKey, 'instanceDate:', instanceDate);
+              
               if (instanceDate) {
                 // Calculate the instance dates using parent's base time but instance's date
                 const baseStart = new Date(eventData.start_date);
@@ -440,10 +446,12 @@ export const EventDialog = ({
               } else {
                 setStartDate(isoToLocalDateTimeInput(eventData.start_date));
                 setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+                console.log('⚠️ No instance date found for virtual event, using base dates');
               }
             } else {
               setStartDate(isoToLocalDateTimeInput(eventData.start_date));
               setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+              console.log('📅 Set regular event dates from eventData');
             }
 
             setIsRecurring(eventData.is_recurring || false);
@@ -480,7 +488,7 @@ export const EventDialog = ({
     };
 
     loadAndSetEventData();
-  }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
+  }, [open, selectedDate, initialData, eventId, publicBoardUserId, externalUserName]); // REMOVED: isVirtualEvent from deps
 
   // CRITICAL FIX: Separate function to reset form fields
   const resetFormFields = () => {
