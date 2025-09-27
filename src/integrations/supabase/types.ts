@@ -1647,14 +1647,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
-      cleanup_recurring_event_conflicts: {
-        Args: { p_user_id?: string }
-        Returns: Json
-      }
-      cleanup_recurring_event_conflicts_v2: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
       consolidate_duplicate_dm_channels: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -1699,10 +1691,6 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
-      }
-      debug_event_context: {
-        Args: { p_event_id: string; p_user_id: string }
-        Returns: Json
       }
       delete_custom_chat: {
         Args: {
@@ -1769,19 +1757,6 @@ export type Database = {
       edit_single_event_instance_v2: {
         Args: {
           p_additional_persons: Json
-          p_edited_by_name?: string
-          p_edited_by_type?: string
-          p_event_data: Json
-          p_event_id: string
-          p_instance_end?: string
-          p_instance_start?: string
-          p_user_id: string
-        }
-        Returns: Json
-      }
-      edit_single_event_instance_v3: {
-        Args: {
-          p_additional_persons?: Json[]
           p_edited_by_name?: string
           p_edited_by_type?: string
           p_event_data: Json
@@ -2307,7 +2282,7 @@ export type Database = {
           p_additional_persons?: Json
           p_edited_by_name?: string
           p_edited_by_type?: string
-          p_event_data?: Json
+          p_event_data: Json
           p_event_id: string
           p_user_id: string
         }

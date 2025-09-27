@@ -508,23 +508,10 @@ export const PublicEventDialog = ({
             console.log('[PublicEventDialog] Updating entire series safely (preserving individual dates)');
             
             const seriesTargetId = resolveSeriesRootId();
-            // PHASE 1: Strip date/time fields from series updates to prevent parent event rescheduling
-            const seriesEventData = { ...eventData };
-            // Remove date fields that could cause conflicts
-            delete seriesEventData.start_date;
-            delete seriesEventData.end_date;
-            delete seriesEventData.is_recurring;
-            delete seriesEventData.repeat_pattern;
-            delete seriesEventData.repeat_until;
-            delete seriesEventData.reminder_at;
-            delete seriesEventData.email_reminder_enabled;
-            
-            console.log('[PublicEventDialog] 🛡️ Series update payload (dates stripped):', seriesEventData);
-            
             const { data: updateResult, error: updateSeriesError } = await supabase.rpc('update_event_series_safe', {
               p_event_id: seriesTargetId,
               p_user_id: publicBoardUserId,
-              p_event_data: seriesEventData,
+              p_event_data: eventData,
               p_additional_persons: additionalPersonsData,
               p_edited_by_type: 'sub_user',
               p_edited_by_name: externalUserName
@@ -551,14 +538,16 @@ export const PublicEventDialog = ({
               }
             }
           } else if (editChoice === "this") {
-            console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v3)');
+            console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
             
             const instanceIsoStart = localDateTimeInputToISOString(startDate);
             const instanceIsoEnd = localDateTimeInputToISOString(endDate);
             
-            // Use targetEventId directly (v3 handles virtual IDs)
-            const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v3', {
-              p_event_id: targetEventId,
+            // Use parent id when editing a virtual instance
+            const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
+            
+            const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
+              p_event_id: rpcTargetId,
               p_user_id: publicBoardUserId,
               p_event_data: eventData,
               p_additional_persons: additionalPersonsData,
@@ -570,8 +559,8 @@ export const PublicEventDialog = ({
 
             if (editError) throw editError;
             if (!editResult?.success) throw new Error(editResult?.error || 'Failed to edit single instance');
-             
-            console.log('[PublicEventDialog] Single instance edited with surgical v3:', editResult);
+            
+            console.log('[PublicEventDialog] Single instance edited with surgical v2 (new standalone event created):', editResult);
           }
         } else {
           // Regular single event update - use legacy approach for compatibility
