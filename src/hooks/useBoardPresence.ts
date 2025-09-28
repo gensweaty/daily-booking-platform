@@ -19,11 +19,28 @@ export function useBoardPresence(
   useEffect(() => {
     if (!boardId || !currentUser) return;
 
-    // Use a unique channel per board with stable presence key per user
+    // Generate a unique session ID for this device/browser session
+    const generateSessionId = () => {
+      const stored = sessionStorage.getItem('presence_session_id');
+      if (stored) return stored;
+      
+      const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      sessionStorage.setItem('presence_session_id', newId);
+      return newId;
+    };
+
+    const sessionId = generateSessionId();
+    const deviceInfo = {
+      userAgent: navigator.userAgent.substring(0, 100), // Truncate for privacy
+      platform: navigator.platform,
+      isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    };
+
+    // Use a unique channel per board with device-specific presence key
     const channel = supabase.channel(`presence:board:${boardId}`, {
       config: { 
         presence: { 
-          key: `${currentUser.email}-${Date.now()}` // Include timestamp to ensure reconnection works
+          key: `${currentUser.email}-${sessionId}` // Unique per device/session
         } 
       },
     });
@@ -109,27 +126,40 @@ export function useBoardPresence(
     };
 
     const handleSync = () => {
-      const state = channel.presenceState() as Record<string, BoardPresenceUser[]>;
-      // Flatten and dedupe by email
-      const byEmail = new Map<string, BoardPresenceUser>();
-      Object.values(state).forEach((arr) => {
+      const state = channel.presenceState() as Record<string, any[]>;
+      console.log(`🔄 Syncing presence state:`, Object.keys(state).length, 'presence keys');
+      
+      // Flatten and dedupe by email, but keep track of devices
+      const byEmail = new Map<string, BoardPresenceUser & { deviceCount?: number }>();
+      const devicesByEmail = new Map<string, Set<string>>();
+      
+      Object.entries(state).forEach(([presenceKey, arr]) => {
         arr.forEach((u) => {
           if (u?.email) {
+            // Track devices per user
+            if (!devicesByEmail.has(u.email)) {
+              devicesByEmail.set(u.email, new Set());
+            }
+            devicesByEmail.get(u.email)?.add(u.session_id || presenceKey);
+            
             // Keep the most recent presence entry for each email
             const existing = byEmail.get(u.email);
             if (!existing || (u.online_at && (!existing.online_at || u.online_at > existing.online_at))) {
               byEmail.set(u.email, {
                 ...u,
                 online_at: u.online_at || new Date().toISOString(),
-                // Always preserve avatar_url from cache or presence data
-                avatar_url: userAvatars.get(u.email) || u.avatar_url
+                avatar_url: userAvatars.get(u.email) || u.avatar_url,
+                deviceCount: devicesByEmail.get(u.email)?.size || 1
               });
+              
+              console.log(`👤 User ${u.email} online from ${devicesByEmail.get(u.email)?.size} device(s)`);
             }
           }
         });
       });
       
       const users = Array.from(byEmail.values());
+      console.log(`📊 Final user count: ${users.length} unique users online`);
       
       // Fetch avatars for users we don't have cached (async, non-blocking)
       const emailsNeedingAvatars = users
@@ -157,7 +187,10 @@ export function useBoardPresence(
           email: currentUser.email,
           online_at: new Date().toISOString(),
           avatar_url: currentUser.avatar_url,
+          session_id: sessionId,
+          device_info: deviceInfo,
         });
+        console.log(`🟢 Presence tracked for ${currentUser.email} on ${deviceInfo.isMobile ? 'mobile' : 'desktop'} device`);
       } catch (e) {
         console.error("Failed to track presence:", e);
       }
