@@ -1,11 +1,11 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useToast } from "@/hooks/use-toast";
 
 interface PresenceAvatarsProps {
-  users: { name: string; email: string }[];
+  users: { name: string; email: string; avatar_url?: string }[];
   currentUserEmail?: string;
   max?: number;
 }
@@ -45,7 +45,7 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
             return (
               <Tooltip key={u.email}>
                 <TooltipTrigger asChild>
-                  <Avatar
+                   <Avatar
                       className={cn(
                         "h-6 w-6 sm:h-7 sm:w-7 ring-1 sm:ring-2 ring-offset-1 sm:ring-offset-2 ring-offset-background transition-all duration-200 hover:scale-110 shadow-sm flex-shrink-0",
                         "bg-card text-foreground/80 ring-muted hover:ring-primary"
@@ -54,6 +54,13 @@ export function PresenceAvatars({ users, currentUserEmail, max = 5 }: PresenceAv
                       aria-label={displayName}
                       onClick={() => handleMobileClick(displayName)}
                     >
+                    {u.avatar_url && (
+                      <AvatarImage 
+                        src={u.avatar_url} 
+                        alt={displayName}
+                        className="object-cover"
+                      />
+                    )}
                     <AvatarFallback className="text-[10px] sm:text-xs font-medium">
                       {getInitials(displayName)}
                     </AvatarFallback>

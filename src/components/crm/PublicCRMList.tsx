@@ -11,7 +11,7 @@ interface PublicCRMListProps {
   boardUserId: string;
   externalUserName: string;
   externalUserEmail: string;
-  onlineUsers: { name: string; email: string }[];
+  onlineUsers: { name: string; email: string; avatar_url?: string }[];
   hasPermissions?: boolean;
 }
 

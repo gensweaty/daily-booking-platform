@@ -70,10 +70,11 @@ export const PublicBoard = () => {
 const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string>("");
 
   const { onlineUsers } = useBoardPresence(
     boardData?.id,
-    isAuthenticated ? { name: fullName, email } : null,
+    isAuthenticated ? { name: fullName, email, avatar_url: avatarUrl } : null,
     { updateSubUserLastLogin: true, boardOwnerId: boardData?.user_id || null }
   );
 
@@ -84,6 +85,23 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
       navigate("/");
     }
   }, [slug]);
+
+  // Function to fetch avatar URL for sub-users
+  const fetchSubUserAvatar = async (userEmail: string) => {
+    try {
+      const { data: subUser } = await supabase
+        .from('sub_users')
+        .select('avatar_url')
+        .ilike('email', userEmail.trim().toLowerCase())
+        .maybeSingle();
+      
+      if (subUser?.avatar_url) {
+        setAvatarUrl(subUser.avatar_url);
+      }
+    } catch (error) {
+      console.error('Error fetching sub-user avatar:', error);
+    }
+  };
 
   useEffect(() => {
     // Check for existing access token with 3-hour expiration
@@ -100,6 +118,8 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
           if (storedFullName && storedEmail) {
             setFullName(storedFullName);
             setEmail(storedEmail);
+            // Fetch avatar async
+            fetchSubUserAvatar(storedEmail);
           }
           verifyExistingAccess(token, storedEmail, storedFullName);
         } else {
@@ -268,6 +288,7 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
         setIsAuthenticated(true);
         setFullName(displayName);
         setEmail(normalizedEmail);
+        await fetchSubUserAvatar(normalizedEmail);
 
         // Persist refreshed info
         localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
@@ -393,6 +414,7 @@ const handleLogin = async () => {
       setIsAuthenticated(true);
       setFullName(actualFullName);
       setEmail(normalizedEmail);
+      await fetchSubUserAvatar(normalizedEmail);
 
       toast({ title: t('common.success'), description: t('publicBoard.welcomeToBoard') });
     } catch (error: any) {
@@ -574,6 +596,7 @@ const handleRegister = async () => {
       setAccessToken(token);
       setIsAuthenticated(true);
       setEmail(normalizedEmail);
+      await fetchSubUserAvatar(normalizedEmail);
 
       // Clear sensitive fields
       setPassword("");
