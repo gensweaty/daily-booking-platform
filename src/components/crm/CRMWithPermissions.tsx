@@ -15,13 +15,15 @@ export const CRMWithPermissions = () => {
     const initPresence = async () => {
       if (!user) return;
       try {
-        // Fetch owner's public board id
+        // Fetch owner's public board id, or create a fallback
         const { data: board } = await supabase
           .from("public_boards")
           .select("id")
           .eq("user_id", user.id)
           .maybeSingle();
-        setBoardId(board?.id || null);
+        
+        // Use public board id if exists, otherwise use user-specific fallback for CRM presence
+        setBoardId(board?.id || `crm-${user.id}`);
 
         // Fetch owner's profile username and avatar as display info
         const { data: profile } = await supabase
@@ -31,8 +33,17 @@ export const CRMWithPermissions = () => {
           .maybeSingle();
         setDisplayName(profile?.username || (user.user_metadata?.full_name as string) || "Admin");
         setAvatarUrl(profile?.avatar_url || "");
+        
+        console.log("🔍 CRM Presence Init:", {
+          userId: user.id,
+          boardId: board?.id || `crm-${user.id}`,
+          displayName: profile?.username || (user.user_metadata?.full_name as string) || "Admin",
+          avatarUrl: profile?.avatar_url || ""
+        });
       } catch (e) {
         console.error("Failed to init CRM presence", e);
+        // Even if there's an error, set a fallback boardId to enable presence
+        setBoardId(`crm-${user.id}`);
       }
     };
     initPresence();
