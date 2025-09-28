@@ -538,17 +538,17 @@ export const CustomerList = ({
   }
 
   return (
-    <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
+    <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4 overflow-hidden">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg sm:text-xl font-bold md:mb-0 -mt-4">
-              Customer Relationship<br className="sm:hidden" /> Management
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto min-w-0">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold flex-shrink-0 leading-tight">
+              Customer Relationship Management
             </h2>
 
             {/* Presence circles inside content area */}
-            <div className="shrink-0">
-              <PresenceCircles users={onlineUsers ?? []} max={5} size={28} />
+            <div className="shrink-0 mt-1 sm:mt-0">
+              <PresenceCircles users={onlineUsers ?? []} max={5} size={24} />
             </div>
           </div>
           <div className="w-full md:w-auto md:min-w-[200px]">

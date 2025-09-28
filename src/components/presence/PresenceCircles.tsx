@@ -27,7 +27,7 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
 
   return (
     <div className="flex -space-x-2">
-      <TooltipProvider delayDuration={150}>
+      <TooltipProvider delayDuration={0}>
         {visible.map((u, idx) => {
           // Prefer a human-friendly name; fallback to email prefix
           const label =
@@ -47,7 +47,7 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
             <Tooltip key={`${u?.email || "u"}-${idx}`}>
               <TooltipTrigger asChild>
                 <Avatar
-                  className="bg-muted text-muted-foreground"
+                  className="bg-muted text-muted-foreground cursor-pointer hover:scale-105 transition-transform"
                   style={{
                     width: size,
                     height: size,
@@ -58,7 +58,13 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
                   <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
               </TooltipTrigger>
-              <TooltipContent side="bottom">{label}</TooltipContent>
+              <TooltipContent 
+                side="top" 
+                className="text-sm pointer-events-none"
+                sideOffset={8}
+              >
+                {label}
+              </TooltipContent>
             </Tooltip>
           );
         })}
