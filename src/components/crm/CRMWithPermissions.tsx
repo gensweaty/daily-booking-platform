@@ -83,18 +83,9 @@ export const CRMWithPermissions = () => {
   return (
     <PermissionGate requiredPermission="crm">
       <CustomerList
-        /* If presence hasn't populated yet, show the viewer (same behavior as Tasks) */
+        /* Filter out the current user - only show other users/sub-users */
         onlineUsers={
-          onlineUsers?.length
-            ? onlineUsers
-            : (user
-                ? [{
-                    name: displayName,
-                    email: user.email || "",
-                    avatar_url: avatarUrl,
-                    online_at: new Date().toISOString(),
-                  }]
-                : [])
+          onlineUsers?.filter(u => u.email && u.email !== user?.email) || []
         }
         currentUserEmail={user?.email}
       />
