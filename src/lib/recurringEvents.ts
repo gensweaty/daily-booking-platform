@@ -267,24 +267,3 @@ export const parseRepeatPattern = (pattern: string): string => {
     default: return "none";
   }
 };
-
-export const dedupeConcreteOverVirtual = (events: CalendarEventType[]) => {
-  // Prefer concrete rows (uuid) over virtual (id ends with -YYYY-MM-DD)
-  const keep = new Map<string, CalendarEventType>();
-
-  // 1) place all concrete first
-  for (const e of events) {
-    const key = `${getParentEventId(e.id)}|${new Date(e.start_date).toISOString()}`;
-    const isVirtual = isVirtualInstance(e.id);
-    if (!isVirtual) keep.set(key, e);
-  }
-
-  // 2) add virtual only if slot empty
-  for (const e of events) {
-    const key = `${getParentEventId(e.id)}|${new Date(e.start_date).toISOString()}`;
-    const isVirtual = isVirtualInstance(e.id);
-    if (isVirtual && !keep.has(key)) keep.set(key, e);
-  }
-
-  return Array.from(keep.values());
-};

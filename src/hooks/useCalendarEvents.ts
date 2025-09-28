@@ -4,8 +4,7 @@ import { CalendarEventType } from "@/lib/types/calendar";
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getUnifiedCalendarEvents, deleteCalendarEvent, clearCalendarCache } from '@/services/calendarService';
-import { useEffect, useState, useMemo } from 'react';
-import { dedupeConcreteOverVirtual } from "@/lib/recurringEvents";
+import { useEffect, useState } from 'react';
 
 export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
@@ -63,20 +62,13 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         index === self.findIndex(e => e.id === event.id)
       );
 
-      // Final deduplication: prefer concrete events over virtual instances at same timestamp
-      const finalEvents = dedupeConcreteOverVirtual(uniqueEvents);
-
       if (uniqueEvents.length !== allEvents.length) {
         console.warn(`[useCalendarEvents] Removed ${allEvents.length - uniqueEvents.length} duplicate events`);
       }
-      
-      if (finalEvents.length !== uniqueEvents.length) {
-        console.warn(`[useCalendarEvents] Removed ${uniqueEvents.length - finalEvents.length} virtual/concrete collisions`);
-      }
 
-      console.log(`[useCalendarEvents] ✅ Loaded ${finalEvents.length} unique events (${events.length} events + ${bookings.length} approved bookings)`);
+      console.log(`[useCalendarEvents] ✅ Loaded ${uniqueEvents.length} unique events (${events.length} events + ${bookings.length} approved bookings)`);
       
-      return finalEvents;
+      return uniqueEvents;
 
     } catch (error) {
       console.error("[useCalendarEvents] Error in fetchEvents:", error);
@@ -459,11 +451,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     },
   });
 
-  // Final deduplication at hook level as safety net
-  const finalEvents = useMemo(() => dedupeConcreteOverVirtual(events), [events]);
-
   return {
-    events: finalEvents,
+    events,
     isLoading,
     error,
     refetch,
