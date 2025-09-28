@@ -396,7 +396,11 @@ export const translations: TranslationType = {
     submitRequest: "მოთხოვნის გაგზავნა",
     deleteEventConfirmTitle: "წავშალოთ ღონისძიება?",
     deleteEventConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ ამ ღონისძიების წაშლა? ეს მოქმედება ვერ გაუქმდება.",
-    timeConflictError: "ამ დროს უკვე დაგეგმილია სხვა მოვლენა."
+    timeConflictError: "ამ დროს უკვე დაგეგმილია სხვა მოვლენა.",
+    recurringEditTitle: "ცვლილებების გამოყენება…",
+    recurringDeleteTitle: "რომელი ღონისძიებები წაიშალოს?",
+    onlyThisEvent: "მხოლოდ ეს მოვლენა",
+    entireSeries: "მთელი სერია"
   },
   contact: {
     email: "ელფოსტა",

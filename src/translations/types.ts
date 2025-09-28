@@ -391,6 +391,10 @@ export interface TranslationType {
     deleteEventConfirmTitle: string;
     deleteEventConfirmMessage: string;
     timeConflictError: string;
+    recurringEditTitle: string;
+    recurringDeleteTitle: string;
+    onlyThisEvent: string;
+    entireSeries: string;
   };
   contact: {
     email: string;

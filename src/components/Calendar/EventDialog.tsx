@@ -206,6 +206,8 @@ export const EventDialog = ({
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [currentUserProfileName, setCurrentUserProfileName] = useState<string>("");
   const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
+  const [originalInstanceStartISO, setOriginalInstanceStartISO] = useState<string | null>(null);
+  const [originalInstanceEndISO, setOriginalInstanceEndISO] = useState<string | null>(null);
 
   const isNewEvent = !initialData && !eventId;
   // CRITICAL: Detect virtual instance from either source
@@ -437,14 +439,22 @@ export const EventDialog = ({
 
                 setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
                 setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+
+                // ⭐ capture the original occurrence (the one to exclude)
+                setOriginalInstanceStartISO(newStart.toISOString());
+                setOriginalInstanceEndISO(newEnd.toISOString());
                 console.log('🗓️ Set virtual instance dates:', instanceDate, 'Start:', newStart.toISOString());
               } else {
                 setStartDate(isoToLocalDateTimeInput(eventData.start_date));
                 setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+                setOriginalInstanceStartISO(null);
+                setOriginalInstanceEndISO(null);
               }
             } else {
               setStartDate(isoToLocalDateTimeInput(eventData.start_date));
               setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+              setOriginalInstanceStartISO(null);
+              setOriginalInstanceEndISO(null);
             }
 
             setIsRecurring(eventData.is_recurring || false);
@@ -958,40 +968,53 @@ export const EventDialog = ({
           onEventUpdated?.();
         } else {
           // edit only this instance -> split + exclude
-          const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : (initialData?.parent_event_id || eventId || initialData?.id);
-          const instanceIsoStart = localDateTimeInputToISOString(startDate);
-          const instanceIsoEnd = localDateTimeInputToISOString(endDate);
+          
+          // 1) If this dialog is already editing a split child (not a virtual ID), just UPDATE it.
+          //    (Avoid creating a second standalone + exclusion)
+          if (!isVirtualEvent && initialData?.parent_event_id && !initialData?.excluded_from_series) {
+            const childId = initialData.id || eventId;
+            const { error: updErr } = await supabase.rpc('save_event_with_persons', {
+              p_event_data: {
+                ...eventData,        // includes new start/end from inputs
+                id: childId
+              },
+              p_additional_persons: additionalPersons,
+              p_user_id: effectiveUserId,
+              p_event_id: childId,
+              p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+              p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+              p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+              p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+            });
+            if (updErr) throw updErr;
+          } else {
+            // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
+            const parentIdForRpc = isVirtualEvent ? getParentEventId(eventKey) : (initialData?.parent_event_id || eventId || initialData?.id);
 
-          const { data: standaloneResult, error } = await supabase.rpc('edit_single_event_instance_v2', {
-            p_event_id: rpcTargetId,
-            p_user_id: effectiveUserId,
-            p_event_data: {
-              title,
-              user_surname: userSurname,
-              user_number: userNumber,
-              social_network_link: socialNetworkLink,
-              event_notes: eventNotes,
-              event_name: eventName,
-              payment_status: paymentStatus,
-              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-              reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
-              email_reminder_enabled: emailReminderEnabled,
-              language
-            },
-            p_additional_persons: additionalPersons,
-            p_instance_start: instanceIsoStart,
-            p_instance_end: instanceIsoEnd,
-            p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
-          });
-          if (error) throw error;
-          if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to update only this instance');
+            const { data: standaloneResult, error } = await supabase.rpc('edit_single_event_instance_v2', {
+              p_event_id: parentIdForRpc,
+              p_user_id: effectiveUserId,
+              // NEW: include the NEW desired times on the standalone
+              p_event_data: {
+                ...eventData, // must include start_date & end_date from inputs
+                language
+              },
+              // NEW: exclude the ORIGINAL occurrence (captured at open)
+              p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
+              p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
+              p_additional_persons: additionalPersons,
+              p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+              p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
+            });
+            if (error) throw error;
+            if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to update only this instance');
 
-          const newEventId = standaloneResult.new_event_id;
-          if (files.length && newEventId) {
-            await uploadFiles(newEventId);
-            setFiles([]);
-            await loadExistingFiles(newEventId);
+            const newEventId = standaloneResult.new_event_id;
+            if (files.length && newEventId) {
+              await uploadFiles(newEventId);
+              setFiles([]);
+              await loadExistingFiles(newEventId);
+            }
           }
 
           toast({ title: t("common.success"), description: t("events.eventUpdated") });
@@ -1259,7 +1282,11 @@ export const EventDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
+      <DialogContent
+        className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full"
+        onEscapeKeyDown={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
+        onPointerDownOutside={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
+      >
           <DialogHeader>
             <DialogTitle>
               {eventId || initialData ? t("events.editEvent") : language === 'ka' ? "მოვლენის დამატება" : t("events.addEvent")}

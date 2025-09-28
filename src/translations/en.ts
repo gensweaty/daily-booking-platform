@@ -398,7 +398,11 @@ export const translations: TranslationType = {
     submitRequest: "Submit Request",
     deleteEventConfirmTitle: "Delete Event?",
     deleteEventConfirmMessage: "Are you sure you want to delete this event? This action cannot be undone.",
-    timeConflictError: "You already have an event scheduled during this time."
+    timeConflictError: "You already have an event scheduled during this time.",
+    recurringEditTitle: "Apply changes to…",
+    recurringDeleteTitle: "Delete which events?",
+    onlyThisEvent: "Only this event",
+    entireSeries: "Entire series"
   },
   contact: {
     email: "Email",

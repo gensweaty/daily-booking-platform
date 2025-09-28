@@ -137,6 +137,8 @@ export const PublicEventDialog = ({
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [currentUserProfileName, setCurrentUserProfileName] = useState<string>("");
   const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
+  const [originalInstanceStartISO, setOriginalInstanceStartISO] = useState<string | null>(null);
+  const [originalInstanceEndISO, setOriginalInstanceEndISO] = useState<string | null>(null);
 
   const isNewEvent = !initialData && !eventId;
   // CRITICAL: Detect virtual instance from either source
@@ -349,14 +351,22 @@ export const PublicEventDialog = ({
 
                 setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
                 setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+
+                // ⭐ capture the original occurrence (the one to exclude)
+                setOriginalInstanceStartISO(newStart.toISOString());
+                setOriginalInstanceEndISO(newEnd.toISOString());
                 console.log('[PublicEventDialog] 🗓️ Set virtual instance dates:', instanceDate, 'Start:', newStart.toISOString());
               } else {
                 setStartDate(isoToLocalDateTimeInput(eventData.start_date));
                 setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+                setOriginalInstanceStartISO(null);
+                setOriginalInstanceEndISO(null);
               }
             } else {
               setStartDate(isoToLocalDateTimeInput(eventData.start_date));
               setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+              setOriginalInstanceStartISO(null);
+              setOriginalInstanceEndISO(null);
             }
 
             setIsRecurring(eventData.is_recurring || false);
@@ -559,41 +569,76 @@ export const PublicEventDialog = ({
             // edit only this instance -> split + exclude
             console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
             
-            const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
-            const instanceIsoStart = localDateTimeInputToISOString(startDate);
-            const instanceIsoEnd = localDateTimeInputToISOString(endDate);
+            // 1) If this dialog is already editing a split child (not a virtual ID), just UPDATE it.
+            //    (Avoid creating a second standalone + exclusion)
+            if (!isVirtualEvent && initialData?.parent_event_id && !initialData?.excluded_from_series) {
+              const childId = initialData.id || targetEventId;
+              const { error: updErr } = await supabase.rpc('save_event_with_persons', {
+                p_event_data: {
+                  title: userSurname || title || 'Untitled Event',
+                  user_surname: userSurname,
+                  user_number: userNumber,
+                  social_network_link: socialNetworkLink,
+                  event_notes: eventNotes,
+                  event_name: eventName,
+                  start_date: localDateTimeInputToISOString(startDate),
+                  end_date: localDateTimeInputToISOString(endDate),
+                  payment_status: paymentStatus || 'not_paid',
+                  payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+                  reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+                  email_reminder_enabled: emailReminderEnabled,
+                  language: language || 'en',
+                  id: childId
+                },
+                p_additional_persons: additionalPersonsData,
+                p_user_id: publicBoardUserId,
+                p_event_id: childId,
+                p_created_by_type: 'sub_user',
+                p_created_by_name: externalUserName,
+                p_last_edited_by_type: 'sub_user',
+                p_last_edited_by_name: externalUserName,
+              });
+              if (updErr) throw updErr;
+            } else {
+              // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
+              const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
 
-            const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
-              p_event_id: rpcTargetId,
-              p_user_id: publicBoardUserId,
-              p_event_data: {
-                title: userSurname || title || 'Untitled Event',
-                user_surname: userSurname,
-                user_number: userNumber,
-                social_network_link: socialNetworkLink,
-                event_notes: eventNotes,
-                event_name: eventName,
-                payment_status: paymentStatus || 'not_paid',
-                payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-                reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
-                email_reminder_enabled: emailReminderEnabled,
-                language: language || 'en'
-              },
-              p_additional_persons: additionalPersonsData,
-              p_instance_start: instanceIsoStart,
-              p_instance_end: instanceIsoEnd,
-              p_edited_by_type: 'sub_user',
-              p_edited_by_name: externalUserName
-            });
+              const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
+                p_event_id: rpcTargetId,
+                p_user_id: publicBoardUserId,
+                // NEW: include the NEW desired times on the standalone
+                p_event_data: {
+                  title: userSurname || title || 'Untitled Event',
+                  user_surname: userSurname,
+                  user_number: userNumber,
+                  social_network_link: socialNetworkLink,
+                  event_notes: eventNotes,
+                  event_name: eventName,
+                  start_date: localDateTimeInputToISOString(startDate),
+                  end_date: localDateTimeInputToISOString(endDate),
+                  payment_status: paymentStatus || 'not_paid',
+                  payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+                  reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+                  email_reminder_enabled: emailReminderEnabled,
+                  language: language || 'en'
+                },
+                p_additional_persons: additionalPersonsData,
+                // NEW: exclude the ORIGINAL occurrence (captured at open)
+                p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
+                p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
+                p_edited_by_type: 'sub_user',
+                p_edited_by_name: externalUserName
+              });
 
-            if (editError) throw editError;
-            if (!editResult?.success) throw new Error(editResult?.error || 'Failed to edit single instance');
+              if (editError) throw editError;
+              if (!editResult?.success) throw new Error(editResult?.error || 'Failed to edit single instance');
 
-            const newEventId = editResult.new_event_id;
-            if (files.length && newEventId) {
-              await uploadFiles(newEventId);
-              setFiles([]);
-              await loadExistingFiles(newEventId);
+              const newEventId = editResult.new_event_id;
+              if (files.length && newEventId) {
+                await uploadFiles(newEventId);
+                setFiles([]);
+                await loadExistingFiles(newEventId);
+              }
             }
           }
 
@@ -873,7 +918,11 @@ export const PublicEventDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
+      <DialogContent
+        className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full"
+        onEscapeKeyDown={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
+        onPointerDownOutside={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
+      >
           <DialogHeader>
             <DialogTitle>
               {eventId || initialData ? t("events.editEvent") : language === 'ka' ? "მოვლენის დამატება" : t("events.addEvent")}

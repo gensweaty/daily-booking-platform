@@ -34,12 +34,16 @@ export const RecurringEditDialog = ({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Apply changes to…</AlertDialogTitle>
+          <AlertDialogTitle>{t("events.recurringEditTitle")}</AlertDialogTitle>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
-          <AlertDialogAction disabled={isLoading} onClick={onEditThis}>Only this event</AlertDialogAction>
-          <AlertDialogAction disabled={isLoading} onClick={onEditSeries}>Entire series</AlertDialogAction>
+          <AlertDialogCancel type="button" disabled={isLoading}>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogAction type="button" disabled={isLoading} onClick={onEditThis}>
+            {t("events.onlyThisEvent")}
+          </AlertDialogAction>
+          <AlertDialogAction type="button" disabled={isLoading} onClick={onEditSeries}>
+            {t("events.entireSeries")}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

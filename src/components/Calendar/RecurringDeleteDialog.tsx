@@ -34,8 +34,8 @@ export const RecurringDeleteDialog = ({
             <AlertDialogTitle>{t("events.deleteEventConfirmTitle")}</AlertDialogTitle>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isLoading}>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction disabled={isLoading} onClick={onDeleteThis} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogCancel type="button" disabled={isLoading}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction type="button" disabled={isLoading} onClick={onDeleteThis} className="bg-destructive hover:bg-destructive/90">
               {isLoading ? t("common.loading") : t("events.deleteEvent")}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -49,12 +49,16 @@ export const RecurringDeleteDialog = ({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete which events?</AlertDialogTitle>
+          <AlertDialogTitle>{t("events.recurringDeleteTitle")}</AlertDialogTitle>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
-          <AlertDialogAction disabled={isLoading} onClick={onDeleteThis}>Only this event</AlertDialogAction>
-          <AlertDialogAction disabled={isLoading} onClick={onDeleteSeries} className="bg-destructive hover:bg-destructive/90">Entire series</AlertDialogAction>
+          <AlertDialogCancel type="button" disabled={isLoading}>{t("common.cancel")}</AlertDialogCancel>
+          <AlertDialogAction type="button" disabled={isLoading} onClick={onDeleteThis}>
+            {t("events.onlyThisEvent")}
+          </AlertDialogAction>
+          <AlertDialogAction type="button" disabled={isLoading} onClick={onDeleteSeries} className="bg-destructive hover:bg-destructive/90">
+            {t("events.entireSeries")}
+          </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
