@@ -422,7 +422,8 @@ export const EventDialog = ({
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
             // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
-            if (isVirtualEvent && (initialData || eventId)) {
+            const isCurrentlyVirtual = !!eventKey && isVirtualInstance(eventKey);
+            if (isCurrentlyVirtual && (initialData || eventId)) {
               const instanceDate = getInstanceDate(eventKey);
               if (instanceDate) {
                 // Calculate the instance dates using parent's base time but instance's date
@@ -480,7 +481,7 @@ export const EventDialog = ({
     };
 
     loadAndSetEventData();
-  }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
+  }, [open, selectedDate, initialData, eventId]); // FIXED: Removed isVirtualEvent from dependencies
 
   // CRITICAL FIX: Separate function to reset form fields
   const resetFormFields = () => {
@@ -925,7 +926,7 @@ export const EventDialog = ({
           };
 
           const seriesTargetId = resolveSeriesRootId();
-          const seriesResult = await supabase.rpc('update_event_series_safe', {
+          const { data: seriesResult, error: updateSeriesError } = await supabase.rpc('update_event_series_safe', {
             p_event_id: seriesTargetId,
             p_user_id: effectiveUserId,
             p_event_data: seriesEventData,
@@ -934,10 +935,10 @@ export const EventDialog = ({
             p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
           });
 
-          if (seriesResult.error) throw seriesResult.error;
-          if (!seriesResult.data?.success) throw new Error(seriesResult.data?.error || 'Failed to update series safely');
+          if (updateSeriesError) throw updateSeriesError;
+          if (!seriesResult?.success) throw new Error(seriesResult?.error || 'Failed to update series safely');
 
-          console.log("✅ Series updated safely (dates preserved):", seriesResult.data);
+          console.log("✅ Series updated safely (dates preserved):", seriesResult);
 
           // file upload should also go to the parent
           const actualEventId = seriesTargetId;
@@ -977,7 +978,7 @@ export const EventDialog = ({
           // Use parent id when editing a virtual instance
           const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : (eventId || initialData?.id);
           
-          const standaloneResult = await supabase.rpc('edit_single_event_instance_v2', {
+          const { data: standaloneResult, error: standaloneError } = await supabase.rpc('edit_single_event_instance_v2', {
             p_event_id: rpcTargetId,
             p_user_id: effectiveUserId,
             p_event_data: eventData,
@@ -988,13 +989,13 @@ export const EventDialog = ({
             p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
           });
 
-          if (standaloneResult.error) throw standaloneResult.error;
-          if (!standaloneResult.data?.success) throw new Error(standaloneResult.data?.error || 'Failed to create standalone event');
+          if (standaloneError) throw standaloneError;
+          if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to create standalone event');
 
-          console.log("✅ Standalone event created with surgical v2:", standaloneResult.data);
+          console.log("✅ Standalone event created with surgical v2:", standaloneResult);
 
           // Use the new event ID for file uploads
-          const newEventId = standaloneResult.data.new_event_id;
+          const newEventId = standaloneResult?.new_event_id;
           
           // Upload files to the new standalone event
           if (files.length > 0 && newEventId) {

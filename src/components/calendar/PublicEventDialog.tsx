@@ -334,7 +334,8 @@ export const PublicEventDialog = ({
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
             // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
-            if (isVirtualEvent && (initialData || eventId)) {
+            const isCurrentlyVirtual = !!eventKey && isVirtualInstance(eventKey);
+            if (isCurrentlyVirtual && (initialData || eventId)) {
               const instanceDate = getInstanceDate(eventKey);
               if (instanceDate) {
                 // Calculate the instance dates using parent's base time but instance's date
@@ -385,7 +386,7 @@ export const PublicEventDialog = ({
     };
 
     loadAndSetEventData();
-  }, [open, selectedDate, initialData, eventId, isVirtualEvent]);
+  }, [open, selectedDate, initialData, eventId]); // FIXED: Removed isVirtualEvent from dependencies
 
   const resetFormFields = () => {
     setAdditionalPersons([]);
