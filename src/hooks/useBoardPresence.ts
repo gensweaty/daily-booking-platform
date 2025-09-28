@@ -76,10 +76,8 @@ export function useBoardPresence(
   };
 
     const fetchUserAvatars = async (emails: string[]) => {
-      const newAvatars = new Map(userAvatars);
-      
       for (const email of emails) {
-        if (!newAvatars.has(email)) {
+        if (!userAvatars.has(email)) {
           try {
             // First try profiles table (main users)
             const { data: profile } = await supabase
@@ -89,7 +87,7 @@ export function useBoardPresence(
               .maybeSingle();
             
             if (profile?.avatar_url) {
-              newAvatars.set(email, profile.avatar_url);
+              setUserAvatars(prev => new Map(prev).set(email, profile.avatar_url));
               continue;
             }
             
@@ -101,20 +99,16 @@ export function useBoardPresence(
               .maybeSingle();
             
             if (subUser?.avatar_url) {
-              newAvatars.set(email, subUser.avatar_url);
+              setUserAvatars(prev => new Map(prev).set(email, subUser.avatar_url));
             }
           } catch (error) {
             console.error('Error fetching avatar for', email, error);
           }
         }
       }
-      
-      if (newAvatars.size !== userAvatars.size) {
-        setUserAvatars(newAvatars);
-      }
     };
 
-    const handleSync = async () => {
+    const handleSync = () => {
       const state = channel.presenceState() as Record<string, BoardPresenceUser[]>;
       // Flatten and dedupe by email
       const byEmail = new Map<string, BoardPresenceUser>();
@@ -127,6 +121,7 @@ export function useBoardPresence(
               byEmail.set(u.email, {
                 ...u,
                 online_at: u.online_at || new Date().toISOString(),
+                // Always preserve avatar_url from cache or presence data
                 avatar_url: userAvatars.get(u.email) || u.avatar_url
               });
             }
@@ -136,22 +131,20 @@ export function useBoardPresence(
       
       const users = Array.from(byEmail.values());
       
-      // Only fetch avatars for users we don't have cached
+      // Fetch avatars for users we don't have cached (async, non-blocking)
       const emailsNeedingAvatars = users
         .map(u => u.email)
         .filter(email => email && !userAvatars.has(email));
       
       if (emailsNeedingAvatars.length > 0) {
-        await fetchUserAvatars(emailsNeedingAvatars);
+        fetchUserAvatars(emailsNeedingAvatars);
       }
       
-      // Update users with avatar URLs from cache
-      const usersWithAvatars = users.map(user => ({
+      // Immediately set users with current avatar cache
+      setOnlineUsers(users.map(user => ({
         ...user,
         avatar_url: userAvatars.get(user.email) || user.avatar_url
-      }));
-      
-      setOnlineUsers(usersWithAvatars);
+      })));
     };
 
     let heartbeatInterval: NodeJS.Timeout;
@@ -171,9 +164,9 @@ export function useBoardPresence(
     };
 
     channel
-      .on("presence", { event: "sync" }, async () => {
+      .on("presence", { event: "sync" }, () => {
         console.log("Presence sync");
-        await handleSync();
+        handleSync();
       })
       .on("presence", { event: "join" }, async ({ key, newPresences }) => {
         console.log("User joined presence:", key, newPresences);
@@ -182,11 +175,11 @@ export function useBoardPresence(
         if (joinedUser?.email) {
           await updateLastLogin(joinedUser.email);
         }
-        await handleSync();
+        handleSync();
       })
-      .on("presence", { event: "leave" }, async ({ key, leftPresences }) => {
+      .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
         console.log("User left presence:", key, leftPresences);
-        await handleSync();
+        handleSync();
       })
       .subscribe(async (status) => {
         console.log("Presence subscription status:", status);
@@ -227,6 +220,16 @@ export function useBoardPresence(
       supabase.removeChannel(channel);
     };
   }, [boardId, currentUser?.email, currentUser?.name, currentUser?.avatar_url, options?.updateSubUserLastLogin, options?.boardOwnerId]);
+
+  // Update online users when avatar cache changes
+  useEffect(() => {
+    if (onlineUsers.length > 0) {
+      setOnlineUsers(prev => prev.map(user => ({
+        ...user,
+        avatar_url: userAvatars.get(user.email) || user.avatar_url
+      })));
+    }
+  }, [userAvatars]);
 
   const sortedUsers = useMemo(() => {
     // Put current user first, then alphabetical
