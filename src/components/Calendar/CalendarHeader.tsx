@@ -69,16 +69,22 @@ export const CalendarHeader = ({
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={onPrevious}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon" onClick={onNext}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <h2 className={cn("text-xl font-semibold ml-2", isGeorgian ? "font-georgian" : "")}>
-          {getFormattedDate()}
-        </h2>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={onPrevious}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onNext}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <h2 className={cn("text-xl font-semibold ml-2", isGeorgian ? "font-georgian" : "")}>
+            {getFormattedDate()}
+          </h2>
+        </div>
+        
+        {onlineUsers.length > 0 && (
+          <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2 justify-between w-full sm:w-auto mt-2 sm:mt-0">
@@ -110,10 +116,6 @@ export const CalendarHeader = ({
         </div>
         
         <div className="flex items-center gap-2">
-          {onlineUsers.length > 0 && (
-            <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
-          )}
-          
           {onAddEvent && (
             <Button 
               onClick={onAddEvent}
