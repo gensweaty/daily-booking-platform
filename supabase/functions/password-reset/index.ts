@@ -51,7 +51,10 @@ serve(async (req) => {
 
       try {
         // Check if user exists
-        const { data: user, error: userError } = await supabaseAdmin.auth.admin.listUsers();
+        const { data: users, error: userError } = await supabaseAdmin.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000
+        });
 
         if (userError) {
           console.error('Error checking user:', userError);
@@ -69,8 +72,8 @@ serve(async (req) => {
         }
 
         // Check if user exists in the database
-        const targetUser = user?.users?.find(u => u.email === email);
-        if (!user || user.users.length === 0 || !targetUser) {
+        const targetUser = users?.users?.find((u: any) => u.email === email);
+        if (!users || users.users.length === 0 || !targetUser) {
           console.log(`No user found with email: ${email}`);
           // For security reasons, return success even if the user doesn't exist
           return new Response(

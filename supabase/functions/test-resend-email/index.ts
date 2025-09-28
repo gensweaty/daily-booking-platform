@@ -86,7 +86,7 @@ serve(async (req) => {
           success: false, 
           message: "Failed to send test email",
           error: emailError && typeof emailError === 'object' && 'message' in emailError 
-            ? (emailError as Error).message 
+            ? (emailError as any).message 
             : "Unknown error"
         }),
         {
