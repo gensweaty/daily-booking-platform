@@ -109,7 +109,9 @@ export function useBoardPresence(
         }
       }
       
-      setUserAvatars(newAvatars);
+      if (newAvatars.size !== userAvatars.size) {
+        setUserAvatars(newAvatars);
+      }
     };
 
     const handleSync = async () => {
@@ -133,14 +135,17 @@ export function useBoardPresence(
       });
       
       const users = Array.from(byEmail.values());
-      const emails = users.map(u => u.email).filter(Boolean);
       
-      // Fetch avatars for new users
-      if (emails.length > 0) {
-        await fetchUserAvatars(emails);
+      // Only fetch avatars for users we don't have cached
+      const emailsNeedingAvatars = users
+        .map(u => u.email)
+        .filter(email => email && !userAvatars.has(email));
+      
+      if (emailsNeedingAvatars.length > 0) {
+        await fetchUserAvatars(emailsNeedingAvatars);
       }
       
-      // Update users with avatar URLs
+      // Update users with avatar URLs from cache
       const usersWithAvatars = users.map(user => ({
         ...user,
         avatar_url: userAvatars.get(user.email) || user.avatar_url
@@ -221,7 +226,7 @@ export function useBoardPresence(
       }
       supabase.removeChannel(channel);
     };
-  }, [boardId, currentUser?.email, currentUser?.name, currentUser?.avatar_url, options?.updateSubUserLastLogin, options?.boardOwnerId, userAvatars]);
+  }, [boardId, currentUser?.email, currentUser?.name, currentUser?.avatar_url, options?.updateSubUserLastLogin, options?.boardOwnerId]);
 
   const sortedUsers = useMemo(() => {
     // Put current user first, then alphabetical
