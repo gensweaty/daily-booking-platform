@@ -1,6 +1,8 @@
 import * as React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useToast } from "@/hooks/use-toast";
 
 export type PresenceUser = {
   email?: string | null;
@@ -24,6 +26,14 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
 }) => {
   const visible = users.slice(0, max);
   const remainder = Math.max(users.length - visible.length, 0);
+  const isMobile = useMediaQuery("(max-width: 640px)");
+  const { toast } = useToast();
+
+  const handleMobileClick = (displayName: string) => {
+    if (isMobile) {
+      toast({ description: displayName });
+    }
+  };
 
   return (
     <div className="flex -space-x-2">
@@ -51,6 +61,7 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
                   role="button"
                   tabIndex={0}
                   aria-label={`User: ${label}`}
+                  onClick={() => handleMobileClick(label)}
                 >
                   <Avatar
                     className="bg-muted text-muted-foreground border-2 border-background"
@@ -83,6 +94,7 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
           className="cursor-pointer"
           role="button"
           aria-label={`${remainder} more users online`}
+          onClick={() => handleMobileClick(`${remainder} more users`)}
         >
           <Avatar
             className="bg-muted text-muted-foreground border-2 border-background"
