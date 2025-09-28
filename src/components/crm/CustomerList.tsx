@@ -47,7 +47,7 @@ import { useCRMData } from "@/hooks/useCRMData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { PaymentStatus } from "@/lib/types";
-import { PresenceAvatars } from "@/components/PresenceAvatars";
+import { PresenceCircles } from "@/components/presence/PresenceCircles";
 
 const LoadingCustomerList = React.memo(() => {
   return (
@@ -98,7 +98,7 @@ interface CustomerListProps {
   externalUserEmail?: string;
   publicBoardUserId?: string;
   hasPermissions?: boolean;
-  onlineUsers?: { name: string; email: string }[];
+  onlineUsers?: Array<{ email?: string | null; name?: string | null; avatar_url?: string | null; online_at?: string | null }>;
   currentUserEmail?: string;
 }
 
@@ -544,7 +544,7 @@ export const CustomerList = ({
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
             {onlineUsers.length > 0 && (
-              <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+              <PresenceCircles users={onlineUsers} max={5} size={28} />
             )}
           </div>
           <div className="w-full md:w-auto md:min-w-[200px]">
