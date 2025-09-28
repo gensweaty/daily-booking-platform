@@ -30,6 +30,8 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
 import { PermissionGate } from "@/components/PermissionGate";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
+import { useBoardPresence } from "@/hooks/useBoardPresence";
+import { supabase } from "@/lib/supabase";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -81,6 +83,41 @@ const CalendarContent = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Add presence tracking for internal calendar
+  const [boardId, setBoardId] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string>("");
+
+  useEffect(() => {
+    const initPresence = async () => {
+      if (!user || isExternalCalendar) return;
+      try {
+        // Fetch owner's public board id
+        const { data: board } = await supabase
+          .from("public_boards")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        setBoardId(board?.id || null);
+
+        // Fetch owner's profile username as display name
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .maybeSingle();
+        setDisplayName(profile?.username || (user.user_metadata?.full_name as string) || "Admin");
+      } catch (e) {
+        console.error("Failed to init Calendar presence", e);
+      }
+    };
+    initPresence();
+  }, [user?.id, isExternalCalendar]);
+
+  const { onlineUsers } = useBoardPresence(
+    boardId,
+    user && !isExternalCalendar ? { name: displayName, email: user.email || "" } : null
+  );
 
   useEffect(() => {
     if (currentView) {
@@ -315,6 +352,8 @@ const CalendarContent = ({
         onNext={handleNext}
         onAddEvent={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleAddEventClick : undefined}
         isExternalCalendar={isExternalCalendar}
+        onlineUsers={!isExternalCalendar ? onlineUsers : []}
+        currentUserEmail={!isExternalCalendar ? user?.email : undefined}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
