@@ -2,7 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { dedupeConcreteOverVirtual } from "@/lib/recurringEvents";
 
 export const usePublicCalendarEvents = (
   boardUserId: string,
@@ -12,7 +13,7 @@ export const usePublicCalendarEvents = (
   const { toast } = useToast();
   
   // Fetch events using RPC function for public access
-  const { data: events = [], isLoading, error, refetch } = useQuery({
+  const { data: rawEvents = [], isLoading, error, refetch } = useQuery({
     queryKey: ['publicCalendarEvents', boardUserId],
     queryFn: async () => {
       console.log('[usePublicCalendarEvents] Fetching events for user:', boardUserId);
@@ -25,7 +26,15 @@ export const usePublicCalendarEvents = (
       }
       
       console.log('[usePublicCalendarEvents] Fetched events:', data?.length || 0);
-      return (data || []) as CalendarEventType[];
+      
+      // Apply deduplication to handle virtual/concrete collisions
+      const deduplicatedEvents = dedupeConcreteOverVirtual((data || []) as CalendarEventType[]);
+      
+      if (deduplicatedEvents.length !== (data || []).length) {
+        console.warn(`[usePublicCalendarEvents] Removed ${(data || []).length - deduplicatedEvents.length} virtual/concrete collisions`);
+      }
+      
+      return deduplicatedEvents;
     },
     enabled: !!boardUserId,
     refetchInterval: 1500,
@@ -33,6 +42,9 @@ export const usePublicCalendarEvents = (
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
+
+  // Final safety net deduplication at hook level  
+  const events = useMemo(() => dedupeConcreteOverVirtual(rawEvents), [rawEvents]);
 
   // Real-time subscriptions
   useEffect(() => {
