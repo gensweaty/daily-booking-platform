@@ -40,8 +40,27 @@ export const CRMWithPermissions = () => {
 
   const { onlineUsers } = useBoardPresence(
     boardId,
-    user ? { name: displayName, email: user.email || "", avatar_url: avatarUrl } : null
+    user ? { 
+      name: displayName, 
+      email: user.email || "", 
+      avatar_url: avatarUrl,
+      online_at: new Date().toISOString()
+    } : null
   );
+
+  // Debug presence
+  useEffect(() => {
+    console.log('🔍 CRM Presence Debug:', {
+      boardId,
+      user: user ? {
+        name: displayName,
+        email: user.email,
+        avatar_url: avatarUrl
+      } : null,
+      onlineUsers: onlineUsers.length,
+      onlineUsersList: onlineUsers
+    });
+  }, [boardId, displayName, user?.email, avatarUrl, onlineUsers]);
 
   return (
     <PermissionGate requiredPermission="crm">
