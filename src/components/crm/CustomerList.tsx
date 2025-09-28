@@ -542,7 +542,7 @@ export const CustomerList = ({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
           <div className="flex items-center gap-4">
-            <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
+            <h2 className="text-lg sm:text-xl font-bold md:mb-0 -mt-4 truncate">{t("crm.title")}</h2>
 
             {/* Presence circles (match Tasks). Always render. */}
             <div className="shrink-0">

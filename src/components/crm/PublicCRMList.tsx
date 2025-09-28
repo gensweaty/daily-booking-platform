@@ -75,7 +75,7 @@ export const PublicCRMList = ({
         externalUserEmail={externalUserEmail}
         publicBoardUserId={boardUserId}
         hasPermissions={hasPermissions}
-        onlineUsers={onlineUsers}
+        onlineUsers={onlineUsers.filter(u => u.email !== externalUserEmail)}
         currentUserEmail={externalUserEmail}
       />
     </div>

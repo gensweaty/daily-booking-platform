@@ -69,7 +69,7 @@ export const CalendarHeader = ({
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-1">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={onPrevious}>
             <ChevronLeft className="h-4 w-4" />
@@ -81,12 +81,12 @@ export const CalendarHeader = ({
             {getFormattedDate()}
           </h2>
         </div>
-      </div>
-
-      {/* Center section with presence avatars */}
-      <div className="flex items-center justify-center flex-1">
+        
+        {/* Presence avatars inline with date on mobile */}
         {onlineUsers.length > 0 && (
-          <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+          <div className="ml-auto">
+            <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+          </div>
         )}
       </div>
 
