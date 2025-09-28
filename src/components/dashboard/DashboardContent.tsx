@@ -8,7 +8,7 @@ import { TaskList } from "@/components/TaskList"
 import { Calendar } from "@/components/Calendar/Calendar"
 import AddTaskForm from "@/components/AddTaskForm"
 import { Statistics } from "@/components/Statistics"
-import { CustomerList } from "@/components/crm/CustomerList"
+import { CRMWithPermissions } from "@/components/crm/CRMWithPermissions"
 import { BusinessPage } from "@/components/business/BusinessPage"
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications"
 import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications"
@@ -435,7 +435,7 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    <CustomerList />
+                    <CRMWithPermissions />
                   </motion.div>
                 </CardContent>
               </Card>
