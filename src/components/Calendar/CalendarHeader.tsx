@@ -81,7 +81,10 @@ export const CalendarHeader = ({
             {getFormattedDate()}
           </h2>
         </div>
-        
+      </div>
+
+      {/* Center section with presence avatars */}
+      <div className="flex items-center justify-center flex-1">
         {onlineUsers.length > 0 && (
           <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
         )}

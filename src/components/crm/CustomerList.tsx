@@ -541,7 +541,12 @@ export const CustomerList = ({
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-          <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
+            {onlineUsers.length > 0 && (
+              <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+            )}
+          </div>
           <div className="w-full md:w-auto md:min-w-[200px]">
             <DateRangeSelect 
               selectedDate={dateRange}
@@ -567,9 +572,6 @@ export const CustomerList = ({
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          {onlineUsers.length > 0 && (
-            <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
-          )}
           <Button 
             onClick={openCreateDialog} 
             className="flex items-center gap-2 whitespace-nowrap"
