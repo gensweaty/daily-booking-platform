@@ -15,14 +15,15 @@ export const CRMWithPermissions = () => {
     const initPresence = async () => {
       if (!user) return;
       try {
-        // Fetch owner's public board id (use the SAME id Tasks uses)
+        // Fetch owner's public board id; fallback to user.id (SAME fallback Tasks uses)
         const { data: board } = await supabase
           .from("public_boards")
           .select("id")
           .eq("user_id", user.id)
           .maybeSingle();
-        // IMPORTANT: don't invent a CRM-specific channel; use the board id so it's shared with Tasks
-        setBoardId(board?.id ?? null);
+        // Use the board id when present, otherwise fallback to the owner's user id.
+        // This mirrors the Tasks page so presence is shared.
+        setBoardId((board?.id as string) || user.id);
 
         // Fetch owner's profile username and avatar as display info
         const { data: profile } = await supabase
@@ -40,22 +41,22 @@ export const CRMWithPermissions = () => {
         
         console.log("🔍 CRM Presence Init:", {
           userId: user.id,
-          boardId: board?.id ?? null,
+          boardId: board?.id || user.id,
           displayName: candidateName,
           avatarUrl: profile?.avatar_url || (user.user_metadata?.avatar_url as string) || ""
         });
       } catch (e) {
         console.error("Failed to init CRM presence", e);
-        // If we can't resolve the shared board id, don't join a different channel.
-        setBoardId(null);
+        // As a safety, still join a stable fallback channel for the owner.
+        if (user?.id) setBoardId(user.id);
       }
     };
     initPresence();
   }, [user?.id]);
 
   const { onlineUsers } = useBoardPresence(
-    boardId ?? undefined,
-    boardId && user
+    boardId || undefined,
+    user
       ? {
           name: displayName,
           email: user.email || "",
@@ -81,8 +82,20 @@ export const CRMWithPermissions = () => {
 
   return (
     <PermissionGate requiredPermission="crm">
-      <CustomerList 
-        onlineUsers={onlineUsers}
+      <CustomerList
+        /* If presence hasn't populated yet, show the viewer (same behavior as Tasks) */
+        onlineUsers={
+          onlineUsers?.length
+            ? onlineUsers
+            : (user
+                ? [{
+                    name: displayName,
+                    email: user.email || "",
+                    avatar_url: avatarUrl,
+                    online_at: new Date().toISOString(),
+                  }]
+                : [])
+        }
         currentUserEmail={user?.email}
       />
     </PermissionGate>
