@@ -683,9 +683,10 @@ export const EventDialog = ({
     await performSubmit();
   };
 
-  const performSubmit = async () => {
+  const performSubmit = async (forcedChoice?: "this" | "series") => {
     
     const effectiveUserId = getEffectiveUserId();
+    const choice = forcedChoice ?? editChoice;
     
     console.log('🔍 Submit debug info:', {
       isPublicMode,
@@ -922,13 +923,13 @@ export const EventDialog = ({
       // EDIT EXISTING
       if (isRecurringEvent) {
         // Force a choice; do NOT fall back to single-row update
-        if (!editChoice) {
+        if (!choice) {
           setShowEditDialog(true);
           setIsLoading(false);
           return;
         }
 
-        if (editChoice === "series") {
+        if (choice === "series") {
           // series-wide update — preserve dates
           const seriesTargetId = resolveSeriesRootId();
 
@@ -1170,13 +1171,13 @@ export const EventDialog = ({
   const handleEditThis = () => {
     setEditChoice("this");
     setShowEditDialog(false);
-    performSubmit();
+    performSubmit("this");
   };
 
   const handleEditSeries = () => {
     setEditChoice("series");
     setShowEditDialog(false);
-    performSubmit();
+    performSubmit("series");
   };
 
   const handleDeleteThis = async () => {
