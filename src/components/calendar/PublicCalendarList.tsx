@@ -272,20 +272,9 @@ export const PublicCalendarList = ({
 
   return (
     <div className="space-y-6">
-      {/* Mobile: Header line with Calendar left, circles center */}
-      <div className="grid sm:hidden grid-cols-[auto_1fr] items-center w-full">
+      {/* Page Title */}
+      <div className="flex flex-row items-center justify-between gap-4">
         <h2 className="text-2xl font-bold text-foreground">{t('dashboard.calendar')}</h2>
-        <div className="flex items-center justify-center">
-          <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={5} />
-        </div>
-      </div>
-
-      {/* Desktop: Header with presence left aligned */}
-      <div className="hidden sm:flex flex-row items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold text-foreground">{t('dashboard.calendar')}</h2>
-        <div className="flex items-center gap-3">
-          <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={5} />
-        </div>
       </div>
 
       {/* Calendar Implementation - EXACT same structure as dashboard */}
@@ -298,6 +287,8 @@ export const PublicCalendarList = ({
           onNext={handleNext}
           onAddEvent={hasPermissions ? handleAddEventClick : undefined}
           isExternalCalendar={!hasPermissions}
+          onlineUsers={onlineUsers}
+          currentUserEmail={externalUserEmail}
         />
 
         <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>

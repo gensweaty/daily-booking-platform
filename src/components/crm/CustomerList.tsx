@@ -47,6 +47,7 @@ import { useCRMData } from "@/hooks/useCRMData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { PaymentStatus } from "@/lib/types";
+import { PresenceAvatars } from "@/components/PresenceAvatars";
 
 const LoadingCustomerList = React.memo(() => {
   return (
@@ -97,6 +98,8 @@ interface CustomerListProps {
   externalUserEmail?: string;
   publicBoardUserId?: string;
   hasPermissions?: boolean;
+  onlineUsers?: { name: string; email: string }[];
+  currentUserEmail?: string;
 }
 
 export const CustomerList = ({ 
@@ -104,7 +107,9 @@ export const CustomerList = ({
   externalUserName, 
   externalUserEmail,
   publicBoardUserId,
-  hasPermissions = false
+  hasPermissions = false,
+  onlineUsers = [],
+  currentUserEmail
 }: CustomerListProps = {}) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
@@ -548,29 +553,32 @@ export const CustomerList = ({
             <SearchCommand
               data={combinedData}
               setFilteredData={setFilteredData}
-              isLoading={isFetching}
               resetPagination={resetPagination}
             />
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
+          <Button 
             onClick={handleExcelDownload}
-            className="h-9 w-9 sm:-mt-4"
-            title={language === 'es' ? "Descargar como Excel" : "Download as Excel"}
-            disabled={isFetching || filteredData.length === 0}
+            variant="outline" 
+            size="icon"
+            title={t("statistics.exportExcel")}
+            disabled={isFetching}
           >
             <FileSpreadsheet className="h-5 w-5" />
           </Button>
         </div>
-        <Button 
-          onClick={openCreateDialog} 
-          className="flex items-center gap-2 whitespace-nowrap"
-          disabled={isFetching}
-        >
-          <PlusCircle className="w-4 h-4" />
-          {t("crm.addCustomer")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {onlineUsers.length > 0 && (
+            <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+          )}
+          <Button 
+            onClick={openCreateDialog} 
+            className="flex items-center gap-2 whitespace-nowrap"
+            disabled={isFetching}
+          >
+            <PlusCircle className="w-4 h-4" />
+            {t("crm.addCustomer")}
+          </Button>
+        </div>
       </div>
 
       {!(isFetching && !isLoading) && filteredData.length > 0 && (

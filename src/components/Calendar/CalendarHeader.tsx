@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useLocalizedDate } from "@/hooks/useLocalizedDate";
+import { PresenceAvatars } from "@/components/PresenceAvatars";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
@@ -15,6 +16,8 @@ interface CalendarHeaderProps {
   onNext: () => void;
   onAddEvent?: () => void;
   isExternalCalendar?: boolean;
+  onlineUsers?: { name: string; email: string }[];
+  currentUserEmail?: string;
 }
 
 export const CalendarHeader = ({
@@ -25,6 +28,8 @@ export const CalendarHeader = ({
   onNext,
   onAddEvent,
   isExternalCalendar = false,
+  onlineUsers = [],
+  currentUserEmail,
 }: CalendarHeaderProps) => {
   const { t, language } = useLanguage();
   const { formatDate } = useLocalizedDate();
@@ -104,18 +109,24 @@ export const CalendarHeader = ({
           </Button>
         </div>
         
-        {onAddEvent && (
-          <Button 
-            onClick={onAddEvent}
-            size="sm" 
-            variant="dynamic"
-            className={cn("ml-auto sm:ml-0 font-semibold", isGeorgian ? "font-georgian" : "")}
-            type="button"
-          >
-            <Plus className="h-4 w-4" />
-            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {onlineUsers.length > 0 && (
+            <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+          )}
+          
+          {onAddEvent && (
+            <Button 
+              onClick={onAddEvent}
+              size="sm" 
+              variant="dynamic"
+              className={cn("font-semibold", isGeorgian ? "font-georgian" : "")}
+              type="button"
+            >
+              <Plus className="h-4 w-4" />
+              {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+            </Button>
+          )}
+        </div>
         
       </div>
     </div>
