@@ -544,23 +544,12 @@ export const CustomerList = ({
           <div className="flex items-center gap-4">
             <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
 
-            {/* Presence circles: always render; fallback to current user if list is empty */}
-            <div className="shrink-0">
-              <PresenceCircles
-                users={
-                  (onlineUsers && onlineUsers.length > 0)
-                    ? onlineUsers
-                    : (user ? [{
-                        email: user.email || undefined,
-                        name: (user.user_metadata?.full_name as string) || undefined,
-                        avatar_url: (user.user_metadata?.avatar_url as string) || undefined,
-                        online_at: new Date().toISOString(),
-                      }] : [])
-                }
-                max={5}
-                size={28}
-              />
-            </div>
+            {/* Presence circles (match Tasks). No fallback to the current viewer. */}
+            {onlineUsers && onlineUsers.length > 0 && (
+              <div className="shrink-0">
+                <PresenceCircles users={onlineUsers} max={5} size={28} />
+              </div>
+            )}
           </div>
           <div className="w-full md:w-auto md:min-w-[200px]">
             <DateRangeSelect 

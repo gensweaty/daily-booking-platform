@@ -15,15 +15,14 @@ export const CRMWithPermissions = () => {
     const initPresence = async () => {
       if (!user) return;
       try {
-        // Fetch owner's public board id, or create a fallback
+        // Fetch owner's public board id (use the SAME id Tasks uses)
         const { data: board } = await supabase
           .from("public_boards")
           .select("id")
           .eq("user_id", user.id)
           .maybeSingle();
-        
-        // Use public board id if exists, otherwise use user-specific fallback for CRM presence
-        setBoardId(board?.id || `crm-${user.id}`);
+        // IMPORTANT: don't invent a CRM-specific channel; use the board id so it's shared with Tasks
+        setBoardId(board?.id ?? null);
 
         // Fetch owner's profile username and avatar as display info
         const { data: profile } = await supabase
@@ -31,32 +30,39 @@ export const CRMWithPermissions = () => {
           .select("username, avatar_url")
           .eq("id", user.id)
           .maybeSingle();
-        setDisplayName(profile?.username || (user.user_metadata?.full_name as string) || "Admin");
-        setAvatarUrl(profile?.avatar_url || "");
+        const candidateName =
+          profile?.username ||
+          (user.user_metadata?.full_name as string) ||
+          (user.email ? user.email.split("@")[0] : "") ||
+          "Member";
+        setDisplayName(candidateName);
+        setAvatarUrl(profile?.avatar_url || (user.user_metadata?.avatar_url as string) || "");
         
         console.log("🔍 CRM Presence Init:", {
           userId: user.id,
-          boardId: board?.id || `crm-${user.id}`,
-          displayName: profile?.username || (user.user_metadata?.full_name as string) || "Admin",
-          avatarUrl: profile?.avatar_url || ""
+          boardId: board?.id ?? null,
+          displayName: candidateName,
+          avatarUrl: profile?.avatar_url || (user.user_metadata?.avatar_url as string) || ""
         });
       } catch (e) {
         console.error("Failed to init CRM presence", e);
-        // Even if there's an error, set a fallback boardId to enable presence
-        setBoardId(`crm-${user.id}`);
+        // If we can't resolve the shared board id, don't join a different channel.
+        setBoardId(null);
       }
     };
     initPresence();
   }, [user?.id]);
 
   const { onlineUsers } = useBoardPresence(
-    boardId,
-    user ? { 
-      name: displayName, 
-      email: user.email || "", 
-      avatar_url: avatarUrl,
-      online_at: new Date().toISOString()
-    } : null
+    boardId ?? undefined,
+    boardId && user
+      ? {
+          name: displayName,
+          email: user.email || "",
+          avatar_url: avatarUrl,
+          online_at: new Date().toISOString(),
+        }
+      : null
   );
 
   // Debug presence

@@ -29,9 +29,13 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
     <div className="flex -space-x-2">
       <TooltipProvider delayDuration={150}>
         {visible.map((u, idx) => {
-          const label = u?.name || u?.email || "Online";
+          // Prefer a human-friendly name; fallback to email prefix
+          const label =
+            (u?.name && u.name.trim()) ||
+            (u?.email ? u.email.split("@")[0] : "") ||
+            "Online";
           const initials =
-            (u?.name || u?.email || "?")
+            (label || "?")
               .replace(/[^a-zA-Z0-9 ]/g, "")
               .split(" ")
               .map((s) => s[0])
