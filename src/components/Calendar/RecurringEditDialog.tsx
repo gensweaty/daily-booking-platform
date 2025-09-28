@@ -1,6 +1,8 @@
 import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogFooter, AlertDialogCancel, AlertDialogAction
+} from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface RecurringEditDialogProps {
@@ -29,43 +31,17 @@ export const RecurringEditDialog = ({
 
   // For recurring events, show series/single choice
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("recurring.editEventTitle")}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {t("recurring.editEventBody")}
-          </p>
-          <div className="flex flex-col gap-2">
-            <Button
-              variant="outline"
-              onClick={onEditThis}
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? t("common.loading") : t("recurring.editOnlyThis")}
-            </Button>
-            <Button
-              variant="default"
-              onClick={onEditSeries}
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? t("common.loading") : t("recurring.editWholeSeries")}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-              className="w-full"
-              disabled={isLoading}
-            >
-              {t("common.cancel")}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Apply changes to…</AlertDialogTitle>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+          <AlertDialogAction disabled={isLoading} onClick={onEditThis}>Only this event</AlertDialogAction>
+          <AlertDialogAction disabled={isLoading} onClick={onEditSeries}>Entire series</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };

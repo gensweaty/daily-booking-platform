@@ -503,16 +503,39 @@ export const PublicEventDialog = ({
           paymentAmount: person.paymentAmount
         }));
 
-        // Handle recurring event updates with new safe functions
-        if (isRecurringEvent && editChoice) {
+        // EDIT EXISTING
+        if (isRecurringEvent) {
+          // Force a choice; do NOT fall back to single-row update
+          if (!editChoice) {
+            setShowEditDialog(true);
+            setIsLoading(false);
+            return;
+          }
+
           if (editChoice === "series") {
             console.log('[PublicEventDialog] Updating entire series safely (preserving individual dates)');
-            
+
             const seriesTargetId = resolveSeriesRootId();
+            
+            // NEW: strip date/recurrence fields so neither RPC nor local merge can reschedule the root
+            const safeSeriesData = {
+              title: userSurname || title || 'Untitled Event',
+              user_surname: userSurname,
+              user_number: userNumber,
+              social_network_link: socialNetworkLink,
+              event_notes: eventNotes,
+              event_name: eventName,
+              payment_status: paymentStatus || 'not_paid',
+              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+              reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+              email_reminder_enabled: emailReminderEnabled
+              // ⚠️ intentionally no start/end/recurrence fields here
+            };
+
             const { data: updateResult, error: updateSeriesError } = await supabase.rpc('update_event_series_safe', {
               p_event_id: seriesTargetId,
               p_user_id: publicBoardUserId,
-              p_event_data: eventData,
+              p_event_data: safeSeriesData,
               p_additional_persons: additionalPersonsData,
               p_edited_by_type: 'sub_user',
               p_edited_by_name: externalUserName
@@ -520,37 +543,42 @@ export const PublicEventDialog = ({
 
             if (updateSeriesError) throw updateSeriesError;
             if (!updateResult?.success) throw new Error(updateResult?.error || 'Failed to update series');
-            
-            console.log('[PublicEventDialog] Recurring series updated safely:', updateResult);
 
-            // file upload after series update -> parent
+            // file upload stays against series root (unchanged)
             if (files.length > 0) {
               try {
                 await uploadFiles(seriesTargetId);
                 setFiles([]);
                 await loadExistingFiles(seriesTargetId);
               } catch (fileError) {
-                console.error('[PublicEventDialog] ❌ Error uploading files during series update:', fileError);
-                toast({
-                  title: t("common.warning"),
-                  description: "Series updated successfully, but some files failed to upload",
-                  variant: "destructive"
-                });
+                console.error('[PublicEventDialog] ❌ File upload during series update:', fileError);
+                toast({ title: t("common.warning"), description: "Series updated, but some files failed to upload", variant: "destructive" });
               }
             }
-          } else if (editChoice === "this") {
+          } else {
+            // edit only this instance -> split + exclude
             console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
             
+            const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
             const instanceIsoStart = localDateTimeInputToISOString(startDate);
             const instanceIsoEnd = localDateTimeInputToISOString(endDate);
-            
-            // Use parent id when editing a virtual instance
-            const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
-            
+
             const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
               p_event_id: rpcTargetId,
               p_user_id: publicBoardUserId,
-              p_event_data: eventData,
+              p_event_data: {
+                title: userSurname || title || 'Untitled Event',
+                user_surname: userSurname,
+                user_number: userNumber,
+                social_network_link: socialNetworkLink,
+                event_notes: eventNotes,
+                event_name: eventName,
+                payment_status: paymentStatus || 'not_paid',
+                payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+                reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+                email_reminder_enabled: emailReminderEnabled,
+                language: language || 'en'
+              },
               p_additional_persons: additionalPersonsData,
               p_instance_start: instanceIsoStart,
               p_instance_end: instanceIsoEnd,
@@ -560,39 +588,50 @@ export const PublicEventDialog = ({
 
             if (editError) throw editError;
             if (!editResult?.success) throw new Error(editResult?.error || 'Failed to edit single instance');
-            
-            console.log('[PublicEventDialog] Single instance edited with surgical v2 (new standalone event created):', editResult);
-          }
-        } else {
-          // Regular single event update - use legacy approach for compatibility
-          if (!onUpdate) throw new Error("Update function not provided");
-          
-          const updatedEvent = await onUpdate({
-            ...eventData,
-            id: targetEventId
-          });
-          
-          console.log('[PublicEventDialog] Event updated successfully (legacy):', updatedEvent);
-          
-          // Save additional persons for regular events
-          if (additionalPersonsData.length > 0) {
-            const { error: rpcError } = await supabase.rpc('save_event_with_persons', {
-              p_event_data: {
-                ...eventData,
-                id: targetEventId
-              },
-              p_additional_persons: additionalPersonsData,
-              p_user_id: publicBoardUserId,
-              p_event_id: targetEventId,
-              p_created_by_type: 'sub_user',
-              p_created_by_name: externalUserName,
-              p_last_edited_by_type: 'sub_user',
-              p_last_edited_by_name: externalUserName
-            });
 
-            if (rpcError) throw rpcError;
-            console.log('[PublicEventDialog] Additional persons saved successfully');
+            const newEventId = editResult.new_event_id;
+            if (files.length && newEventId) {
+              await uploadFiles(newEventId);
+              setFiles([]);
+              await loadExistingFiles(newEventId);
+            }
           }
+
+          resetForm();
+          onOpenChange(false);
+          setEditChoice(null);
+          setIsLoading(false);
+          return;
+        }
+
+        // Non-recurring edit (simple single-row update)
+        if (!onUpdate) throw new Error("Update function not provided");
+        
+        const updatedEvent = await onUpdate({
+          ...eventData,
+          id: targetEventId
+        });
+        
+        console.log('[PublicEventDialog] Event updated successfully (legacy):', updatedEvent);
+        
+        // Save additional persons for regular events
+        if (additionalPersonsData.length > 0) {
+          const { error: rpcError } = await supabase.rpc('save_event_with_persons', {
+            p_event_data: {
+              ...eventData,
+              id: targetEventId
+            },
+            p_additional_persons: additionalPersonsData,
+            p_user_id: publicBoardUserId,
+            p_event_id: targetEventId,
+            p_created_by_type: 'sub_user',
+            p_created_by_name: externalUserName,
+            p_last_edited_by_type: 'sub_user',
+            p_last_edited_by_name: externalUserName
+          });
+
+          if (rpcError) throw rpcError;
+          console.log('[PublicEventDialog] Additional persons saved successfully');
         }
         
         // Upload files after successful event update
@@ -726,19 +765,61 @@ export const PublicEventDialog = ({
 
   const handleDeleteThis = async () => {
     if (!eventId && !initialData?.id) return;
-    if (!onDelete) throw new Error("Delete function not provided");
     
     setIsLoading(true);
     try {
-      await onDelete({ 
-        id: eventId || initialData!.id, 
-        deleteChoice: 'this' 
-      });
+      if (isRecurringEvent) {
+        // Single-instance delete for recurring series -> insert exclusion marker
+        const parentId = resolveSeriesRootId();
+        const instanceIsoStart = localDateTimeInputToISOString(startDate);
+        const instanceIsoEnd = localDateTimeInputToISOString(endDate);
 
-      toast({
-        title: t("common.success"),
-        description: t("events.eventDeleted")
-      });
+        const { error: exErr } = await supabase
+          .from('events')
+          .insert({
+            title: currentEventData?.title || title || 'Excluded instance',
+            user_surname: currentEventData?.user_surname || userSurname || null,
+            user_number: currentEventData?.user_number || userNumber || null,
+            social_network_link: currentEventData?.social_network_link || socialNetworkLink || null,
+            event_notes: currentEventData?.event_notes || eventNotes || null,
+            event_name: currentEventData?.event_name || eventName || null,
+            start_date: instanceIsoStart,
+            end_date: instanceIsoEnd,
+            user_id: publicBoardUserId,
+            parent_event_id: parentId,
+            excluded_from_series: true,
+            created_by_type: 'sub_user',
+            created_by_name: externalUserName,
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName,
+          });
+        if (exErr) throw exErr;
+
+        toast({
+          title: t("common.success"),
+          description: t("events.eventDeleted")
+        });
+      } else {
+        // Non-recurring: use callback or fallback to direct delete
+        if (onDelete) {
+          await onDelete({ 
+            id: eventId || initialData!.id, 
+            deleteChoice: 'this' 
+          });
+        } else {
+          // Fallback direct delete
+          const { error } = await supabase
+            .from('events')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('id', eventId || initialData?.id);
+          if (error) throw error;
+        }
+
+        toast({
+          title: t("common.success"),
+          description: t("events.eventDeleted")
+        });
+      }
 
       onEventDeleted?.();
       setShowDeleteDialog(false);

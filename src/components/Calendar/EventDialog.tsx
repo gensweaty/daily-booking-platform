@@ -909,9 +909,19 @@ export const EventDialog = ({
 
       let result;
       if (eventId || initialData) {
-        // Handle edit logic based on user choice
+      // EDIT EXISTING
+      if (isRecurringEvent) {
+        // Force a choice; do NOT fall back to single-row update
+        if (!editChoice) {
+          setShowEditDialog(true);
+          setIsLoading(false);
+          return;
+        }
+
         if (editChoice === "series") {
-          // Edit entire series using the NEW SAFE function that preserves dates
+          // series-wide update — preserve dates
+          const seriesTargetId = resolveSeriesRootId();
+
           const seriesEventData = {
             title: userSurname || title || 'Untitled Event',
             user_surname: userSurname,
@@ -923,10 +933,10 @@ export const EventDialog = ({
             payment_amount: paymentAmount || null,
             reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
             email_reminder_enabled: emailReminderEnabled
+            // ⚠️ intentionally no start/end here
           };
 
-          const seriesTargetId = resolveSeriesRootId();
-          const { data: seriesResult, error: updateSeriesError } = await supabase.rpc('update_event_series_safe', {
+          const { data: seriesResult, error } = await supabase.rpc('update_event_series_safe', {
             p_event_id: seriesTargetId,
             p_user_id: effectiveUserId,
             p_event_data: seriesEventData,
@@ -934,149 +944,94 @@ export const EventDialog = ({
             p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
             p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
           });
+          if (error) throw error;
+          if (!seriesResult?.success) throw new Error(seriesResult?.error || 'Failed to update series');
 
-          if (updateSeriesError) throw updateSeriesError;
-          if (!seriesResult?.success) throw new Error(seriesResult?.error || 'Failed to update series safely');
-
-          console.log("✅ Series updated safely (dates preserved):", seriesResult);
-
-          // file upload should also go to the parent
-          const actualEventId = seriesTargetId;
-
-          if (files.length > 0 && actualEventId) {
-            try {
-              await uploadFiles(actualEventId);
-              setFiles([]);
-              await loadExistingFiles(actualEventId);
-            } catch (fileError) {
-              console.error('❌ Error uploading files during series update:', fileError);
-              toast({
-                title: t("common.warning"),
-                description: "Series updated successfully, but some files failed to upload",
-                variant: "destructive"
-              });
-            }
+          // files go to parent
+          if (files.length) {
+            await uploadFiles(seriesTargetId);
+            setFiles([]);
+            await loadExistingFiles(seriesTargetId);
           }
 
-          toast({
-            title: t("common.success"),
-            description: t("events.eventSeriesUpdated")
-          });
-
-          await sendEmailToAllPersons({
-            ...seriesEventData,
-            id: actualEventId
-          }, additionalPersons);
-
-        } else if (editChoice === "this") {
-          // Edit only this event - create standalone event using SURGICAL V2 function
-          console.log("🔄 Creating standalone event from recurring series instance (surgical v2)");
-          
+          toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
+          onEventUpdated?.();
+        } else {
+          // edit only this instance -> split + exclude
+          const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : (initialData?.parent_event_id || eventId || initialData?.id);
           const instanceIsoStart = localDateTimeInputToISOString(startDate);
           const instanceIsoEnd = localDateTimeInputToISOString(endDate);
-          
-          // Use parent id when editing a virtual instance
-          const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : (eventId || initialData?.id);
-          
-          const { data: standaloneResult, error: standaloneError } = await supabase.rpc('edit_single_event_instance_v2', {
+
+          const { data: standaloneResult, error } = await supabase.rpc('edit_single_event_instance_v2', {
             p_event_id: rpcTargetId,
             p_user_id: effectiveUserId,
-            p_event_data: eventData,
+            p_event_data: {
+              title,
+              user_surname: userSurname,
+              user_number: userNumber,
+              social_network_link: socialNetworkLink,
+              event_notes: eventNotes,
+              event_name: eventName,
+              payment_status: paymentStatus,
+              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+              reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+              email_reminder_enabled: emailReminderEnabled,
+              language
+            },
             p_additional_persons: additionalPersons,
             p_instance_start: instanceIsoStart,
             p_instance_end: instanceIsoEnd,
             p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
             p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
           });
+          if (error) throw error;
+          if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to update only this instance');
 
-          if (standaloneError) throw standaloneError;
-          if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to create standalone event');
-
-          console.log("✅ Standalone event created with surgical v2:", standaloneResult);
-
-          // Use the new event ID for file uploads
-          const newEventId = standaloneResult?.new_event_id;
-          
-          // Upload files to the new standalone event
-          if (files.length > 0 && newEventId) {
-            try {
-              await uploadFiles(newEventId);
-              setFiles([]);
-              await loadExistingFiles(newEventId);
-            } catch (fileError) {
-              console.error('❌ Error uploading files to standalone event:', fileError);
-              toast({
-                title: t("common.warning"),
-                description: "Event updated successfully, but some files failed to upload",
-                variant: "destructive"
-              });
-            }
+          const newEventId = standaloneResult.new_event_id;
+          if (files.length && newEventId) {
+            await uploadFiles(newEventId);
+            setFiles([]);
+            await loadExistingFiles(newEventId);
           }
 
-          toast({
-            title: t("common.success"),
-            description: t("events.eventUpdated")
-          });
-
-        } else {
-          // Edit only this event (existing logic)
-          let actualEventId = eventId || initialData?.id;
-          if (isVirtualEvent && eventId) {
-            actualEventId = getParentEventId(eventId);
-            console.log('🔄 Virtual instance update - using parent ID:', actualEventId);
-          } else if (initialData?.parent_event_id) {
-            actualEventId = initialData.parent_event_id;
-            console.log('🔄 Child instance update - using parent ID:', actualEventId);
-          }
-
-          result = await supabase.rpc('save_event_with_persons', {
-            p_event_data: eventData,
-            p_additional_persons: additionalPersons,
-            p_user_id: effectiveUserId,
-            p_event_id: actualEventId,
-            p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
-            p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
-          });
-
-          if (result.error) throw result.error;
-
-          // Upload files after successful event update
-          if (files.length > 0) {
-            try {
-              await uploadFiles(actualEventId);
-              console.log('✅ Files uploaded successfully after event update');
-              
-              setFiles([]);
-              await loadExistingFiles(actualEventId);
-            } catch (fileError) {
-              console.error('❌ Error uploading files during event update:', fileError);
-              toast({
-                title: t("common.warning"),
-                description: "Event updated successfully, but some files failed to upload",
-                variant: "destructive"
-              });
-            }
-          }
-
-          if (actualEventId) {
-            const freshEventData = await loadEventData(actualEventId);
-            if (freshEventData) {
-              setCurrentEventData(freshEventData);
-            }
-          }
-
-          toast({
-            title: t("common.success"),
-            description: t("events.eventUpdated")
-          });
-
-          await sendEmailToAllPersons({
-            ...eventData,
-            id: actualEventId
-          }, additionalPersons);
+          toast({ title: t("common.success"), description: t("events.eventUpdated") });
+          onEventUpdated?.();
         }
+
+        resetForm();
+        onOpenChange(false);
+        setEditChoice(null);
+        setIsLoading(false);
+        return;
+      }
+
+      // Non-recurring edit (simple single-row update)
+      const actualEventId = eventId || initialData?.id;
+      const { error: singleErr } = await supabase.rpc('save_event_with_persons', {
+        p_event_data: eventData,
+        p_additional_persons: additionalPersons,
+        p_user_id: effectiveUserId,
+        p_event_id: actualEventId,
+        p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+        p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+        p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+        p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+      });
+      if (singleErr) throw singleErr;
+
+      if (files.length && actualEventId) {
+        await uploadFiles(actualEventId);
+        setFiles([]);
+        await loadExistingFiles(actualEventId);
+      }
+
+      toast({ title: t("common.success"), description: t("events.eventUpdated") });
+      onEventUpdated?.();
+      resetForm();
+      onOpenChange(false);
+      setEditChoice(null);
+      setIsLoading(false);
+      return;
 
         onEventUpdated?.();
       } else {
@@ -1205,43 +1160,62 @@ export const EventDialog = ({
     if (!eventId && !initialData?.id) return;
     setIsLoading(true);
     try {
+      const effectiveUserId = getEffectiveUserId();
+
+      // booking_request special-case stays as-is
       if (initialData?.type === 'booking_request' || initialData?.booking_request_id) {
-        await deleteCalendarEvent(initialData.id, initialData.type === 'booking_request' ? 'booking_request' : 'event', user?.id || '');
+        await deleteCalendarEvent(
+          initialData.id,
+          initialData.type === 'booking_request' ? 'booking_request' : 'event',
+          user?.id || ''
+        );
+      } else if (isRecurringEvent) {
+        // Single-instance delete for recurring series -> insert exclusion marker
+        const parentId = resolveSeriesRootId();
+        const instanceIsoStart = localDateTimeInputToISOString(startDate);
+        const instanceIsoEnd = localDateTimeInputToISOString(endDate);
+
+        const { error: exErr } = await supabase
+          .from('events')
+          .insert({
+            title: currentEventData?.title || title || 'Excluded instance',
+            user_surname: currentEventData?.user_surname || userSurname || null,
+            user_number: currentEventData?.user_number || userNumber || null,
+            social_network_link: currentEventData?.social_network_link || socialNetworkLink || null,
+            event_notes: currentEventData?.event_notes || eventNotes || null,
+            event_name: currentEventData?.event_name || eventName || null,
+            start_date: instanceIsoStart,
+            end_date: instanceIsoEnd,
+            user_id: effectiveUserId,
+            parent_event_id: parentId,
+            excluded_from_series: true,
+            created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+            created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+            last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
+            last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+          });
+        if (exErr) throw exErr;
       } else {
+        // Non-recurring: soft-delete the single row
         const { error } = await supabase
           .from('events')
-          .update({
-            deleted_at: new Date().toISOString()
-          })
+          .update({ deleted_at: new Date().toISOString() })
           .eq('id', eventId || initialData?.id);
-
         if (error) throw error;
-
-        clearCalendarCache();
-        window.dispatchEvent(new CustomEvent('calendar-event-deleted', {
-          detail: { timestamp: Date.now() }
-        }));
-        localStorage.setItem('calendar_event_deleted', JSON.stringify({
-          timestamp: Date.now()
-        }));
-        setTimeout(() => localStorage.removeItem('calendar_event_deleted'), 2000);
       }
 
-      toast({
-        title: t("common.success"),
-        description: t("events.eventDeleted")
-      });
+      clearCalendarCache();
+      window.dispatchEvent(new CustomEvent('calendar-event-deleted', { detail: { timestamp: Date.now() } }));
+      localStorage.setItem('calendar_event_deleted', JSON.stringify({ timestamp: Date.now() }));
+      setTimeout(() => localStorage.removeItem('calendar_event_deleted'), 2000);
 
+      toast({ title: t("common.success"), description: t("events.eventDeleted") });
       onEventDeleted?.();
       setShowDeleteDialog(false);
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error deleting event:', error);
-      toast({
-        title: t("common.error"),
-        description: error.message || "Failed to delete event",
-        variant: "destructive"
-      });
+      toast({ title: t("common.error"), description: error.message || "Failed to delete event", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }

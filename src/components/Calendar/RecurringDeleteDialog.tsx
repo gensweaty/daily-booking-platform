@@ -1,7 +1,9 @@
 
 import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogFooter, AlertDialogCancel, AlertDialogAction
+} from "@/components/ui/alert-dialog";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface RecurringDeleteDialogProps {
@@ -26,76 +28,35 @@ export const RecurringDeleteDialog = ({
   if (!isRecurringEvent) {
     // For single events, show simple confirmation
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("events.deleteEventConfirmTitle")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {t("events.deleteEventConfirmMessage")}
-            </p>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isLoading}
-              >
-                {t("common.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={onDeleteThis}
-                disabled={isLoading}
-              >
-                {isLoading ? t("common.loading") : t("events.deleteEvent")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("events.deleteEventConfirmTitle")}</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isLoading}>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction disabled={isLoading} onClick={onDeleteThis} className="bg-destructive hover:bg-destructive/90">
+              {isLoading ? t("common.loading") : t("events.deleteEvent")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     );
   }
 
   // For recurring events, show series/single choice
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("recurring.deleteEventTitle")}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            {t("recurring.deleteEventBody")}
-          </p>
-          <div className="flex flex-col gap-2">
-            <Button
-              variant="outline"
-              onClick={onDeleteThis}
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? t("common.loading") : t("recurring.deleteOnlyThis")}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={onDeleteSeries}
-              className="w-full"
-              disabled={isLoading}
-            >
-              {isLoading ? t("common.loading") : t("recurring.deleteWholeSeries")}
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-              className="w-full"
-              disabled={isLoading}
-            >
-              {t("common.cancel")}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete which events?</AlertDialogTitle>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+          <AlertDialogAction disabled={isLoading} onClick={onDeleteThis}>Only this event</AlertDialogAction>
+          <AlertDialogAction disabled={isLoading} onClick={onDeleteSeries} className="bg-destructive hover:bg-destructive/90">Entire series</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };
