@@ -165,7 +165,9 @@ export const MessageList = ({
         let public_url = a.public_url ?? a.preview_url ?? null;
 
         if (!public_url && file_path) {
-          const { data } = supabase.storage.from('chat_attachments').getPublicUrl(file_path);
+          // Normalize file path before calling getPublicUrl
+          const pathOnly = file_path.replace(/^chat_attachments\//, '');
+          const { data } = supabase.storage.from('chat_attachments').getPublicUrl(pathOnly);
           public_url = data?.publicUrl || null;
         }
 

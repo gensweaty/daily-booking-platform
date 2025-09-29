@@ -286,8 +286,23 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         return;
       }
 
-      // DM: Use direct participant resolution for both internal and public boards
-      console.log('🔍 Resolving DM header for channel:', activeChannelId, 'me:', { type: me?.type, id: me?.id, isPublic });
+      // DM: Use different paths for public vs internal boards
+      if (isPublic) {
+        const { data: pub } = await supabase.rpc('get_channel_header_public', {
+          p_channel_id: activeChannelId,
+          p_owner_id: boardOwnerId,
+          p_requester_email: effectiveEmail || ''
+        });
+        const row = pub?.[0];
+        const info = row
+          ? { name: row.partner_name || t('chat.directMessage'),
+              isDM: true,
+              dmPartner: { name: row.partner_name, avatar: row.partner_avatar_url } }
+          : { name: t('chat.directMessage'), isDM: true };
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
       
       const { data: parts } = await supabase
         .from('chat_participants')
@@ -899,7 +914,9 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     // --- optimistic paint
     const tempId = `temp_${Date.now()}`;
     const optimisticAtts = attachments.map((a: any) => {
-      const { data } = supabase.storage.from('chat_attachments').getPublicUrl(a.file_path);
+      // Normalize file path before calling getPublicUrl
+      const pathOnly = a.file_path.replace(/^chat_attachments\//, '');
+      const { data } = supabase.storage.from('chat_attachments').getPublicUrl(pathOnly);
       return {
         id: `tmp_${Math.random().toString(36).slice(2)}`,
         filename: a.filename,

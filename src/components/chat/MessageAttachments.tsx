@@ -23,8 +23,13 @@ const iconFor = (ct?: string, name?: string) => {
   return <FileIcon className="h-4 w-4" />;
 };
 
-const publicUrlFor = (a: Att) =>
-  a.public_url ?? supabase.storage.from('chat_attachments').getPublicUrl(a.file_path).data.publicUrl;
+const publicUrlFor = (a: Att) => {
+  if (a.public_url) return a.public_url;
+  // Normalize file path to avoid doubled chat_attachments/ prefix
+  const pathOnly = a.file_path.replace(/^chat_attachments\//, '');
+  const { data } = supabase.storage.from('chat_attachments').getPublicUrl(pathOnly);
+  return data.publicUrl;
+};
 
 // robust "Open in new tab" using a clickable anchor (avoids blocked window.open)
 const openBlobInNewTab = (blob: Blob) => {

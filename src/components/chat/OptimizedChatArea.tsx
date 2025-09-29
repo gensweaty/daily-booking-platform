@@ -241,7 +241,24 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         return;
       }
 
-      // DM resolution logic
+      // DM resolution logic - use different paths for public vs internal
+      if (isPublic) {
+        const { data: pub } = await supabase.rpc('get_channel_header_public', {
+          p_channel_id: activeChannelId,
+          p_owner_id: boardOwnerId,
+          p_requester_email: effectiveEmail || ''
+        });
+        const row = pub?.[0];
+        const info = row
+          ? { name: row.partner_name || t('chat.directMessage'),
+              isDM: true,
+              dmPartner: { name: row.partner_name, avatar: row.partner_avatar_url } }
+          : { name: t('chat.directMessage'), isDM: true };
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
+      
       const { data: parts } = await supabase
         .from('chat_participants')
         .select('user_type, user_id, sub_user_id')
