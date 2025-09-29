@@ -68,6 +68,29 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const effectiveEmail = (getEffectivePublicEmail(location.pathname, me?.email) ?? storedEmail ?? me?.email ?? '').trim() || undefined;
 
   const isPublic = location.pathname.startsWith('/board/');
+  
+  // Resolve sub_user id once on public board (stable identity)
+  const [publicSubUserId, setPublicSubUserId] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      if (!isPublic || !boardOwnerId || !effectiveEmail) { 
+        setPublicSubUserId(null); 
+        return; 
+      }
+      console.log('🔍 Resolving public sub-user ID for email:', effectiveEmail);
+      const { data, error } = await supabase
+        .from('sub_users').select('id')
+        .eq('board_owner_id', boardOwnerId)
+        .ilike('email', effectiveEmail)   // case-insensitive
+        .maybeSingle();
+      if (error) {
+        console.error('❌ Failed to resolve public sub-user ID:', error);
+      } else {
+        console.log('✅ Resolved public sub-user ID:', data?.id);
+      }
+      setPublicSubUserId(data?.id ?? null);
+    })();
+  }, [isPublic, boardOwnerId, effectiveEmail]);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -393,18 +416,17 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         let rows: any[] = [];
 
         if (onPublicBoard && me?.type === 'sub_user') {
-          if (!effectiveEmail) {
-            // Don't call the RPC with a null text param; show a clearer message & bail
+          if (!publicSubUserId) {
+            // Don't call the RPC without valid identity; show a clearer message & bail
             setLoading(false);
-            console.error('[chat] Missing requester email on public board – cannot read messages.');
+            console.error('[chat] Missing valid sub_user identity on public board – cannot read messages.');
             return;
           }
-          // Keep your RLS-safe RPC for public boards
-          const result = await supabase.rpc('list_channel_messages_public', {
+          // Use the new v2 RPC with stable identity
+          const result = await supabase.rpc('list_channel_messages_public_v2', {
             p_owner_id: boardOwnerId,
             p_channel_id: activeChannelId,
-            p_requester_type: 'sub_user',
-            p_requester_email: effectiveEmail,
+            p_requester_sub_user_id: publicSubUserId,
           });
           if (result.error) throw result.error;
 
@@ -517,7 +539,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
     loadMessages();
     return () => { active = false; };
-  }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname, effectiveEmail, t, toast, generalIdLoading]);
+  }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname, effectiveEmail, publicSubUserId, t, toast, generalIdLoading]);
 
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); setLoading(true); return; }
@@ -564,15 +586,14 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
         const pollPromise = (async () => {
           if (onPublicBoard && me?.type === 'sub_user') {
-            if (!effectiveEmail) {
+            if (!publicSubUserId) {
               // no identity – skip this poll tick
               return { data: [] };
             }
-            return await supabase.rpc('list_channel_messages_public', {
+            return await supabase.rpc('list_channel_messages_public_v2', {
               p_owner_id: boardOwnerId,
               p_channel_id: activeChannelId,
-              p_requester_type: 'sub_user',
-              p_requester_email: effectiveEmail,
+              p_requester_sub_user_id: publicSubUserId,
             });
           } else {
             return await supabase.rpc('get_chat_messages_for_channel', {
@@ -632,7 +653,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       clearInterval(id); 
       console.log('🛑 Stopped enhanced polling for channel:', activeChannelId);
     };
-  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled, effectiveEmail]);
+  }, [activeChannelId, boardOwnerId, me?.email, me?.id, location.pathname, realtimeEnabled, effectiveEmail, publicSubUserId]);
 
   useEffect(() => {
     const handleMessage = async (event: CustomEvent) => {

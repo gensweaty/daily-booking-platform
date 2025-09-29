@@ -62,6 +62,23 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   // Compute effective email using the same logic as ChatSidebar
   const effectiveEmail = getEffectivePublicEmail(location.pathname, me?.email);
   const isPublic = location.pathname.startsWith('/board/');
+  
+  // Resolve sub_user id once on public board (stable identity)
+  const [publicSubUserId, setPublicSubUserId] = useState<string | null>(null);
+  useEffect(() => {
+    (async () => {
+      if (!isPublic || !boardOwnerId || !effectiveEmail) { 
+        setPublicSubUserId(null); 
+        return; 
+      }
+      const { data, error } = await supabase
+        .from('sub_users').select('id')
+        .eq('board_owner_id', boardOwnerId)
+        .ilike('email', effectiveEmail)   // case-insensitive
+        .maybeSingle();
+      setPublicSubUserId(data?.id ?? null);
+    })();
+  }, [isPublic, boardOwnerId, effectiveEmail]);
 
   // State management
   const [messages, setMessages] = useState<Message[]>([]);
@@ -300,12 +317,15 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       let data, error;
       
       if (onPublicBoard && me?.type === 'sub_user') {
-        // Use existing function but limit results
-        const result = await supabase.rpc('list_channel_messages_public', {
+        if (!publicSubUserId) {
+          console.error('[chat] Missing valid sub_user identity on public board – cannot read messages.');
+          return;
+        }
+        // Use the new v2 RPC with stable identity
+        const result = await supabase.rpc('list_channel_messages_public_v2', {
           p_owner_id: boardOwnerId,
           p_channel_id: channelId,
-          p_requester_type: 'sub_user',
-          p_requester_email: effectiveEmail!,
+          p_requester_sub_user_id: publicSubUserId,
         });
         data = result.data;
         error = result.error;
@@ -443,7 +463,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       console.error('Error loading messages:', error);
       setHasMoreMessages(false);
     }
-  }, [me, boardOwnerId, isInitialized, location.pathname, effectiveEmail]);
+  }, [me, boardOwnerId, isInitialized, location.pathname, effectiveEmail, publicSubUserId]);
 
   // Initial message loading
   useEffect(() => {

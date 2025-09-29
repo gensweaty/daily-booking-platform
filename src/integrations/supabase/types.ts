@@ -444,6 +444,7 @@ export type Database = {
           id: string
           joined_at: string | null
           last_read_at: string
+          participant_key: string | null
           sub_user_id: string | null
           user_id: string | null
           user_type: string
@@ -453,6 +454,7 @@ export type Database = {
           id?: string
           joined_at?: string | null
           last_read_at?: string
+          participant_key?: string | null
           sub_user_id?: string | null
           user_id?: string | null
           user_type: string
@@ -462,6 +464,7 @@ export type Database = {
           id?: string
           joined_at?: string | null
           last_read_at?: string
+          participant_key?: string | null
           sub_user_id?: string | null
           user_id?: string | null
           user_type?: string
@@ -1798,7 +1801,7 @@ export type Database = {
           p_a_type: string
           p_b_id: string
           p_b_type: string
-          p_board_owner_id: string
+          p_owner_id: string
         }
         Returns: string
       }
@@ -2162,6 +2165,31 @@ export type Database = {
           sender_type: string
           sender_user_id: string | null
           updated_at: string | null
+        }[]
+      }
+      list_channel_messages_public_v2: {
+        Args: {
+          p_channel_id: string
+          p_owner_id: string
+          p_requester_email?: string
+          p_requester_sub_user_id?: string
+        }
+        Returns: {
+          channel_id: string
+          content: string
+          created_at: string
+          edited_at: string
+          has_attachments: boolean
+          id: string
+          is_deleted: boolean
+          message_type: string
+          original_content: string
+          sender_avatar_url: string
+          sender_name: string
+          sender_sub_user_id: string
+          sender_type: string
+          sender_user_id: string
+          updated_at: string
         }[]
       }
       list_channels_for_sub_user_public: {
