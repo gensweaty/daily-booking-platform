@@ -347,13 +347,18 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       
       if (onPublicBoard && me?.type === 'sub_user') {
         if (!publicSubUserId) {
-          const errorMsg = identityError || '[chat] Missing valid sub_user identity on public board – cannot read messages.';
-          console.error(errorMsg);
-          toast({ 
-            title: "Chat Error", 
-            description: identityError || "Unable to load chat messages. Please check your access.", 
-            variant: "destructive" 
-          });
+          // Only show error if we've tried to resolve identity and failed, not during initial loading
+          if (identityError) {
+            console.error('[chat] Failed to resolve sub_user identity:', identityError);
+            toast({ 
+              title: "Chat Error", 
+              description: identityError, 
+              variant: "destructive" 
+            });
+          } else {
+            // Still resolving identity, don't show error yet
+            console.log('[chat] Waiting for sub_user identity resolution...');
+          }
           return;
         }
         // Use the new v2 RPC with stable identity
