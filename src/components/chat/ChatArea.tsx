@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { MessageCircle, Users } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -59,13 +59,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const { t } = useLanguage();
   const location = useLocation();
 
-  // Bulletproof: fall back to stored public-board identity if me.email is absent
-  const slug = useMemo(() => location.pathname.split('/').pop() || '', [location.pathname]);
-  const storedEmail = useMemo(() => {
-    try { return JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}')?.email || null; }
-    catch { return null; }
-  }, [slug]);
-  const effectiveEmail = (getEffectivePublicEmail(location.pathname, me?.email) ?? storedEmail ?? me?.email ?? '').trim() || undefined;
+  // Compute effective email using the same logic as ChatSidebar
+  const effectiveEmail = getEffectivePublicEmail(location.pathname, me?.email);
 
   const isPublic = location.pathname.startsWith('/board/');
 
@@ -393,18 +388,12 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         let rows: any[] = [];
 
         if (onPublicBoard && me?.type === 'sub_user') {
-          if (!effectiveEmail) {
-            // Don't call the RPC with a null text param; show a clearer message & bail
-            setLoading(false);
-            console.error('[chat] Missing requester email on public board – cannot read messages.');
-            return;
-          }
           // Keep your RLS-safe RPC for public boards
           const result = await supabase.rpc('list_channel_messages_public', {
             p_owner_id: boardOwnerId,
             p_channel_id: activeChannelId,
             p_requester_type: 'sub_user',
-            p_requester_email: effectiveEmail,
+            p_requester_email: effectiveEmail!,
           });
           if (result.error) throw result.error;
 
