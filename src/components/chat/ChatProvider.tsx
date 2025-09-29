@@ -1071,13 +1071,36 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
-      console.log('🔍 Using canonical find_or_create_dm RPC for:', { me, otherId, otherType });
+      console.log('🔍 Starting DM for:', { 
+        meType: me.type, 
+        meId: me.id, 
+        otherId, 
+        otherType, 
+        boardOwnerId 
+      });
 
-      // Single canonical path for both dashboard and public boards
+      // For sub-users on public boards, resolve the actual UUID if ID is email-based
+      let resolvedMyId = me.id;
+      if (me.type === 'sub_user' && isOnPublicBoard && me.email && me.id?.includes('@')) {
+        console.log('🔍 Resolving sub-user UUID for DM creation:', me.email);
+        const { data: subUser } = await supabase
+          .from('sub_users')
+          .select('id')
+          .eq('board_owner_id', boardOwnerId)
+          .eq('email', me.email)
+          .maybeSingle();
+        
+        if (subUser?.id) {
+          resolvedMyId = subUser.id;
+          console.log('✅ Resolved sub-user UUID for DM:', resolvedMyId);
+        }
+      }
+
+      // Use the canonical find_or_create_dm RPC with resolved IDs
       const { data: channelId, error } = await supabase.rpc('find_or_create_dm', {
         p_owner_id: boardOwnerId,
         p_a_type: me.type,
-        p_a_id: me.id,
+        p_a_id: resolvedMyId,
         p_b_type: otherType,
         p_b_id: otherId
       });
@@ -1092,7 +1115,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
-      console.log('✅ Canonical DM channel created/found:', channelId);
+      console.log('✅ DM channel created/found:', channelId);
       
       setCurrentChannelId(channelId as string);
       setIsOpen(true);
@@ -1106,7 +1129,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           await supabase.rpc('mark_channel_read', {
             p_owner_id: boardOwnerId,
             p_viewer_type: me.type,
-            p_viewer_id: me.id,
+            p_viewer_id: resolvedMyId,
             p_channel_id: channelId as string,
           });
           clearChannel(channelId as string);
@@ -1126,9 +1149,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         description: error.message || 'Failed to start direct message',
         variant: 'destructive',
       });
-      // Error occurred, but no additional cleanup needed for suppression system
     }
-  }, [boardOwnerId, me, toast, clearChannel, clearPeer, refreshUnread, suppressChannelBadge]);
+  }, [boardOwnerId, me, toast, clearChannel, clearPeer, refreshUnread, suppressChannelBadge, isOnPublicBoard]);
 
   // Create an immutable snapshot to ensure consumers re-render on bumps
   const channelUnreadsSnapshot = useMemo(

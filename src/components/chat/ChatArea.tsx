@@ -188,15 +188,32 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
   // Load the General channel id (so General can never show a person's name)
   useEffect(() => {
-    if (!boardOwnerId) { setGeneralId(null); return; }
+    if (!boardOwnerId) { 
+      setGeneralId(null); 
+      setGeneralIdLoading(false);
+      return; 
+    }
+    
+    setGeneralIdLoading(true);
     (async () => {
       try {
         const { data, error } = await supabase.rpc('get_default_channel_for_board', {
           p_board_owner_id: boardOwnerId
         });
-        if (error) { setGeneralId(null); return; }
-        setGeneralId(data?.[0]?.id ?? null);
-      } catch { setGeneralId(null); }
+        if (error) { 
+          console.error('❌ Error loading General channel:', error);
+          setGeneralId(null); 
+        } else {
+          const generalChannelId = data?.[0]?.id ?? null;
+          console.log('✅ General channel loaded:', generalChannelId);
+          setGeneralId(generalChannelId);
+        }
+      } catch (error) { 
+        console.error('❌ Error in General channel loading:', error);
+        setGeneralId(null); 
+      } finally {
+        setGeneralIdLoading(false);
+      }
     })();
   }, [boardOwnerId, location.pathname]);
 
@@ -344,7 +361,16 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     let active = true;
 
     const loadMessages = async () => {
-      if (!activeChannelId || !me || !boardOwnerId || !isInitialized) return;
+      if (!activeChannelId || !me || !boardOwnerId || !isInitialized || generalIdLoading) {
+        console.log('⏳ Waiting for initialization:', { 
+          activeChannelId: !!activeChannelId,
+          me: !!me,
+          boardOwnerId: !!boardOwnerId,
+          isInitialized,
+          generalIdLoading
+        });
+        return;
+      }
 
       // Check cache first
       const cached = cacheRef.current.get(activeChannelId);
@@ -481,7 +507,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
     loadMessages();
     return () => { active = false; };
-  }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname, effectiveEmail, t, toast]);
+  }, [activeChannelId, boardOwnerId, me?.id, me?.email, isInitialized, location.pathname, effectiveEmail, t, toast, generalIdLoading]);
 
   useEffect(() => {
     if (!activeChannelId) { setMessages([]); setLoading(true); return; }
