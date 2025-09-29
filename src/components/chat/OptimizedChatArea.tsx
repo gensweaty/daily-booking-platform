@@ -65,10 +65,13 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   
   // Resolve sub_user id once on public board (stable identity)
   const [publicSubUserId, setPublicSubUserId] = useState<string | null>(null);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+  
   useEffect(() => {
     (async () => {
       if (!isPublic || !boardOwnerId || !effectiveEmail) { 
         setPublicSubUserId(null); 
+        setIdentityError(null);
         return; 
       }
       const { data, error } = await supabase
@@ -76,6 +79,15 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         .eq('board_owner_id', boardOwnerId)
         .ilike('email', effectiveEmail)   // case-insensitive
         .maybeSingle();
+      if (error) {
+        console.error('❌ Failed to resolve public sub-user ID:', error);
+        setIdentityError('Failed to resolve user identity');
+      } else if (!data?.id) {
+        console.warn('⚠️ No sub-user found for email:', effectiveEmail);
+        setIdentityError('User not found in this board');
+      } else {
+        setIdentityError(null);
+      }
       setPublicSubUserId(data?.id ?? null);
     })();
   }, [isPublic, boardOwnerId, effectiveEmail]);
@@ -335,7 +347,13 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       
       if (onPublicBoard && me?.type === 'sub_user') {
         if (!publicSubUserId) {
-          console.error('[chat] Missing valid sub_user identity on public board – cannot read messages.');
+          const errorMsg = identityError || '[chat] Missing valid sub_user identity on public board – cannot read messages.';
+          console.error(errorMsg);
+          toast({ 
+            title: "Chat Error", 
+            description: identityError || "Unable to load chat messages. Please check your access.", 
+            variant: "destructive" 
+          });
           return;
         }
         // Use the new v2 RPC with stable identity

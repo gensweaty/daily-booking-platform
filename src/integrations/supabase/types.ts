@@ -1893,8 +1893,6 @@ export type Database = {
           p_requester_email: string
         }
         Returns: {
-          is_dm: boolean
-          name: string
           partner_avatar_url: string
           partner_name: string
         }[]

@@ -71,10 +71,13 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   
   // Resolve sub_user id once on public board (stable identity)
   const [publicSubUserId, setPublicSubUserId] = useState<string | null>(null);
+  const [identityError, setIdentityError] = useState<string | null>(null);
+  
   useEffect(() => {
     (async () => {
       if (!isPublic || !boardOwnerId || !effectiveEmail) { 
         setPublicSubUserId(null); 
+        setIdentityError(null);
         return; 
       }
       console.log('🔍 Resolving public sub-user ID for email:', effectiveEmail);
@@ -85,8 +88,13 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         .maybeSingle();
       if (error) {
         console.error('❌ Failed to resolve public sub-user ID:', error);
+        setIdentityError('Failed to resolve user identity');
+      } else if (!data?.id) {
+        console.warn('⚠️ No sub-user found for email:', effectiveEmail);
+        setIdentityError('User not found in this board');
       } else {
-        console.log('✅ Resolved public sub-user ID:', data?.id);
+        console.log('✅ Resolved public sub-user ID:', data.id);
+        setIdentityError(null);
       }
       setPublicSubUserId(data?.id ?? null);
     })();
@@ -434,7 +442,13 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           if (!publicSubUserId) {
             // Don't call the RPC without valid identity; show a clearer message & bail
             setLoading(false);
-            console.error('[chat] Missing valid sub_user identity on public board – cannot read messages.');
+            const errorMsg = identityError || '[chat] Missing valid sub_user identity on public board – cannot read messages.';
+            console.error(errorMsg);
+            toast({ 
+              title: "Chat Error", 
+              description: identityError || "Unable to load chat messages. Please check your access.", 
+              variant: "destructive" 
+            });
             return;
           }
           // Use the new v2 RPC with stable identity
