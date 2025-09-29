@@ -361,13 +361,12 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     let active = true;
 
     const loadMessages = async () => {
-      if (!activeChannelId || !me || !boardOwnerId || !isInitialized || generalIdLoading) {
+      if (!activeChannelId || !me || !boardOwnerId || !isInitialized) {
         console.log('⏳ Waiting for initialization:', { 
           activeChannelId: !!activeChannelId,
           me: !!me,
           boardOwnerId: !!boardOwnerId,
-          isInitialized,
-          generalIdLoading
+          isInitialized
         });
         return;
       }
