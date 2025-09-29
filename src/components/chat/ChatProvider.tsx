@@ -154,9 +154,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       root.style.left = '0';
       root.style.width = '100%';
       root.style.height = '100%';
-      // Only set pointer-events none when no interactive content is present
+      // Keep chat above app content but ALWAYS below any modal/alert dialogs.
+      // Radix/shadcn dialogs default around z-50; we choose 40 so dialogs win.
       root.style.pointerEvents = 'none';
-      root.style.zIndex = '9998';
+      root.style.zIndex = '40';
       root.className = 'chat-portal-root';
       document.body.appendChild(root);
     }
