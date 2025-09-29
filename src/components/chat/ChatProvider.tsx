@@ -154,8 +154,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       root.style.left = '0';
       root.style.width = '100%';
       root.style.height = '100%';
+      // Only set pointer-events none when no interactive content is present
       root.style.pointerEvents = 'none';
       root.style.zIndex = '9998';
+      root.className = 'chat-portal-root';
       document.body.appendChild(root);
     }
     return root;

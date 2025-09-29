@@ -521,3 +521,21 @@
   letter-spacing: -0.2px !important;
   font-weight: inherit !important;
 }
+
+/* Fix for chat portal root blocking modal interactions */
+.chat-portal-root {
+  pointer-events: none !important;
+}
+
+/* Ensure chat portal children can receive pointer events when needed */
+.chat-portal-root > * {
+  pointer-events: auto !important;
+}
+
+/* Ensure dialogs and modals are always interactive */
+[role="dialog"],
+[role="alertdialog"],
+.dialog-content,
+.alert-dialog-content {
+  pointer-events: auto !important;
+}
