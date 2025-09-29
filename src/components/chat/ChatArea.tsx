@@ -564,11 +564,15 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
         const pollPromise = (async () => {
           if (onPublicBoard && me?.type === 'sub_user') {
+            if (!effectiveEmail) {
+              // no identity – skip this poll tick
+              return { data: [] };
+            }
             return await supabase.rpc('list_channel_messages_public', {
               p_owner_id: boardOwnerId,
               p_channel_id: activeChannelId,
               p_requester_type: 'sub_user',
-              p_requester_email: effectiveEmail!,
+              p_requester_email: effectiveEmail,
             });
           } else {
             return await supabase.rpc('get_chat_messages_for_channel', {
