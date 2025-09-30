@@ -28,7 +28,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { applyFilters, filters } = useTaskFilters(); // Must be called at top before any returns
+  const { applyFilters, filters, filterKey } = useTaskFilters(); // Must be called at top before any returns
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -171,11 +171,12 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   });
 
   // Apply filters to tasks - MUST be before any early returns to follow hooks rules
-  // Depend on filters properties directly to ensure re-renders on filter changes
+  // Use filterKey to ensure re-computation when filters change
   const filteredTasks = useMemo(() => {
+    console.log('🔄 TaskList: Recomputing filtered tasks');
     const nonArchived = tasks.filter((task: Task) => !task.archived);
     return applyFilters(nonArchived);
-  }, [tasks, filters.sortOrder, filters.filterType, filters.selectedUserId, filters.selectedUserType, filters.selectedUserName, applyFilters]);
+  }, [tasks, filterKey, applyFilters]);
   
   const columns = useMemo(() => ({
     todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
