@@ -36,7 +36,8 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
   };
 
   return (
-    <div className="flex -space-x-2">
+    <div className="flex items-center min-w-0">
+      <div className="flex items-center -space-x-2 max-w-[180px] sm:max-w-[220px]">
       <TooltipProvider delayDuration={300}>
         {visible.map((u, idx) => {
           // Prefer a human-friendly name; fallback to email prefix
@@ -64,23 +65,18 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
                   onClick={() => handleMobileClick(label)}
                 >
                   <Avatar
-                    className="bg-muted text-muted-foreground border-2 border-background"
-                    style={{
-                      width: size,
-                      height: size,
-                      boxShadow: ring ? "0 0 0 1px var(--border)" : undefined,
-                    }}
+                    className="h-6 w-6 sm:h-7 sm:w-7 ring-1 sm:ring-2 ring-offset-1 sm:ring-offset-2 ring-offset-background transition-all duration-200 hover:scale-110 shadow-sm flex-shrink-0 bg-card text-foreground/80 ring-muted hover:ring-primary"
+                    title={label}
+                    aria-label={label}
                   >
-                    <AvatarImage src={u?.avatar_url || undefined} alt={label} />
-                    <AvatarFallback className="text-xs font-medium">{initials}</AvatarFallback>
+                    <AvatarImage src={u?.avatar_url || undefined} alt={label} className="object-cover" />
+                    <AvatarFallback className="text-[10px] sm:text-xs font-medium">{initials}</AvatarFallback>
                   </Avatar>
                 </div>
               </TooltipTrigger>
               <TooltipContent 
-                side="top" 
-                className="text-sm font-medium bg-popover text-popover-foreground border shadow-lg px-2 py-1 z-50"
-                sideOffset={8}
-                collisionPadding={4}
+                side="bottom" 
+                className="px-2 py-1 text-xs"
               >
                 <span>{label}</span>
               </TooltipContent>
@@ -97,17 +93,14 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
           onClick={() => handleMobileClick(`${remainder} more users`)}
         >
           <Avatar
-            className="bg-muted text-muted-foreground border-2 border-background"
-            style={{
-              width: size,
-              height: size,
-              boxShadow: ring ? "0 0 0 1px var(--border)" : undefined,
-            }}
+            className="h-6 w-6 sm:h-7 sm:w-7 ring-1 sm:ring-2 ring-offset-1 sm:ring-offset-2 ring-offset-background transition-all duration-200 hover:scale-110 shadow-sm flex-shrink-0 bg-card text-foreground/80 ring-muted hover:ring-primary"
+            aria-label={`${remainder} more users`}
           >
-            <AvatarFallback className="text-xs font-medium">+{remainder}</AvatarFallback>
+            <AvatarFallback className="text-[10px] sm:text-xs font-medium">+{remainder}</AvatarFallback>
           </Avatar>
         </div>
       )}
+      </div>
     </div>
   );
 };

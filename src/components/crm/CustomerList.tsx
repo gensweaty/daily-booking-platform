@@ -548,7 +548,7 @@ export const CustomerList = ({
 
             {/* Presence circles inside content area */}
             <div className="shrink-0 mt-1 sm:mt-0">
-              <PresenceCircles users={onlineUsers ?? []} max={5} size={24} />
+              <PresenceCircles users={onlineUsers ?? []} max={5} />
             </div>
           </div>
           <div className="w-full md:w-auto md:min-w-[200px]">
