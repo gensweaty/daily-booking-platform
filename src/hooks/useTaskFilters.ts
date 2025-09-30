@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Task } from '@/lib/types';
 import { AssigneeOption } from './useTaskAssignment';
 
@@ -59,18 +59,20 @@ export const useTaskFilters = () => {
     });
   };
 
-  const applyFilters = (tasks: Task[]): Task[] => {
+  // Wrap applyFilters in useCallback to make it stable across renders
+  const applyFilters = useCallback((tasks: Task[]): Task[] => {
     let filtered = [...tasks];
 
     // Apply user filter (assigned or created by)
     if (filters.filterType === 'assigned' && filters.selectedUserId) {
+      // Filter by who the task is assigned to
       filtered = filtered.filter(task => {
         return task.assigned_to_type === filters.selectedUserType && 
                task.assigned_to_id === filters.selectedUserId;
       });
     } else if (filters.filterType === 'created' && filters.selectedUserId) {
+      // Filter by who created the task
       filtered = filtered.filter(task => {
-        // For created by, match both type and name
         return task.created_by_type === filters.selectedUserType && 
                task.created_by_name === filters.selectedUserId;
       });
@@ -86,7 +88,7 @@ export const useTaskFilters = () => {
     });
 
     return filtered;
-  };
+  }, [filters.filterType, filters.selectedUserId, filters.selectedUserType, filters.sortOrder]);
 
   return {
     filters,
@@ -94,7 +96,5 @@ export const useTaskFilters = () => {
     setFilterType,
     resetFilters,
     applyFilters,
-    // Return a key that changes when filters change to trigger re-renders
-    filterKey: JSON.stringify(filters),
   };
 };

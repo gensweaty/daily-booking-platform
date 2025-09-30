@@ -29,7 +29,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
-  const { applyFilters, filterKey } = useTaskFilters(); // Must be called at top before any returns
+  const { applyFilters, filters } = useTaskFilters(); // Must be called at top before any returns
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -58,7 +58,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   // Apply filters to tasks - MUST be before any early returns to follow hooks rules
   const filteredTasks = useMemo(() => {
     return applyFilters(tasks);
-  }, [tasks, filterKey, applyFilters]);
+  }, [tasks, applyFilters]);
   
   const columns = useMemo(() => ({
     todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
