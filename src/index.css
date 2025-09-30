@@ -540,20 +540,3 @@
   pointer-events: auto !important;
 }
 
-/* Always render Radix/shadcn dialogs above the chat portal */
-[data-radix-portal] { 
-  position: relative; 
-  z-index: 100 !important; 
-}
-
-.dialog-content,
-.alert-dialog-content,
-[data-role="dialog-content"] { 
-  z-index: 101 !important; 
-}
-
-.dialog-overlay,
-.alert-dialog-overlay,
-[data-role="dialog-overlay"] { 
-  z-index: 100 !important; 
-}
