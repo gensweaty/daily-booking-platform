@@ -6,10 +6,11 @@ import { Loader2 } from "lucide-react";
 interface TaskAssigneeSelectProps {
   value?: string; // Format: "type:id"
   onChange: (value: string) => void;
+  boardOwnerId?: string; // For public boards, pass the board owner's ID
 }
 
-export const TaskAssigneeSelect = ({ value, onChange }: TaskAssigneeSelectProps) => {
-  const { assignees, isLoading } = useTaskAssignment();
+export const TaskAssigneeSelect = ({ value, onChange, boardOwnerId }: TaskAssigneeSelectProps) => {
+  const { assignees, isLoading } = useTaskAssignment(boardOwnerId);
 
   if (isLoading) {
     return (

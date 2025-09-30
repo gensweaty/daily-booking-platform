@@ -292,6 +292,7 @@ export const PublicAddTaskForm = ({
           setStatus={setStatus}
           assignedTo={assignedTo}
           setAssignedTo={setAssignedTo}
+          boardOwnerId={boardUserId}
         />
         <div className={`flex justify-end gap-1 sm:gap-2 ${isMobile ? 'pt-1 border-t border-muted/20 mt-0' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
           <Button type="submit" className="text-xs px-2 py-1 sm:px-3 sm:py-2" disabled={isSubmitting}>

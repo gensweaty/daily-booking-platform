@@ -10,13 +10,16 @@ export interface AssigneeOption {
   email?: string;
 }
 
-export const useTaskAssignment = () => {
+export const useTaskAssignment = (boardOwnerId?: string) => {
   const { user } = useAuth();
 
+  // Use boardOwnerId if provided (for public boards), otherwise use current user's id
+  const effectiveUserId = boardOwnerId || user?.id;
+
   const { data: assignees = [], isLoading } = useQuery({
-    queryKey: ['task-assignees', user?.id],
+    queryKey: ['task-assignees', effectiveUserId],
     queryFn: async () => {
-      if (!user) return [];
+      if (!effectiveUserId) return [];
 
       const options: AssigneeOption[] = [];
 
@@ -24,16 +27,23 @@ export const useTaskAssignment = () => {
       const { data: profile } = await supabase
         .from('profiles')
         .select('username, avatar_url')
-        .eq('id', user.id)
+        .eq('id', effectiveUserId)
         .maybeSingle();
 
       if (profile) {
+        // Get admin email
+        const { data: userData } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', effectiveUserId)
+          .maybeSingle();
+
         options.push({
-          id: user.id,
-          name: profile.username || user.email || 'Admin',
+          id: effectiveUserId,
+          name: profile.username || 'Admin',
           type: 'admin',
           avatar_url: profile.avatar_url || undefined,
-          email: user.email || undefined
+          email: userData ? undefined : undefined
         });
       }
 
@@ -41,7 +51,7 @@ export const useTaskAssignment = () => {
       const { data: subUsers } = await supabase
         .from('sub_users')
         .select('id, fullname, email, avatar_url')
-        .eq('board_owner_id', user.id)
+        .eq('board_owner_id', effectiveUserId)
         .order('fullname');
 
       if (subUsers) {
@@ -58,7 +68,7 @@ export const useTaskAssignment = () => {
 
       return options;
     },
-    enabled: !!user,
+    enabled: !!effectiveUserId,
   });
 
   return { assignees, isLoading };

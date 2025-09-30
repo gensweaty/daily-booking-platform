@@ -35,6 +35,7 @@ interface TaskFormFieldsProps {
   setStatus: (status: Task['status']) => void;
   assignedTo: string;
   setAssignedTo: (value: string) => void;
+  boardOwnerId?: string; // For public boards
 }
 
 export const TaskFormFields = ({
@@ -57,6 +58,7 @@ export const TaskFormFields = ({
   setStatus,
   assignedTo,
   setAssignedTo,
+  boardOwnerId,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -176,7 +178,11 @@ export const TaskFormFields = ({
       <div className={sectionClassName}>
         <div className="space-y-2">
           <label className="text-sm font-medium">Assign</label>
-          <TaskAssigneeSelect value={assignedTo} onChange={setAssignedTo} />
+          <TaskAssigneeSelect 
+            value={assignedTo} 
+            onChange={setAssignedTo}
+            boardOwnerId={boardOwnerId}
+          />
         </div>
       </div>
       
