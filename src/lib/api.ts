@@ -18,7 +18,14 @@ export const createTask = async (task: Omit<Task, 'id' | 'created_at'>) => {
       created_by_type: task.created_by_type,
       last_edited_by_name: task.last_edited_by_name,
       last_edited_by_type: task.last_edited_by_type,
-      last_edited_at: task.last_edited_at
+      last_edited_at: task.last_edited_at,
+      assigned_to_type: task.assigned_to_type,
+      assigned_to_id: task.assigned_to_id,
+      assigned_to_name: task.assigned_to_name,
+      assigned_to_avatar_url: task.assigned_to_avatar_url,
+      assigned_at: task.assigned_at,
+      assigned_by_type: task.assigned_by_type,
+      assigned_by_id: task.assigned_by_id
     }])
     .select()
     .single();
@@ -44,7 +51,14 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
       email_reminder_enabled: updates.email_reminder_enabled || false,
       last_edited_by_name: updates.last_edited_by_name,
       last_edited_by_type: updates.last_edited_by_type,
-      last_edited_at: updates.last_edited_at
+      last_edited_at: updates.last_edited_at,
+      assigned_to_type: updates.assigned_to_type,
+      assigned_to_id: updates.assigned_to_id,
+      assigned_to_name: updates.assigned_to_name,
+      assigned_to_avatar_url: updates.assigned_to_avatar_url,
+      assigned_at: updates.assigned_at,
+      assigned_by_type: updates.assigned_by_type,
+      assigned_by_id: updates.assigned_by_id
     })
     .eq('id', id)
     .select()
