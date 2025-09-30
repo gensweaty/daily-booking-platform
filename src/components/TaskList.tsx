@@ -5,7 +5,7 @@ import { Task } from "@/lib/types";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import AddTaskForm from "./AddTaskForm";
@@ -28,7 +28,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t } = useLanguage();
-  const { applyFilters } = useTaskFilters(); // Must be called at top before any returns
+  const { applyFilters, filterKey } = useTaskFilters(); // Must be called at top before any returns
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -272,7 +272,10 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   }
 
   // Apply filters to tasks (hook is called at top of component)
-  const filteredTasks = applyFilters(tasks.filter((task: Task) => !task.archived));
+  // Use useMemo to recalculate when filters or tasks change
+  const filteredTasks = useMemo(() => {
+    return applyFilters(tasks.filter((task: Task) => !task.archived));
+  }, [tasks, filterKey, applyFilters]);
   
   const columns = {
     todo: filteredTasks.filter((task: Task) => task.status === 'todo'),

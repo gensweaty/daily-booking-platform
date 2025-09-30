@@ -60,57 +60,31 @@ export const useTaskFilters = () => {
   };
 
   const applyFilters = (tasks: Task[]): Task[] => {
-    console.log('[TaskFilters] Applying filters:', filters);
-    console.log('[TaskFilters] Total tasks before filter:', tasks.length);
-    
     let filtered = [...tasks];
 
     // Apply user filter (assigned or created by)
     if (filters.filterType === 'assigned' && filters.selectedUserId) {
-      console.log('[TaskFilters] Filtering by assigned to:', filters.selectedUserId, filters.selectedUserType);
       filtered = filtered.filter(task => {
-        const matches = filters.selectedUserType === 'admin'
-          ? task.assigned_to_type === 'admin' && task.assigned_to_id === filters.selectedUserId
-          : task.assigned_to_type === 'sub_user' && task.assigned_to_id === filters.selectedUserId;
-        
-        if (matches) {
-          console.log('[TaskFilters] Task matched assigned filter:', task.id, task.title);
-        }
-        return matches;
+        return task.assigned_to_type === filters.selectedUserType && 
+               task.assigned_to_id === filters.selectedUserId;
       });
     } else if (filters.filterType === 'created' && filters.selectedUserId) {
-      console.log('[TaskFilters] Filtering by created by:', filters.selectedUserId, filters.selectedUserType);
       filtered = filtered.filter(task => {
-        // Check if task was created by the selected user
-        const createdByType = task.created_by_type;
-        const createdByName = task.created_by_name;
-        
-        console.log('[TaskFilters] Task creator:', task.id, createdByType, createdByName);
-        
-        // Compare by name for both admin and sub_user (since we pass name for created by)
-        const matches = createdByType === filters.selectedUserType && createdByName === filters.selectedUserId;
-        
-        if (matches) {
-          console.log('[TaskFilters] Task matched created filter:', task.id, task.title);
-        }
-        return matches;
+        // For created by, match both type and name
+        return task.created_by_type === filters.selectedUserType && 
+               task.created_by_name === filters.selectedUserId;
       });
     }
 
-    console.log('[TaskFilters] Tasks after filter:', filtered.length);
-
-    // Apply sort order
+    // Apply sort order based on last edited time
     const getSortTime = (t: Task) => new Date(t.last_edited_at || t.updated_at || t.created_at).getTime();
     
-    if (filters.sortOrder === 'newest') {
-      console.log('[TaskFilters] Sorting newest first');
-      filtered.sort((a, b) => getSortTime(b) - getSortTime(a));
-    } else {
-      console.log('[TaskFilters] Sorting oldest first');
-      filtered.sort((a, b) => getSortTime(a) - getSortTime(b));
-    }
+    filtered.sort((a, b) => {
+      return filters.sortOrder === 'newest' 
+        ? getSortTime(b) - getSortTime(a)
+        : getSortTime(a) - getSortTime(b);
+    });
 
-    console.log('[TaskFilters] Final filtered tasks:', filtered.length);
     return filtered;
   };
 
@@ -120,5 +94,7 @@ export const useTaskFilters = () => {
     setFilterType,
     resetFilters,
     applyFilters,
+    // Return a key that changes when filters change to trigger re-renders
+    filterKey: JSON.stringify(filters),
   };
 };

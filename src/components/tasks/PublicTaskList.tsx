@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Task } from "@/lib/types";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/use-toast";
 import { PublicAddTaskForm } from "./PublicAddTaskForm";
@@ -29,7 +29,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
-  const { applyFilters } = useTaskFilters(); // Must be called at top before any returns
+  const { applyFilters, filterKey } = useTaskFilters(); // Must be called at top before any returns
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -269,7 +269,10 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   }
 
   // Apply filters to tasks (hook is called at top of component)
-  const filteredTasks = applyFilters(tasks);
+  // Use useMemo to recalculate when filters or tasks change
+  const filteredTasks = useMemo(() => {
+    return applyFilters(tasks);
+  }, [tasks, filterKey, applyFilters]);
   
   const columns = {
     todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
