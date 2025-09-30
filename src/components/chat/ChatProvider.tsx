@@ -164,6 +164,75 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return root;
   }, []);
 
+  // Sleep chat layer while ANY external dialog (outside the chat portal) is open
+  useEffect(() => {
+    if (!portalRoot) return;
+
+    const root = portalRoot;
+    const SELECTORS = [
+      // Radix/shadcn typical
+      '[role="dialog"][data-state="open"]',
+      '[role="alertdialog"][data-state="open"]',
+      '.dialog-overlay[data-state="open"]',
+      '.dialog-content[data-state="open"]',
+      '.alert-dialog-overlay[data-state="open"]',
+      '.alert-dialog-content[data-state="open"]',
+
+      // fallbacks for non-Radix modals you have around the app
+      '.modal.is-open',
+      '.dialog.is-open',
+      '.alert.is-open',
+    ].join(',');
+
+    const apply = () => {
+      // Is there an open dialog?
+      const open = document.querySelector(SELECTORS) as HTMLElement | null;
+
+      // No dialog? wake chat.
+      if (!open) {
+        root.classList.remove('chat-portal--sleep');
+        root.removeAttribute('inert');
+        root.style.zIndex = '40'; // keep chat above app chrome, below dialogs
+        return;
+      }
+
+      // If the open dialog is INSIDE chat, keep chat active.
+      const insideChat = root.contains(open);
+      if (insideChat) {
+        root.classList.remove('chat-portal--sleep');
+        root.removeAttribute('inert');
+        root.style.zIndex = '40';
+      } else {
+        // External dialog => sleep chat so it can't block or eat clicks
+        root.classList.add('chat-portal--sleep');
+        root.setAttribute('inert', ''); // disables focus/interaction in supporting browsers
+        root.style.zIndex = '0';        // put the chat layer under everything while sleeping
+      }
+    };
+
+    const mo = new MutationObserver(apply);
+    mo.observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['data-state', 'class', 'style', 'open', 'aria-hidden'],
+    });
+
+    // Run once
+    apply();
+
+    // Also guard on focus/visibility changes
+    const onFocusish = () => setTimeout(apply, 0);
+    window.addEventListener('focus', onFocusish);
+    document.addEventListener('visibilitychange', onFocusish);
+
+    return () => {
+      mo.disconnect();
+      window.removeEventListener('focus', onFocusish);
+      document.removeEventListener('visibilitychange', onFocusish);
+    };
+  }, [portalRoot]);
+
   // Determine context variables
   const isOnPublicBoard = location.pathname.startsWith('/board/');
   const isOnDashboard = location.pathname.startsWith('/dashboard'); // Fix: Support all dashboard routes
