@@ -1,4 +1,3 @@
-
 import { Task } from "@/lib/types";
 import { Draggable } from "@hello-pangea/dnd";
 import { Pencil, Trash2, Paperclip, Clock, AlertCircle, Eye } from "lucide-react";
@@ -8,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 import { TaskDateInfo } from "./TaskDateInfo";
+import { TaskAssigneeDisplay } from "./TaskAssigneeDisplay";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { createPortal } from "react-dom";
@@ -143,7 +143,9 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* Assignee avatar and priority indicators */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <TaskAssigneeDisplay task={task} size="sm" />
                       {getPriorityIndicator()}
                       {files && files.length > 0 && (
                         <motion.div 

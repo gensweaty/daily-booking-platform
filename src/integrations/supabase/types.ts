@@ -1530,6 +1530,13 @@ export type Database = {
         Row: {
           archived: boolean | null
           archived_at: string | null
+          assigned_at: string | null
+          assigned_by_id: string | null
+          assigned_by_type: string | null
+          assigned_to_avatar_url: string | null
+          assigned_to_id: string | null
+          assigned_to_name: string | null
+          assigned_to_type: string | null
           created_at: string | null
           created_by_name: string | null
           created_by_type: string | null
@@ -1555,6 +1562,13 @@ export type Database = {
         Insert: {
           archived?: boolean | null
           archived_at?: string | null
+          assigned_at?: string | null
+          assigned_by_id?: string | null
+          assigned_by_type?: string | null
+          assigned_to_avatar_url?: string | null
+          assigned_to_id?: string | null
+          assigned_to_name?: string | null
+          assigned_to_type?: string | null
           created_at?: string | null
           created_by_name?: string | null
           created_by_type?: string | null
@@ -1580,6 +1594,13 @@ export type Database = {
         Update: {
           archived?: boolean | null
           archived_at?: string | null
+          assigned_at?: string | null
+          assigned_by_id?: string | null
+          assigned_by_type?: string | null
+          assigned_to_avatar_url?: string | null
+          assigned_to_id?: string | null
+          assigned_to_name?: string | null
+          assigned_to_type?: string | null
           created_at?: string | null
           created_by_name?: string | null
           created_by_type?: string | null
@@ -2004,6 +2025,13 @@ export type Database = {
         Returns: {
           archived: boolean | null
           archived_at: string | null
+          assigned_at: string | null
+          assigned_by_id: string | null
+          assigned_by_type: string | null
+          assigned_to_avatar_url: string | null
+          assigned_to_id: string | null
+          assigned_to_name: string | null
+          assigned_to_type: string | null
           created_at: string | null
           created_by_name: string | null
           created_by_type: string | null

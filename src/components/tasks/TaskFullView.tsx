@@ -4,6 +4,7 @@ import { Task } from "@/lib/types";
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
 import { TaskDateInfo } from "./TaskDateInfo";
 import { TaskCommentsList } from "./TaskCommentsList";
+import { TaskAssigneeDisplay } from "./TaskAssigneeDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
@@ -11,7 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "../ui/button";
-import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw, History } from "lucide-react";
+import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw, History, UserCheck } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { Card, CardContent } from "../ui/card";
@@ -210,6 +211,28 @@ export const TaskFullView = ({
                 </CardContent>
               </Card>
             )}
+
+            {/* Assignment Section */}
+            <Card className="border-muted/40 bg-muted/20">
+              <CardContent className="p-2 sm:p-4">
+                <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                  <UserCheck className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+                  <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">Assigned To</h3>
+                </div>
+                <div className="bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40">
+                  {task.assigned_to_id && task.assigned_to_name ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <TaskAssigneeDisplay task={task} size="md" />
+                      <span className="text-foreground">{task.assigned_to_name}</span>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      Unassigned
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Attachments Section */}
             {files && files.length > 0 && (

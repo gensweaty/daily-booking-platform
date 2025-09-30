@@ -33,6 +33,7 @@ export const PublicAddTaskForm = ({
   const [reminderAt, setReminderAt] = useState<string | undefined>();
   const [emailReminder, setEmailReminder] = useState(false);
   const [status, setStatus] = useState<Task['status']>('todo');
+  const [assignedTo, setAssignedTo] = useState<string>("unassigned");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const queryClient = useQueryClient();
@@ -49,6 +50,15 @@ export const PublicAddTaskForm = ({
       setReminderAt(editingTask.reminder_at);
       setEmailReminder(editingTask.email_reminder_enabled || false);
       setStatus(editingTask.status);
+      
+      // Set assignment
+      if (editingTask.assigned_to_id && editingTask.assigned_to_type) {
+        setAssignedTo(`${editingTask.assigned_to_type}:${editingTask.assigned_to_id}`);
+      } else {
+        setAssignedTo("unassigned");
+      }
+    } else {
+      setAssignedTo("unassigned");
     }
   }, [editingTask]);
 
@@ -99,6 +109,46 @@ export const PublicAddTaskForm = ({
         }
       }
 
+      // Parse assignment
+      let assignmentData = {};
+      if (assignedTo && assignedTo !== "unassigned") {
+        const [assignedType, assignedId] = assignedTo.split(':');
+        
+        // Fetch assignee details
+        let assigneeName = '';
+        let assigneeAvatar = '';
+        
+        if (assignedType === 'admin') {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', assignedId)
+            .maybeSingle();
+          
+          assigneeName = profile?.username || 'Admin';
+          assigneeAvatar = profile?.avatar_url || '';
+        } else {
+          const { data: subUser } = await supabase
+            .from('sub_users')
+            .select('fullname, avatar_url')
+            .eq('id', assignedId)
+            .maybeSingle();
+          
+          assigneeName = subUser?.fullname || 'Member';
+          assigneeAvatar = subUser?.avatar_url || '';
+        }
+        
+        assignmentData = {
+          assigned_to_type: assignedType,
+          assigned_to_id: assignedId,
+          assigned_to_name: assigneeName,
+          assigned_to_avatar_url: assigneeAvatar,
+          assigned_at: new Date().toISOString(),
+          assigned_by_type: 'sub_user',
+          assigned_by_id: boardUserId,
+        };
+      }
+
       const taskData = {
         title,
         description,
@@ -109,6 +159,7 @@ export const PublicAddTaskForm = ({
         reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
         email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
         external_user_email: externalUserEmail, // Store external user email for reminders
+        ...assignmentData,
         ...(editingTask ? {
           // External user editing
           last_edited_by_type: 'external_user',
@@ -239,6 +290,8 @@ export const PublicAddTaskForm = ({
           setEmailReminder={setEmailReminder}
           status={status}
           setStatus={setStatus}
+          assignedTo={assignedTo}
+          setAssignedTo={setAssignedTo}
         />
         <div className={`flex justify-end gap-1 sm:gap-2 ${isMobile ? 'pt-1 border-t border-muted/20 mt-0' : 'pt-2 sm:pt-4 border-t border-muted/20'}`}>
           <Button type="submit" className="text-xs px-2 py-1 sm:px-3 sm:py-2" disabled={isSubmitting}>

@@ -8,6 +8,7 @@ import { TaskFormTitle } from "./TaskFormTitle";
 import { TaskFormDescription } from "./TaskFormDescription";
 import { TaskDateTimePicker } from "./TaskDateTimePicker";
 import { TaskStatusSelect } from "./TaskStatusSelect";
+import { TaskAssigneeSelect } from "./TaskAssigneeSelect";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
@@ -32,6 +33,8 @@ interface TaskFormFieldsProps {
   setEmailReminder: (enabled: boolean) => void;
   status: Task['status'];
   setStatus: (status: Task['status']) => void;
+  assignedTo: string;
+  setAssignedTo: (value: string) => void;
 }
 
 export const TaskFormFields = ({
@@ -52,6 +55,8 @@ export const TaskFormFields = ({
   setEmailReminder,
   status,
   setStatus,
+  assignedTo,
+  setAssignedTo,
 }: TaskFormFieldsProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -166,6 +171,13 @@ export const TaskFormFields = ({
 
       <div className={sectionClassName}>
         <TaskStatusSelect status={status} setStatus={setStatus} />
+      </div>
+
+      <div className={sectionClassName}>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Assign</label>
+          <TaskAssigneeSelect value={assignedTo} onChange={setAssignedTo} />
+        </div>
       </div>
       
       <div className={`${sectionClassName} ${isMobile ? 'space-y-0.5' : 'space-y-4'}`}>

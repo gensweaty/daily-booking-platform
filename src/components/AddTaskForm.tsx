@@ -35,6 +35,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
   const [reminderAt, setReminderAt] = useState<string | undefined>();
   const [emailReminder, setEmailReminder] = useState(false);
   const [status, setStatus] = useState<Task['status']>('todo');
+  const [assignedTo, setAssignedTo] = useState<string>("unassigned");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -55,6 +56,15 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
       setReminderAt(editingTask.reminder_at);
       setEmailReminder(editingTask.email_reminder_enabled || false);
       setStatus(editingTask.status);
+      
+      // Set assignment
+      if (editingTask.assigned_to_id && editingTask.assigned_to_type) {
+        setAssignedTo(`${editingTask.assigned_to_type}:${editingTask.assigned_to_id}`);
+      } else {
+        setAssignedTo("unassigned");
+      }
+    } else {
+      setAssignedTo("unassigned");
     }
   }, [editingTask]);
 
@@ -106,6 +116,46 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
         }
       }
 
+      // Parse assignment
+      let assignmentData = {};
+      if (assignedTo && assignedTo !== "unassigned") {
+        const [assignedType, assignedId] = assignedTo.split(':');
+        
+        // Fetch assignee details
+        let assigneeName = '';
+        let assigneeAvatar = '';
+        
+        if (assignedType === 'admin') {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username, avatar_url')
+            .eq('id', assignedId)
+            .maybeSingle();
+          
+          assigneeName = profile?.username || 'Admin';
+          assigneeAvatar = profile?.avatar_url || '';
+        } else {
+          const { data: subUser } = await supabase
+            .from('sub_users')
+            .select('fullname, avatar_url')
+            .eq('id', assignedId)
+            .maybeSingle();
+          
+          assigneeName = subUser?.fullname || 'Member';
+          assigneeAvatar = subUser?.avatar_url || '';
+        }
+        
+        assignmentData = {
+          assigned_to_type: assignedType,
+          assigned_to_id: assignedId,
+          assigned_to_name: assigneeName,
+          assigned_to_avatar_url: assigneeAvatar,
+          assigned_at: new Date().toISOString(),
+          assigned_by_type: externalUserName ? 'sub_user' : 'admin',
+          assigned_by_id: user.id,
+        };
+      }
+
       const taskData = {
         title,
         description,
@@ -115,6 +165,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
         deadline_at: deadline && deadline.trim() !== '' ? deadline : null,
         reminder_at: reminderAt && reminderAt.trim() !== '' ? reminderAt : null,
         email_reminder_enabled: emailReminder && reminderAt ? emailReminder : false,
+        ...assignmentData,
         ...(externalUserName ? {
           // External user creating/editing
           created_by_type: 'external_user',
@@ -350,6 +401,8 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           setEmailReminder={setEmailReminder}
           status={status}
           setStatus={setStatus}
+          assignedTo={assignedTo}
+          setAssignedTo={setAssignedTo}
         />
         
         {/* Comments Section - only shown when editing */}

@@ -19,6 +19,13 @@ export interface Task {
   last_edited_by_name?: string;
   last_edited_by_type?: string;
   last_edited_at?: string;
+  assigned_to_type?: 'admin' | 'sub_user';
+  assigned_to_id?: string;
+  assigned_to_name?: string;
+  assigned_to_avatar_url?: string;
+  assigned_at?: string;
+  assigned_by_type?: 'admin' | 'sub_user';
+  assigned_by_id?: string;
 }
 
 export interface Note {
