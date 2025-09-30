@@ -569,6 +569,7 @@ export const CustomerList = ({
             onClick={handleExcelDownload}
             variant="outline" 
             size="icon"
+            className="md:w-16 md:h-10"
             title={t("statistics.exportExcel")}
             disabled={isFetching}
           >
