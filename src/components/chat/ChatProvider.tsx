@@ -1187,37 +1187,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     [uiChannelUnreads]
   );
 
-  // Add inert watcher: disable chat layer when any Radix portal opens
-  useEffect(() => {
-    const chatRoot = document.getElementById('chat-portal-root');
-    if (!chatRoot) return;
-
-    const setInert = () => {
-      // any Radix portal child with data-state="open"
-      const hasOpenRadix = !!document.querySelector('[data-radix-portal] [data-state="open"]');
-      if (hasOpenRadix) {
-        chatRoot.setAttribute('inert', '');
-        chatRoot.style.pointerEvents = 'none';
-      } else {
-        chatRoot.removeAttribute('inert');
-        chatRoot.style.pointerEvents = 'none'; // keep the container itself inert
-      }
-    };
-
-    // run once and then watch for changes
-    setInert();
-
-    const mo = new MutationObserver(setInert);
-    mo.observe(document.body, {
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['data-state', 'style', 'class', 'aria-hidden'],
-      childList: true,
-    });
-
-    return () => mo.disconnect();
-  }, []);
-
   // Context value - memoized to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     isOpen,

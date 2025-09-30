@@ -349,7 +349,7 @@ export const MessageList = ({
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="z-[9999]">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('chat.deleteMessage')}</AlertDialogTitle>
             <AlertDialogDescription>{t('chat.deleteMessageConfirm')}</AlertDialogDescription>

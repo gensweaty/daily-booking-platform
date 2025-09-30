@@ -522,7 +522,7 @@
   font-weight: inherit !important;
 }
 
-/* Chat portal is a normal node (not display:contents), non-interactive baseline */
+/* Chat portal is a normal node, non-interactive baseline */
 .chat-portal-root {
   position: static;
   pointer-events: none;
@@ -537,22 +537,25 @@
 /* Z-index contract: chat < popovers < dialogs/overlays */
 :root {
   --z-chat: 40;
-  --z-popover: 10000; /* keep these comfortably above chat */
-  --z-dialog: 12000;
+  --z-popover: 50;
+  --z-dialog: 100;
 }
 
-#chat-floating-root { z-index: var(--z-chat) !important; }
-[data-radix-portal] { z-index: var(--z-popover) !important; }
+/* Chat stays at its designated level */
+#chat-floating-root { 
+  z-index: var(--z-chat) !important; 
+}
+
+/* All Radix portals (including chat dialogs) are above chat */
+[data-radix-portal] { 
+  z-index: var(--z-popover) !important; 
+}
+
+/* Dialog overlays and content are at the top */
 [data-radix-portal] [role="dialog"],
 [data-radix-portal] [role="alertdialog"],
 [data-radix-portal] [data-radix-alert-dialog-overlay],
 [data-radix-portal] [data-radix-dialog-overlay] {
   z-index: var(--z-dialog) !important;
-}
-
-/* When any Radix thing is open, make the chat layer inert (extra belt-and-suspenders)
-   Works in modern browsers with :has(); the MutationObserver above already covers all browsers. */
-body:has([data-radix-portal] [data-state="open"]) .chat-portal-root {
-  pointer-events: none !important;
 }
 
