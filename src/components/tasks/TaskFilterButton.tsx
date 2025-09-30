@@ -157,7 +157,7 @@ export const TaskFilterButton = ({ boardOwnerId }: TaskFilterButtonProps) => {
               assignees.map((assignee) => (
                 <DropdownMenuItem
                   key={`created-${assignee.type}-${assignee.id}`}
-                  onClick={() => setFilterType('created', assignee.name, assignee.type)}
+                  onClick={() => setFilterType('created', assignee.id, assignee.type, assignee.name)}
                   className="flex items-center gap-2 cursor-pointer"
                 >
                   <Avatar className="h-6 w-6">
@@ -168,7 +168,7 @@ export const TaskFilterButton = ({ boardOwnerId }: TaskFilterButtonProps) => {
                   </Avatar>
                   <span className="flex-1">{assignee.name}</span>
                   {filters.filterType === 'created' && 
-                   filters.selectedUserId === assignee.name && 
+                   filters.selectedUserId === assignee.id && 
                    filters.selectedUserType === assignee.type && (
                     <Check className="w-4 h-4 text-primary" />
                   )}

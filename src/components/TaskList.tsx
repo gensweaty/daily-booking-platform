@@ -171,10 +171,11 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   });
 
   // Apply filters to tasks - MUST be before any early returns to follow hooks rules
+  // Depend on filters properties directly to ensure re-renders on filter changes
   const filteredTasks = useMemo(() => {
     const nonArchived = tasks.filter((task: Task) => !task.archived);
     return applyFilters(nonArchived);
-  }, [tasks, applyFilters]);
+  }, [tasks, filters.sortOrder, filters.filterType, filters.selectedUserId, filters.selectedUserType, filters.selectedUserName, applyFilters]);
   
   const columns = useMemo(() => ({
     todo: filteredTasks.filter((task: Task) => task.status === 'todo'),

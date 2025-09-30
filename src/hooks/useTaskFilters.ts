@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Task } from '@/lib/types';
 import { AssigneeOption } from './useTaskAssignment';
 
@@ -10,6 +10,7 @@ export interface TaskFilters {
   filterType: FilterType;
   selectedUserId?: string;
   selectedUserType?: 'admin' | 'sub_user';
+  selectedUserName?: string; // Add name for display/matching
 }
 
 const STORAGE_KEY = 'taskFilters';
@@ -43,12 +44,18 @@ export const useTaskFilters = () => {
     setFilters(prev => ({ ...prev, sortOrder }));
   };
 
-  const setFilterType = (filterType: FilterType, userId?: string, userType?: 'admin' | 'sub_user') => {
+  const setFilterType = (
+    filterType: FilterType, 
+    userId?: string, 
+    userType?: 'admin' | 'sub_user',
+    userName?: string
+  ) => {
     setFilters(prev => ({
       ...prev,
       filterType,
       selectedUserId: userId,
       selectedUserType: userType,
+      selectedUserName: userName,
     }));
   };
 
@@ -59,22 +66,53 @@ export const useTaskFilters = () => {
     });
   };
 
-  // Wrap applyFilters in useCallback to make it stable across renders
-  const applyFilters = useCallback((tasks: Task[]): Task[] => {
+  // Apply filters - NOT wrapped in useCallback to ensure it always uses latest filters
+  const applyFilters = (tasks: Task[]): Task[] => {
     let filtered = [...tasks];
 
     // Apply user filter (assigned or created by)
     if (filters.filterType === 'assigned' && filters.selectedUserId) {
-      // Filter by who the task is assigned to
+      // Filter by who the task is assigned to (use ID for exact matching)
       filtered = filtered.filter(task => {
         return task.assigned_to_type === filters.selectedUserType && 
                task.assigned_to_id === filters.selectedUserId;
       });
     } else if (filters.filterType === 'created' && filters.selectedUserId) {
       // Filter by who created the task
+      // Handle multiple formats: exact ID match, name match, or partial name match
       filtered = filtered.filter(task => {
-        return task.created_by_type === filters.selectedUserType && 
-               task.created_by_name === filters.selectedUserId;
+        // First check if types match
+        if (task.created_by_type !== filters.selectedUserType) {
+          return false;
+        }
+        
+        // For matching, try multiple strategies:
+        // 1. Exact ID match (most reliable)
+        if (task.created_by_name === filters.selectedUserId) {
+          return true;
+        }
+        
+        // 2. If we have a name, try matching against it
+        if (filters.selectedUserName) {
+          const taskCreatorName = task.created_by_name || '';
+          const filterName = filters.selectedUserName;
+          
+          // Handle "(Sub User)" suffix - remove it for comparison
+          const normalizedTaskName = taskCreatorName.replace(/\s*\(Sub User\)\s*/gi, '').trim();
+          const normalizedFilterName = filterName.replace(/\s*\(Sub User\)\s*/gi, '').trim();
+          
+          // Try exact match on normalized names
+          if (normalizedTaskName === normalizedFilterName) {
+            return true;
+          }
+          
+          // Try case-insensitive match
+          if (normalizedTaskName.toLowerCase() === normalizedFilterName.toLowerCase()) {
+            return true;
+          }
+        }
+        
+        return false;
       });
     }
 
@@ -88,7 +126,7 @@ export const useTaskFilters = () => {
     });
 
     return filtered;
-  }, [filters.filterType, filters.selectedUserId, filters.selectedUserType, filters.sortOrder]);
+  };
 
   return {
     filters,

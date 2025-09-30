@@ -56,9 +56,10 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   });
 
   // Apply filters to tasks - MUST be before any early returns to follow hooks rules
+  // Depend on filters properties directly to ensure re-renders on filter changes
   const filteredTasks = useMemo(() => {
     return applyFilters(tasks);
-  }, [tasks, applyFilters]);
+  }, [tasks, filters.sortOrder, filters.filterType, filters.selectedUserId, filters.selectedUserType, filters.selectedUserName, applyFilters]);
   
   const columns = useMemo(() => ({
     todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
