@@ -99,32 +99,46 @@ export const useTaskFilters = () => {
       });
 
       filtered = filtered.filter(task => {
+        console.log(`🔍 Checking task "${task.title}":`, {
+          taskCreatedByType: task.created_by_type,
+          taskCreatedByName: task.created_by_name,
+          filterType: filters.selectedUserType,
+          filterName: filters.selectedUserName
+        });
+
         // First check if types match
         if (task.created_by_type !== filters.selectedUserType) {
+          console.log(`❌ Type mismatch: ${task.created_by_type} !== ${filters.selectedUserType}`);
           return false;
         }
         
-        // CRITICAL FIX: For admin, match ANY task created by admin
-        // since there's only one admin per board
+        // For admin, match ANY task created by admin since there's only one admin per board
         if (filters.selectedUserType === 'admin') {
           console.log('✅ Admin creator match:', task.title);
           return true;
         }
         
-        // For sub-users, match by name after normalization
+        // For sub-users, we need more flexible matching
         const taskCreatorName = (task.created_by_name || '').trim();
         const selectedUserName = (filters.selectedUserName || '').trim();
         
-        if (!taskCreatorName || !selectedUserName) {
-          console.log('❌ Missing name data for:', task.title);
+        // If task has no creator name but type matches, it's a potential match
+        if (!taskCreatorName) {
+          console.log('⚠️ Task has no creator name, but type matches');
+          return true; // Include tasks where type matches but name is missing
+        }
+
+        if (!selectedUserName) {
+          console.log('❌ Missing filter name');
           return false;
         }
 
-        // Normalize both names: remove suffixes and compare
+        // Normalize function: remove all known suffixes and special characters
         const normalizeCreatorName = (name: string) => {
           return name
             .replace(/\s*\(Sub User\)\s*/gi, '')
             .replace(/\s*\(external_user\)\s*/gi, '')
+            .replace(/\s*\(External User\)\s*/gi, '')
             .trim()
             .toLowerCase();
         };
@@ -132,22 +146,24 @@ export const useTaskFilters = () => {
         const normalizedTaskName = normalizeCreatorName(taskCreatorName);
         const normalizedFilterName = normalizeCreatorName(selectedUserName);
 
-        const matches = normalizedTaskName === normalizedFilterName;
-        
-        if (matches) {
-          console.log('✅ Sub-user creator match:', task.title, {
-            taskName: taskCreatorName,
-            filterName: selectedUserName,
-            normalizedMatch: normalizedTaskName
-          });
-        } else {
-          console.log('❌ No match:', task.title, {
-            taskName: normalizedTaskName,
-            filterName: normalizedFilterName
-          });
+        // Try exact match first
+        if (normalizedTaskName === normalizedFilterName) {
+          console.log('✅ Exact match:', task.title);
+          return true;
         }
-        
-        return matches;
+
+        // Try partial match (in case one contains the other)
+        if (normalizedTaskName.includes(normalizedFilterName) || 
+            normalizedFilterName.includes(normalizedTaskName)) {
+          console.log('✅ Partial match:', task.title);
+          return true;
+        }
+
+        console.log('❌ No match:', {
+          taskName: normalizedTaskName,
+          filterName: normalizedFilterName
+        });
+        return false;
       });
       console.log(`📊 After created filter: ${filtered.length} tasks`);
     }

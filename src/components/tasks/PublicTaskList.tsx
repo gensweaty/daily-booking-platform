@@ -55,27 +55,21 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     refetchInterval: false,
   });
 
-  // Apply filters to tasks - MUST be before any early returns to follow hooks rules
-  // Depend directly on filter properties for real-time updates
+  // Apply filters - moved before any conditional returns
+  // Create a stable reference for filters to ensure re-render
+  const filterStateKey = `${filters.sortOrder}-${filters.filterType}-${filters.selectedUserId}-${filters.selectedUserType}-${filters.selectedUserName}`;
+  
   const filteredTasks = useMemo(() => {
     console.log('🔄 PublicTaskList: Recomputing filtered tasks', {
-      sortOrder: filters.sortOrder,
-      filterType: filters.filterType,
-      selectedUserId: filters.selectedUserId,
-      selectedUserType: filters.selectedUserType,
-      selectedUserName: filters.selectedUserName
+      filterKey: filterStateKey,
+      totalTasks: tasks.length
     });
-    return applyFilters(tasks);
-  }, [
-    tasks, 
-    filters.sortOrder, 
-    filters.filterType, 
-    filters.selectedUserId, 
-    filters.selectedUserType,
-    filters.selectedUserName,
-    applyFilters
-  ]);
-  
+    const nonArchived = tasks.filter((task: Task) => !task.archived);
+    const result = applyFilters(nonArchived);
+    console.log('✅ PublicTaskList: Filtered result:', result.length, 'tasks');
+    return result;
+  }, [tasks, filterStateKey, applyFilters]);
+   
   const columns = useMemo(() => ({
     todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
     'in-progress': filteredTasks.filter((task: Task) => task.status === 'inprogress'),

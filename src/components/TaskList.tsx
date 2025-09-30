@@ -172,23 +172,25 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
 
   // Apply filters to tasks - MUST be before any early returns to follow hooks rules
   // Depend directly on filter properties for real-time updates
+  // Create a stable reference for filters to ensure re-render
+  const filterStateKey = `${filters.sortOrder}-${filters.filterType}-${filters.selectedUserId}-${filters.selectedUserType}-${filters.selectedUserName}`;
+  
   const filteredTasks = useMemo(() => {
     console.log('🔄 TaskList: Recomputing filtered tasks', {
       sortOrder: filters.sortOrder,
       filterType: filters.filterType,
       selectedUserId: filters.selectedUserId,
       selectedUserType: filters.selectedUserType,
-      selectedUserName: filters.selectedUserName
+      selectedUserName: filters.selectedUserName,
+      filterKey: filterStateKey
     });
     const nonArchived = tasks.filter((task: Task) => !task.archived);
-    return applyFilters(nonArchived);
+    const result = applyFilters(nonArchived);
+    console.log('✅ TaskList: Filtered result:', result.length, 'tasks');
+    return result;
   }, [
     tasks, 
-    filters.sortOrder, 
-    filters.filterType, 
-    filters.selectedUserId, 
-    filters.selectedUserType,
-    filters.selectedUserName,
+    filterStateKey, // Use the composite key instead of individual properties
     applyFilters
   ]);
   
