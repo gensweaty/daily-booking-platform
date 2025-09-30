@@ -31,7 +31,7 @@ export const translations: TranslationType = {
   },
   booking: {
     title: "Booking System",
-    description: "Manage appointments and events efficiently",
+    description: "Manage appointments and events efficiently with your team. Admin and up to 5 team members can collaborate in real-time, viewing and managing bookings together.",
     feature1: "Multiple calendar views (month, week, day)",
     feature2: "Schedule events with custom time intervals",
     feature3: "Manage customer bookings with payment tracking",
@@ -46,7 +46,7 @@ export const translations: TranslationType = {
   },
   analytics: {
     title: "Comprehensive Analytics",
-    description: "Track your performance and growth",
+    description: "Track your performance and growth as a team. Admin and up to 5 team members can view and analyze business metrics together in real-time.",
     feature1: "Booking and revenue analytics",
     feature2: "Custom date range filtering",
     feature3: "Month-over-month revenue comparison",
@@ -62,7 +62,7 @@ export const translations: TranslationType = {
   },
   crm: {
     title: "Customer Relationship Management",
-    description: "Build and maintain strong customer relationships through our CRM",
+    description: "Build and maintain strong customer relationships as a team. Admin and up to 5 team members can collaborate on customer management, viewing updates and changes in real-time.",
     feature1: "Centralized customer information management",
     feature2: "File attachments and document organization",
     feature3: "Payment tracking and status monitoring",
@@ -112,7 +112,7 @@ export const translations: TranslationType = {
   },
   tasks: {
     title: "Task Management",
-    description: "Organize and track your tasks efficiently",
+    description: "Organize and track tasks efficiently as a team. Admin and up to 5 team members can work together, managing and updating tasks in real-time with live collaboration.",
     feature1: "Kanban-style task boards with drag and drop",
     feature2: "Task deadlines and reminder notifications",
     feature3: "Rich text descriptions with file attachments",
@@ -180,7 +180,7 @@ export const translations: TranslationType = {
   },
   teamChat: {
     title: "Team Chat",
-    description: "Seamless communication across your entire team",
+    description: "Seamless communication across your entire team. Admin and up to 5 team members can chat in real-time, share files, and collaborate instantly.",
     feature1: "Direct messages and custom chat channels",
     feature2: "File sharing with instant previews",
     feature3: "Message editing and deletion capabilities",

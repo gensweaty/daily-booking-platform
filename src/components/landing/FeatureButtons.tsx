@@ -113,7 +113,7 @@ export const FeatureButtons = () => {
           >
             <MessageCircle className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
             <span className="text-sm font-medium">
-              <LanguageText>{t('features.teamCollaboration')}</LanguageText>
+              <LanguageText>{t('features.teamChat')}</LanguageText>
             </span>
           </Button>
         </div>

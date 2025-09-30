@@ -42,7 +42,7 @@ export const translations: TranslationType = {
   },
   booking: {
     title: "Sistema de Reservas",
-    description: "Gestione citas y eventos de manera eficiente",
+    description: "Gestione citas y eventos de manera eficiente con su equipo. El administrador y hasta 5 miembros del equipo pueden colaborar en tiempo real, viendo y gestionando reservas juntos.",
     feature1: "Múltiples vistas de calendario (mes, semana, día)",
     feature2: "Programe eventos con intervalos de tiempo personalizados",
     feature3: "Gestione las reservas de los clientes con seguimiento de pagos",
@@ -57,7 +57,7 @@ export const translations: TranslationType = {
   },
   analytics: {
     title: "Analítica Integral",
-    description: "Realice un seguimiento de su rendimiento y crecimiento",
+    description: "Realice un seguimiento de su rendimiento y crecimiento en equipo. El administrador y hasta 5 miembros del equipo pueden ver y analizar métricas empresariales juntos en tiempo real.",
     feature1: "Analítica de reservas e ingresos",
     feature2: "Filtrado personalizado por rango de fechas",
     feature3: "Comparación de ingresos mes a mes",
@@ -73,7 +73,7 @@ export const translations: TranslationType = {
   },
   crm: {
     title: "Gestión de Relaciones con los Clientes",
-    description: "Construya y mantenga relaciones sólidas con los clientes a través de nuestro CRM",
+    description: "Construya y mantenga relaciones sólidas con los clientes en equipo. El administrador y hasta 5 miembros del equipo pueden colaborar en la gestión de clientes, viendo actualizaciones y cambios en tiempo real.",
     feature1: "Gestión centralizada de la información del cliente",
     feature2: "Adjuntos de archivos y organización de documentos",
     feature3: "Seguimiento de pagos y monitoreo del estado",
@@ -123,7 +123,7 @@ export const translations: TranslationType = {
   },
   tasks: {
     title: "Gestión de Tareas",
-    description: "Organice y rastree sus tareas de manera eficiente",
+    description: "Organice y rastree tareas de manera eficiente en equipo. El administrador y hasta 5 miembros del equipo pueden trabajar juntos, gestionando y actualizando tareas en tiempo real con colaboración en vivo.",
     feature1: "Tableros de tareas estilo Kanban con arrastrar y soltar",
     feature2: "Fechas límite de tareas y notificaciones de recordatorio",
     feature3: "Descripciones de texto enriquecido con archivos adjuntos",
@@ -191,7 +191,7 @@ export const translations: TranslationType = {
   },
   teamChat: {
     title: "Chat de Equipo",
-    description: "Comunicación fluida en todo su equipo",
+    description: "Comunicación fluida en todo su equipo. El administrador y hasta 5 miembros del equipo pueden chatear en tiempo real, compartir archivos y colaborar al instante.",
     feature1: "Mensajes directos y canales de chat personalizados",
     feature2: "Compartir archivos con vistas previas instantáneas",
     feature3: "Capacidades de edición y eliminación de mensajes",
