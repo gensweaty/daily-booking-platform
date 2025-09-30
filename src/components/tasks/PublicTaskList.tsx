@@ -14,6 +14,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
+import { TaskFilterButton } from "./TaskFilterButton";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
 
 interface PublicTaskListProps {
   boardUserId: string;
@@ -265,12 +267,14 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     );
   }
 
-// Map database status to UI status and sort by last edit descending (newest first at top)
-  const getSortTime = (t: Task) => new Date(t.last_edited_at || t.updated_at || t.created_at).getTime();
+  // Apply filters to tasks
+  const { applyFilters } = useTaskFilters();
+  const filteredTasks = applyFilters(tasks);
+  
   const columns = {
-    todo: tasks.filter((task: Task) => task.status === 'todo').sort((a: Task, b: Task) => getSortTime(b) - getSortTime(a)),
-    'in-progress': tasks.filter((task: Task) => task.status === 'inprogress').sort((a: Task, b: Task) => getSortTime(b) - getSortTime(a)),
-    done: tasks.filter((task: Task) => task.status === 'done').sort((a: Task, b: Task) => getSortTime(b) - getSortTime(a)),
+    todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
+    'in-progress': filteredTasks.filter((task: Task) => task.status === 'inprogress'),
+    done: filteredTasks.filter((task: Task) => task.status === 'done'),
   };
 
   // External users should only be able to delete/edit their own tasks
@@ -343,28 +347,32 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   return (
     <>
       <div className="space-y-6">
-        {/* Mobile: Header line with Tasks left, circles center, Add button right */}
-        <div className="grid sm:hidden grid-cols-[auto_1fr_auto] items-center w-full">
+        {/* Mobile: Header line with Tasks left, circles center, Filter and Add button right */}
+        <div className="grid sm:hidden grid-cols-[auto_1fr_auto] items-center w-full gap-2">
           <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
           <div className="flex items-center justify-center">
             <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={5} />
           </div>
-          <Button 
-            onClick={() => setIsAddingTask(true)}
-            className="flex items-center gap-1 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-3 text-xs w-auto min-w-[80px] justify-self-end"
-          >
-            <Plus className="h-3 w-3" />
-            <span>
-              {isGeorgian ? 'დამატება' : 'Add'}
-            </span>
-          </Button>
+          <div className="flex items-center gap-1 justify-self-end">
+            <TaskFilterButton boardOwnerId={boardUserId} />
+            <Button 
+              onClick={() => setIsAddingTask(true)}
+              className="flex items-center gap-1 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-3 text-xs w-auto min-w-[80px]"
+            >
+              <Plus className="h-3 w-3" />
+              <span>
+                {isGeorgian ? 'დამატება' : 'Add'}
+              </span>
+            </Button>
+          </div>
         </div>
 
-        {/* Desktop: Header with presence left of Add button */}
+        {/* Desktop: Header with presence left of Filter and Add button */}
         <div className="hidden sm:flex flex-row items-center justify-between gap-4">
           <h2 className="text-2xl font-bold text-foreground">{t('dashboard.tasks')}</h2>
           <div className="flex items-center gap-3">
             <PresenceAvatars users={onlineUsers} currentUserEmail={externalUserEmail} max={5} />
+            <TaskFilterButton boardOwnerId={boardUserId} />
             <Button
               onClick={() => setIsAddingTask(true)}
               className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-4 text-sm min-w-[120px]"

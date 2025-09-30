@@ -17,6 +17,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { useTaskFilters } from "@/hooks/useTaskFilters";
 
 interface TaskListProps {
   username?: string;
@@ -269,12 +270,14 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     );
   }
 
-// Map database status to UI status and sort by last edit/updated/created desc (newest first)
-  const getSortTime = (t: Task) => new Date(t.last_edited_at || t.updated_at || t.created_at).getTime();
+  // Apply filters to tasks
+  const { applyFilters } = useTaskFilters();
+  const filteredTasks = applyFilters(tasks.filter((task: Task) => !task.archived));
+  
   const columns = {
-    todo: tasks.filter((task: Task) => task.status === 'todo').sort((a: Task, b: Task) => getSortTime(b) - getSortTime(a)),
-    'in-progress': tasks.filter((task: Task) => task.status === 'inprogress').sort((a: Task, b: Task) => getSortTime(b) - getSortTime(a)),
-    done: tasks.filter((task: Task) => task.status === 'done').sort((a: Task, b: Task) => getSortTime(b) - getSortTime(a)),
+    todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
+    'in-progress': filteredTasks.filter((task: Task) => task.status === 'inprogress'),
+    done: filteredTasks.filter((task: Task) => task.status === 'done'),
   };
 
   const containerVariants = {

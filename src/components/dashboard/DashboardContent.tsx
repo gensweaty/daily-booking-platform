@@ -26,6 +26,7 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText"
 import { cn } from "@/lib/utils"
 import { useQueryClient } from "@tanstack/react-query"
 import { TasksPresenceHeader } from "@/components/tasks/TasksPresenceHeader"
+import { TaskFilterButton } from "@/components/tasks/TaskFilterButton"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -334,6 +335,7 @@ export const DashboardContent = ({
                        {!showArchive && (
                          <>
                            <PublicBoardSettings />
+                           <TaskFilterButton />
                            <Button
                              onClick={handleArchiveClick}
                              variant="outline"
