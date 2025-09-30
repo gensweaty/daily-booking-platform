@@ -1,5 +1,5 @@
 
-import { Calendar, ChartBar, ListTodo, Users, Globe } from "lucide-react";
+import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
@@ -31,6 +31,19 @@ const websiteViews = [{
 }, {
   src: "/lovable-uploads/a9fa8d9c-3592-47b2-b89b-be6a4e04a6a1.png",
   alt: "Business Page with QR Code",
+  customStyle: "object-contain",
+  customPadding: "p-4"
+}];
+
+// Team Chat carousel views
+const chatViews = [{
+  src: "/lovable-uploads/chat-feature-1.webp",
+  alt: "Team Chat Interface",
+  customStyle: "object-contain",
+  customPadding: "p-4"
+}, {
+  src: "/lovable-uploads/chat-feature-2.webp",
+  alt: "Chat Messages and Files",
   customStyle: "object-contain",
   customPadding: "p-4"
 }];
@@ -86,6 +99,15 @@ export const FeatureSection = () => {
     translationPrefix: 'tasks' as const,
     id: "task-management",
     reverse: false
+  }, {
+    icon: MessageCircle,
+    title: t('teamChat.title'),
+    description: t('teamChat.description'),
+    carousel: chatViews,
+    benefits: [t('teamChat.feature1'), t('teamChat.feature2'), t('teamChat.feature3'), t('teamChat.feature4'), t('teamChat.feature5')],
+    translationPrefix: 'teamChat' as const,
+    id: "team-chat",
+    reverse: true
   }];
   return <section className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">

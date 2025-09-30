@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Calendar, ListTodo, Users, BarChart, Globe } from "lucide-react";
+import { Calendar, ListTodo, Users, BarChart, Globe, MessageCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
@@ -75,8 +75,8 @@ export const FeatureButtons = () => {
             </span>
           </Button>
         </div>
-        {/* Second row - centered */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 md:w-2/3 mx-auto">
+        {/* Second row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
           <Button 
             variant="outline"
             onClick={(e) => {
@@ -101,6 +101,19 @@ export const FeatureButtons = () => {
             <ListTodo className="w-5 h-5 text-accent shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
             <span className="text-sm font-medium">
               <LanguageText>{t('features.kanbanManagement')}</LanguageText>
+            </span>
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={(e) => {
+              createRipple(e);
+              scrollToSection('team-chat');
+            }}
+            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
+          >
+            <MessageCircle className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
+            <span className="text-sm font-medium">
+              <LanguageText>{t('features.teamCollaboration')}</LanguageText>
             </span>
           </Button>
         </div>

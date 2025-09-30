@@ -31,12 +31,14 @@ export const translations: TranslationType = {
     crm: "CRM",
     analytics: "Analítica",
     website: "Sitio Web",
+    teamChat: "Chat de Equipo",
     ownBookingWebsite: "Su propio sitio web de reservas",
     businessTitle: "Para cualquier tipo de negocio",
     smartAppointment: "Programación Inteligente de Citas",
     automatedAnalytics: "Analítica de Rendimiento Automatizada",
     modernCRM: "Solución CRM Moderna",
-    kanbanManagement: "Gestión de Tareas Kanban"
+    kanbanManagement: "Gestión de Tareas Kanban",
+    teamCollaboration: "Colaboración de Equipo"
   },
   booking: {
     title: "Sistema de Reservas",
@@ -186,6 +188,15 @@ export const translations: TranslationType = {
     feature3: "Reservas con código QR",
     feature4: "Integración de reservas en línea",
     feature5: "Aprobación de citas por correo electrónico",
+  },
+  teamChat: {
+    title: "Chat de Equipo",
+    description: "Comunicación fluida en todo su equipo",
+    feature1: "Mensajes directos y canales de chat personalizados",
+    feature2: "Compartir archivos con vistas previas instantáneas",
+    feature3: "Capacidades de edición y eliminación de mensajes",
+    feature4: "Comunicación multiplataforma y entre equipos",
+    feature5: "Notificaciones de voz y visuales para todas las actualizaciones",
   },
   cta: {
     title: "¿Listo para hacer crecer su negocio?",

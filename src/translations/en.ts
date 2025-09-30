@@ -20,12 +20,14 @@ export const translations: TranslationType = {
     crm: "CRM",
     analytics: "Analytics",
     website: "Website",
+    teamChat: "Team Chat",
     ownBookingWebsite: "Your own booking website",
     businessTitle: "For any type of business",
     smartAppointment: "Smart Appointment Scheduling",
     automatedAnalytics: "Automated Performance Analytics",
     modernCRM: "Modern CRM Solution",
-    kanbanManagement: "Kanban Task Management"
+    kanbanManagement: "Kanban Task Management",
+    teamCollaboration: "Team Collaboration"
   },
   booking: {
     title: "Booking System",
@@ -175,6 +177,15 @@ export const translations: TranslationType = {
     feature3: "QR code bookings",
     feature4: "Online booking integration",
     feature5: "Email appointment approval",
+  },
+  teamChat: {
+    title: "Team Chat",
+    description: "Seamless communication across your entire team",
+    feature1: "Direct messages and custom chat channels",
+    feature2: "File sharing with instant previews",
+    feature3: "Message editing and deletion capabilities",
+    feature4: "Cross-platform and cross-team communication",
+    feature5: "Voice and visual notifications for all updates",
   },
   cta: {
     title: "Ready to grow your business?",

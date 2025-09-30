@@ -25,12 +25,14 @@ export interface TranslationType {
     crm: string;
     analytics: string;
     website: string;
+    teamChat: string;
     ownBookingWebsite: string;
     businessTitle: string;
     smartAppointment: string;
     automatedAnalytics: string;
     modernCRM: string;
     kanbanManagement: string;
+    teamCollaboration: string;
   };
   booking: {
     title: string;
@@ -173,6 +175,15 @@ export interface TranslationType {
     file: string;
   };
   website: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+    feature5: string;
+  };
+  teamChat: {
     title: string;
     description: string;
     feature1: string;

@@ -70,6 +70,8 @@ export const PricingSection = () => {
     'ულიმიტო ჯავშნების დასტური ემაილით',
     'QR კოდით სწრაფი დაჯავშნის სისტემა',
     'შეუზღუდავი დავალებების შეხსენებები ელექტრონული ფოსტით',
+    'ულიმიტო შეტყობინებები მთელ გუნდში',
+    'გუნდური თანამშრომლობა, 5 უფასო სუბ-მომხმარებელი, იდეალური პატარა გუნდებისთვის (2$/თვე თითო მომხმარებელზე თუ მეტი სჭირდება)',
     'თანამედროვე, ყველა დევაისზე ოპტიმიზირებული სამართავი პანელი'
   ] : language === 'es' ? [
     'Sitio web gratuito para su negocio',
@@ -80,6 +82,8 @@ export const PricingSection = () => {
     'Aprobaciones de reserva ilimitadas con correo electrónico',
     'Sistema de reserva rápida con código QR',
     'Recordatorios de tareas ilimitados por correo electrónico',
+    'Mensajes ilimitados en todo el equipo',
+    'Colaboración entre equipos, 5 subusuarios gratuitos, perfecto para equipos pequeños (2$/mes por usuario adicional si se necesitan más)',
     'Panel de control moderno y responsivo para cualquier dispositivo'
   ] : [
     'Free website for your business',
@@ -90,6 +94,8 @@ export const PricingSection = () => {
     'Unlimited Booking approvals with email',
     'QR code fast booking system',
     'Unlimited Task Reminders With email',
+    'Unlimited messages across the whole team',
+    'Cross-team collaboration, 5 free sub users, perfect for small teams (2$/mo per user if more needed)',
     'Modern, responsive dashboard for any device'
   ];
 
