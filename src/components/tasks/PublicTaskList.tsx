@@ -55,6 +55,17 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     refetchInterval: false,
   });
 
+  // Apply filters to tasks - MUST be before any early returns to follow hooks rules
+  const filteredTasks = useMemo(() => {
+    return applyFilters(tasks);
+  }, [tasks, filterKey, applyFilters]);
+  
+  const columns = useMemo(() => ({
+    todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
+    'in-progress': filteredTasks.filter((task: Task) => task.status === 'inprogress'),
+    done: filteredTasks.filter((task: Task) => task.status === 'done'),
+  }), [filteredTasks]);
+
   useEffect(() => {
     const handler = async (e: CustomEvent) => {
       const taskId = (e as any).detail?.taskId as string | undefined;
@@ -267,18 +278,6 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
       </motion.div>
     );
   }
-
-  // Apply filters to tasks (hook is called at top of component)
-  // Use useMemo to recalculate when filters or tasks change
-  const filteredTasks = useMemo(() => {
-    return applyFilters(tasks);
-  }, [tasks, filterKey, applyFilters]);
-  
-  const columns = {
-    todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
-    'in-progress': filteredTasks.filter((task: Task) => task.status === 'inprogress'),
-    done: filteredTasks.filter((task: Task) => task.status === 'done'),
-  };
 
   // External users should only be able to delete/edit their own tasks
   const canDeleteTask = (task: Task) => {

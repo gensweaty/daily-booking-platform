@@ -170,6 +170,17 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     enabled: !!user?.id,
   });
 
+  // Apply filters to tasks - MUST be before any early returns to follow hooks rules
+  const filteredTasks = useMemo(() => {
+    return applyFilters(tasks.filter((task: Task) => !task.archived));
+  }, [tasks, filterKey, applyFilters]);
+  
+  const columns = useMemo(() => ({
+    todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
+    'in-progress': filteredTasks.filter((task: Task) => task.status === 'inprogress'),
+    done: filteredTasks.filter((task: Task) => task.status === 'done'),
+  }), [filteredTasks]);
+
   // Realtime: keep task list in sync for this user (INSERT/UPDATE/DELETE)
   useEffect(() => {
     if (!user?.id) return;
@@ -270,18 +281,6 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
       </motion.div>
     );
   }
-
-  // Apply filters to tasks (hook is called at top of component)
-  // Use useMemo to recalculate when filters or tasks change
-  const filteredTasks = useMemo(() => {
-    return applyFilters(tasks.filter((task: Task) => !task.archived));
-  }, [tasks, filterKey, applyFilters]);
-  
-  const columns = {
-    todo: filteredTasks.filter((task: Task) => task.status === 'todo'),
-    'in-progress': filteredTasks.filter((task: Task) => task.status === 'inprogress'),
-    done: filteredTasks.filter((task: Task) => task.status === 'done'),
-  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
