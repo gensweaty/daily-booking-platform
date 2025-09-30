@@ -143,9 +143,8 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                       )}
                     </div>
                     
-                    {/* Assignee avatar and priority indicators */}
+                    {/* Priority indicators and file count */}
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <TaskAssigneeDisplay task={task} size="sm" />
                       {getPriorityIndicator()}
                       {files && files.length > 0 && (
                         <motion.div 
@@ -225,32 +224,40 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
 
               </div>
 
-              {/* Delete moved to next line for better balance on all viewports */}
-              {onDelete && (
-                <motion.div 
-                  className="flex justify-end mt-2 opacity-0"
-                  animate={{ opacity: isHovered ? 1 : 0 }}
-                  transition={{ duration: 0.2, delay: 0.15 }}
-                >
+              {/* Bottom row with assignee and delete button */}
+              <div className="flex justify-between items-center mt-2">
+                {/* Assignee avatar - always visible */}
+                <div className="flex-shrink-0">
+                  <TaskAssigneeDisplay task={task} size="sm" />
+                </div>
+                
+                {/* Delete button - shows on hover */}
+                {onDelete && (
                   <motion.div 
-                    variants={iconVariants} 
-                    initial="idle" whileHover="hover"
+                    className="opacity-0"
+                    animate={{ opacity: isHovered ? 1 : 0 }}
+                    transition={{ duration: 0.2, delay: 0.15 }}
                   >
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(task.id);
-                      }}
-                      className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
-                      title="Delete task"
+                    <motion.div 
+                      variants={iconVariants} 
+                      initial="idle" whileHover="hover"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(task.id);
+                        }}
+                        className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
+                        title="Delete task"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </motion.div>
                   </motion.div>
-                </motion.div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         );
