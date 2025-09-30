@@ -522,58 +522,19 @@
   font-weight: inherit !important;
 }
 
-/* --- Chat layer defaults --- */
+/* Chat portal: allow interaction but stay below dialogs */
 .chat-portal-root {
-  /* Chat sits above app chrome but below dialogs by default */
-  z-index: 40 !important;
-  position: fixed;
-  inset: 0;
-  pointer-events: none !important;
-}
-.chat-portal-root > * { pointer-events: auto !important; }
-
-/* --- Sleep mode: completely disengage when an EXTERNAL dialog is open --- */
-.chat-portal-root.chat-portal--sleep {
-  z-index: 0 !important;
-}
-.chat-portal-root.chat-portal--sleep > * {
-  pointer-events: none !important;
+  pointer-events: none;
+  z-index: 40;
 }
 
-/* --- Ensure dialogs INSIDE the chat portal float over the chat overlay --- */
-.chat-portal-root .dialog-overlay,
-.chat-portal-root .alert-dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100000 !important;
-}
-.chat-portal-root .dialog-content,
-.chat-portal-root .alert-dialog-content,
-.chat-portal-root [role="dialog"][data-state="open"],
-.chat-portal-root [role="alertdialog"][data-state="open"] {
-  position: fixed;
-  z-index: 100001 !important;
+.chat-portal-root > * {
+  pointer-events: auto;
 }
 
-/* --- Global hardening: any body-level dialog/overlay must top everything --- */
-[data-radix-portal],
-body .dialog-overlay,
-body .alert-dialog-overlay,
-body .dialog-content,
-body .alert-dialog-content,
-body [role="dialog"][data-state="open"],
-body [role="alertdialog"][data-state="open"] {
-  position: fixed !important;
-  /* near the top of the world; still below browser UI */
-  z-index: 2147483600 !important;
+/* Ensure all dialogs are above chat portal */
+[role="dialog"],
+[role="alertdialog"] {
+  z-index: 50;
 }
-
-/* If your Radix overlay/content use CSS vars or lower z-indexes,
-   this forces the correct order: overlay < content. */
-body .dialog-overlay,
-body .alert-dialog-overlay { z-index: 2147483599 !important; }
-body .dialog-content,
-body .alert-dialog-content,
-body [role="dialog"][data-state="open"],
-body [role="alertdialog"][data-state="open"] { z-index: 2147483600 !important; }
 
