@@ -29,7 +29,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   const { toast } = useToast();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
-  const { applyFilters, filters, filterKey } = useTaskFilters(); // Must be called at top before any returns
+  const { applyFilters, filters } = useTaskFilters(); // Must be called at top before any returns
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -56,11 +56,25 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   });
 
   // Apply filters to tasks - MUST be before any early returns to follow hooks rules
-  // Use filterKey to ensure re-computation when filters change
+  // Depend directly on filter properties for real-time updates
   const filteredTasks = useMemo(() => {
-    console.log('🔄 PublicTaskList: Recomputing filtered tasks');
+    console.log('🔄 PublicTaskList: Recomputing filtered tasks', {
+      sortOrder: filters.sortOrder,
+      filterType: filters.filterType,
+      selectedUserId: filters.selectedUserId,
+      selectedUserType: filters.selectedUserType,
+      selectedUserName: filters.selectedUserName
+    });
     return applyFilters(tasks);
-  }, [tasks, filterKey, applyFilters]);
+  }, [
+    tasks, 
+    filters.sortOrder, 
+    filters.filterType, 
+    filters.selectedUserId, 
+    filters.selectedUserType,
+    filters.selectedUserName,
+    applyFilters
+  ]);
   
   const columns = useMemo(() => ({
     todo: filteredTasks.filter((task: Task) => task.status === 'todo'),

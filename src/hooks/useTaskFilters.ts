@@ -98,62 +98,56 @@ export const useTaskFilters = () => {
         selectedUserName: filters.selectedUserName
       });
 
-      // Log all tasks to see their creator info
-      tasks.forEach(task => {
-        console.log('📝 Task creator info:', {
-          title: task.title,
-          created_by_name: task.created_by_name,
-          created_by_type: task.created_by_type
-        });
-      });
-
       filtered = filtered.filter(task => {
         // First check if types match
         if (task.created_by_type !== filters.selectedUserType) {
           return false;
         }
         
-        const taskCreatorName = task.created_by_name || '';
-        const selectedUserId = filters.selectedUserId;
-        const selectedUserName = filters.selectedUserName || '';
-
-        // Strategy 1: Exact match with selected ID
-        if (taskCreatorName === selectedUserId) {
-          console.log('✅ Exact ID match:', task.title);
+        // CRITICAL FIX: For admin, match ANY task created by admin
+        // since there's only one admin per board
+        if (filters.selectedUserType === 'admin') {
+          console.log('✅ Admin creator match:', task.title);
           return true;
         }
-
-        // Strategy 2: Match against selected name (handle various formats)
-        // Remove "(Sub User)" and "external_user" suffixes for comparison
-        const normalizedTaskName = taskCreatorName
-          .replace(/\s*\(Sub User\)\s*/gi, '')
-          .replace(/\s*\(external_user\)\s*/gi, '')
-          .trim();
-        const normalizedFilterName = selectedUserName
-          .replace(/\s*\(Sub User\)\s*/gi, '')
-          .replace(/\s*\(external_user\)\s*/gi, '')
-          .trim();
-
-        // Try exact match
-        if (normalizedTaskName === normalizedFilterName) {
-          console.log('✅ Name exact match:', task.title);
-          return true;
+        
+        // For sub-users, match by name after normalization
+        const taskCreatorName = (task.created_by_name || '').trim();
+        const selectedUserName = (filters.selectedUserName || '').trim();
+        
+        if (!taskCreatorName || !selectedUserName) {
+          console.log('❌ Missing name data for:', task.title);
+          return false;
         }
 
-        // Try case-insensitive match
-        if (normalizedTaskName.toLowerCase() === normalizedFilterName.toLowerCase()) {
-          console.log('✅ Name case-insensitive match:', task.title);
-          return true;
-        }
+        // Normalize both names: remove suffixes and compare
+        const normalizeCreatorName = (name: string) => {
+          return name
+            .replace(/\s*\(Sub User\)\s*/gi, '')
+            .replace(/\s*\(external_user\)\s*/gi, '')
+            .trim()
+            .toLowerCase();
+        };
 
-        // Strategy 3: Try matching with the ID directly against name field
-        // (in case name was stored in the ID field)
-        if (normalizedTaskName === selectedUserId || normalizedTaskName.toLowerCase() === selectedUserId.toLowerCase()) {
-          console.log('✅ Task name matches selected ID:', task.title);
-          return true;
-        }
+        const normalizedTaskName = normalizeCreatorName(taskCreatorName);
+        const normalizedFilterName = normalizeCreatorName(selectedUserName);
 
-        return false;
+        const matches = normalizedTaskName === normalizedFilterName;
+        
+        if (matches) {
+          console.log('✅ Sub-user creator match:', task.title, {
+            taskName: taskCreatorName,
+            filterName: selectedUserName,
+            normalizedMatch: normalizedTaskName
+          });
+        } else {
+          console.log('❌ No match:', task.title, {
+            taskName: normalizedTaskName,
+            filterName: normalizedFilterName
+          });
+        }
+        
+        return matches;
       });
       console.log(`📊 After created filter: ${filtered.length} tasks`);
     }
@@ -177,7 +171,5 @@ export const useTaskFilters = () => {
     setFilterType,
     resetFilters,
     applyFilters,
-    // Return a unique key that changes when filters change to force re-renders
-    filterKey: `${filters.sortOrder}-${filters.filterType}-${filters.selectedUserId}-${filters.selectedUserType}`,
   };
 };
