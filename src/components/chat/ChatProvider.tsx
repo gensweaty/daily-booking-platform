@@ -149,8 +149,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!root) {
       root = document.createElement('div');
       root.id = 'chat-portal-root';
-      root.style.display = 'contents'; // no box, no stacking context, no hitbox
       root.className = 'chat-portal-root';
+      root.style.pointerEvents = 'none'; // default: pass-through
       document.body.appendChild(root);
     }
     return root;
@@ -1187,6 +1187,37 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     [uiChannelUnreads]
   );
 
+  // Add inert watcher: disable chat layer when any Radix portal opens
+  useEffect(() => {
+    const chatRoot = document.getElementById('chat-portal-root');
+    if (!chatRoot) return;
+
+    const setInert = () => {
+      // any Radix portal child with data-state="open"
+      const hasOpenRadix = !!document.querySelector('[data-radix-portal] [data-state="open"]');
+      if (hasOpenRadix) {
+        chatRoot.setAttribute('inert', '');
+        chatRoot.style.pointerEvents = 'none';
+      } else {
+        chatRoot.removeAttribute('inert');
+        chatRoot.style.pointerEvents = 'none'; // keep the container itself inert
+      }
+    };
+
+    // run once and then watch for changes
+    setInert();
+
+    const mo = new MutationObserver(setInert);
+    mo.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-state', 'style', 'class', 'aria-hidden'],
+      childList: true,
+    });
+
+    return () => mo.disconnect();
+  }, []);
+
   // Context value - memoized to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     isOpen,
@@ -1223,7 +1254,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       {shouldShowChat && portalRoot && createPortal(
         <div className="contents" key={identityKey}>
           {!isOpen && (
-            <div className="fixed bottom-4 right-4 z-[40] pointer-events-auto">
+            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
               <ChatIcon 
                 onClick={toggle} 
                 isOpen={isOpen} 
@@ -1233,10 +1264,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             </div>
           )}
           {isOpen && (
-            <div className="fixed inset-0 z-[40] pointer-events-none">
-              <div className="pointer-events-auto">
-                <ChatWindow isOpen={isOpen} onClose={close} />
-              </div>
+            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
+              <ChatWindow isOpen={isOpen} onClose={close} />
             </div>
           )}
         </div>,
