@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePublicBoardAuth } from "@/contexts/PublicBoardAuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { ChatIcon } from "./ChatIcon";
 import { ChatWindow } from "./ChatWindow";
 import { resolveAvatarUrl } from "./_avatar";
@@ -83,6 +84,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { user: publicBoardUser } = usePublicBoardAuth();
+  const { t } = useLanguage();
 
   // UI state
   const [isOpen, setIsOpen] = useState(false);
@@ -1229,6 +1231,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                 isOpen={isOpen} 
                 unreadCount={unreadTotal}
                 isPending={false}
+                teamChatText={t('chat.teamChat')}
+                loadingText={t('chat.loading')}
               />
             </div>
           )}
