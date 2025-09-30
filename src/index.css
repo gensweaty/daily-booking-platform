@@ -532,9 +532,12 @@
   pointer-events: auto;
 }
 
-/* Ensure all dialogs are above chat portal */
-[role="dialog"],
-[role="alertdialog"] {
-  z-index: 50;
+/* Ensure AlertDialog inside chat portal is above everything */
+.chat-portal-root [data-radix-alert-dialog-overlay] {
+  z-index: 99998 !important;
+}
+
+.chat-portal-root [data-radix-alert-dialog-content] {
+  z-index: 99999 !important;
 }
 
