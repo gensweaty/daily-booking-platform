@@ -224,8 +224,8 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
 
               </div>
 
-              {/* Bottom row with assignee and delete button */}
-              <div className="flex justify-between items-center mt-2">
+              {/* Bottom row with assignee and delete button on the right */}
+              <div className="flex justify-end items-center gap-2 mt-2">
                 {/* Assignee avatar - always visible */}
                 <div className="flex-shrink-0">
                   <TaskAssigneeDisplay task={task} size="sm" />
