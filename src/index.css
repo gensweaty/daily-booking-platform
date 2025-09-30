@@ -522,22 +522,25 @@
   font-weight: inherit !important;
 }
 
-/* Chat portal: allow interaction but stay below dialogs */
+/* Chat portal: no box, no stacking context */
 .chat-portal-root {
-  pointer-events: none;
-  z-index: 40;
+  display: contents;
 }
 
-.chat-portal-root > * {
-  pointer-events: auto;
+/* Z-index system: chat at 40, dialogs at 1000+ */
+:root {
+  --z-chat: 40;
+  --z-popover: 1000;
+  --z-dialog: 1100;
 }
 
-/* Ensure AlertDialog inside chat portal is above everything */
-.chat-portal-root [data-radix-alert-dialog-overlay] {
-  z-index: 99998 !important;
+/* Ensure all Radix portals have clear z-index hierarchy */
+[data-radix-portal] {
+  z-index: var(--z-popover) !important;
 }
 
-.chat-portal-root [data-radix-alert-dialog-content] {
-  z-index: 99999 !important;
+[data-radix-portal] [role="dialog"],
+[data-radix-portal] [role="alertdialog"] {
+  z-index: var(--z-dialog) !important;
 }
 

@@ -149,15 +149,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!root) {
       root = document.createElement('div');
       root.id = 'chat-portal-root';
-      root.style.position = 'fixed';
-      root.style.top = '0';
-      root.style.left = '0';
-      root.style.width = '100%';
-      root.style.height = '100%';
-      // Keep chat above app content but ALWAYS below any modal/alert dialogs.
-      // Radix/shadcn dialogs default around z-50; we choose 40 so dialogs win.
-      root.style.pointerEvents = 'none';
-      root.style.zIndex = '40';
+      root.style.display = 'contents'; // no box, no stacking context, no hitbox
       root.className = 'chat-portal-root';
       document.body.appendChild(root);
     }
@@ -1229,18 +1221,23 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     <ChatContext.Provider value={contextValue}>
       {children}
       {shouldShowChat && portalRoot && createPortal(
-        <div key={identityKey}>
+        <div className="contents" key={identityKey}>
           {!isOpen && (
-            <ChatIcon 
-              onClick={toggle} 
-              isOpen={isOpen} 
-              unreadCount={unreadTotal}
-              // No more spinner loop on the icon
-              isPending={false}
-            />
+            <div className="fixed bottom-4 right-4 z-[40] pointer-events-auto">
+              <ChatIcon 
+                onClick={toggle} 
+                isOpen={isOpen} 
+                unreadCount={unreadTotal}
+                isPending={false}
+              />
+            </div>
           )}
           {isOpen && (
-            <ChatWindow isOpen={isOpen} onClose={close} />
+            <div className="fixed inset-0 z-[40] pointer-events-none">
+              <div className="pointer-events-auto">
+                <ChatWindow isOpen={isOpen} onClose={close} />
+              </div>
+            </div>
           )}
         </div>,
         portalRoot
