@@ -28,6 +28,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { applyFilters } = useTaskFilters(); // Must be called at top before any returns
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [viewingTask, setViewingTask] = useState<Task | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -270,8 +271,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     );
   }
 
-  // Apply filters to tasks
-  const { applyFilters } = useTaskFilters();
+  // Apply filters to tasks (hook is called at top of component)
   const filteredTasks = applyFilters(tasks.filter((task: Task) => !task.archived));
   
   const columns = {
