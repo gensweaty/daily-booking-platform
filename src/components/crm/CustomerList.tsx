@@ -539,11 +539,11 @@ export const CustomerList = ({
 
   return (
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4 overflow-hidden">
-      {/* Header and action buttons */}
-      <div className="flex flex-col gap-3">
-        {/* Title row with presence */}
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg md:text-xl lg:text-2xl font-bold flex-shrink-0">
+      {/* Header and all action buttons on same line */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 lg:gap-4">
+        {/* Left side: Title and Presence */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <h2 className="text-lg md:text-xl lg:text-2xl font-bold">
             {isGeorgian ? (
               <GeorgianAuthText fontWeight="bold">CRM</GeorgianAuthText>
             ) : (
@@ -555,23 +555,19 @@ export const CustomerList = ({
           </div>
         </div>
 
-        {/* Action buttons row - responsive and proportional */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-          <div className="flex-1 sm:flex-initial sm:min-w-[200px] lg:min-w-[240px]">
-            <DateRangeSelect 
-              selectedDate={dateRange}
-              onDateChange={handleDateRangeChange}
-              disabled={isFetching}
-            />
-          </div>
-          <div className="flex-1 sm:flex-initial sm:min-w-[200px] lg:min-w-[280px]">
-            <SearchCommand
-              data={combinedData}
-              setFilteredData={setFilteredData}
-              resetPagination={resetPagination}
-            />
-          </div>
-          <div className="flex items-center gap-2 sm:ml-auto">
+        {/* Right side: All action buttons */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+          <DateRangeSelect 
+            selectedDate={dateRange}
+            onDateChange={handleDateRangeChange}
+            disabled={isFetching}
+          />
+          <SearchCommand
+            data={combinedData}
+            setFilteredData={setFilteredData}
+            resetPagination={resetPagination}
+          />
+          <div className="flex items-center gap-2">
             <Button 
               onClick={handleExcelDownload}
               variant="outline" 
@@ -594,6 +590,40 @@ export const CustomerList = ({
           </div>
         </div>
       </div>
+
+      {/* Empty state when no customers */}
+      {!(isFetching && !isLoading) && filteredData.length === 0 && (
+        <div className="border-2 border-dashed border-border rounded-lg p-8 md:p-12 text-center bg-muted/30">
+          <div className="flex flex-col items-center justify-center space-y-3">
+            <div className="rounded-full bg-muted p-4">
+              <User className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold">
+              {isGeorgian ? (
+                <GeorgianAuthText fontWeight="semibold">{t("crm.noCustomers")}</GeorgianAuthText>
+              ) : (
+                t("crm.noCustomers")
+              )}
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-md">
+              {isGeorgian ? (
+                <GeorgianAuthText>{t("crm.noCustomersDescription")}</GeorgianAuthText>
+              ) : (
+                t("crm.noCustomersDescription")
+              )}
+            </p>
+            {!isFetching && (
+              <Button 
+                onClick={openCreateDialog}
+                className="mt-4"
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                {t("crm.addCustomer")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       {!(isFetching && !isLoading) && filteredData.length > 0 && (
         <>
