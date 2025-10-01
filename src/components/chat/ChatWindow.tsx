@@ -15,22 +15,13 @@ import './mobile-chat.css';
 interface ChatWindowProps {
   isOpen: boolean;
   onClose: () => void;
-  /** When provided on mobile, pushes the chat down by this many pixels (for an external header). */
-  mobileTopOffset?: number;
-  /** When true on mobile, hides the in-card title bar (because we render an external header). */
-  hideMobileTitleBar?: boolean;
-  /** Internal content padding under external header */
-  contentTopPad?: number;
 }
 
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ 
   isOpen, 
-  onClose, 
-  mobileTopOffset = 0, 
-  hideMobileTitleBar = false,
-  contentTopPad = 0
+  onClose
 }: ChatWindowProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -41,14 +32,6 @@ export const ChatWindow = ({
   const { isInitialized } = useChat();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  
-  // Detect public board (external link) or sub-user
-  const isOnPublicBoard =
-    typeof window !== 'undefined' && window.location.pathname.startsWith('/board/');
-  const isSubUser = user?.user_metadata?.type === 'sub_user';
-
-  // Force show the top bar on mobile for public boards AND sub-users (matches internal/mobile UI)
-  const forceShowMobileTitleBar = isMobile && (isOnPublicBoard || isSubUser);
 
   // Set state on mount - minimized on first open for desktop, maximized for mobile
   useEffect(() => {
@@ -124,7 +107,6 @@ export const ChatWindow = ({
 
   const getWindowStyle = (): React.CSSProperties => {
     if (isMobile) {
-      // FULLSCREEN: no external top offset; header is layered above
       return {
         position: 'fixed',
         left: 0,
@@ -132,7 +114,8 @@ export const ChatWindow = ({
         bottom: 0,
         top: 0,
         width: '100vw',
-        height: '100dvh',
+        height: '100svh' as any,
+        minHeight: '100dvh',
         paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : '0'
       };
     }
@@ -171,24 +154,23 @@ export const ChatWindow = ({
     <Card
       ref={cardRef}
       className={cn(
-        "fixed bg-background border shadow-lg pointer-events-auto",
-        isMobile ? 'z-[2147483645]' : 'z-[12001]',
+        "fixed bg-background border shadow-lg pointer-events-auto z-[2147483647]",
         "grid grid-rows-[auto,1fr] overflow-hidden",
         windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
         isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-all duration-300'
       )}
       style={getWindowStyle()}
     >
-      {/* Title Bar (hidden on mobile when external header is present) */}
-      {!(isMobile && hideMobileTitleBar) && (
-        <div
-          id="chat-titlebar"
-          className={cn(
-            "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
-            "min-h-[52px] shrink-0",
-            windowState === 'minimized' ? "h-[52px]" : ""
-          )}
-        >
+      {/* Title Bar */}
+      <div
+        id="chat-titlebar"
+        className={cn(
+          "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
+          "min-h-[52px] shrink-0",
+          windowState === 'minimized' ? "h-[52px]" : ""
+        )}
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
         <div className="flex items-center gap-2 min-w-0">
           {windowState !== 'minimized' && (
             <Button
@@ -248,20 +230,11 @@ export const ChatWindow = ({
             <X className="h-3 w-3" />
           </Button>
         </div>
-        </div>
-      )}
+      </div>
 
       {/* Chat Content */}
       {windowState !== 'minimized' && (
-        <div
-          style={
-            isMobile && hideMobileTitleBar
-              ? { paddingTop: `calc(${contentTopPad}px + env(safe-area-inset-top, 0px))` }
-              : undefined
-          }
-          className="min-h-0"
-        >
-          <div className="grid grid-cols-[auto,1fr] overflow-hidden min-h-0">
+        <div className="grid grid-cols-[auto,1fr] overflow-hidden min-h-0">
           {/* Sidebar */}
           <div className={cn(
             "border-r overflow-hidden bg-muted/20",
@@ -285,7 +258,6 @@ export const ChatWindow = ({
             <ChatArea 
               onMessageInputFocus={handleMobileSidebarAutoClose}
             />
-          </div>
           </div>
         </div>
       )}

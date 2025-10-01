@@ -99,7 +99,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // Lock body scroll when chat is open on mobile
+  // Body scroll lock for mobile chat
   useEffect(() => {
     if (!isMobile || !isOpen) return;
     const prevOverflow = document.body.style.overflow;
@@ -1238,10 +1238,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     userChannels,
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, uiUnreadTotal, uiChannelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel, userChannels]);
 
-  // We want the external header for (a) public boards or (b) any sub_user on mobile
-  const isSubUser = me?.type === "sub_user";
-  const useExternalMobileHeader = isMobile && (isOnPublicBoard || isSubUser);
-
   return (
     <ChatContext.Provider value={contextValue}>
       {children}
@@ -1263,47 +1259,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             <div
               id="chat-floating-root"
               className="fixed inset-0 pointer-events-none"
-              style={{ zIndex: 2147483644 }}
+              style={{ zIndex: 2147483646 }}
             >
-              {/* EXTERNAL MOBILE HEADER (always on top) */}
-              {useExternalMobileHeader && (
-                <div
-                  id="chat-mobile-header"
-                  className="pointer-events-auto fixed top-0 left-0 right-0 h-[52px] bg-background/95 backdrop-blur border-b border-border flex items-center justify-between px-3"
-                  style={{ zIndex: 2147483646 }}
-                >
-                  <button
-                    type="button"
-                    aria-label="Toggle chat sidebar"
-                    className="p-2 -ml-1 hover:bg-muted rounded-md transition-colors"
-                    onClick={() => window.dispatchEvent(new CustomEvent("chat-toggle-sidebar"))}
-                  >
-                    <Menu className="h-5 w-5" />
-                  </button>
-
-                  <div className="text-sm font-medium truncate">
-                    {t('chat.teamChat')}
-                  </div>
-
-                  <button
-                    type="button"
-                    aria-label="Close chat"
-                    className="p-2 -mr-1 hover:bg-muted rounded-md transition-colors"
-                    onClick={close}
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              )}
-
-              {/* CHAT CARD (now truly fullscreen; no top offset) */}
               <div className="pointer-events-auto h-full">
                 <ChatWindow
                   isOpen={isOpen}
                   onClose={close}
-                  mobileTopOffset={0}
-                  hideMobileTitleBar={useExternalMobileHeader}
-                  contentTopPad={useExternalMobileHeader ? 52 : 0}
                 />
               </div>
             </div>
