@@ -19,11 +19,19 @@ interface ChatWindowProps {
   mobileTopOffset?: number;
   /** When true on mobile, hides the in-card title bar (because we render an external header). */
   hideMobileTitleBar?: boolean;
+  /** Internal content padding under external header */
+  contentTopPad?: number;
 }
 
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
-export const ChatWindow = ({ isOpen, onClose, mobileTopOffset = 0, hideMobileTitleBar = false }: ChatWindowProps) => {
+export const ChatWindow = ({ 
+  isOpen, 
+  onClose, 
+  mobileTopOffset = 0, 
+  hideMobileTitleBar = false,
+  contentTopPad = 0
+}: ChatWindowProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [windowState, setWindowState] = useState<WindowState>('normal');
@@ -116,16 +124,15 @@ export const ChatWindow = ({ isOpen, onClose, mobileTopOffset = 0, hideMobileTit
 
   const getWindowStyle = (): React.CSSProperties => {
     if (isMobile) {
-      const topOffset = Math.max(0, mobileTopOffset || 0);
+      // FULLSCREEN: no external top offset; header is layered above
       return {
         position: 'fixed',
         left: 0,
         right: 0,
         bottom: 0,
-        top: topOffset,                           // push under external header
+        top: 0,
         width: '100vw',
-        // keep dynamic viewport accounting for keyboards + offset:
-        height: `calc(100dvh - ${topOffset}px)`,
+        height: '100dvh',
         paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : '0'
       };
     }
@@ -164,8 +171,8 @@ export const ChatWindow = ({ isOpen, onClose, mobileTopOffset = 0, hideMobileTit
     <Card
       ref={cardRef}
       className={cn(
-        // below header (12002) but above page
-        "fixed bg-background border shadow-lg pointer-events-auto z-[12001]",
+        "fixed bg-background border shadow-lg pointer-events-auto",
+        isMobile ? 'z-[2147483645]' : 'z-[12001]',
         "grid grid-rows-[auto,1fr] overflow-hidden",
         windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
         isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-all duration-300'
@@ -246,7 +253,15 @@ export const ChatWindow = ({ isOpen, onClose, mobileTopOffset = 0, hideMobileTit
 
       {/* Chat Content */}
       {windowState !== 'minimized' && (
-        <div className="grid grid-cols-[auto,1fr] overflow-hidden min-h-0">
+        <div
+          style={
+            isMobile && hideMobileTitleBar
+              ? { paddingTop: `calc(${contentTopPad}px + env(safe-area-inset-top, 0px))` }
+              : undefined
+          }
+          className="min-h-0"
+        >
+          <div className="grid grid-cols-[auto,1fr] overflow-hidden min-h-0">
           {/* Sidebar */}
           <div className={cn(
             "border-r overflow-hidden bg-muted/20",
@@ -271,9 +286,9 @@ export const ChatWindow = ({ isOpen, onClose, mobileTopOffset = 0, hideMobileTit
               onMessageInputFocus={handleMobileSidebarAutoClose}
             />
           </div>
+          </div>
         </div>
       )}
-      
     </Card>
   );
 };

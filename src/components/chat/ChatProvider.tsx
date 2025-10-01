@@ -97,6 +97,23 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [hasSubUsers, setHasSubUsers] = useState(false);
   const [channelMemberMap, setChannelMemberMap] = useState<Map<string, { id: string; type: 'admin' | 'sub_user' }>>(new Map());
   
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Lock body scroll when chat is open on mobile
+  useEffect(() => {
+    if (!isMobile || !isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevOverscroll = document.documentElement.style.overscrollBehavior;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'contain';
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overscrollBehavior = prevOverscroll || 'auto';
+    };
+  }, [isMobile, isOpen]);
+  
   // Track recently cleared channels and peers to prevent badge beaming
   const [recentlyClearedChannels, setRecentlyClearedChannels] = useState<Map<string, number>>(new Map());
   const [recentlyClearedPeers, setRecentlyClearedPeers] = useState<Map<string, number>>(new Map());
@@ -1221,14 +1238,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     userChannels,
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, uiUnreadTotal, uiChannelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel, userChannels]);
 
-  const isMobile = useMediaQuery("(max-width: 768px)");
-
   // We want the external header for (a) public boards or (b) any sub_user on mobile
   const isSubUser = me?.type === "sub_user";
   const useExternalMobileHeader = isMobile && (isOnPublicBoard || isSubUser);
-
-  // Height of the external header (px) – matches internal title bar height
-  const MOBILE_HEADER_H = 52;
 
   return (
     <ChatContext.Provider value={contextValue}>
@@ -1250,7 +1262,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           {isOpen && (
             <div
               id="chat-floating-root"
-              className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 pointer-events-none"
+              className="fixed inset-0 pointer-events-none"
+              style={{ zIndex: 2147483644 }}
             >
               {/* EXTERNAL MOBILE HEADER (always on top) */}
               {useExternalMobileHeader && (
@@ -1283,13 +1296,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                 </div>
               )}
 
-              {/* CHAT CARD (offset below the external header if present) */}
+              {/* CHAT CARD (now truly fullscreen; no top offset) */}
               <div className="pointer-events-auto h-full">
                 <ChatWindow
                   isOpen={isOpen}
                   onClose={close}
-                  mobileTopOffset={useExternalMobileHeader ? MOBILE_HEADER_H : 0}
+                  mobileTopOffset={0}
                   hideMobileTitleBar={useExternalMobileHeader}
+                  contentTopPad={useExternalMobileHeader ? 52 : 0}
                 />
               </div>
             </div>
