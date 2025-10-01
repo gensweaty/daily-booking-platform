@@ -17,6 +17,8 @@ import { getCurrencySymbol } from "@/lib/currency";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { PermissionGate } from "@/components/PermissionGate";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
+import { CRMFiltersProvider, useCRMFilters } from "@/hooks/useCRMFilters";
+import { CRMFilterButton } from "./CRMFilterButton";
 import {
   Table,
   TableBody,
@@ -102,7 +104,7 @@ interface CustomerListProps {
   currentUserEmail?: string;
 }
 
-export const CustomerList = ({ 
+const CustomerListContent = ({ 
   isPublicMode = false, 
   externalUserName, 
   externalUserEmail,
@@ -115,6 +117,7 @@ export const CustomerList = ({
   const { user } = useAuth();
   const { toast } = useToast();
   const { isSubUser } = useSubUserPermissions();
+  const { applyFilters } = useCRMFilters();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
@@ -159,11 +162,17 @@ export const CustomerList = ({
     setCurrentPage(1);
   }, []);
 
+  // Apply CRM filters to the data
+  const displayedData = useMemo(() => {
+    const dataToFilter = filteredData.length > 0 ? filteredData : combinedData;
+    return applyFilters(dataToFilter);
+  }, [filteredData, combinedData, applyFilters]);
+
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    return filteredData.slice(startIndex, endIndex);
-  }, [filteredData, currentPage, pageSize]);
+    return displayedData.slice(startIndex, endIndex);
+  }, [displayedData, currentPage, pageSize]);
 
   // Helper function to get the effective user ID for operations (same as CustomerDialog)
   const getEffectiveUserId = useCallback(() => {
@@ -473,12 +482,12 @@ export const CustomerList = ({
   }, []);
 
   const handleExcelDownload = useCallback(() => {
-    if (!filteredData.length) return;
+    if (!displayedData.length) return;
 
     // Get currency symbol based on current language
     const currencySymbol = getCurrencySymbol(language);
 
-    const excelData = filteredData.map(customer => {
+    const excelData = displayedData.map(customer => {
       const paymentStatusText = customer.payment_status ? 
         customer.payment_status === 'not_paid' ? t("crm.notPaid") :
         customer.payment_status === 'partly' ? t("crm.paidPartly") :
@@ -526,11 +535,11 @@ export const CustomerList = ({
       title: t("dashboard.exportSuccessful"),
       description: t("dashboard.exportSuccessMessage"),
     });
-  }, [filteredData, language, t, toast, formatTimeRange]);
+  }, [displayedData, language, t, toast, formatTimeRange]);
 
   const totalPages = useMemo(() => 
-    Math.ceil(filteredData.length / pageSize),
-    [filteredData.length, pageSize]
+    Math.ceil(displayedData.length / pageSize),
+    [displayedData.length, pageSize]
   );
 
   if (isLoading && combinedData.length === 0) {
@@ -567,7 +576,8 @@ export const CustomerList = ({
             setFilteredData={setFilteredData}
             resetPagination={resetPagination}
           />
-          <Button 
+          <CRMFilterButton boardOwnerId={isPublicMode ? publicBoardUserId : user?.id} />
+          <Button
             onClick={handleExcelDownload}
             variant="outline" 
             size="default"
@@ -590,7 +600,7 @@ export const CustomerList = ({
       </div>
 
       {/* Empty state when no customers */}
-      {!(isFetching && !isLoading) && filteredData.length === 0 && (
+      {!(isFetching && !isLoading) && displayedData.length === 0 && (
         <div className="border-2 border-dashed border-border rounded-lg p-8 md:p-12 text-center bg-muted/30">
           <div className="flex flex-col items-center justify-center space-y-3">
             <div className="rounded-full bg-muted p-4">
@@ -623,7 +633,7 @@ export const CustomerList = ({
         </div>
       )}
 
-      {!(isFetching && !isLoading) && filteredData.length > 0 && (
+      {!(isFetching && !isLoading) && displayedData.length > 0 && (
         <>
           <div className="w-full overflow-x-auto">
             <div className="min-w-[1000px]">
@@ -809,7 +819,7 @@ export const CustomerList = ({
               </Select>
             </div>
             <div className="text-sm text-muted-foreground">
-              {Math.min((currentPage - 1) * pageSize + 1, filteredData.length)}-{Math.min(currentPage * pageSize, filteredData.length)} {t("common.of")} {filteredData.length}
+              {Math.min((currentPage - 1) * pageSize + 1, displayedData.length)}-{Math.min(currentPage * pageSize, displayedData.length)} {t("common.of")} {displayedData.length}
             </div>
           </div>
         </>
@@ -846,6 +856,14 @@ export const CustomerList = ({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+};
+
+export const CustomerList = (props: CustomerListProps) => {
+  return (
+    <CRMFiltersProvider>
+      <CustomerListContent {...props} />
+    </CRMFiltersProvider>
   );
 };
 
