@@ -1237,7 +1237,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             </div>
           )}
           {isOpen && (
-            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[9999]">
+            <div id="chat-floating-root" className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-[9999]">
               <ChatWindow isOpen={isOpen} onClose={close} />
             </div>
           )}
