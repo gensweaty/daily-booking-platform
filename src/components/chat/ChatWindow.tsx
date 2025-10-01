@@ -15,11 +15,15 @@ import './mobile-chat.css';
 interface ChatWindowProps {
   isOpen: boolean;
   onClose: () => void;
+  /** When provided on mobile, pushes the chat down by this many pixels (for an external header). */
+  mobileTopOffset?: number;
+  /** When true on mobile, hides the in-card title bar (because we render an external header). */
+  hideMobileTitleBar?: boolean;
 }
 
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
-export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
+export const ChatWindow = ({ isOpen, onClose, mobileTopOffset = 0, hideMobileTitleBar = false }: ChatWindowProps) => {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [windowState, setWindowState] = useState<WindowState>('normal');
@@ -112,10 +116,16 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
 
   const getWindowStyle = (): React.CSSProperties => {
     if (isMobile) {
+      const topOffset = Math.max(0, mobileTopOffset || 0);
       return {
-        inset: 0,
+        position: 'fixed',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        top: topOffset,                           // push under external header
         width: '100vw',
-        height: '100dvh', // Use dynamic viewport height for mobile
+        // keep dynamic viewport accounting for keyboards + offset:
+        height: `calc(100dvh - ${topOffset}px)`,
         paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : '0'
       };
     }
@@ -162,17 +172,16 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       )}
       style={getWindowStyle()}
     >
-      {/* Title Bar */}
-      <div
-        id="chat-titlebar"
-        className={cn(
-          "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
-          "min-h-[52px] shrink-0", // Consistent height with better spacing
-          windowState === 'minimized' ? "h-[52px]" : "" // Fixed height when minimized
-        )}
-        // beat any mobile CSS that hides this on public boards
-        style={forceShowMobileTitleBar ? { display: 'flex' } : undefined}
-      >
+      {/* Title Bar (hidden on mobile when external header is present) */}
+      {!(isMobile && hideMobileTitleBar) && (
+        <div
+          id="chat-titlebar"
+          className={cn(
+            "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
+            "min-h-[52px] shrink-0",
+            windowState === 'minimized' ? "h-[52px]" : ""
+          )}
+        >
         <div className="flex items-center gap-2 min-w-0">
           {windowState !== 'minimized' && (
             <Button
@@ -232,11 +241,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             <X className="h-3 w-3" />
           </Button>
         </div>
-      </div>
-
-      {/* hard override in case a CSS rule used !important to hide the title bar */}
-      {forceShowMobileTitleBar && (
-        <style>{`#chat-titlebar{display:flex !important}`}</style>
+        </div>
       )}
 
       {/* Chat Content */}

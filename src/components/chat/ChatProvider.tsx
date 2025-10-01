@@ -1223,6 +1223,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const isMobile = useMediaQuery("(max-width: 768px)");
 
+  // We want the external header for (a) public boards or (b) any sub_user on mobile
+  const isSubUser = me?.type === "sub_user";
+  const useExternalMobileHeader = isMobile && (isOnPublicBoard || isSubUser);
+
+  // Height of the external header (px) – matches internal title bar height
+  const MOBILE_HEADER_H = 52;
+
   return (
     <ChatContext.Provider value={contextValue}>
       {children}
@@ -1243,11 +1250,47 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           {isOpen && (
             <div
               id="chat-floating-root"
-              className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-[12000] pointer-events-none"
+              className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 pointer-events-none"
             >
-              {/* No overlay header – ChatWindow has its own title bar on mobile now */}
+              {/* EXTERNAL MOBILE HEADER (always on top) */}
+              {useExternalMobileHeader && (
+                <div
+                  id="chat-mobile-header"
+                  className="pointer-events-auto fixed top-0 left-0 right-0 h-[52px] bg-background/95 backdrop-blur border-b border-border flex items-center justify-between px-3"
+                  style={{ zIndex: 2147483646 }}
+                >
+                  <button
+                    type="button"
+                    aria-label="Toggle chat sidebar"
+                    className="p-2 -ml-1 hover:bg-muted rounded-md transition-colors"
+                    onClick={() => window.dispatchEvent(new CustomEvent("chat-toggle-sidebar"))}
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
+
+                  <div className="text-sm font-medium truncate">
+                    {t('chat.teamChat')}
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-label="Close chat"
+                    className="p-2 -mr-1 hover:bg-muted rounded-md transition-colors"
+                    onClick={close}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              )}
+
+              {/* CHAT CARD (offset below the external header if present) */}
               <div className="pointer-events-auto h-full">
-                <ChatWindow isOpen={isOpen} onClose={close} />
+                <ChatWindow
+                  isOpen={isOpen}
+                  onClose={close}
+                  mobileTopOffset={useExternalMobileHeader ? MOBILE_HEADER_H : 0}
+                  hideMobileTitleBar={useExternalMobileHeader}
+                />
               </div>
             </div>
           )}
