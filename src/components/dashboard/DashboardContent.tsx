@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils"
 import { useQueryClient } from "@tanstack/react-query"
 import { TasksPresenceHeader } from "@/components/tasks/TasksPresenceHeader"
 import { TaskFilterButton } from "@/components/tasks/TaskFilterButton"
+import { TaskFiltersProvider } from "@/hooks/useTaskFilters"
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -298,7 +299,7 @@ export const DashboardContent = ({
           </TabsContent>
 
           <TabsContent key="tasks" value="tasks">
-            <div>
+            <TaskFiltersProvider>
               <Card className="min-h-[calc(100vh-12rem)]">
                  <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
                    <CardTitle>
@@ -420,7 +421,7 @@ export const DashboardContent = ({
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </TaskFiltersProvider>
           </TabsContent>
 
           <TabsContent key="crm" value="crm">

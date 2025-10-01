@@ -15,7 +15,7 @@ import { Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { TaskFilterButton } from "./TaskFilterButton";
-import { useTaskFilters } from "@/hooks/useTaskFilters";
+import { useTaskFilters, TaskFiltersProvider } from "@/hooks/useTaskFilters";
 
 interface PublicTaskListProps {
   boardUserId: string;
@@ -357,7 +357,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   };
 
   return (
-    <>
+    <TaskFiltersProvider>
       <div className="space-y-6">
         {/* Mobile: Header line with Tasks left, circles center, Filter and Add button right */}
         <div className="grid sm:hidden grid-cols-[auto_1fr_auto] items-center w-full gap-2">
@@ -474,6 +474,6 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
           externalUserEmail={externalUserEmail}
         />
       )}
-    </>
+    </TaskFiltersProvider>
   );
 };
