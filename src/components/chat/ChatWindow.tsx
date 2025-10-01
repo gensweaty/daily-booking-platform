@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatArea } from './ChatArea';
 import { useChat } from './ChatProvider';
-import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LanguageText } from '@/components/shared/LanguageText';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -19,12 +18,8 @@ interface ChatWindowProps {
 
 type WindowState = 'normal' | 'minimized' | 'maximized';
 
-export const ChatWindow = ({ 
-  isOpen, 
-  onClose
-}: ChatWindowProps) => {
+export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const { t } = useLanguage();
-  const { user } = useAuth();
   const [windowState, setWindowState] = useState<WindowState>('normal');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -87,13 +82,6 @@ export const ChatWindow = ({
     }
   };
 
-  // Listen for custom event to toggle sidebar (from mobile header)
-  useEffect(() => {
-    const handler = () => setIsSidebarCollapsed(s => !s);
-    window.addEventListener("chat-toggle-sidebar", handler);
-    return () => window.removeEventListener("chat-toggle-sidebar", handler);
-  }, []);
-
 
   const toggleMinimize = () => {
     if (isMobile) return; // No minimize on mobile
@@ -108,14 +96,9 @@ export const ChatWindow = ({
   const getWindowStyle = (): React.CSSProperties => {
     if (isMobile) {
       return {
-        position: 'fixed',
-        left: 0,
-        right: 0,
-        bottom: 0,
-        top: 0,
+        inset: 0,
         width: '100vw',
-        height: '100svh' as any,
-        minHeight: '100dvh',
+        height: '100dvh', // Use dynamic viewport height for mobile
         paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : '0'
       };
     }
@@ -154,7 +137,7 @@ export const ChatWindow = ({
     <Card
       ref={cardRef}
       className={cn(
-        "fixed bg-background border shadow-lg pointer-events-auto z-[2147483647]",
+        "fixed bg-background border shadow-lg pointer-events-auto z-[9998]",
         "grid grid-rows-[auto,1fr] overflow-hidden",
         windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
         isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-all duration-300'
@@ -162,15 +145,11 @@ export const ChatWindow = ({
       style={getWindowStyle()}
     >
       {/* Title Bar */}
-      <div
-        id="chat-titlebar"
-        className={cn(
-          "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
-          "min-h-[52px] shrink-0",
-          windowState === 'minimized' ? "h-[52px]" : ""
-        )}
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
+      <div className={cn(
+        "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
+        "min-h-[52px] shrink-0", // Consistent height with better spacing
+        windowState === 'minimized' ? "h-[52px]" : "" // Fixed height when minimized
+      )}>
         <div className="flex items-center gap-2 min-w-0">
           {windowState !== 'minimized' && (
             <Button
@@ -261,6 +240,7 @@ export const ChatWindow = ({
           </div>
         </div>
       )}
+      
     </Card>
   );
 };

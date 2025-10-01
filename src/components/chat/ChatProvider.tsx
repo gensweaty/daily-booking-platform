@@ -12,8 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
-import { Menu, X } from "lucide-react";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 type Me = { 
   id: string; 
@@ -96,23 +94,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [hasSubUsers, setHasSubUsers] = useState(false);
   const [channelMemberMap, setChannelMemberMap] = useState<Map<string, { id: string; type: 'admin' | 'sub_user' }>>(new Map());
-  
-  const isMobile = useMediaQuery("(max-width: 768px)");
-
-  // Body scroll lock for mobile chat
-  useEffect(() => {
-    if (!isMobile || !isOpen) return;
-    const prevOverflow = document.body.style.overflow;
-    const prevOverscroll = document.documentElement.style.overscrollBehavior;
-
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overscrollBehavior = 'contain';
-
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      document.documentElement.style.overscrollBehavior = prevOverscroll || 'auto';
-    };
-  }, [isMobile, isOpen]);
   
   // Track recently cleared channels and peers to prevent badge beaming
   const [recentlyClearedChannels, setRecentlyClearedChannels] = useState<Map<string, number>>(new Map());
@@ -1244,7 +1225,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       {shouldShowChat && portalRoot && createPortal(
         <div className="contents" key={identityKey}>
           {!isOpen && (
-            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[9999]">
+            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
               <ChatIcon 
                 onClick={toggle} 
                 isOpen={isOpen} 
@@ -1256,17 +1237,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             </div>
           )}
           {isOpen && (
-            <div
-              id="chat-floating-root"
-              className="fixed inset-0 pointer-events-none"
-              style={{ zIndex: 2147483646 }}
-            >
-              <div className="pointer-events-auto h-full">
-                <ChatWindow
-                  isOpen={isOpen}
-                  onClose={close}
-                />
-              </div>
+            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
+              <ChatWindow isOpen={isOpen} onClose={close} />
             </div>
           )}
         </div>,
