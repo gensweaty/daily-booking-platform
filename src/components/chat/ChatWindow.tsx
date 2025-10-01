@@ -27,6 +27,13 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const { isInitialized } = useChat();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  
+  // Detect public board (external link)
+  const isOnPublicBoard =
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/board/');
+
+  // Force show the top bar on mobile public boards (matches internal/mobile UI)
+  const forceShowMobileTitleBar = isMobile && isOnPublicBoard;
 
   // Set state on mount - minimized on first open for desktop, maximized for mobile
   useEffect(() => {
@@ -153,11 +160,16 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       style={getWindowStyle()}
     >
       {/* Title Bar */}
-      <div className={cn(
-        "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
-        "min-h-[52px] shrink-0", // Consistent height with better spacing
-        windowState === 'minimized' ? "h-[52px]" : "" // Fixed height when minimized
-      )}>
+      <div
+        id="chat-titlebar"
+        className={cn(
+          "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
+          "min-h-[52px] shrink-0", // Consistent height with better spacing
+          windowState === 'minimized' ? "h-[52px]" : "" // Fixed height when minimized
+        )}
+        // beat any mobile CSS that hides this on public boards
+        style={forceShowMobileTitleBar ? { display: 'flex' } : undefined}
+      >
         <div className="flex items-center gap-2 min-w-0">
           {windowState !== 'minimized' && (
             <Button
@@ -218,6 +230,11 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
           </Button>
         </div>
       </div>
+
+      {/* hard override in case a CSS rule used !important to hide the title bar */}
+      {forceShowMobileTitleBar && (
+        <style>{`#chat-titlebar{display:flex !important}`}</style>
+      )}
 
       {/* Chat Content */}
       {windowState !== 'minimized' && (
