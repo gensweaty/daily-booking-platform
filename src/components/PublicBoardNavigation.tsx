@@ -12,6 +12,7 @@ import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { supabase } from "@/lib/supabase";
+import { TaskFiltersProvider } from "@/hooks/useTaskFilters";
 
 // Create a context for public board auth
 export const PublicBoardAuthContext = createContext<{
@@ -173,22 +174,25 @@ export const PublicBoardNavigation = ({
   if (availableTabs.length === 1) {
     return (
       <PublicBoardAuthContext.Provider value={{ user: { id: boardUserId, email } }}>
-        <div className="w-full max-w-[98%] xl:max-w-[96%] 2xl:max-w-[94%] mx-auto">
-          <PublicTaskList 
-            boardUserId={boardUserId}
-            externalUserName={fullName}
-            externalUserEmail={email}
-            onlineUsers={onlineUsers}
-          />
-        </div>
+        <TaskFiltersProvider>
+          <div className="w-full max-w-[98%] xl:max-w-[96%] 2xl:max-w-[94%] mx-auto">
+            <PublicTaskList 
+              boardUserId={boardUserId}
+              externalUserName={fullName}
+              externalUserEmail={email}
+              onlineUsers={onlineUsers}
+            />
+          </div>
+        </TaskFiltersProvider>
       </PublicBoardAuthContext.Provider>
     );
   }
 
   return (
     <PublicBoardAuthContext.Provider value={{ user: { id: boardUserId, email } }}>
-      <div className="w-full max-w-[98%] xl:max-w-[96%] 2xl:max-w-[94%] mx-auto">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <TaskFiltersProvider>
+        <div className="w-full max-w-[98%] xl:max-w-[96%] 2xl:max-w-[94%] mx-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">
             <TabsList className="grid w-full bg-transparent p-0 gap-1 h-auto" style={{ gridTemplateColumns: `repeat(${availableTabs.length}, minmax(0, 1fr))` }}>
               {availableTabs.map((tab) => (
@@ -334,6 +338,7 @@ export const PublicBoardNavigation = ({
           </AnimatePresence>
         </Tabs>
       </div>
+      </TaskFiltersProvider>
     </PublicBoardAuthContext.Provider>
   );
 };
