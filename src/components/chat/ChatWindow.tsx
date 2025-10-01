@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatArea } from './ChatArea';
 import { useChat } from './ChatProvider';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LanguageText } from '@/components/shared/LanguageText';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -20,6 +21,7 @@ type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [windowState, setWindowState] = useState<WindowState>('normal');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
@@ -28,12 +30,13 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   
-  // Detect public board (external link)
+  // Detect public board (external link) or sub-user
   const isOnPublicBoard =
     typeof window !== 'undefined' && window.location.pathname.startsWith('/board/');
+  const isSubUser = user?.user_metadata?.type === 'sub_user';
 
-  // Force show the top bar on mobile public boards (matches internal/mobile UI)
-  const forceShowMobileTitleBar = isMobile && isOnPublicBoard;
+  // Force show the top bar on mobile for public boards AND sub-users (matches internal/mobile UI)
+  const forceShowMobileTitleBar = isMobile && (isOnPublicBoard || isSubUser);
 
   // Set state on mount - minimized on first open for desktop, maximized for mobile
   useEffect(() => {
