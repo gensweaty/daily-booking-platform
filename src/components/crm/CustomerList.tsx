@@ -555,8 +555,8 @@ export const CustomerList = ({
           </div>
         </div>
 
-        {/* Right side: All action buttons */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+        {/* Right side: All action buttons on same line */}
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           <DateRangeSelect 
             selectedDate={dateRange}
             onDateChange={handleDateRangeChange}
@@ -567,27 +567,25 @@ export const CustomerList = ({
             setFilteredData={setFilteredData}
             resetPagination={resetPagination}
           />
-          <div className="flex items-center gap-2">
-            <Button 
-              onClick={handleExcelDownload}
-              variant="outline" 
-              size="default"
-              className="flex items-center gap-2 h-10 px-3"
-              title={t("statistics.exportExcel")}
-              disabled={isFetching}
-            >
-              <FileSpreadsheet className="h-4 w-4" />
-              <span className="hidden sm:inline">Excel</span>
-            </Button>
-            <Button 
-              onClick={openCreateDialog} 
-              className="flex items-center gap-2 h-10 whitespace-nowrap"
-              disabled={isFetching}
-            >
-              <PlusCircle className="w-4 h-4" />
-              {t("crm.addCustomer")}
-            </Button>
-          </div>
+          <Button 
+            onClick={handleExcelDownload}
+            variant="outline" 
+            size="default"
+            className="flex items-center gap-2 h-10 px-3"
+            title={t("statistics.exportExcel")}
+            disabled={isFetching}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            <span className="hidden sm:inline">Excel</span>
+          </Button>
+          <Button 
+            onClick={openCreateDialog} 
+            className="flex items-center gap-2 h-10 whitespace-nowrap"
+            disabled={isFetching}
+          >
+            <PlusCircle className="w-4 h-4" />
+            {t("crm.addCustomer")}
+          </Button>
         </div>
       </div>
 
