@@ -1222,6 +1222,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, uiUnreadTotal, uiChannelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel, userChannels]);
 
   const isMobile = useMediaQuery("(max-width: 768px)");
+  
+  // Check if current user is a sub user to show mobile header for them too
+  const isSubUser = me?.type === "sub_user";
+  const shouldShowMobileHeader = (isOnPublicBoard || isSubUser) && isMobile;
 
   return (
     <ChatContext.Provider value={contextValue}>
@@ -1246,8 +1250,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               // wrapper above the site, dialogs, etc.
               className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-[12000] pointer-events-none"
             >
-              {/* Mobile header ONLY on public boards */}
-              {isOnPublicBoard && isMobile && (
+              {/* Mobile header for public boards AND sub users */}
+              {shouldShowMobileHeader && (
                 <div
                   // make sure this bar is above the chat card itself
                   className="pointer-events-auto sticky top-0 inset-x-0 h-12 bg-background/95 backdrop-blur border-b border-border
@@ -1280,7 +1284,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               )}
 
               {/* Chat window; give it top padding when header is shown */}
-              <div className={isOnPublicBoard && isMobile ? "pt-12 h-full pointer-events-auto" : "pointer-events-auto h-full"}>
+              <div className={shouldShowMobileHeader ? "pt-12 h-full pointer-events-auto" : "pointer-events-auto h-full"}>
                 <ChatWindow isOpen={isOpen} onClose={close} />
               </div>
             </div>
