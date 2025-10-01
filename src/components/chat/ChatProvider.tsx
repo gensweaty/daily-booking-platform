@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 type Me = { 
   id: string; 
@@ -153,10 +154,30 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       root.id = 'chat-portal-root';
       root.className = 'chat-portal-root';
       root.style.pointerEvents = 'none'; // default: pass-through
+      root.style.zIndex = '2147483646'; // Always above any app chrome
+      root.style.position = 'relative';
       document.body.appendChild(root);
     }
+    // Keep z-index correct even if root already existed
+    root.style.zIndex = '2147483646';
+    root.style.pointerEvents = 'none';
     return root;
   }, []);
+
+  const isMobile = useMediaQuery("(max-width: 768px)");
+  
+  // Lock background scroll when chat is open on mobile
+  useEffect(() => {
+    if (!isMobile || !isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevOverscroll = document.documentElement.style.overscrollBehavior;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overscrollBehavior = "contain";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overscrollBehavior = prevOverscroll || "auto";
+    };
+  }, [isMobile, isOpen]);
 
   // Determine context variables
   const isOnPublicBoard = location.pathname.startsWith('/board/');
@@ -1237,7 +1258,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             </div>
           )}
           {isOpen && (
-            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
+            <div
+              id="chat-overlay"
+              className="fixed inset-0 pointer-events-none"
+              style={{ zIndex: 2147483646 }}
+            >
               <ChatWindow isOpen={isOpen} onClose={close} />
             </div>
           )}

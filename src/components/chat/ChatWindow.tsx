@@ -96,9 +96,11 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const getWindowStyle = (): React.CSSProperties => {
     if (isMobile) {
       return {
+        position: 'fixed',
         inset: 0,
         width: '100vw',
-        height: '100dvh', // Use dynamic viewport height for mobile
+        height: '100dvh',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingBottom: keyboardHeight > 0 ? `${keyboardHeight}px` : '0'
       };
     }
@@ -137,7 +139,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     <Card
       ref={cardRef}
       className={cn(
-        "fixed bg-background border shadow-lg pointer-events-auto z-[9998]",
+        "fixed bg-background border shadow-lg pointer-events-auto z-[2147483645]",
         "grid grid-rows-[auto,1fr] overflow-hidden",
         windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
         isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-all duration-300'
