@@ -1243,13 +1243,15 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           {isOpen && (
             <div
               id="chat-floating-root"
-              className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-[9999] pointer-events-none"
+              // wrapper above the site, dialogs, etc.
+              className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-[12000] pointer-events-none"
             >
               {/* Mobile header ONLY on public boards */}
               {isOnPublicBoard && isMobile && (
                 <div
+                  // make sure this bar is above the chat card itself
                   className="pointer-events-auto sticky top-0 inset-x-0 h-12 bg-background/95 backdrop-blur border-b border-border
-                             flex items-center justify-between px-3 z-50"
+                             flex items-center justify-between px-3 z-[12002]"
                 >
                   <button
                     type="button"
