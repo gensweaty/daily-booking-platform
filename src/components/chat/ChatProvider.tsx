@@ -1223,9 +1223,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // We want the external header for (a) public boards or (b) any sub_user on mobile
+  // External header only for sub-users on mobile (public boards get fullscreen)
   const isSubUser = me?.type === "sub_user";
-  const useExternalMobileHeader = isMobile && (isOnPublicBoard || isSubUser);
+  const useExternalMobileHeader = isMobile && isSubUser;
 
   // Height of the external header (px) – matches internal title bar height
   const MOBILE_HEADER_H = 52;
