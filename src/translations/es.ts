@@ -72,7 +72,7 @@ export const translations: TranslationType = {
     income: "Ingresos"
   },
   crm: {
-    title: "Gestión de Relaciones con los Clientes",
+    title: "CRM",
     description: "Construya y mantenga relaciones sólidas con los clientes en equipo. El administrador y hasta 5 miembros del equipo pueden colaborar en la gestión de clientes, viendo actualizaciones y cambios en tiempo real.",
     feature1: "Gestión centralizada de la información del cliente",
     feature2: "Adjuntos de archivos y organización de documentos",

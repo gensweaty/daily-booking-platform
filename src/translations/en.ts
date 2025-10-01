@@ -61,7 +61,7 @@ export const translations: TranslationType = {
     income: "Income"
   },
   crm: {
-    title: "Customer Relationship Management",
+    title: "CRM",
     description: "Build and maintain strong customer relationships as a team. Admin and up to 5 team members can collaborate on customer management, viewing updates and changes in real-time.",
     feature1: "Centralized customer information management",
     feature2: "File attachments and document organization",

@@ -539,52 +539,59 @@ export const CustomerList = ({
 
   return (
     <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4 overflow-hidden">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto min-w-0">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full">
-            <h2 className="text-base sm:text-lg md:text-xl font-bold flex-shrink-0 leading-tight">
-              Customer Relationship Management
-            </h2>
-
-            {/* Presence circles inside content area */}
-            <div className="shrink-0 mt-1 sm:mt-0">
-              <PresenceCircles users={onlineUsers ?? []} max={5} />
-            </div>
+      {/* Header and action buttons */}
+      <div className="flex flex-col gap-3">
+        {/* Title row with presence */}
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg md:text-xl lg:text-2xl font-bold flex-shrink-0">
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="bold">CRM</GeorgianAuthText>
+            ) : (
+              t("crm.title")
+            )}
+          </h2>
+          <div className="shrink-0">
+            <PresenceCircles users={onlineUsers ?? []} max={5} />
           </div>
-          <div className="w-full md:w-auto md:min-w-[200px]">
+        </div>
+
+        {/* Action buttons row - responsive and proportional */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="flex-1 sm:flex-initial sm:min-w-[200px] lg:min-w-[240px]">
             <DateRangeSelect 
               selectedDate={dateRange}
               onDateChange={handleDateRangeChange}
               disabled={isFetching}
             />
           </div>
-          <div className="w-full md:w-auto">
+          <div className="flex-1 sm:flex-initial sm:min-w-[200px] lg:min-w-[280px]">
             <SearchCommand
               data={combinedData}
               setFilteredData={setFilteredData}
               resetPagination={resetPagination}
             />
           </div>
-          <Button 
-            onClick={handleExcelDownload}
-            variant="outline" 
-            size="icon"
-            className="md:w-16 md:h-10"
-            title={t("statistics.exportExcel")}
-            disabled={isFetching}
-          >
-            <FileSpreadsheet className="h-5 w-5" />
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            onClick={openCreateDialog} 
-            className="flex items-center gap-2 whitespace-nowrap"
-            disabled={isFetching}
-          >
-            <PlusCircle className="w-4 h-4" />
-            {t("crm.addCustomer")}
-          </Button>
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <Button 
+              onClick={handleExcelDownload}
+              variant="outline" 
+              size="default"
+              className="flex items-center gap-2 h-10 px-3"
+              title={t("statistics.exportExcel")}
+              disabled={isFetching}
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span className="hidden sm:inline">Excel</span>
+            </Button>
+            <Button 
+              onClick={openCreateDialog} 
+              className="flex items-center gap-2 h-10 whitespace-nowrap"
+              disabled={isFetching}
+            >
+              <PlusCircle className="w-4 h-4" />
+              {t("crm.addCustomer")}
+            </Button>
+          </div>
         </div>
       </div>
 
