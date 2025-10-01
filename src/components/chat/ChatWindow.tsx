@@ -82,6 +82,13 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     }
   };
 
+  // Listen for custom event to toggle sidebar (from mobile header)
+  useEffect(() => {
+    const handler = () => setIsSidebarCollapsed(s => !s);
+    window.addEventListener("chat-toggle-sidebar", handler);
+    return () => window.removeEventListener("chat-toggle-sidebar", handler);
+  }, []);
+
 
   const toggleMinimize = () => {
     if (isMobile) return; // No minimize on mobile

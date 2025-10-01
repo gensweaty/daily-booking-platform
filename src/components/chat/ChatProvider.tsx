@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
+import { Menu, X } from "lucide-react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 type Me = { 
   id: string; 
@@ -1219,6 +1221,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     userChannels,
   }), [isOpen, open, close, toggle, isInitialized, hasSubUsers, me, currentChannelId, openChannel, startDM, uiUnreadTotal, uiChannelUnreads, getUserUnreadCount, channelMemberMap, boardOwnerId, connectionStatus, realtimeEnabled, isExternalUser, isChannelRecentlyCleared, isPeerRecentlyCleared, suppressChannelBadge, suppressPeerBadge, isChannelBadgeSuppressed, isPeerBadgeSuppressed, clearChannel, userChannels]);
 
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
   return (
     <ChatContext.Provider value={contextValue}>
       {children}
@@ -1237,8 +1241,46 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             </div>
           )}
           {isOpen && (
-            <div id="chat-floating-root" className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-[9999]">
-              <ChatWindow isOpen={isOpen} onClose={close} />
+            <div
+              id="chat-floating-root"
+              className="fixed inset-0 md:inset-auto md:bottom-4 md:right-4 z-[9999] pointer-events-none"
+            >
+              {/* Mobile header ONLY on public boards */}
+              {isOnPublicBoard && isMobile && (
+                <div
+                  className="pointer-events-auto sticky top-0 inset-x-0 h-12 bg-background/95 backdrop-blur border-b border-border
+                             flex items-center justify-between px-3 z-50"
+                >
+                  <button
+                    type="button"
+                    aria-label="Toggle chat sidebar"
+                    className="p-2 -ml-1 hover:bg-muted rounded-md transition-colors"
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent("chat-toggle-sidebar"));
+                    }}
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
+
+                  <div className="text-sm font-medium truncate">
+                    {t('chat.teamChat')}
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-label="Close chat"
+                    className="p-2 -mr-1 hover:bg-muted rounded-md transition-colors"
+                    onClick={close}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Chat window; give it top padding when header is shown */}
+              <div className={isOnPublicBoard && isMobile ? "pt-12 h-full pointer-events-auto" : "pointer-events-auto h-full"}>
+                <ChatWindow isOpen={isOpen} onClose={close} />
+              </div>
             </div>
           )}
         </div>,
