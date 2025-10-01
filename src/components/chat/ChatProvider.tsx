@@ -1225,7 +1225,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       {shouldShowChat && portalRoot && createPortal(
         <div className="contents" key={identityKey}>
           {!isOpen && (
-            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
+            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[9999]">
               <ChatIcon 
                 onClick={toggle} 
                 isOpen={isOpen} 
@@ -1237,7 +1237,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             </div>
           )}
           {isOpen && (
-            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
+            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[9999]">
               <ChatWindow isOpen={isOpen} onClose={close} />
             </div>
           )}
