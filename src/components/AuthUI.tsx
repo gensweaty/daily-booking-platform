@@ -22,9 +22,21 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, resolvedTheme } = useTheme();
-  const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
+  
+  // Safely access language context with fallback
+  let t, language;
+  try {
+    const languageContext = useLanguage();
+    t = languageContext.t;
+    language = languageContext.language;
+  } catch (error) {
+    console.error('LanguageContext not available, using fallback');
+    // Provide fallback values
+    t = (key: string) => key.split('.').pop() || key;
+    language = 'en';
+  }
 
   useEffect(() => {
     setMounted(true);
