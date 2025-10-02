@@ -314,7 +314,7 @@ export const CustomerDialogFields = ({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent 
-                    className="w-auto p-0 bg-background border-input z-[10001] pointer-events-auto" 
+                    className="w-auto p-0 bg-background border-input pointer-events-auto" 
                     align="start"
                     sideOffset={4}
                   >
@@ -416,7 +416,7 @@ export const CustomerDialogFields = ({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent 
-                    className="w-auto p-0 bg-background border-input z-[10001] pointer-events-auto" 
+                    className="w-auto p-0 bg-background border-input pointer-events-auto" 
                     align="start"
                     sideOffset={4}
                   >
@@ -508,7 +508,7 @@ export const CustomerDialogFields = ({
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={t("crm.selectPaymentStatus")} />
               </SelectTrigger>
-              <SelectContent className="bg-background z-[10001]">
+              <SelectContent className="bg-background">
                 <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
                 <SelectItem value="partly_paid">{t("crm.paidPartly")}</SelectItem>
                 <SelectItem value="fully_paid">{t("crm.paidFully")}</SelectItem>

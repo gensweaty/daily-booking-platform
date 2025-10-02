@@ -388,7 +388,7 @@ export const EventDialogFields = ({
               <SelectTrigger id={`paymentStatus-${isMain ? 'main' : person?.id}`} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
-              <SelectContent className={cn("bg-background z-[10001]", isGeorgian ? "font-georgian" : "")}>
+              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
                 <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                   <LanguageText>{t("crm.notPaid")}</LanguageText>
                 </SelectItem>
