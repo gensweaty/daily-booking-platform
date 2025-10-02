@@ -6,20 +6,20 @@ import tasksScreenshot from "@/assets/tasks-screenshot.webp";
 import analyticsScreenshot from "@/assets/analytics-screenshot.webp";
 // Updated to ensure all carousel images have consistent padding
 const calendarViews = [{
-  src: "/lovable-uploads/89e4fa80-68d7-48c3-b9d4-b8ac38c657b6.png",
-  alt: "Booking Calendar",
+  src: "/lovable-uploads/booking-month-view.webp",
+  alt: "Booking Calendar - Month View",
   customStyle: "object-contain",
-  customPadding: "p-4" // Consistent padding for all images
+  customPadding: "p-4"
 }, {
-  src: "/lovable-uploads/400e814b-7812-448a-9e9a-9036616aab00.png",
-  alt: "Week View",
+  src: "/lovable-uploads/booking-week-view.webp",
+  alt: "Booking Calendar - Week View",
   customStyle: "object-contain",
-  customPadding: "p-4" // Adding padding to second image
+  customPadding: "p-4"
 }, {
-  src: "/lovable-uploads/541c86d2-6a17-4ec4-9a9c-5ad9e6e3ba4d.png",
-  alt: "Day View",
+  src: "/lovable-uploads/booking-day-view.webp",
+  alt: "Booking Calendar - Day View",
   customStyle: "object-contain",
-  customPadding: "p-4" // Adding padding to third image
+  customPadding: "p-4"
 }];
 
 // Added new website carousel views
