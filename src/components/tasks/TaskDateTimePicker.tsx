@@ -142,8 +142,9 @@ export const TaskDateTimePicker = ({
             </Button>
           </PopoverTrigger>
           <PopoverContent 
-            className="w-auto p-0 min-w-[300px] max-w-[95vw] bg-background border shadow-md" 
+            className="w-auto p-0 min-w-[300px] max-w-[95vw] bg-background border shadow-md z-[2147483646] pointer-events-auto" 
             align="start"
+            sideOffset={6}
           >
             <div className="p-3">
               {/* Current time display */}
@@ -173,7 +174,7 @@ export const TaskDateTimePicker = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent 
-                      className="max-h-[200px] bg-background" 
+                      className="max-h-[200px] bg-background z-[2147483646] pointer-events-auto" 
                       position="popper"
                     >
                       {hours.map((hour) => (
@@ -188,7 +189,7 @@ export const TaskDateTimePicker = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent 
-                      className="max-h-[200px] bg-background" 
+                      className="max-h-[200px] bg-background z-[2147483646] pointer-events-auto" 
                       position="popper"
                     >
                       {minutes.map((minute) => (

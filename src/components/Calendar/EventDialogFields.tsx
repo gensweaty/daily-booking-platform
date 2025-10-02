@@ -388,7 +388,7 @@ export const EventDialogFields = ({
               <SelectTrigger id={`paymentStatus-${isMain ? 'main' : person?.id}`} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
-              <SelectContent className={cn("bg-background", isGeorgian ? "font-georgian" : "")}>
+              <SelectContent className={cn("bg-background z-[2147483646] pointer-events-auto", isGeorgian ? "font-georgian" : "")} position="popper">
                 <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                   <LanguageText>{t("crm.notPaid")}</LanguageText>
                 </SelectItem>
@@ -574,7 +574,7 @@ export const EventDialogFields = ({
                         {repeatUntil ? format(new Date(repeatUntil), "PPP") : <span>Pick a date</span>}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 bg-background border-input z-[10001]" align="start">
+                    <PopoverContent className="w-auto p-0 bg-background border-input z-[2147483646] pointer-events-auto" align="start" sideOffset={6}>
                       <Calendar
                         mode="single"
                         selected={repeatUntil ? new Date(repeatUntil) : undefined}
