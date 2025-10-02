@@ -3,6 +3,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
 import tasksScreenshot from "@/assets/tasks-screenshot.webp";
+import analyticsScreenshot from "@/assets/analytics-screenshot.webp";
 // Updated to ensure all carousel images have consistent padding
 const calendarViews = [{
   src: "/lovable-uploads/89e4fa80-68d7-48c3-b9d4-b8ac38c657b6.png",
@@ -75,7 +76,7 @@ export const FeatureSection = () => {
     icon: ChartBar,
     title: t('analytics.title'),
     description: t('analytics.description'),
-    image: "/lovable-uploads/2de2197d-0e7b-4d8c-b4a8-a0d30828d8be.png",
+    image: analyticsScreenshot,
     benefits: [t('analytics.feature1'), t('analytics.feature2'), t('analytics.feature3'), t('analytics.feature4'), t('analytics.feature5')],
     translationPrefix: 'analytics' as const,
     id: "analytics",
