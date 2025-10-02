@@ -50,6 +50,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { PaymentStatus } from "@/lib/types";
 import { PresenceCircles } from "@/components/presence/PresenceCircles";
+import { cn } from "@/lib/utils";
 
 const LoadingCustomerList = React.memo(() => {
   return (
@@ -547,7 +548,10 @@ const CustomerListContent = ({
   }
 
   return (
-    <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4 overflow-hidden">
+    <div className={cn(
+      "space-y-4 w-full max-w-[100vw] px-2 md:px-4 overflow-hidden",
+      isPublicMode && "mt-6"
+    )}>
       {/* Header and all action buttons on same line */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 lg:gap-4">
         {/* Left side: Title and Presence */}
