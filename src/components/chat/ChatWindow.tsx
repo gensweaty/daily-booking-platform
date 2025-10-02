@@ -139,7 +139,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     <Card
       ref={cardRef}
       className={cn(
-        "fixed bg-background border shadow-lg pointer-events-auto z-[2147483645]",
+        "fixed bg-background border shadow-lg pointer-events-auto z-[12001]",
         "grid grid-rows-[auto,1fr] overflow-hidden",
         windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
         isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-all duration-300'

@@ -154,12 +154,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       root.id = 'chat-portal-root';
       root.className = 'chat-portal-root';
       root.style.pointerEvents = 'none'; // default: pass-through
-      root.style.zIndex = '2147483646'; // Always above any app chrome
+      root.style.zIndex = '12000'; // Chat band - below global overlays
       root.style.position = 'relative';
       document.body.appendChild(root);
     }
     // Keep z-index correct even if root already existed
-    root.style.zIndex = '2147483646';
+    root.style.zIndex = '12000';
     root.style.pointerEvents = 'none';
     return root;
   }, []);
@@ -1260,8 +1260,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           {isOpen && (
             <div
               id="chat-overlay"
-              className="fixed inset-0 pointer-events-none"
-              style={{ zIndex: 2147483646 }}
+              className="fixed inset-0 pointer-events-none z-[12000]"
             >
               <ChatWindow isOpen={isOpen} onClose={close} />
             </div>
