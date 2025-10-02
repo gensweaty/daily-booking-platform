@@ -1,9 +1,8 @@
-
 import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
-
+import tasksScreenshot from "@/assets/tasks-screenshot.webp";
 // Updated to ensure all carousel images have consistent padding
 const calendarViews = [{
   src: "/lovable-uploads/89e4fa80-68d7-48c3-b9d4-b8ac38c657b6.png",
@@ -94,7 +93,7 @@ export const FeatureSection = () => {
     icon: ListTodo,
     title: t('tasks.title'),
     description: t('tasks.description'),
-    image: "/lovable-uploads/f519fa18-e3d9-44a3-a449-70fc67e6f5de.png",
+    image: tasksScreenshot,
     benefits: [t('tasks.feature1'), t('tasks.feature2'), t('tasks.feature3'), t('tasks.feature4'), t('tasks.feature5')],
     translationPrefix: 'tasks' as const,
     id: "task-management",
