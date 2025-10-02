@@ -50,7 +50,7 @@ export const TaskAssigneeSelect = ({ value, onChange, boardOwnerId }: TaskAssign
           )}
         </SelectValue>
       </SelectTrigger>
-      <SelectContent className="z-[11003] bg-background">
+      <SelectContent className="bg-background">
         <SelectItem value="unassigned">
           <span className="text-muted-foreground">Unassigned</span>
         </SelectItem>

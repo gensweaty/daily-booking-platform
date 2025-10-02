@@ -61,7 +61,7 @@ export const TaskFilterButton = ({ boardOwnerId }: TaskFilterButtonProps) => {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 z-[11000] bg-background">
+      <DropdownMenuContent align="end" className="w-56 bg-background">
         <DropdownMenuLabel className="font-semibold">
           {isGeorgian ? <GeorgianAuthText>დალაგება</GeorgianAuthText> : 'Sort Order'}
         </DropdownMenuLabel>
@@ -102,7 +102,7 @@ export const TaskFilterButton = ({ boardOwnerId }: TaskFilterButtonProps) => {
               <Check className="w-4 h-4 ml-auto text-primary" />
             )}
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="z-[11001] bg-background max-h-[300px] overflow-y-auto">
+          <DropdownMenuSubContent className="bg-background max-h-[300px] overflow-y-auto">
             {isLoading ? (
               <DropdownMenuItem disabled>
                 {isGeorgian ? <GeorgianAuthText>იტვირთება...</GeorgianAuthText> : 'Loading...'}
@@ -144,7 +144,7 @@ export const TaskFilterButton = ({ boardOwnerId }: TaskFilterButtonProps) => {
               <Check className="w-4 h-4 ml-auto text-primary" />
             )}
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="z-[11001] bg-background max-h-[300px] overflow-y-auto">
+          <DropdownMenuSubContent className="bg-background max-h-[300px] overflow-y-auto">
             {isLoading ? (
               <DropdownMenuItem disabled>
                 {isGeorgian ? <GeorgianAuthText>იტვირთება...</GeorgianAuthText> : 'Loading...'}
