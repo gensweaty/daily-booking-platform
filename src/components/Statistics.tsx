@@ -15,6 +15,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "./shared/GeorgianAuthText";
 import { useQueryClient } from "@tanstack/react-query";
 import { PermissionGate } from "./PermissionGate";
+import { useBoardPresence } from "@/hooks/useBoardPresence";
 
 const StatisticsContent = () => {
   const { user } = useAuth();
@@ -26,6 +27,15 @@ const StatisticsContent = () => {
     start: startOfMonth(currentDate),
     end: endOfMonth(currentDate)
   });
+
+  // Get online users for presence
+  const currentPresenceUser = useMemo(() => ({
+    name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
+    email: user?.email || '',
+    avatar_url: user?.user_metadata?.avatar_url
+  }), [user]);
+
+  const { onlineUsers } = useBoardPresence(user?.id || '', currentPresenceUser);
 
   // Memoize userId for stable reference in dependencies
   const userId = useMemo(() => user?.id, [user?.id]);
@@ -172,6 +182,8 @@ const StatisticsContent = () => {
         onDateChange={handleDateChange}
         onExport={handleExport}
         isLoading={isLoading || isLoadingCRM}
+        onlineUsers={onlineUsers.filter(u => u.email !== user?.email)}
+        currentUserEmail={user?.email}
       />
       
       {isLoading || isLoadingCRM ? (

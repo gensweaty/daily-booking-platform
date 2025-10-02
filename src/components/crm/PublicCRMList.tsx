@@ -69,15 +69,17 @@ export const PublicCRMList = ({
   return (
     <div className="space-y-6">
       {/* Direct CustomerList Component - No Auth Override */}
-      <CustomerList 
-        isPublicMode={true}
-        externalUserName={externalUserName}
-        externalUserEmail={externalUserEmail}
-        publicBoardUserId={boardUserId}
-        hasPermissions={hasPermissions}
-        onlineUsers={onlineUsers.filter(u => u.email !== externalUserEmail)}
-        currentUserEmail={externalUserEmail}
-      />
+      <div className="mt-0">
+        <CustomerList 
+          isPublicMode={true}
+          externalUserName={externalUserName}
+          externalUserEmail={externalUserEmail}
+          publicBoardUserId={boardUserId}
+          hasPermissions={hasPermissions}
+          onlineUsers={onlineUsers.filter(u => u.email !== externalUserEmail)}
+          currentUserEmail={externalUserEmail}
+        />
+      </div>
     </div>
   );
 };
