@@ -23,6 +23,20 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading 
   const { language, t } = useLanguage();
   const isGeorgian = language === 'ka';
 
+  // Get button text with fallback
+  const getButtonText = () => {
+    try {
+      return t('analytics.exportToExcel');
+    } catch {
+      // Fallback in case translation is not ready
+      return language === 'es' ? 'Exportar a Excel' : 
+             language === 'ka' ? 'Excel-ში ექსპორტი' : 
+             'Export to Excel';
+    }
+  };
+
+  const buttonText = getButtonText();
+
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
       <DateRangeSelect 
@@ -41,9 +55,9 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading 
       >
         <FileSpreadsheet className="h-4 w-4" />
         {isGeorgian ? (
-          <GeorgianAuthText>{t('analytics.exportToExcel')}</GeorgianAuthText>
+          <GeorgianAuthText>{buttonText}</GeorgianAuthText>
         ) : (
-          <span>{t('analytics.exportToExcel')}</span>
+          <span>{buttonText}</span>
         )}
       </Button>
     </div>
