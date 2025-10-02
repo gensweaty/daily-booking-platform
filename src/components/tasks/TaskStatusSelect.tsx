@@ -75,7 +75,7 @@ export const TaskStatusSelect = ({ status, setStatus }: TaskStatusSelectProps) =
             )}
           </SelectValue>
         </SelectTrigger>
-        <SelectContent className="bg-background border z-[10001]">
+        <SelectContent className="bg-background border z-[2147483646] pointer-events-auto" position="popper">
           {statusOptions.map((option) => (
             <SelectItem 
               key={option.value} 
