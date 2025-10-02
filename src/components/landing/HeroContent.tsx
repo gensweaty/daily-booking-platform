@@ -10,27 +10,47 @@ import { memo } from "react";
 import { cn } from "@/lib/utils";
 
 const productImages = [{
-  src: "/lovable-uploads/89b6a836-d818-4753-a3f8-9d0d83dc7406.png",
-  alt: "Pet Grooming Salon",
-  loading: "lazy" as const,
-  customStyle: "object-cover", 
+  src: "/lovable-uploads/hero-tasks-view.webp",
+  alt: "Tasks Management",
+  loading: "eager" as const,
+  customStyle: "object-contain",
   customPadding: "p-4"
 }, {
-  src: "/lovable-uploads/a00576d5-fb16-4a4b-a313-0e1cbb61b00c.png",
-  alt: "Calendar Preview",
-  loading: "lazy" as const
+  src: "/lovable-uploads/hero-statistics-view.webp",
+  alt: "Statistics Dashboard",
+  loading: "lazy" as const,
+  customStyle: "object-contain",
+  customPadding: "p-4"
 }, {
-  src: "/lovable-uploads/7a8c5cac-2431-44db-8e9b-ca6e5ba6d633.png",
-  alt: "Analytics Preview",
-  loading: "lazy" as const
+  src: "/lovable-uploads/hero-calendar-month.webp",
+  alt: "Calendar Month View",
+  loading: "lazy" as const,
+  customStyle: "object-contain",
+  customPadding: "p-4"
 }, {
-  src: "/lovable-uploads/292b8b91-64ee-4bf3-b4e6-1e68f77a6563.png",
-  alt: "Tasks Preview",
-  loading: "lazy" as const
+  src: "/lovable-uploads/hero-calendar-week.webp",
+  alt: "Calendar Week View",
+  loading: "lazy" as const,
+  customStyle: "object-contain",
+  customPadding: "p-4"
 }, {
-  src: "/lovable-uploads/f35ff4e8-3ae5-4bc2-95f6-c3bef5d53689.png",
-  alt: "CRM Preview",
-  loading: "lazy" as const
+  src: "/lovable-uploads/hero-calendar-day.webp",
+  alt: "Calendar Day View",
+  loading: "lazy" as const,
+  customStyle: "object-contain",
+  customPadding: "p-4"
+}, {
+  src: "/lovable-uploads/hero-business-page.webp",
+  alt: "Business Page",
+  loading: "lazy" as const,
+  customStyle: "object-cover",
+  customPadding: "p-4"
+}, {
+  src: "/lovable-uploads/hero-crm-view.webp",
+  alt: "CRM Dashboard",
+  loading: "lazy" as const,
+  customStyle: "object-contain",
+  customPadding: "p-4"
 }];
 
 const MemoizedImageCarousel = memo(ImageCarousel);
