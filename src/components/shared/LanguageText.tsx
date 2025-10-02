@@ -1,9 +1,7 @@
-
 import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { getGeorgianFontStyle } from '@/lib/font-utils';
-
 interface LanguageTextProps {
   children: React.ReactNode;
   className?: string;
@@ -11,17 +9,19 @@ interface LanguageTextProps {
   fixLetterSpacing?: boolean;
   translateParams?: Record<string, string | number>;
 }
-
-export const LanguageText = ({ 
-  children, 
+export const LanguageText = ({
+  children,
   className,
   withFont = true,
   fixLetterSpacing = true,
   translateParams
 }: LanguageTextProps) => {
-  const { language, t } = useLanguage();
+  const {
+    language,
+    t
+  } = useLanguage();
   const isGeorgian = language === 'ka';
-  
+
   // Handle translation keys directly if passed as string
   if (typeof children === 'string' && children.includes('.')) {
     try {
@@ -39,18 +39,12 @@ export const LanguageText = ({
       return str.replace(new RegExp(`{{${param}}}`, 'g'), String(value));
     }, children as string);
   }
-  
   if (!isGeorgian) {
-    return <span className={className}>{children}</span>;
+    return;
   }
-  
+
   // For Georgian text, apply specific styling
-  return (
-    <span 
-      className={cn("ka-text georgian-text-fix", className)}
-      style={withFont ? getGeorgianFontStyle() : undefined}
-    >
+  return <span className={cn("ka-text georgian-text-fix", className)} style={withFont ? getGeorgianFontStyle() : undefined}>
       {children}
-    </span>
-  );
+    </span>;
 };
