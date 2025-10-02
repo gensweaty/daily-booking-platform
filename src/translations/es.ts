@@ -58,6 +58,7 @@ export const translations: TranslationType = {
   analytics: {
     title: "Analítica Integral",
     description: "Realice un seguimiento de su rendimiento y crecimiento en equipo. El administrador y hasta 5 miembros del equipo pueden ver y analizar métricas empresariales juntos en tiempo real.",
+    exportToExcel: "Exportar a Excel",
     feature1: "Analítica de reservas e ingresos",
     feature2: "Filtrado personalizado por rango de fechas",
     feature3: "Comparación de ingresos mes a mes",

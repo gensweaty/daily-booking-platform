@@ -52,6 +52,7 @@ export const translations: TranslationType = {
     feature3: "Month-over-month revenue comparison",
     feature4: "Visual metrics and interactive charts",
     feature5: "One-click Excel download",
+    exportToExcel: "Export to Excel",
     totalBookingsGrowth: "Total Bookings Growth",
     bookingDates: "Booking Dates",
     totalBookings: "Total Bookings",

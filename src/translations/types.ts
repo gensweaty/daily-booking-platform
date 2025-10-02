@@ -57,6 +57,7 @@ export interface TranslationType {
     feature3: string;
     feature4: string;
     feature5: string;
+    exportToExcel: string;
     totalBookingsGrowth: string;
     bookingDates: string;
     totalBookings: string;

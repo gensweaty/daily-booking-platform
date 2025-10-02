@@ -5,7 +5,6 @@ import { DateRangeSelect } from "./DateRangeSelect";
 import { memo, useCallback } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { LanguageText } from "../shared/LanguageText";
 import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 
 interface StatsHeaderProps {
@@ -21,7 +20,7 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading 
     onDateChange(start, end || start);
   }, [onDateChange]);
 
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isGeorgian = language === 'ka';
 
   return (
@@ -33,13 +32,19 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading 
       />
       <Button
         variant="info"
-        size="icon"
         onClick={onExport}
-        className="h-9 w-9 sm:-mt-4 rounded-md"
-        title="Download as Excel"
+        className={cn(
+          "sm:-mt-4 rounded-md flex items-center gap-2",
+          isGeorgian && "font-georgian"
+        )}
         disabled={isLoading}
       >
-        <FileSpreadsheet className="h-5 w-5" />
+        <FileSpreadsheet className="h-4 w-4" />
+        {isGeorgian ? (
+          <GeorgianAuthText>{t('analytics.exportToExcel')}</GeorgianAuthText>
+        ) : (
+          <span>{t('analytics.exportToExcel')}</span>
+        )}
       </Button>
     </div>
   );

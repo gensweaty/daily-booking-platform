@@ -10,8 +10,6 @@ import { IncomeChart } from "@/components/Statistics/IncomeChart";
 import { StatsHeader } from "@/components/Statistics/StatsHeader";
 import { StatsCards } from "@/components/Statistics/StatsCards";
 import { useExcelExport } from "@/components/Statistics/ExcelExport";
-import { FileSpreadsheet } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { startOfMonth, endOfMonth } from 'date-fns';
 
 interface PublicStatisticsListProps {
@@ -343,23 +341,10 @@ export const PublicStatisticsList = ({
         customerStats={currentCustomerStats}
       />
 
-      {/* Charts and Excel Export */}
-      <div className="space-y-6">
-        <div className="flex justify-end">
-          <Button
-            onClick={handleExport}
-            disabled={isLoading || !currentEventStats.events.length}
-            className="flex items-center gap-2"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            {language === 'es' ? "Exportar a Excel" : "Export to Excel"}
-          </Button>
-        </div>
-        
-        <div className="grid gap-4 md:grid-cols-2">
-          <BookingChart data={currentEventStats.dailyStats || []} />
-          <IncomeChart data={currentEventStats.monthlyIncome || []} />
-        </div>
+      {/* Charts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <BookingChart data={currentEventStats.dailyStats || []} />
+        <IncomeChart data={currentEventStats.monthlyIncome || []} />
       </div>
     </div>
   );
