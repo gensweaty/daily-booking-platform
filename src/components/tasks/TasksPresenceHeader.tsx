@@ -42,7 +42,11 @@ export const TasksPresenceHeader = ({ max = 5 }: { max?: number } = {}) => {
     user ? { name: displayName, email: user.email || "", avatar_url: avatarUrl } : null
   );
 
-  const users = useMemo(() => onlineUsers, [onlineUsers]);
+  const users = useMemo(() => onlineUsers.map(u => ({
+    name: u.name || u.email?.split("@")[0] || "User",
+    email: u.email || "",
+    avatar_url: u.avatar_url
+  })), [onlineUsers]);
 
   if (!boardId) return null;
   return (

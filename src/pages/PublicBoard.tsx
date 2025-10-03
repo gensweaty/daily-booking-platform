@@ -75,7 +75,7 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
   const { onlineUsers } = useBoardPresence(
     boardData?.id,
     isAuthenticated ? { name: fullName, email, avatar_url: avatarUrl } : null,
-    { updateSubUserLastLogin: true, boardOwnerId: boardData?.user_id || null }
+    "tasks"
   );
 
   useEffect(() => {
@@ -858,7 +858,10 @@ const handleRegister = async () => {
               accessToken={accessToken || ''}
               fullName={fullName}
               email={email}
-              onlineUsers={onlineUsers}
+              onlineUsers={onlineUsers.map(u => ({
+                name: u.name || u.email?.split("@")[0] || "User",
+                email: u.email || ""
+              }))}
             />
           </>
         )}

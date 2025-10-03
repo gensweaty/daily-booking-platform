@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   startOfWeek,
   endOfWeek,
@@ -85,41 +85,39 @@ const CalendarContent = ({
   const { toast } = useToast();
 
   // Add presence tracking for internal calendar
-  const [boardId, setBoardId] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string>("");
-  const [avatarUrl, setAvatarUrl] = useState<string>("");
+  const [boardKey, setBoardKey] = useState<string | null>(null);
+  const [profile, setProfile] = useState<{ username?: string; avatar_url?: string } | null>(null);
 
   useEffect(() => {
-    const initPresence = async () => {
-      if (!user || isExternalCalendar) return;
-      try {
-        // Fetch owner's public board id
-        const { data: board } = await supabase
-          .from("public_boards")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        setBoardId(board?.id || null);
-
-        // Fetch owner's profile username and avatar as display info
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("username, avatar_url")
-          .eq("id", user.id)
-          .maybeSingle();
-        setDisplayName(profile?.username || (user.user_metadata?.full_name as string) || "Admin");
-        setAvatarUrl(profile?.avatar_url || "");
-      } catch (e) {
-        console.error("Failed to init Calendar presence", e);
-      }
-    };
-    initPresence();
+    if (!user?.id || isExternalCalendar) return;
+    
+    // Fetch profile
+    supabase
+      .from("profiles")
+      .select("username, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setProfile(data || null));
+    
+    // Fetch board key (same one Tasks/CRM use)
+    supabase
+      .from("public_boards")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setBoardKey(data?.id || user.id));
   }, [user?.id, isExternalCalendar]);
 
-  const { onlineUsers } = useBoardPresence(
-    boardId,
-    user && !isExternalCalendar ? { name: displayName, email: user.email || "", avatar_url: avatarUrl } : null
+  const me = useMemo(
+    () => ({
+      name: profile?.username || user?.email?.split("@")[0] || "User",
+      email: user?.email || "",
+      avatar_url: profile?.avatar_url || user?.user_metadata?.avatar_url || null,
+    }),
+    [user, profile]
   );
+
+  const { onlineUsers } = useBoardPresence(boardKey, me, "calendar");
 
   useEffect(() => {
     if (currentView) {

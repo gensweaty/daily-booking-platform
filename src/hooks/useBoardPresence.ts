@@ -1,279 +1,117 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export type BoardPresenceUser = {
-  name: string;
-  email: string;
-  online_at?: string;
-  avatar_url?: string;
+export type PresenceUser = {
+  email?: string | null;
+  name?: string | null;
+  avatar_url?: string | null;
+  online_at?: string | null;
 };
 
+type PresenceScope = "calendar" | "statistics" | "crm" | "tasks" | "global";
+
+const HEARTBEAT_MS = 20_000; // send presence every 20s
+const STALE_MS     = 60_000; // keep users for 60s of silence (fixes 5s drop)
+
 export function useBoardPresence(
-  boardId?: string | null,
-  currentUser?: BoardPresenceUser | null,
-  options?: { updateSubUserLastLogin?: boolean; boardOwnerId?: string | null }
+  boardKey: string | null | undefined,
+  me: PresenceUser | null | undefined,
+  scope: PresenceScope = "global"
 ) {
-  const [onlineUsers, setOnlineUsers] = useState<BoardPresenceUser[]>([]);
-  const [userAvatars, setUserAvatars] = useState<Map<string, string>>(new Map());
+  const channelName = useMemo(() => {
+    if (!boardKey) return null;
+    return `presence:${boardKey}:${scope}`;
+  }, [boardKey, scope]);
+
+  const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
+  const stateRef = useRef<Map<string, PresenceUser>>(new Map());
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   useEffect(() => {
-    if (!boardId || !currentUser) return;
+    if (!channelName || !me?.email) return;
 
-    // Generate a unique session ID for this device/browser session
-    const generateSessionId = () => {
-      const stored = sessionStorage.getItem('presence_session_id');
-      if (stored) return stored;
-      
-      const newId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      sessionStorage.setItem('presence_session_id', newId);
-      return newId;
+    const ch = supabase.channel(channelName, { config: { presence: { key: me.email } } });
+    channelRef.current = ch;
+
+    const refresh = () => {
+      const now = Date.now();
+      const list = Array.from(stateRef.current.values()).filter((u) => {
+        const t = u.online_at ? new Date(u.online_at).getTime() : 0;
+        return now - t < STALE_MS;
+      });
+      // newest first
+      list.sort((a, b) => {
+        const ta = a.online_at ? new Date(a.online_at).getTime() : 0;
+        const tb = b.online_at ? new Date(b.online_at).getTime() : 0;
+        return tb - ta;
+      });
+      setOnlineUsers(list);
     };
 
-    const sessionId = generateSessionId();
-    const deviceInfo = {
-      userAgent: navigator.userAgent.substring(0, 100), // Truncate for privacy
-      platform: navigator.platform,
-      isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-    };
-
-    // Use a unique channel per board with device-specific presence key
-    const channel = supabase.channel(`presence:board:${boardId}`, {
-      config: { 
-        presence: { 
-          key: `${currentUser.email}-${sessionId}` // Unique per device/session
-        } 
-      },
-    });
-
-  const updateLastLogin = async (userEmail?: string) => {
-    const emailToUpdate = userEmail || currentUser?.email;
-    
-    // Always try to update sub_users table for any user joining the board
-    if (emailToUpdate) {
-      try {
-        console.log("🔄 Attempting to update sub user login for:", emailToUpdate);
-        
-        // First try to find if this is a sub-user
-        const { data: subUserCheck, error: checkError } = await supabase
-          .from("sub_users")
-          .select("id, board_owner_id, email")
-          .ilike("email", emailToUpdate.trim().toLowerCase())
-          .limit(1);
-          
-        if (checkError) {
-          console.error("Error checking sub user:", checkError);
-          return;
-        }
-        
-        if (subUserCheck && subUserCheck.length > 0) {
-          const subUser = subUserCheck[0];
-          console.log("📋 Found sub user, updating login time:", subUser);
-          
-          const { data, error } = await supabase
-            .from("sub_users")
-            .update({
-              last_login_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            })
-            .eq("id", subUser.id)
-            .select();
-          
-          if (error) {
-            console.error("❌ Error updating sub user last login:", error);
-          } else {
-            console.log("✅ Successfully updated sub user last login:", data);
-          }
-        } else {
-          console.log("ℹ️ User is not a sub-user:", emailToUpdate);
-        }
-      } catch (e) {
-        console.error("❌ Failed updating sub user last login", e);
-      }
-    }
-  };
-
-    const fetchUserAvatars = async (emails: string[]) => {
-      for (const email of emails) {
-        if (!userAvatars.has(email)) {
-          try {
-            // First try profiles table (main users)
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('avatar_url')
-              .ilike('email', email.trim().toLowerCase())
-              .maybeSingle();
-            
-            if (profile?.avatar_url) {
-              setUserAvatars(prev => new Map(prev).set(email, profile.avatar_url));
-              continue;
-            }
-            
-            // Then try sub_users table
-            const { data: subUser } = await supabase
-              .from('sub_users')
-              .select('avatar_url')
-              .ilike('email', email.trim().toLowerCase())
-              .maybeSingle();
-            
-            if (subUser?.avatar_url) {
-              setUserAvatars(prev => new Map(prev).set(email, subUser.avatar_url));
-            }
-          } catch (error) {
-            console.error('Error fetching avatar for', email, error);
-          }
-        }
-      }
-    };
-
-    const handleSync = () => {
-      const state = channel.presenceState() as Record<string, any[]>;
-      console.log(`🔄 Syncing presence state:`, Object.keys(state).length, 'presence keys');
-      
-      // Flatten and dedupe by email, but keep track of devices
-      const byEmail = new Map<string, BoardPresenceUser & { deviceCount?: number }>();
-      const devicesByEmail = new Map<string, Set<string>>();
-      
-      Object.entries(state).forEach(([presenceKey, arr]) => {
-        arr.forEach((u) => {
-          if (u?.email) {
-            // Track devices per user
-            if (!devicesByEmail.has(u.email)) {
-              devicesByEmail.set(u.email, new Set());
-            }
-            devicesByEmail.get(u.email)?.add(u.session_id || presenceKey);
-            
-            // Keep the most recent presence entry for each email
-            const existing = byEmail.get(u.email);
-            if (!existing || (u.online_at && (!existing.online_at || u.online_at > existing.online_at))) {
-              byEmail.set(u.email, {
-                ...u,
-                online_at: u.online_at || new Date().toISOString(),
-                avatar_url: userAvatars.get(u.email) || u.avatar_url,
-                deviceCount: devicesByEmail.get(u.email)?.size || 1
-              });
-              
-              console.log(`👤 User ${u.email} online from ${devicesByEmail.get(u.email)?.size} device(s)`);
-            }
-          }
+    ch.on("presence", { event: "sync" }, () => {
+      const state = ch.presenceState() as Record<string, any[]>;
+      stateRef.current.clear();
+      Object.entries(state).forEach(([email, metas]) => {
+        const last = metas[metas.length - 1]?.metas?.[0] ?? metas[metas.length - 1] ?? {};
+        stateRef.current.set(email, {
+          email,
+          name: last.name || email.split("@")[0],
+          avatar_url: last.avatar_url || null,
+          online_at: last.online_at || new Date().toISOString(),
         });
       });
-      
-      const users = Array.from(byEmail.values());
-      console.log(`📊 Final user count: ${users.length} unique users online`);
-      
-      // Fetch avatars for users we don't have cached (async, non-blocking)
-      const emailsNeedingAvatars = users
-        .map(u => u.email)
-        .filter(email => email && !userAvatars.has(email));
-      
-      if (emailsNeedingAvatars.length > 0) {
-        fetchUserAvatars(emailsNeedingAvatars);
-      }
-      
-      // Immediately set users with current avatar cache
-      setOnlineUsers(users.map(user => ({
-        ...user,
-        avatar_url: userAvatars.get(user.email) || user.avatar_url
-      })));
-    };
-
-    let heartbeatInterval: NodeJS.Timeout;
-    let reconnectTimeout: NodeJS.Timeout;
-
-    const trackPresence = async () => {
-      try {
-        await channel.track({
-          name: currentUser.name,
-          email: currentUser.email,
-          online_at: new Date().toISOString(),
-          avatar_url: currentUser.avatar_url,
-          session_id: sessionId,
-          device_info: deviceInfo,
+      refresh();
+    })
+      .on("presence", { event: "join" }, ({ key, newPresences }) => {
+        const meta = newPresences[newPresences.length - 1]?.metas?.[0] ?? newPresences[newPresences.length - 1] ?? {};
+        stateRef.current.set(key, {
+          email: key,
+          name: meta.name || key.split("@")[0],
+          avatar_url: meta.avatar_url || null,
+          online_at: meta.online_at || new Date().toISOString(),
         });
-        console.log(`🟢 Presence tracked for ${currentUser.email} on ${deviceInfo.isMobile ? 'mobile' : 'desktop'} device`);
-      } catch (e) {
-        console.error("Failed to track presence:", e);
-      }
-    };
-
-    channel
-      .on("presence", { event: "sync" }, () => {
-        console.log("Presence sync");
-        handleSync();
+        refresh();
       })
-      .on("presence", { event: "join" }, async ({ key, newPresences }) => {
-        console.log("User joined presence:", key, newPresences);
-        // Update last login for any user who joins presence
-        const joinedUser = newPresences?.[0];
-        if (joinedUser?.email) {
-          await updateLastLogin(joinedUser.email);
+      .on("presence", { event: "leave" }, ({ key }) => {
+        // Don't instantly drop (fixes the "disappear after 5s" bug on public boards)
+        const existed = stateRef.current.get(key);
+        if (existed) {
+          stateRef.current.set(key, { ...existed, online_at: new Date(Date.now() - STALE_MS - 1).toISOString() });
         }
-        handleSync();
-      })
-      .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
-        console.log("User left presence:", key, leftPresences);
-        handleSync();
+        refresh();
       })
       .subscribe(async (status) => {
-        console.log("Presence subscription status:", status);
-        
         if (status === "SUBSCRIBED") {
-          // Initial presence tracking
-          await trackPresence();
-          await updateLastLogin();
-
-          // Set up heartbeat to maintain presence and update login time every minute
-          heartbeatInterval = setInterval(async () => {
-            await trackPresence();
-            await updateLastLogin();
-          }, 60000); // Every 60 seconds
-
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          console.log("Presence connection lost, attempting to reconnect...");
-          // Clear existing interval
-          if (heartbeatInterval) {
-            clearInterval(heartbeatInterval);
-            heartbeatInterval = null as any;
-          }
-          
-          // Attempt to reconnect after a delay
-          reconnectTimeout = setTimeout(() => {
-            channel.subscribe();
-          }, 2000);
+          await ch.track({
+            email: me.email,
+            name: me.name,
+            avatar_url: me.avatar_url,
+            scope,
+            online_at: new Date().toISOString(),
+          });
         }
       });
 
+    const heartbeat = setInterval(() => {
+      ch.track({
+        email: me.email,
+        name: me.name,
+        avatar_url: me.avatar_url,
+        scope,
+        online_at: new Date().toISOString(),
+      }).catch(() => {});
+      refresh();
+    }, HEARTBEAT_MS);
+
+    const slowRefresh = setInterval(refresh, 5000);
+
     return () => {
-      if (heartbeatInterval) {
-        clearInterval(heartbeatInterval);
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      supabase.removeChannel(channel);
+      clearInterval(heartbeat);
+      clearInterval(slowRefresh);
+      try { ch.untrack(); } catch {}
+      supabase.removeChannel(ch);
     };
-  }, [boardId, currentUser?.email, currentUser?.name, currentUser?.avatar_url, options?.updateSubUserLastLogin, options?.boardOwnerId]);
+  }, [channelName, me?.email, me?.name, me?.avatar_url, scope]);
 
-  // Update online users when avatar cache changes
-  useEffect(() => {
-    if (onlineUsers.length > 0) {
-      setOnlineUsers(prev => prev.map(user => ({
-        ...user,
-        avatar_url: userAvatars.get(user.email) || user.avatar_url
-      })));
-    }
-  }, [userAvatars]);
-
-  const sortedUsers = useMemo(() => {
-    // Put current user first, then alphabetical
-    return onlineUsers
-      .slice()
-      .sort((a, b) => {
-        if (currentUser && a.email === currentUser.email) return -1;
-        if (currentUser && b.email === currentUser.email) return 1;
-        return (a.name || "").localeCompare(b.name || "");
-      });
-  }, [onlineUsers, currentUser]);
-
-  return { onlineUsers: sortedUsers };
+  return { onlineUsers };
 }

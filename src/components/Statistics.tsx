@@ -20,44 +20,46 @@ import { supabase } from "@/lib/supabase";
 
 const StatisticsContent = () => {
   const { user } = useAuth();
-  const { t, language } = useLanguage();
-  const queryClient = useQueryClient();
-  const isGeorgian = language === 'ka';
-  const currentDate = useMemo(() => new Date(), []);
-  const [dateRange, setDateRange] = useState({ 
-    start: startOfMonth(currentDate),
-    end: endOfMonth(currentDate)
+  const [dateRange, setDateRange] = useState<{ start: Date; end: Date | null }>({
+    start: startOfMonth(new Date()),
+    end: endOfMonth(new Date()),
   });
+  const queryClient = useQueryClient();
 
-  // Fetch user profile for accurate avatar
+  // Fetch user profile and board key for presence
   const [userProfile, setUserProfile] = useState<{ username?: string; avatar_url?: string } | null>(null);
-
+  const [boardKey, setBoardKey] = useState<string | null>(null);
+  
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user?.id) return;
-      
-      const { data } = await supabase
-        .from('profiles')
-        .select('username, avatar_url')
-        .eq('id', user.id)
-        .maybeSingle();
-      
-      if (data) {
-        setUserProfile(data);
-      }
-    };
+    if (!user?.id) return;
     
-    fetchProfile();
+    // Fetch profile
+    supabase
+      .from("profiles")
+      .select("username, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setUserProfile(data || null));
+    
+    // Fetch board key (same one Tasks/CRM use)
+    supabase
+      .from("public_boards")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setBoardKey(data?.id || user.id));
   }, [user?.id]);
 
-  // Get online users for presence
-  const currentPresenceUser = useMemo(() => ({
-    name: userProfile?.username || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
-    email: user?.email || '',
-    avatar_url: userProfile?.avatar_url || user?.user_metadata?.avatar_url
-  }), [user, userProfile]);
+  const currentPresenceUser = useMemo(
+    () => ({
+      name: userProfile?.username || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User",
+      email: user?.email || "",
+      avatar_url: userProfile?.avatar_url || user?.user_metadata?.avatar_url || null,
+    }),
+    [user, userProfile]
+  );
 
-  const { onlineUsers } = useBoardPresence(user?.id || '', currentPresenceUser);
+  const { onlineUsers } = useBoardPresence(boardKey, currentPresenceUser, "statistics");
 
   // Memoize userId for stable reference in dependencies
   const userId = useMemo(() => user?.id, [user?.id]);
