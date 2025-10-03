@@ -6,7 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useLocalizedDate } from "@/hooks/useLocalizedDate";
-import { PresenceAvatars } from "@/components/PresenceAvatars";
+import { PresenceCircles } from "@/components/presence/PresenceCircles";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
@@ -16,7 +16,7 @@ interface CalendarHeaderProps {
   onNext: () => void;
   onAddEvent?: () => void;
   isExternalCalendar?: boolean;
-  onlineUsers?: { name: string; email: string }[];
+  onlineUsers?: Array<{ email?: string | null; name?: string | null; avatar_url?: string | null; online_at?: string | null }>;
   currentUserEmail?: string;
 }
 
@@ -82,10 +82,10 @@ export const CalendarHeader = ({
           </h2>
         </div>
         
-        {/* Presence avatars inline with date on mobile */}
+        {/* Presence circles inline with date on mobile */}
         {onlineUsers.length > 0 && (
           <div className="ml-auto">
-            <PresenceAvatars users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+            <PresenceCircles users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
           </div>
         )}
       </div>
