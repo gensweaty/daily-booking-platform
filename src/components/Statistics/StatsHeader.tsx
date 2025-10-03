@@ -66,7 +66,7 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading,
         </Button>
         {onlineUsers.length > 0 && (
           <div className="ml-2">
-            <PresenceCircles users={onlineUsers} max={5} />
+            <PresenceCircles users={onlineUsers} max={5} currentUserEmail={currentUserEmail} />
           </div>
         )}
       </div>

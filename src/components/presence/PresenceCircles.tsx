@@ -16,6 +16,7 @@ interface PresenceCirclesProps {
   max?: number;            // how many to show before +N
   size?: number;           // px (height/width)
   ring?: boolean;          // show ring like elsewhere
+  currentUserEmail?: string; // filter out this user's email
 }
 
 export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
@@ -23,9 +24,12 @@ export const PresenceCircles: React.FC<PresenceCirclesProps> = ({
   max = 5,
   size = 28,
   ring = true,
+  currentUserEmail,
 }) => {
-  const visible = users.slice(0, max);
-  const remainder = Math.max(users.length - visible.length, 0);
+  // Filter out current user - they shouldn't see themselves
+  const otherUsers = users.filter(user => user.email !== currentUserEmail);
+  const visible = otherUsers.slice(0, max);
+  const remainder = Math.max(otherUsers.length - visible.length, 0);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { toast } = useToast();
 

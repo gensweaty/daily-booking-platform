@@ -16,6 +16,7 @@ import { GeorgianAuthText } from "./shared/GeorgianAuthText";
 import { useQueryClient } from "@tanstack/react-query";
 import { PermissionGate } from "./PermissionGate";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
+import { supabase } from "@/lib/supabase";
 
 const StatisticsContent = () => {
   const { user } = useAuth();
@@ -28,12 +29,33 @@ const StatisticsContent = () => {
     end: endOfMonth(currentDate)
   });
 
+  // Fetch user profile for accurate avatar
+  const [userProfile, setUserProfile] = useState<{ username?: string; avatar_url?: string } | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?.id) return;
+      
+      const { data } = await supabase
+        .from('profiles')
+        .select('username, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (data) {
+        setUserProfile(data);
+      }
+    };
+    
+    fetchProfile();
+  }, [user?.id]);
+
   // Get online users for presence
   const currentPresenceUser = useMemo(() => ({
-    name: user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
+    name: userProfile?.username || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User',
     email: user?.email || '',
-    avatar_url: user?.user_metadata?.avatar_url
-  }), [user]);
+    avatar_url: userProfile?.avatar_url || user?.user_metadata?.avatar_url
+  }), [user, userProfile]);
 
   const { onlineUsers } = useBoardPresence(user?.id || '', currentPresenceUser);
 
