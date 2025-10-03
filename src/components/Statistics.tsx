@@ -177,14 +177,12 @@ const StatisticsContent = () => {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-foreground">{t('dashboard.statistics')}</h2>
-      
       <StatsHeader 
         dateRange={dateRange}
         onDateChange={handleDateChange}
         onExport={handleExport}
         isLoading={isLoading || isLoadingCRM}
-        onlineUsers={onlineUsers.filter(u => u.email !== user?.email)}
+        onlineUsers={onlineUsers}
         currentUserEmail={user?.email}
       />
       
