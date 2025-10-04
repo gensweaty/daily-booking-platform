@@ -10,7 +10,7 @@ import { IncomeChart } from "@/components/Statistics/IncomeChart";
 import { StatsHeader } from "@/components/Statistics/StatsHeader";
 import { StatsCards } from "@/components/Statistics/StatsCards";
 import { useExcelExport } from "@/components/Statistics/ExcelExport";
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
 
 interface PublicStatisticsListProps {
   boardUserId: string;
@@ -153,6 +153,165 @@ export const PublicStatisticsList = ({
     refetchInterval: false,
   });
 
+  // Fetch 3-month income comparison (always last 3 months, independent of date filter)
+  const { data: threeMonthIncome } = useQuery({
+    queryKey: ['publicThreeMonthIncome', boardUserId],
+    queryFn: async () => {
+      console.log('Fetching 3-month income comparison for user:', boardUserId);
+      const today = new Date();
+      const threeMonthData: Array<{ month: string; income: number }> = [];
+
+      // Calculate for each of the last 3 months
+      for (let i = 0; i < 3; i++) {
+        const monthDate = subMonths(today, 2 - i);
+        const monthStart = startOfMonth(monthDate);
+        const monthEnd = endOfMonth(monthDate);
+        const monthShort = format(monthDate, 'MMM');
+
+        // Query events for this specific month
+        const { data: monthEvents } = await supabase
+          .from('events')
+          .select('*')
+          .eq('user_id', boardUserId)
+          .gte('start_date', monthStart.toISOString())
+          .lte('start_date', monthEnd.toISOString())
+          .is('deleted_at', null);
+
+        // Query booking requests for this specific month
+        const { data: monthBookingRequests } = await supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('user_id', boardUserId)
+          .gte('start_date', monthStart.toISOString())
+          .lte('start_date', monthEnd.toISOString())
+          .eq('status', 'approved')
+          .is('deleted_at', null);
+
+        let monthIncome = 0;
+
+        if (monthEvents) {
+          // Transform booking requests to look like events
+          const transformedMonthBookings = (monthBookingRequests || []).map((booking: any) => ({
+            ...booking,
+            is_recurring: false,
+            parent_event_id: null,
+            type: 'booking_request'
+          }));
+
+          const allMonthEvents = [...monthEvents, ...transformedMonthBookings];
+
+          // Separate recurring series and non-recurring events
+          const monthRecurringSeriesMap = new Map<string, any[]>();
+          const monthNonRecurringEvents: any[] = [];
+
+          allMonthEvents.forEach(event => {
+            if (event.is_recurring && event.parent_event_id) {
+              const parentId = event.parent_event_id;
+              if (!monthRecurringSeriesMap.has(parentId)) {
+                monthRecurringSeriesMap.set(parentId, []);
+              }
+              monthRecurringSeriesMap.get(parentId)?.push(event);
+            } else if (event.is_recurring && !event.parent_event_id) {
+              if (!monthRecurringSeriesMap.has(event.id)) {
+                monthRecurringSeriesMap.set(event.id, []);
+              }
+              monthRecurringSeriesMap.get(event.id)?.push(event);
+            } else {
+              monthNonRecurringEvents.push(event);
+            }
+          });
+
+          // Process non-recurring events
+          monthNonRecurringEvents.forEach(event => {
+            if ((event.payment_status?.includes('partly') || event.payment_status?.includes('fully')) && event.payment_amount) {
+              const amount = typeof event.payment_amount === 'number' 
+                ? event.payment_amount 
+                : parseFloat(String(event.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                monthIncome += amount;
+              }
+            }
+          });
+
+          // Process recurring series (count once per series)
+          for (const [seriesId, seriesEvents] of monthRecurringSeriesMap) {
+            const firstInstance = seriesEvents[0];
+            if ((firstInstance.payment_status?.includes('partly') || firstInstance.payment_status?.includes('fully')) && firstInstance.payment_amount) {
+              const amount = typeof firstInstance.payment_amount === 'number' 
+                ? firstInstance.payment_amount 
+                : parseFloat(String(firstInstance.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                monthIncome += amount;
+              }
+            }
+          }
+
+          // Get additional persons (customers) for events in this month
+          const monthParentEventIds = monthEvents
+            ?.filter(event => !event.parent_event_id)
+            .map(event => event.id) || [];
+
+          if (monthParentEventIds.length > 0) {
+            const { data: monthCustomers } = await supabase
+              .from('customers')
+              .select('*')
+              .in('event_id', monthParentEventIds)
+              .eq('type', 'customer')
+              .is('deleted_at', null);
+
+            if (monthCustomers) {
+              // Process customers for recurring series
+              for (const [seriesId] of monthRecurringSeriesMap) {
+                const seriesAdditionalPersons = monthCustomers.filter(person => 
+                  person.event_id === seriesId
+                );
+
+                seriesAdditionalPersons.forEach(person => {
+                  const personPaymentStatus = person.payment_status || '';
+                  if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+                    const amount = typeof person.payment_amount === 'number' 
+                      ? person.payment_amount 
+                      : parseFloat(String(person.payment_amount));
+                    if (!isNaN(amount) && amount > 0) {
+                      monthIncome += amount;
+                    }
+                  }
+                });
+              }
+
+              // Process customers for non-recurring events
+              const nonRecurringAdditionalPersons = monthCustomers.filter(person => 
+                !monthRecurringSeriesMap.has(person.event_id || '')
+              );
+
+              nonRecurringAdditionalPersons.forEach(person => {
+                const personPaymentStatus = person.payment_status || '';
+                if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+                  const amount = typeof person.payment_amount === 'number' 
+                    ? person.payment_amount 
+                    : parseFloat(String(person.payment_amount));
+                  if (!isNaN(amount) && amount > 0) {
+                    monthIncome += amount;
+                  }
+                }
+              });
+            }
+          }
+        }
+
+        threeMonthData.push({
+          month: monthShort,
+          income: monthIncome
+        });
+      }
+
+      console.log('3-month income comparison:', threeMonthData);
+      return threeMonthData;
+    },
+    enabled: !!boardUserId,
+    refetchInterval: false,
+  });
+
   // Fetch customer statistics
   const { data: customerStats, isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['publicCustomerStats', boardUserId],
@@ -220,6 +379,7 @@ export const PublicStatisticsList = ({
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['publicEventStats', boardUserId, dateRange] });
+          queryClient.invalidateQueries({ queryKey: ['publicThreeMonthIncome', boardUserId] });
         }
       )
       .subscribe();
@@ -236,6 +396,24 @@ export const PublicStatisticsList = ({
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['publicCustomerStats', boardUserId] });
+          queryClient.invalidateQueries({ queryKey: ['publicThreeMonthIncome', boardUserId] });
+        }
+      )
+      .subscribe();
+
+    const bookingRequestsChannel = supabase
+      .channel('public_stats_booking_requests')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'booking_requests',
+          filter: `user_id=eq.${boardUserId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['publicEventStats', boardUserId, dateRange] });
+          queryClient.invalidateQueries({ queryKey: ['publicThreeMonthIncome', boardUserId] });
         }
       )
       .subscribe();
@@ -245,6 +423,7 @@ export const PublicStatisticsList = ({
       supabase.removeChannel(tasksChannel);
       supabase.removeChannel(eventsChannel);
       supabase.removeChannel(customersChannel);
+      supabase.removeChannel(bookingRequestsChannel);
     };
   }, [boardUserId, queryClient, dateRange]);
 
@@ -332,7 +511,7 @@ export const PublicStatisticsList = ({
       {/* Charts */}
       <div className="grid gap-4 md:grid-cols-2">
         <BookingChart data={currentEventStats.dailyStats || []} />
-        <IncomeChart data={currentEventStats.monthlyIncome || []} />
+        <IncomeChart data={threeMonthIncome || []} />
       </div>
     </div>
   );
