@@ -859,7 +859,8 @@ const handleRegister = async () => {
               email={email}
               onlineUsers={onlineUsers.map(u => ({
                 name: u.name || u.email?.split("@")[0] || "User",
-                email: u.email || ""
+                email: u.email || "",
+                avatar_url: u.avatar_url
               }))}
             />
           </>

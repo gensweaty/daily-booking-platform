@@ -29,7 +29,7 @@ interface PublicBoardNavigationProps {
   accessToken: string;
   fullName: string;
   email: string;
-  onlineUsers: { name: string; email: string }[];
+  onlineUsers: { name: string; email: string; avatar_url?: string | null }[];
 }
 
 interface SubUserPermissions {
