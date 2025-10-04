@@ -74,8 +74,7 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
 
   const { onlineUsers } = useBoardPresence(
     boardData?.id,
-    isAuthenticated ? { name: fullName, email, avatar_url: avatarUrl } : null,
-    "tasks"
+    isAuthenticated ? { name: fullName, email, avatar_url: avatarUrl } : null
   );
 
   useEffect(() => {

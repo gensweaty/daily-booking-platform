@@ -117,7 +117,7 @@ const CalendarContent = ({
     [user, profile]
   );
 
-  const { onlineUsers } = useBoardPresence(boardKey, me, "calendar");
+  const { onlineUsers } = useBoardPresence(boardKey, me);
 
   useEffect(() => {
     if (currentView) {

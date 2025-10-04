@@ -59,7 +59,7 @@ const StatisticsContent = () => {
     [user, userProfile]
   );
 
-  const { onlineUsers } = useBoardPresence(boardKey, currentPresenceUser, "statistics");
+  const { onlineUsers } = useBoardPresence(boardKey, currentPresenceUser);
 
   // Memoize userId for stable reference in dependencies
   const userId = useMemo(() => user?.id, [user?.id]);

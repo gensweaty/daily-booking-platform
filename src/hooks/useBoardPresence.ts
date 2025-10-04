@@ -18,10 +18,8 @@ export function useBoardPresence(
   me: PresenceUser | null | undefined,
   scope: PresenceScope = "global"
 ) {
-  const channelName = useMemo(() => {
-    if (!boardKey) return null;
-    return `presence:${boardKey}:${scope}`;
-  }, [boardKey, scope]);
+  // ✅ single shared channel per board (no page suffix)
+  const channelName = useMemo(() => (boardKey ? `presence:${boardKey}` : null), [boardKey]);
 
   const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
   const stateRef = useRef<Map<string, PresenceUser>>(new Map());
