@@ -1,11 +1,12 @@
 
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { useLocalizedDate } from "@/hooks/useLocalizedDate";
+import { PresenceCircles } from "@/components/presence/PresenceCircles";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
@@ -15,6 +16,8 @@ interface CalendarHeaderProps {
   onNext: () => void;
   onAddEvent?: () => void;
   isExternalCalendar?: boolean;
+  onlineUsers?: Array<{ email?: string | null; name?: string | null; avatar_url?: string | null; online_at?: string | null }>;
+  currentUserEmail?: string;
 }
 
 export const CalendarHeader = ({
@@ -25,18 +28,25 @@ export const CalendarHeader = ({
   onNext,
   onAddEvent,
   isExternalCalendar = false,
+  onlineUsers = [],
+  currentUserEmail,
 }: CalendarHeaderProps) => {
   const { t, language } = useLanguage();
+  const { formatDate } = useLocalizedDate();
   const isGeorgian = language === 'ka';
+
+  // Debug logging for onAddEvent
+  console.log('🔍 CalendarHeader: onAddEvent provided?', !!onAddEvent, 'isExternalCalendar:', isExternalCalendar);
 
   const getFormattedDate = () => {
     switch (view) {
       case "month":
-        return format(selectedDate, "MMMM yyyy");
+        return formatDate(selectedDate, "monthYear");
       case "week":
-        return `${t("calendar.weekOf")} ${format(selectedDate, "MMM d, yyyy")}`;
+        // Remove the redundant "კვირა" prefix since formatDate already includes it
+        return formatDate(selectedDate, "weekOf");
       case "day":
-        return format(selectedDate, "EEEE, MMMM d, yyyy");
+        return formatDate(selectedDate, "full");
       default:
         return "";
     }
@@ -59,16 +69,25 @@ export const CalendarHeader = ({
 
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={onPrevious}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <Button variant="outline" size="icon" onClick={onNext}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-        <h2 className={cn("text-xl font-semibold ml-2", isGeorgian ? "font-georgian" : "")}>
-          {getFormattedDate()}
-        </h2>
+      <div className="flex items-center gap-4 flex-1">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={onPrevious}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onNext}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <h2 className={cn("text-xl font-semibold ml-2", isGeorgian ? "font-georgian" : "")}>
+            {getFormattedDate()}
+          </h2>
+        </div>
+        
+        {/* Presence circles inline with date on mobile */}
+        {onlineUsers.length > 0 && (
+          <div className="ml-auto">
+            <PresenceCircles users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2 justify-between w-full sm:w-auto mt-2 sm:mt-0">
@@ -99,16 +118,21 @@ export const CalendarHeader = ({
           </Button>
         </div>
         
-        {onAddEvent && (
-          <Button 
-            onClick={onAddEvent} 
-            size="sm" 
-            className={cn("ml-auto sm:ml-0", isGeorgian ? "font-georgian" : "")}
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {onAddEvent && (
+            <Button 
+              onClick={onAddEvent}
+              size="sm" 
+              variant="dynamic"
+              className={cn("font-semibold", isGeorgian ? "font-georgian" : "")}
+              type="button"
+            >
+              <Plus className="h-4 w-4" />
+              {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+            </Button>
+          )}
+        </div>
+        
       </div>
     </div>
   );

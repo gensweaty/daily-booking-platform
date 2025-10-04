@@ -1,8 +1,8 @@
 
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +20,7 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
   try {
     logStep("🔥 YEARLY DEBUG: Function started");
@@ -129,10 +129,10 @@ serve(async (req) => {
       }
 
     } catch (priceError) {
-      logStep("❌ YEARLY DEBUG: Price validation failed", { priceId: price_id, error: priceError.message });
+      logStep("❌ YEARLY DEBUG: Price validation failed", { priceId: price_id, error: (priceError as Error).message });
       return new Response(JSON.stringify({ 
         error: `Invalid price ID: ${price_id}`,
-        details: priceError.message 
+        details: (priceError as Error).message 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -1,5 +1,6 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
+import { Resend } from "https://esm.sh/resend@4.3.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -63,8 +64,9 @@ function getCurrencySymbolByLanguage(language?: string): string {
   }
 }
 
-// Function to get email content based on language
+// Function to get proper email content based on source and language
 function getEmailContent(
+  source: string,
   language: string, 
   fullName: string, 
   businessName: string, 
@@ -73,87 +75,271 @@ function getEmailContent(
   paymentInfo: string,
   addressInfo: string,
   eventNotesInfo: string
-): string {
+): { subject: string; content: string } {
   // Normalize language to lowercase and handle undefined
   const normalizedLang = (language || 'en').toLowerCase();
+  const normalizedSource = (source || 'booking-approval').toLowerCase();
   
-  console.log(`Creating email content in language: ${normalizedLang}`);
+  console.log(`Creating email content - Source: ${normalizedSource}, Language: ${normalizedLang}`);
   
   // Normalize business name
   const displayBusinessName = businessName && businessName !== "null" && businessName !== "undefined" 
     ? businessName 
     : 'SmartBookly';
-  
-  switch (normalizedLang) {
-    case 'ka': // Georgian
-      return `
-        <!DOCTYPE html>
-        <html lang="ka">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>ჯავშანი დადასტურებულია</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">გამარჯობა ${fullName},</h2>
-          <p>თქვენი ჯავშანი დადასტურდა <b>${displayBusinessName}</b>-ში.</p>
-          <p style="margin: 8px 0;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
-          ${eventNotesInfo}
-          <p>ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>ეს არის ავტომატური შეტყობინება.</i></p>
-        </body>
-        </html>
-      `;
-      
-    case 'es': // Spanish
-      return `
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Reserva Aprobada</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hola ${fullName},</h2>
-          <p>Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.</p>
-          <p style="margin: 8px 0;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
-          ${eventNotesInfo}
-          <p>¡Esperamos verle pronto!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>Este es un mensaje automático.</i></p>
-        </body>
-        </html>
-      `;
-      
-    default: // English (default)
-      return `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Booking Approved</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 5px;">
-          <h2 style="color: #333;">Hello ${fullName},</h2>
-          <p>Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.</p>
-          <p style="margin: 8px 0;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
-          ${addressInfo}
-          ${paymentInfo}
-          ${eventNotesInfo}
-          <p>We look forward to seeing you!</p>
-          <hr style="border: none; border-top: 1px solid #eaeaea; margin: 20px 0;">
-          <p style="color: #777; font-size: 14px;"><i>This is an automated message.</i></p>
-        </body>
-        </html>
-      `;
+
+  // Get subject and content based on source and language
+  let subject = '';
+  let content = '';
+
+  if (normalizedSource === 'event-creation') {
+    // Event creation emails
+    switch (normalizedLang) {
+      case 'ka': // Georgian
+        subject = `ღონისძიება შეიქმნა ${displayBusinessName}-ში`;
+        content = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">ღონისძიება შეიქმნა -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                გამარჯობა ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                თქვენი ღონისძიება <b style="color: #4CAF50;">შეიქმნა</b> <b>${displayBusinessName}</b>-ში.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 ღონისძიების დეტალები</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>ღონისძიების თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - თქვენი ჭკვიანი დაჯავშნის სისტემა
+              </p>
+            </div>
+          </div>
+        `;
+        break;
+        
+      case 'es': // Spanish
+        subject = `Evento Creado en ${displayBusinessName}`;
+        content = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Evento Creado -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                Hola ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                Su evento ha sido <b style="color: #4CAF50;">creado</b> en <b>${displayBusinessName}</b>.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Detalles del Evento</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Fecha y hora del evento:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 ¡Esperamos verle pronto!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - Sistema de Gestión de Reservas Inteligente
+              </p>
+            </div>
+          </div>
+        `;
+        break;
+        
+      default: // English (default)
+        subject = `Event Created at ${displayBusinessName}`;
+        content = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Event Created -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                Hello ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                Your event has been <b style="color: #4CAF50;">created</b> at <b>${displayBusinessName}</b>.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Event Details</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Event date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 We look forward to seeing you!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - Smart Booking Management System
+              </p>
+            </div>
+          </div>
+        `;
+        break;
+    }
+  } else {
+    // Booking approval emails (default)
+    switch (normalizedLang) {
+      case 'ka': // Georgian
+        subject = `ჯავშანი დადასტურებულია ${displayBusinessName}-ში`;
+        content = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">ჯავშანი დადასტურებულია -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                გამარჯობა ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                თქვენი ჯავშანი <b style="color: #4CAF50;">დადასტურდა</b> <b>${displayBusinessName}</b>-ში.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 დაჯავშნის დეტალები</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>დაჯავშნის თარიღი და დრო:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 ჩვენ მოუთმენლად ველით თქვენს ნახვას!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - თქვენი ჭკვიანი დაჯავშნის სისტემა
+              </p>
+            </div>
+          </div>
+        `;
+        break;
+        
+      case 'es': // Spanish
+        subject = `Reserva Aprobada en ${displayBusinessName}`;
+        content = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Reserva Aprobada -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                Hola ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                Su reserva ha sido <b style="color: #4CAF50;">aprobada</b> en <b>${displayBusinessName}</b>.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Detalles de la Reserva</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Fecha y hora de la reserva:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 ¡Esperamos verle pronto!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - Sistema de Gestión de Reservas Inteligente
+              </p>
+            </div>
+          </div>
+        `;
+        break;
+        
+      default: // English (default)
+        subject = `Booking Approved at ${displayBusinessName}`;
+        content = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+            <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+              <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+              <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Booking Approved -</h1>
+              <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${displayBusinessName}</h2>
+            </div>
+            
+            <div style="background: white; color: #333; padding: 30px; margin: 0;">
+              <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+                Hello ${fullName}!
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+                Your booking has been <b style="color: #4CAF50;">approved</b> at <b>${displayBusinessName}</b>.
+              </p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Booking Details</h3>
+                
+                <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Booking date and time:</strong> ${formattedStartDate} - ${formattedEndDate}</p>
+                ${addressInfo}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <p style="margin: 0; font-size: 18px; color: #333;">🎉 We look forward to seeing you!</p>
+              </div>
+              
+              <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+              <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+                SmartBookly - Smart Booking Management System
+              </p>
+            </div>
+          </div>
+        `;
+        break;
+    }
   }
+
+  return { subject, content };
 }
 
 // Format payment status for different languages
@@ -232,7 +418,9 @@ const handler = async (req: Request): Promise<Response> => {
       paymentStatus,
       paymentAmount,
       language,
-      eventNotes
+      eventNotes,
+      source,
+      hasBusinessAddress: !!businessAddress
     });
 
     // Build a standardized deduplication key that ignores the source
@@ -242,24 +430,28 @@ const handler = async (req: Request): Promise<Response> => {
     if (eventId) {
       dedupeKey = `${eventId}_${recipientEmail}`;
       
-      // Check if we already sent an email for this event/recipient
+      // Check if we already sent an email for this event/recipient (only block if very recent)
       const now = Date.now();
       if (recentlySentEmails.has(dedupeKey)) {
         const lastSent = recentlySentEmails.get(dedupeKey);
         const timeAgo = now - (lastSent || 0);
-        console.log(`Duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
         
-        return new Response(
-          JSON.stringify({ 
-            message: "Email request was identified as a duplicate and skipped",
-            to: recipientEmail,
-            id: null,
-            isDuplicate: true,
-            dedupeKey: dedupeKey,
-            timeAgo: timeAgo
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-        );
+        // Only block if sent within last 2 minutes to prevent spam
+        if (timeAgo < 120000) {
+          console.log(`Recent duplicate email detected for key ${dedupeKey}. Last sent ${timeAgo}ms ago. Skipping.`);
+          
+          return new Response(
+            JSON.stringify({ 
+              message: "Email request was identified as a recent duplicate and skipped",
+              to: recipientEmail,
+              id: null,
+              isDuplicate: true,
+              dedupeKey: dedupeKey,
+              timeAgo: timeAgo
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
+          );
+        }
       }
     } else {
       // If no eventId, use a combination of email and timestamps as a fallback
@@ -273,22 +465,6 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({ error: "Invalid email format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }}
-      );
-    }
-    
-    // If there's no business address, reject the request
-    // This ensures we only send emails that include the address
-    if (!businessAddress || businessAddress.trim() === '') {
-      console.log(`Request without business address rejected for ${recipientEmail}`);
-      return new Response(
-        JSON.stringify({ 
-          message: "Email request rejected due to missing business address",
-          to: recipientEmail,
-          id: null,
-          skipped: true,
-          reason: "Missing business address"
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );
     }
     
@@ -322,7 +498,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       
-      // Prepare address section
+      // Prepare address section with fallback - NEVER block email sending
       let addressInfo = "";
       let addressDisplay = businessAddress?.trim() || "";
       
@@ -333,6 +509,13 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (addressDisplay) {
         addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${addressDisplay}</p>`;
+      } else {
+        // Provide fallback for missing address - but still send email
+        const defaultAddress = language === 'ka' 
+          ? "მისამართი დაზუსტდება"
+          : (language === 'es' ? "Dirección por confirmar" : "Address to be confirmed");
+        addressInfo = `<p style="margin: 8px 0;"><strong>${addressLabel}:</strong> ${defaultAddress}</p>`;
+        console.log("Using fallback address as business address is missing - but continuing with email");
       }
       
       // Prepare event notes section
@@ -346,11 +529,12 @@ const handler = async (req: Request): Promise<Response> => {
         eventNotesInfo = `<p style="margin: 8px 0;"><strong>${notesLabel}:</strong> ${eventNotes.trim()}</p>`;
       }
       
-      // Create HTML email content based on language
-      const htmlContent = getEmailContent(
+      // Create HTML email content based on source and language
+      const emailData = getEmailContent(
+        source || 'booking-approval',
         language || 'en', 
         fullName, 
-        businessName, 
+        businessName || 'SmartBookly', 
         formattedStartDate,
         formattedEndDate,
         paymentInfo,
@@ -366,18 +550,13 @@ const handler = async (req: Request): Promise<Response> => {
       
       const resend = new Resend(resendApiKey);
       
-      // Email subjects based on language
-      const emailSubject = language === 'ka' 
-        ? `ჯავშანი დადასტურებულია ${businessName || 'SmartBookly'}-ში` 
-        : (language === 'es' 
-            ? `Reserva Aprobada en ${businessName || 'SmartBookly'}` 
-            : `Booking Approved at ${businessName || 'SmartBookly'}`);
+      console.log("Sending email with subject:", emailData.subject);
       
       const emailResult = await resend.emails.send({
         from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
         to: [recipientEmail],
-        subject: emailSubject,
-        html: htmlContent,
+        subject: emailData.subject,
+        html: emailData.content,
       });
 
       if (emailResult.error) {
@@ -397,13 +576,14 @@ const handler = async (req: Request): Promise<Response> => {
           message: "Email sent successfully",
           to: recipientEmail,
           id: emailResult.data?.id,
-          included_address: addressDisplay,
+          included_address: addressDisplay || "fallback address used",
           business_name_used: businessName || 'SmartBookly',
           source: source || 'unknown',
           dedupeKey: dedupeKey,
           language: language, // Log the language used for verification
           currencySymbol: currencySymbol, // Log the currency symbol used
-          hasEventNotes: !!eventNotesInfo // Log whether event notes were included
+          hasEventNotes: !!eventNotesInfo, // Log whether event notes were included
+          emailSubject: emailData.subject // Log the actual subject used
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" }}
       );

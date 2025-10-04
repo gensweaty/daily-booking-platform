@@ -1,7 +1,7 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { Resend } from "https://esm.sh/resend@4.3.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,10 +51,9 @@ serve(async (req) => {
 
       try {
         // Check if user exists
-        const { data: user, error: userError } = await supabaseAdmin.auth.admin.listUsers({
-          filter: {
-            email: email,
-          }
+        const { data: users, error: userError } = await supabaseAdmin.auth.admin.listUsers({
+          page: 1,
+          perPage: 1000
         });
 
         if (userError) {
@@ -73,7 +72,8 @@ serve(async (req) => {
         }
 
         // Check if user exists in the database
-        if (!user || user.users.length === 0) {
+        const targetUser = users?.users?.find((u: any) => u.email === email);
+        if (!users || users.users.length === 0 || !targetUser) {
           console.log(`No user found with email: ${email}`);
           // For security reasons, return success even if the user doesn't exist
           return new Response(
@@ -182,7 +182,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "An unexpected error occurred",
+        error: (error as Error).message || "An unexpected error occurred",
         success: false
       }),
       {

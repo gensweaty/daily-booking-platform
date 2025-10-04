@@ -13,7 +13,7 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { CalendarIcon, Clock, ChevronUp, ChevronDown, RefreshCcw, User, UserCog, Calendar as CalendarClockIcon, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -53,6 +53,12 @@ interface CustomerDialogFieldsProps {
   setEventEndDate: (date: Date) => void;
   fileBucketName?: string;
   fallbackBuckets?: string[];
+  // Metadata props
+  initialData?: any;
+  // Permission props for sub-users
+  currentUserName?: string;
+  currentUserType?: string;
+  isSubUser?: boolean;
 }
 
 export const CustomerDialogFields = ({
@@ -88,13 +94,17 @@ export const CustomerDialogFields = ({
   setEventEndDate,
   fileBucketName = "customer_attachments",
   fallbackBuckets = [],
+  initialData,
+  currentUserName,
+  currentUserType = 'admin',
+  isSubUser = false
 }: CustomerDialogFieldsProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const currencySymbol = getCurrencySymbol(language);
   
-  // Show payment amount field if payment status is partly paid or fully paid
-  const showPaymentAmount = paymentStatus === "partly" || paymentStatus === "fully";
+  // Show payment amount field if payment status is partly_paid or fully_paid
+  const showPaymentAmount = paymentStatus === "partly_paid" || paymentStatus === "fully_paid";
 
   // Helper function to format date and time for display
   const formatDateTime = (dateStr: string | null | undefined) => {
@@ -112,19 +122,16 @@ export const CustomerDialogFields = ({
   const renderPaymentStatus = () => {
     if (!isEventBased || !paymentStatus) return null;
 
-    // Normalize payment status to handle both 'partly' and 'partly_paid' formats
-    const normalizedStatus = 
-      paymentStatus.includes('partly') ? 'partly' : 
-      paymentStatus.includes('fully') ? 'fully' : 
-      'not_paid';
+    // Use the standardized payment status values
+    const normalizedStatus = paymentStatus;
     
     let textColorClass = '';
     
     switch(normalizedStatus) {
-      case 'fully':
+      case 'fully_paid':
         textColorClass = 'text-green-600';
         break;
-      case 'partly':
+      case 'partly_paid':
         textColorClass = 'text-amber-600';
         break;
       default: // not_paid
@@ -135,8 +142,8 @@ export const CustomerDialogFields = ({
     // Display labels in user language
     const statusTextMap = {
       'not_paid': t('crm.notPaid'),
-      'partly': t('crm.paidPartly'),
-      'fully': t('crm.paidFully')
+      'partly_paid': t('crm.paidPartly'),
+      'fully_paid': t('crm.paidFully')
     };
     
     const text = statusTextMap[normalizedStatus as keyof typeof statusTextMap];
@@ -148,7 +155,7 @@ export const CustomerDialogFields = ({
           <LanguageText>
             {text}
           </LanguageText>
-          {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && paymentAmount && (
+          {(normalizedStatus === 'partly_paid' || normalizedStatus === 'fully_paid') && paymentAmount && (
             <div className="text-xs mt-0.5">
               ({currencySymbol}{paymentAmount})
             </div>
@@ -160,6 +167,32 @@ export const CustomerDialogFields = ({
 
   const formatDateDisplay = (date: Date) => {
     return format(date, 'MM/dd/yyyy HH:mm');
+  };
+
+  const renderMetadataIcon = (type: string | null) => {
+    if (type === 'sub_user') {
+      return <UserCog className="h-3 w-3" />;
+    }
+    return <User className="h-3 w-3" />;
+  };
+
+  const formatMetadataName = (name: string | null, type: string | null) => {
+    if (!name) return 'Unknown';
+    
+    // Use the same logic as EventDialog - normalize the name properly
+    if (name.includes('@')) {
+      return name.split('@')[0];
+    }
+    return name || 'Unknown';
+  };
+
+  const formatMetadataDate = (dateString: string | null) => {
+    if (!dateString) return 'Unknown';
+    try {
+      return new Date(dateString).toLocaleString(language);
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   // Generate time options for hours selection grid - full 24 hours
@@ -281,9 +314,9 @@ export const CustomerDialogFields = ({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent 
-                    className="w-auto p-0 bg-background" 
+                    className="w-auto p-0 bg-background border-input pointer-events-auto z-[2147483646]" 
                     align="start"
-                    sideOffset={4}
+                    sideOffset={6}
                   >
                     <div className="flex">
                       <div className="border-r">
@@ -383,9 +416,9 @@ export const CustomerDialogFields = ({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent 
-                    className="w-auto p-0 bg-background" 
+                    className="w-auto p-0 bg-background border-input pointer-events-auto z-[2147483646]" 
                     align="start"
-                    sideOffset={4}
+                    sideOffset={6}
                   >
                     <div className="flex">
                       <div className="border-r">
@@ -475,10 +508,10 @@ export const CustomerDialogFields = ({
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={t("crm.selectPaymentStatus")} />
               </SelectTrigger>
-              <SelectContent className="bg-background">
+              <SelectContent className="bg-background z-[2147483646] pointer-events-auto" position="popper">
                 <SelectItem value="not_paid">{t("crm.notPaid")}</SelectItem>
-                <SelectItem value="partly">{t("crm.paidPartly")}</SelectItem>
-                <SelectItem value="fully">{t("crm.paidFully")}</SelectItem>
+                <SelectItem value="partly_paid">{t("crm.paidPartly")}</SelectItem>
+                <SelectItem value="fully_paid">{t("crm.paidFully")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -522,6 +555,9 @@ export const CustomerDialogFields = ({
             onFileDeleted={onFileDeleted}
             parentType="customer"
             fallbackBuckets={fallbackBuckets}
+            currentUserName={currentUserName}
+            currentUserType={currentUserType}
+            isSubUser={isSubUser}
           />
         </div>
       )}
@@ -533,6 +569,40 @@ export const CustomerDialogFields = ({
           setFileError={setFileError}
         />
       </div>
+
+      {/* Metadata display for created and updated info */}
+      {initialData && (
+        <div className="px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-border bg-card text-card-foreground w-fit">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
+            <div className="flex items-center">
+              <CalendarClockIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+               <span className="truncate">
+                 {t("common.created")} {format(new Date(initialData.created_at), 'MM/dd/yy HH:mm')}
+                 {initialData.created_by_name && (
+                   <span className="ml-1">
+                     {language === 'ka' 
+                       ? `${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}-ს ${t("common.by")}` 
+                       : `${t("common.by")} ${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}`}
+                   </span>
+                 )}
+               </span>
+            </div>
+            <div className="flex items-center">
+              <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+               <span className="truncate">
+                 {t("common.lastUpdated")} {format(new Date(initialData.updated_at || initialData.created_at), 'MM/dd/yy HH:mm')}
+                 {initialData.last_edited_by_name && initialData.last_edited_at && (
+                   <span className="ml-1">
+                     {language === 'ka' 
+                       ? `${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}-ს ${t("common.by")}` 
+                       : `${t("common.by")} ${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}`}
+                   </span>
+                 )}
+               </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

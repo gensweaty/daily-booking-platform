@@ -23,7 +23,7 @@ interface IncomeChartProps {
 }
 
 export const IncomeChart = ({ data }: IncomeChartProps) => {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isSpanish = language === 'es';
   
   // Transform data to use Spanish month names if needed
@@ -55,16 +55,12 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
     return item;
   });
 
-  const title = isSpanish 
-    ? data.length > 3 
-      ? `Comparación de Ingresos de ${data.length} Meses`
-      : "Comparación de Ingresos de Tres Meses"
-    : data.length > 3 
-      ? `${data.length} Month Income Comparison`
-      : "Three Month Income Comparison";
+  const title = data.length > 3 
+    ? t('analytics.monthIncomeComparison', { months: data.length })
+    : t('analytics.threeMonthIncomeComparison');
 
-  const xAxisLabel = isSpanish ? "Meses" : "Months";
-  const yAxisLabel = isSpanish ? "Ingresos (€)" : "Income ($)";
+  const xAxisLabel = t('analytics.months');
+  const yAxisLabel = t('analytics.income');
 
   return (
     <Card className="p-4">

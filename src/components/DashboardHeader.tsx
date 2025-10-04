@@ -51,16 +51,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [userProfileName, setUserProfileName] = useState<string | null>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // Fetch user profile data including avatar
   const fetchUserProfile = async () => {
     if (!user) return;
 
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('avatar_url')
+        .select('avatar_url, username')
         .eq('id', user.id)
         .single();
 
@@ -72,12 +72,14 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       if (data?.avatar_url) {
         setAvatarUrl(data.avatar_url);
       }
+      if (data?.username) {
+        setUserProfileName(data.username);
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
     }
   };
 
-  // Fetch subscription data function
   const fetchSubscription = async () => {
     if (!user) return;
     
@@ -108,14 +110,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
-  // Check for payment return in URL
   const checkForPaymentReturn = () => {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.has('session_id') || urlParams.has('subscription');
   };
 
   useEffect(() => {
-    // Only fetch on initial load or when returning from payment
     if (user) {
       const isPaymentReturn = checkForPaymentReturn();
       if (isPaymentReturn) {
@@ -126,7 +126,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   }, [user]);
 
-  // Fetch when dialog opens
   const handleDialogOpenChange = (open: boolean) => {
     setDialogOpen(open);
     if (open && user && !isLoading) {
@@ -136,7 +135,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
-  // Handle avatar update
   const handleAvatarUpdate = (newAvatarUrl: string) => {
     setAvatarUrl(newAvatarUrl);
   };
@@ -212,7 +210,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
 
     try {
-      // Use the same custom password reset edge function that works in the login page
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/password-reset`, {
         method: 'POST',
         headers: {
@@ -235,7 +232,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             variant: "destructive"
           });
         } else {
-          // Still show success message for security
           handlePasswordResetSuccess();
         }
       } else {
@@ -244,7 +240,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       }
     } catch (error: any) {
       console.error("Password reset request error:", error);
-      // Still show success message for security
       handlePasswordResetSuccess();
     }
   };
@@ -363,7 +358,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               </div>
 
               <div className={`${isMobile ? 'p-4 space-y-6 overflow-y-auto flex-1' : 'p-8 space-y-8'}`}>
-                {/* User Information Section */}
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 md:p-6 border border-blue-200/50 dark:border-blue-800/50">
                   <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2`}>
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -395,7 +389,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   </div>
                 </div>
 
-                {/* Subscription Section */}
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-4 md:p-6 border border-purple-200/50 dark:border-purple-800/50">
                   <div className="flex justify-between items-center mb-4 md:mb-6">
                     <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2`}>
@@ -463,7 +456,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                           </span>
                         </div>
                         
-                        {/* Countdown Component */}
                         {(subscription.status === 'trial' || subscription.status === 'active') && (
                           <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 rounded-lg p-3 md:p-4 border border-indigo-200/50 dark:border-indigo-800/50">
                             <SubscriptionCountdown
@@ -503,7 +495,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   )}
                 </div>
 
-                {/* Change Password Section */}
                 <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-xl p-4 md:p-6 border border-orange-200/50 dark:border-orange-800/50">
                   <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold mb-4 text-gray-800 dark:text-gray-200 flex items-center gap-2`}>
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
@@ -521,7 +512,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             </DialogContent>
           </Dialog>
           <ThemeToggle />
-          {/* Desktop Sign Out Button */}
           <Button 
             variant="orange" 
             className="hidden md:flex items-center gap-2 text-white"
@@ -534,7 +524,6 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               t('dashboard.signOut')
             )}
           </Button>
-          {/* Mobile Sign Out Button */}
           <Button 
             variant="orange" 
             size="icon"
@@ -546,21 +535,25 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         </div>
       </div>
       
-      <div className="text-center mb-2">
-        <h1 className="text-xl sm:text-2xl font-bold text-primary">
-          {isGeorgian ? (
-            <GeorgianAuthText>მოგესალმებით</GeorgianAuthText>
-          ) : (
-            <LanguageText>{t('dashboard.welcome')}</LanguageText>
-          )}
-        </h1>
-        <p className="text-sm text-foreground/80 font-bold">
-          {isGeorgian ? (
-            <GeorgianAuthText>თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
-          ) : (
-            <LanguageText>{t('dashboard.subtitle')}</LanguageText>
-          )}
-        </p>
+      <div className="text-center mb-2 relative">
+        <div className="relative rounded-xl bg-gradient-to-r from-background/90 to-background/70 backdrop-blur-sm border border-border/30 p-4 shadow-sm">
+          <div className="space-y-1">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
+              {isGeorgian ? (
+                <GeorgianAuthText fontWeight="bold">მოგესალმებით</GeorgianAuthText>
+              ) : (
+                <LanguageText>{t('dashboard.welcome')}</LanguageText>
+              )}
+            </h1>
+            <p className="text-xs sm:text-sm md:text-base font-medium text-muted-foreground">
+              {isGeorgian ? (
+                <GeorgianAuthText fontWeight="medium">თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
+              ) : (
+                <LanguageText>{t('dashboard.subtitle')}</LanguageText>
+              )}
+            </p>
+          </div>
+        </div>
       </div>
 
       <ManageSubscriptionDialog 

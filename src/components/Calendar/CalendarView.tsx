@@ -87,7 +87,7 @@ export function CalendarView({
   
   const daysToRender = view === 'month' ? getDaysWithSurroundingMonths() : days;
   
-  // Strictly filter events to make sure deleted events don't show up
+  // Filter events to make sure deleted events don't show up
   const filteredEvents = events.filter(event => {
     // First check if deleted_at is undefined or null
     if (event.deleted_at === undefined || event.deleted_at === null) {
@@ -124,7 +124,7 @@ export function CalendarView({
     <div className="h-full">
       <CalendarGrid
         days={daysToRender}
-        events={filteredEvents} // Use the filtered events
+        events={filteredEvents} // Use the filtered events (all events from DB including recurring instances)
         formattedSelectedDate={formattedSelectedDate}
         view={view}
         onDayClick={onDayClick}

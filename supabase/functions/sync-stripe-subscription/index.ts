@@ -1,6 +1,6 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -134,7 +134,7 @@ function parseStripeTimestamp(value: any, fieldName: string): string | null {
     });
     return isoString;
   } catch (error) {
-    logStep(`Error converting timestamp for ${fieldName}`, { timestamp, error: error.message });
+    logStep(`Error converting timestamp for ${fieldName}`, { timestamp, error: (error as Error).message });
     return null;
   }
 }
@@ -263,7 +263,7 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
   try {
     logStep("Function started");
@@ -297,6 +297,67 @@ serve(async (req) => {
         subscriptionStartDate: existingSubscription.subscription_start_date,
         subscriptionEndDate: existingSubscription.subscription_end_date
       });
+
+      // CRITICAL: If user has ultimate plan, NEVER change it
+      if (existingSubscription.plan_type === 'ultimate' && existingSubscription.status === 'active') {
+        logStep("User has ultimate plan, returning without checking Stripe");
+        return new Response(JSON.stringify({
+          success: true,
+          status: 'active',
+          planType: 'ultimate',
+          subscription_start_date: existingSubscription.subscription_start_date,
+          subscription_end_date: null // Ultimate has no end date
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
+      // CRITICAL: If user has active subscription with future end date, preserve it
+      if (existingSubscription.status === 'active' && existingSubscription.subscription_end_date) {
+        const endDate = new Date(existingSubscription.subscription_end_date);
+        const now = new Date();
+        
+        if (endDate > now) {
+          logStep("User has active subscription with future end date, preserving it", {
+            endDate: existingSubscription.subscription_end_date,
+            planType: existingSubscription.plan_type,
+            daysRemaining: Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          });
+          
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'active',
+            planType: existingSubscription.plan_type,
+            currentPeriodEnd: existingSubscription.subscription_end_date,
+            subscription_start_date: existingSubscription.subscription_start_date,
+            subscription_end_date: existingSubscription.subscription_end_date
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        } else {
+          // Subscription has expired, update status
+          logStep("Active subscription has expired, updating status");
+          await supabase
+            .from('subscriptions')
+            .update({
+              status: 'expired',
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id);
+
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'expired',
+            planType: existingSubscription.plan_type,
+            subscription_end_date: existingSubscription.subscription_end_date
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+      }
 
       // For trial subscriptions, check if trial is still valid
       if (existingSubscription.status === 'trial' && existingSubscription.trial_end_date) {
@@ -337,7 +398,7 @@ serve(async (req) => {
         }
       }
 
-      // Check Stripe if user has a customer ID
+      // Only check Stripe if user has a customer ID and we need to validate/update
       if (existingSubscription.stripe_customer_id) {
         const stripeApiKey = Deno.env.get("STRIPE_API_KEY");
         const subscriptionsResponse = await fetch(
@@ -396,6 +457,48 @@ serve(async (req) => {
               headers: { ...corsHeaders, "Content-Type": "application/json" },
               status: 200,
             });
+          } else {
+            // No active Stripe subscription found, but preserve existing valid subscription if still valid
+            if (existingSubscription.status === 'active' && existingSubscription.subscription_end_date) {
+              const endDate = new Date(existingSubscription.subscription_end_date);
+              const now = new Date();
+              
+              if (endDate > now) {
+                logStep("No Stripe subscription but local subscription still valid, preserving it");
+                return new Response(JSON.stringify({
+                  success: true,
+                  status: 'active',
+                  planType: existingSubscription.plan_type,
+                  currentPeriodEnd: existingSubscription.subscription_end_date,
+                  subscription_start_date: existingSubscription.subscription_start_date,
+                  subscription_end_date: existingSubscription.subscription_end_date
+                }), {
+                  headers: { ...corsHeaders, "Content-Type": "application/json" },
+                  status: 200,
+                });
+              }
+            }
+          }
+        }
+      } else {
+        // No Stripe customer ID, but user has existing subscription - preserve it if valid
+        if (existingSubscription.status === 'active' && existingSubscription.subscription_end_date) {
+          const endDate = new Date(existingSubscription.subscription_end_date);
+          const now = new Date();
+          
+          if (endDate > now) {
+            logStep("No Stripe customer ID but local subscription still valid, preserving it");
+            return new Response(JSON.stringify({
+              success: true,
+              status: 'active',
+              planType: existingSubscription.plan_type,
+              currentPeriodEnd: existingSubscription.subscription_end_date,
+              subscription_start_date: existingSubscription.subscription_start_date,
+              subscription_end_date: existingSubscription.subscription_end_date
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
           }
         }
       }
@@ -415,6 +518,65 @@ serve(async (req) => {
 
     if (!customersResponse.ok) {
       logStep("Error fetching customers from Stripe", { status: customersResponse.status });
+      
+      // CRITICAL: Don't throw error on Stripe failure - preserve existing valid subscriptions
+      if (existingSubscription) {
+        if (existingSubscription.plan_type === 'ultimate' && existingSubscription.status === 'active') {
+          logStep("Stripe failed but preserving ultimate subscription");
+          return new Response(JSON.stringify({
+            success: true,
+            status: 'active',
+            planType: 'ultimate',
+            subscription_start_date: existingSubscription.subscription_start_date,
+            subscription_end_date: null
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        }
+        
+        if (existingSubscription.status === 'active' && existingSubscription.subscription_end_date) {
+          const endDate = new Date(existingSubscription.subscription_end_date);
+          const now = new Date();
+          
+          if (endDate > now) {
+            logStep("Stripe failed but preserving active subscription with future end date");
+            return new Response(JSON.stringify({
+              success: true,
+              status: 'active',
+              planType: existingSubscription.plan_type,
+              currentPeriodEnd: existingSubscription.subscription_end_date,
+              subscription_start_date: existingSubscription.subscription_start_date,
+              subscription_end_date: existingSubscription.subscription_end_date
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+        }
+        
+        if (existingSubscription.status === 'trial' && existingSubscription.trial_end_date) {
+          const trialEnd = new Date(existingSubscription.trial_end_date);
+          const now = new Date();
+          
+          if (trialEnd > now) {
+            logStep("Stripe failed but preserving valid trial");
+            return new Response(JSON.stringify({
+              success: true,
+              status: 'trial',
+              planType: existingSubscription.plan_type,
+              trialEnd: existingSubscription.trial_end_date,
+              currentPeriodEnd: existingSubscription.trial_end_date,
+              subscription_end_date: null
+            }), {
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+              status: 200,
+            });
+          }
+        }
+      }
+      
+      // Only throw error if no existing subscription to preserve
       throw new Error(`Failed to fetch customers: ${customersResponse.status}`);
     }
 

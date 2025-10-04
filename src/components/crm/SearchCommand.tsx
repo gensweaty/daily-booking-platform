@@ -94,19 +94,19 @@ export const SearchCommand = React.memo(({ data, setFilteredData, isLoading, res
 
   if (isLoading) {
     return (
-      <div className="w-full md:w-[200px] rounded-lg border -mt-4 p-2 space-y-2">
-        <Skeleton className="h-9 w-full" />
+      <div className="w-full md:w-[200px] rounded-lg border p-2 space-y-2">
+        <Skeleton className="h-10 w-full" />
         <Progress value={75} className="h-1" />
       </div>
     );
   }
 
   return (
-    <div className="w-full md:w-[200px] -mt-4">
-      <Command className="rounded-lg border">
+    <div className="w-full md:w-[200px]">
+      <Command className="rounded-lg border h-10">
         <CommandInput
           placeholder={isGeorgian ? "ძიება..." : "Search..."}
-          className={`h-9 ${isGeorgian ? "georgian-text-fix" : ""}`}
+          className={`h-10 ${isGeorgian ? "georgian-text-fix" : ""}`}
           value={searchValue}
           onValueChange={handleSearch}
         />

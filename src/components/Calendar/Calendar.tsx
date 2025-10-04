@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   startOfWeek,
   endOfWeek,
@@ -28,6 +28,10 @@ import { BookingRequestForm } from "../business/BookingRequestForm";
 import { useToast } from "@/hooks/use-toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
+import { PermissionGate } from "@/components/PermissionGate";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
+import { useBoardPresence } from "@/hooks/useBoardPresence";
+import { supabase } from "@/lib/supabase";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -39,18 +43,24 @@ interface CalendarProps {
   showAllEvents?: boolean;
   allowBookingRequests?: boolean;
   directEvents?: CalendarEventType[];
+  isPublicMode?: boolean;
+  externalUserName?: string;
+  externalUserEmail?: string;
 }
 
-export const Calendar = ({ 
+const CalendarContent = ({ 
   defaultView = "week", 
   currentView,
   onViewChange,
   isExternalCalendar = false,
+  isPublicMode = false,
+  externalUserName,
+  externalUserEmail,
   businessId,
   businessUserId,
   showAllEvents = false,
   allowBookingRequests = false,
-  directEvents
+  directEvents,
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
@@ -73,6 +83,41 @@ export const Calendar = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Add presence tracking for internal calendar
+  const [boardKey, setBoardKey] = useState<string | null>(null);
+  const [profile, setProfile] = useState<{ username?: string; avatar_url?: string } | null>(null);
+
+  useEffect(() => {
+    if (!user?.id || isExternalCalendar) return;
+    
+    // Fetch profile
+    supabase
+      .from("profiles")
+      .select("username, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setProfile(data || null));
+    
+    // Fetch board key (same one Tasks/CRM use)
+    supabase
+      .from("public_boards")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setBoardKey(data?.id || user.id));
+  }, [user?.id, isExternalCalendar]);
+
+  const me = useMemo(
+    () => ({
+      name: profile?.username || user?.email?.split("@")[0] || "User",
+      email: user?.email || "",
+      avatar_url: profile?.avatar_url || user?.user_metadata?.avatar_url || null,
+    }),
+    [user, profile]
+  );
+
+  const { onlineUsers } = useBoardPresence(boardKey, me);
 
   useEffect(() => {
     if (currentView) {
@@ -124,9 +169,7 @@ export const Calendar = ({
       });
       return result;
     },
-    deleteEvent: async (id) => {
-      await deleteEvent?.(id);
-    }
+    deleteEvent: deleteEvent
   });
 
   if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
@@ -252,12 +295,37 @@ export const Calendar = ({
     toast.event.bookingSubmitted();
   };
 
+  // Functions to handle event operations and refresh calendar
+  const refreshCalendar = async () => {
+    const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
+    
+    // Wait a bit for database operations to complete
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    queryClient.invalidateQueries({ queryKey });
+  };
+
+  const handleEventCreated = async () => {
+    console.log("Event created, refreshing calendar...");
+    await refreshCalendar();
+  };
+
+  const handleEventUpdated = async () => {
+    console.log("Event updated, refreshing calendar...");
+    await refreshCalendar();
+  };
+
+  const handleEventDeleted = async () => {
+    console.log("Event deleted, refreshing calendar...");
+    await refreshCalendar();
+  };
+
   if (error && !directEvents) {
     console.error("Calendar error:", error);
     return <div className="text-red-500">Error loading calendar: {error.message}</div>;
   }
 
-  if (isLoading && !directEvents) {
+  if (isLoading && !directEvents && !isExternalCalendar) {
     return (
       <div className="space-y-4">
         <div className="h-10 w-full bg-gray-200 animate-pulse rounded" />
@@ -284,6 +352,8 @@ export const Calendar = ({
         onNext={handleNext}
         onAddEvent={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleAddEventClick : undefined}
         isExternalCalendar={isExternalCalendar}
+        onlineUsers={!isExternalCalendar ? onlineUsers : []}
+        currentUserEmail={!isExternalCalendar ? user?.email : undefined}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -291,7 +361,7 @@ export const Calendar = ({
         <div className={`flex-1 ${gridBgClass} ${textClass}`}>
           <CalendarView
             days={getDaysForView()}
-            events={events || []}
+            events={events || []} // Pass all events (including recurring instances)
             selectedDate={selectedDate}
             view={view}
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
@@ -308,7 +378,7 @@ export const Calendar = ({
             open={isNewEventDialogOpen}
             onOpenChange={setIsNewEventDialogOpen}
             selectedDate={dialogSelectedDate}
-            onSubmit={handleCreateEvent}
+            onEventCreated={handleEventCreated}
           />
 
           {selectedEvent && (
@@ -317,9 +387,9 @@ export const Calendar = ({
               open={!!selectedEvent}
               onOpenChange={() => setSelectedEvent(null)}
               selectedDate={new Date(selectedEvent.start_date)}
-              event={selectedEvent}
-              onSubmit={handleUpdateEvent}
-              onDelete={handleDeleteEvent}
+              initialData={selectedEvent}
+              onEventUpdated={handleEventUpdated}
+              onEventDeleted={handleEventDeleted}
             />
           )}
         </>
@@ -342,5 +412,13 @@ export const Calendar = ({
         </Dialog>
       )}
     </div>
+  );
+};
+
+export const Calendar = (props: CalendarProps) => {
+  return (
+    <PermissionGate requiredPermission="calendar">
+      <CalendarContent {...props} />
+    </PermissionGate>
   );
 };

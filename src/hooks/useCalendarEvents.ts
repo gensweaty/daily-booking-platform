@@ -1,1064 +1,463 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { CalendarEventType } from "@/lib/types/calendar";
-import { useAuth } from "@/contexts/AuthContext";
-import { useToast } from "@/components/ui/use-toast";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { getUnifiedCalendarEvents, deleteCalendarEvent, clearCalendarCache } from '@/services/calendarService';
+import { useEffect, useState } from 'react';
 
-// Helper function to associate booking files with a new event
-const associateBookingFilesWithEvent = async (
-  bookingRequestId: string,
-  newEventId: string,
-  userId: string
-) => {
-  try {
-    console.log(`Copying files from booking ${bookingRequestId} to event ${newEventId}`);
-    
-    // Fetch all files associated with the booking request
-    const { data: bookingFiles, error: fetchError } = await supabase
-      .from('booking_files')
-      .select('*')
-      .eq('booking_request_id', bookingRequestId);
-      
-    if (fetchError) {
-      console.error("Error fetching booking files:", fetchError);
-      throw fetchError;
-    }
-    
-    if (!bookingFiles || bookingFiles.length === 0) {
-      console.log("No files found for booking request:", bookingRequestId);
-      return null;
-    }
-    
-    console.log(`Found ${bookingFiles.length} files to copy`);
-    
-    // Copy each file to the event_files table
-    const copiedFiles = [];
-    for (const file of bookingFiles) {
-      const { filename, file_path, content_type, size } = file;
-      
-      // Insert the file record into event_files
-      const { data: newFile, error: copyError } = await supabase
-        .from('event_files')
-        .insert({
-          event_id: newEventId,
-          filename,
-          file_path,
-          content_type,
-          size,
-          user_id: userId,
-        })
-        .select()
-        .single();
-        
-      if (copyError) {
-        console.error("Error copying file to event_files:", copyError);
-        continue; // Skip to the next file
-      }
-      
-      copiedFiles.push(newFile);
-      console.log(`Copied file ${filename} to event ${newEventId}`);
-    }
-    
-    if (copiedFiles.length === 0) {
-      console.log("No files were successfully copied to the event");
-      return null;
-    }
-    
-    // Return the first copied file (or adjust as needed)
-    return copiedFiles[0];
-  } catch (error) {
-    console.error("Error associating booking files with event:", error);
-    return null;
-  }
-};
-
-export const useCalendarEvents = (businessId?: string, businessUserId?: string | null) => {
-  const queryClient = useQueryClient();
+export const useCalendarEvents = (businessId?: string, businessUserId?: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t, language } = useLanguage();  // Make sure we get the current language
+  const queryClient = useQueryClient();
+  const [username, setUsername] = useState<string>("");
 
-  // Helper to determine if times have changed between original and new dates
-  const haveTimesChanged = (
-    originalStartDate: string,
-    originalEndDate: string,
-    newStartDate: string,
-    newEndDate: string
-  ): boolean => {
-    const originalStart = new Date(originalStartDate).getTime();
-    const originalEnd = new Date(originalEndDate).getTime();
-    const newStart = new Date(newStartDate).getTime();
-    const newEnd = new Date(newEndDate).getTime();
-    
-    return originalStart !== newStart || originalEnd !== newEnd;
-  };
-
-  const getEvents = async () => {
-    if (!user) return [];
-    
-    console.log("Fetching user events for user:", user.id);
-    
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', user.id)
-        .is('deleted_at', null) // Ensure we only get non-deleted events
-        .order('start_date', { ascending: true });
-
-      if (error) {
-        console.error("Error fetching user events:", error);
-        throw error;
-      }
+  // Fetch username from profile
+  useEffect(() => {
+    const fetchUsername = async () => {
+      if (!user?.id) return;
       
-      console.log("Fetched user events:", data?.length || 0);
-      if (data && data.length > 0) {
-        console.log("Sample event data:", data[0]);
-        
-        // Check for events without a type
-        const eventsWithoutType = data.filter(event => !event.type);
-        if (eventsWithoutType.length > 0) {
-          console.warn("Found events without type:", eventsWithoutType.length);
-          
-          // Update events to have a default type
-          for (const event of eventsWithoutType) {
-            await supabase
-              .from('events')
-              .update({ type: 'event' })
-              .eq('id', event.id);
-          }
-          
-          console.log("Updated events without type to have default type 'event'");
-        }
-      }
-      
-      return data || [];
-    } catch (err) {
-      console.error("Exception in getEvents:", err);
-      return [];
-    }
-  };
-
-  const getBusinessEvents = async () => {
-    if (!businessId && !businessUserId) {
-      return [];
-    }
-    
-    let targetUserId = businessUserId;
-    
-    if (businessId && !targetUserId) {
       try {
-        console.log("Fetching business user ID for business:", businessId);
-        
-        const { data: businessProfile, error: businessError } = await supabase
-          .from("business_profiles")
-          .select("user_id")
-          .eq("id", businessId)
-          .single();
-          
-        if (businessError) {
-          console.error("Error fetching business profile:", businessError);
-          return [];
-        }
-        
-        if (!businessProfile?.user_id) {
-          console.error("No user_id found for business:", businessId);
-          return [];
-        }
-        
-        targetUserId = businessProfile.user_id;
-        console.log("Found user_id for business:", targetUserId);
-      } catch (error) {
-        console.error("Error fetching business profile:", error);
-        return [];
-      }
-    }
-    
-    if (!targetUserId) {
-      console.error("No target user ID found to fetch business events");
-      return [];
-    }
-    
-    try {
-      console.log("Fetching business events for user ID:", targetUserId);
-      
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .is('deleted_at', null) // Ensure we only get non-deleted events
-        .order('start_date', { ascending: true });
-
-      if (error) {
-        console.error("Error fetching business events:", error);
-        return [];
-      }
-      
-      console.log("Fetched business events:", data?.length || 0);
-      return data || [];
-    } catch (error) {
-      console.error("Error fetching business events:", error);
-      return [];
-    }
-  };
-
-  const getApprovedBookings = async () => {
-    if (!businessId && !businessUserId && !user) return [];
-
-    try {
-      let businessProfileId = businessId;
-      
-      if (!businessProfileId && !businessId && !businessUserId && user) {
-        const { data: userBusinessProfile } = await supabase
-          .from("business_profiles")
-          .select("id")
-          .eq("user_id", user.id)
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
           .maybeSingle();
           
-        if (userBusinessProfile?.id) {
-          businessProfileId = userBusinessProfile.id;
-        }
-      }
-      
-      if (!businessProfileId && businessUserId) {
-        const { data: userBusinessProfile } = await supabase
-          .from("business_profiles")
-          .select("id")
-          .eq("user_id", businessUserId)
-          .maybeSingle();
-          
-        if (userBusinessProfile?.id) {
-          businessProfileId = userBusinessProfile.id;
-        }
-      }
-      
-      if (!businessProfileId) {
-        console.log("No business profile ID found for fetching bookings");
-        return [];
-      }
-      
-      console.log("Fetching approved bookings for business ID:", businessProfileId);
-      
-      const { data, error } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('business_id', businessProfileId)
-        .eq('status', 'approved')
-        .is('deleted_at', null); // Add check for soft-deleted bookings
-        
-      if (error) {
-        console.error("Error fetching approved bookings:", error);
-        return [];
-      }
-      
-      console.log("Fetched approved bookings:", data?.length || 0);
-      
-      const bookingEvents = (data || []).map(booking => ({
-        id: booking.id,
-        title: booking.title || 'Booking',
-        start_date: booking.start_date,
-        end_date: booking.end_date,
-        type: 'booking_request',
-        created_at: booking.created_at || new Date().toISOString(),
-        user_id: booking.user_id || '',
-        user_surname: booking.requester_name || '',
-        user_number: booking.requester_phone || '',
-        social_network_link: booking.requester_email || '',
-        event_notes: booking.description || '',
-        requester_name: booking.requester_name || '',
-        requester_email: booking.requester_email || '',
-        requester_phone: booking.requester_phone || '',
-        description: booking.description || '',
-        deleted_at: booking.deleted_at // Add deleted_at to the mapped object
-      }));
-      
-      return bookingEvents;
-    } catch (error) {
-      console.error("Error fetching approved bookings:", error);
-      return [];
-    }
-  };
-
-  // Function to check if a time slot is available
-  const checkTimeSlotAvailability = async (startDate: Date, endDate: Date, eventId?: string) => {
-    if (!user) {
-      return { available: false, conflictDetails: "User not authenticated" };
-    }
-    
-    try {
-      // Check for conflicts with existing events
-      const { data: existingEvents, error: eventsError } = await supabase
-        .from('events')
-        .select('id, title, start_date, end_date')
-        .eq('user_id', user.id)
-        .filter('start_date', 'lt', endDate.toISOString())
-        .filter('end_date', 'gt', startDate.toISOString())
-        .is('deleted_at', null);
-      
-      if (eventsError) {
-        console.error("Error checking event conflicts:", eventsError);
-        return { available: false, conflictDetails: "Error checking schedule" };
-      }
-      
-      // If we're editing an existing event, filter out the current event from conflicts
-      const conflicts = eventId 
-        ? existingEvents?.filter(e => e.id !== eventId)
-        : existingEvents;
-      
-      if (conflicts && conflicts.length > 0) {
-        console.log("Found conflicting events:", conflicts);
-        
-        const firstConflict = conflicts[0];
-        return {
-          available: false,
-          conflictDetails: `Conflicts with "${firstConflict.title}" from ${
-            new Date(firstConflict.start_date).toLocaleTimeString()} to ${
-            new Date(firstConflict.end_date).toLocaleTimeString()}`
-        };
-      }
-      
-      // Check for conflicts with approved booking requests
-      const businessProfileQuery = await supabase
-        .from('business_profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-        
-      if (businessProfileQuery.error) {
-        console.error("Error fetching business profile:", businessProfileQuery.error);
-        // Continue checking availability even if we can't check bookings
-      } else if (businessProfileQuery.data?.id) {
-        const businessId = businessProfileQuery.data.id;
-        
-        const { data: approvedBookings, error: bookingsError } = await supabase
-          .from('booking_requests')
-          .select('id, title, start_date, end_date')
-          .eq('business_id', businessId)
-          .eq('status', 'approved')
-          .filter('start_date', 'lt', endDate.toISOString())
-          .filter('end_date', 'gt', startDate.toISOString())
-          .is('deleted_at', null);
-          
-        if (bookingsError) {
-          console.error("Error checking booking conflicts:", bookingsError);
-          // Continue checking availability even if this fails
-        } else if (approvedBookings && approvedBookings.length > 0) {
-          // If editing, don't count the booking that corresponds to this event
-          const bookingConflicts = eventId
-            ? approvedBookings.filter(b => b.id !== eventId)
-            : approvedBookings;
-            
-          if (bookingConflicts.length > 0) {
-            console.log("Found conflicting bookings:", bookingConflicts);
-            
-            const firstConflict = bookingConflicts[0];
-            return {
-              available: false,
-              conflictDetails: `Conflicts with approved booking "${firstConflict.title}" from ${
-                new Date(firstConflict.start_date).toLocaleTimeString()} to ${
-                new Date(firstConflict.end_date).toLocaleTimeString()}`
-            };
-          }
-        }
-      }
-      
-      return { available: true, conflictDetails: "" };
-    } catch (error) {
-      console.error("Error checking time slot availability:", error);
-      return { available: false, conflictDetails: "Error checking availability" };
-    }
-  };
-
-  // IMPROVED: Helper function to validate email format
-  const isValidEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  // IMPROVED: Function to send confirmation email with better error handling and deduplication
-  const sendBookingConfirmationEmail = async (
-    eventId: string,
-    title: string, 
-    email: string,
-    startDate: string,
-    endDate: string,
-    paymentStatus: string,
-    paymentAmount: number | null,
-    language: string = 'en', // Added language parameter with default value
-    eventNotes?: string // Added event notes parameter
-  ) => {
-    // Optimization: Skip email sending during event creation for faster response
-    // Email will be sent asynchronously after the event is created
-    
-    // Start email sending as a background task
-    setTimeout(async () => {
-      try {
-        console.log(`Starting background email sending for event ${eventId} to ${email} with language: ${language}`);
-        
-        // Get business address and name before anything else
-        const { data: businessProfile, error: profileError } = await supabase
-          .from('business_profiles')
-          .select('contact_address, business_name')
-          .eq('user_id', user?.id)
-          .maybeSingle();
-            
-        if (profileError) {
-          console.error('Error fetching business profile for email:', profileError);
-          return false;
+        if (error) {
+          console.error('Error fetching profile username:', error);
+          return;
         }
         
-        // IMPORTANT: We require a business address to send a confirmation email
-        if (!businessProfile?.contact_address) {
-          console.warn("No business address found. Cannot send confirmation email.");
-          return false;
+        if (data?.username) {
+          setUsername(data.username);
         }
-        
-        console.log('Sending booking confirmation email with info:');
-        console.log(`- Address: ${businessProfile?.contact_address}`);
-        console.log(`- Business name: ${businessProfile?.business_name || 'None'}`);
-        console.log(`- Event ID: ${eventId}`);
-        console.log(`- Recipient: ${email}`);
-        console.log(`- Language: ${language}`);
-        console.log(`- Payment status: ${paymentStatus}`);
-        console.log(`- Payment amount: ${paymentAmount}`);
-        console.log(`- Event notes: ${eventNotes || 'None'}`);
-        
-        const supabaseApiUrl = import.meta.env.VITE_SUPABASE_URL;
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
-        
-        if (!accessToken) {
-          console.error("No access token available for authenticated request");
-          return false;
-        }
-        
-        // Always include the source as "useCalendarEvents" to ensure we only use this function
-        // for sending emails, avoiding duplicates from other sources
-        const response = await fetch(`${supabaseApiUrl}/functions/v1/send-booking-approval-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            recipientEmail: email.trim(),
-            fullName: title || '',
-            businessName: businessProfile?.business_name || '',
-            startDate: startDate,
-            endDate: endDate,
-            paymentStatus: paymentStatus || 'not_paid',
-            paymentAmount: paymentAmount !== null ? parseFloat(String(paymentAmount)) : null, // Ensure proper number formatting
-            businessAddress: businessProfile?.contact_address || '',
-            eventId: eventId,
-            source: 'useCalendarEvents', // Updated source to ensure consistent tracking
-            language: language, // Explicitly send language parameter
-            eventNotes: eventNotes // Include event notes in the request
-          })
-        });
-        
-        console.log("Email API response status:", response.status);
-        
-        const responseText = await response.text();
-        console.log("Email API response text:", responseText);
-        
-        let responseData;
-        try {
-          responseData = responseText ? JSON.parse(responseText) : {};
-          console.log("Email API parsed response:", responseData);
-        } catch (jsonError) {
-          console.error("Failed to parse email API response as JSON:", jsonError);
-          responseData = { textResponse: responseText };
-        }
-        
-        if (!response.ok) {
-          console.error("Failed to send email notification:", responseData?.error || response.statusText);
-          return false;
-        }
-        
-        if (responseData.isDuplicate) {
-          console.log("Email was identified as duplicate and not sent");
-          return true; // Still return success
-        } else if (responseData.skipped) {
-          console.log("Email was skipped:", responseData.reason);
-          return false;
-        }
-        
-        console.log("Email notification sent successfully with currency based on language:", language);
-        return true;
-      } catch (error) {
-        console.error('Error sending booking confirmation email in background:', error);
-        return false;
+      } catch (err) {
+        console.error('Exception fetching profile username:', err);
       }
-    }, 100); // Small delay to ensure we return the event data first
-    
-    // Return true immediately, as we're handling the email in the background
-    return true;
-  };
-
-  const createEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
-    if (!user) throw new Error("User must be authenticated to create events");
-    
-    const startDateTime = new Date(event.start_date as string);
-    const endDateTime = new Date(event.end_date as string);
-    
-    // OPTIMIZATION: Only check availability if requested by adding a flag
-    // This makes normal event creation faster but still allows for checking when needed
-    if (event.checkAvailability) {
-      const { available, conflictDetails } = await checkTimeSlotAvailability(
-        startDateTime,
-        endDateTime
-      );
-      
-      if (!available) {
-        throw new Error(`Time slot is no longer available: ${conflictDetails}`);
-      }
-    }
-    
-    // Make sure the type field is set, defaulting to 'event'
-    if (!event.type) {
-      event.type = 'event';
-    }
-    
-    // Ensure title is set (title is required by the database)
-    if (!event.title) {
-      event.title = "Untitled Event"; // Default title if none provided
-    }
-    
-    // Create the event - Ensure required fields are included
-    const eventPayload = {
-      title: event.title,
-      start_date: event.start_date as string,
-      end_date: event.end_date as string,
-      user_id: user.id,
-      type: event.type,
-      // Add other optional fields
-      user_surname: event.user_surname,
-      user_number: event.user_number,
-      social_network_link: event.social_network_link,
-      event_notes: event.event_notes,
-      payment_status: event.payment_status || 'not_paid',
-      payment_amount: event.payment_amount,
-      language: event.language || language || 'en' // Use provided language, current language, or default to 'en'
     };
     
-    const { data, error } = await supabase
-      .from('events')
-      .insert(eventPayload)
-      .select()
-      .single();
+    fetchUsername();
+  }, [user?.id]);
+
+  const fetchEvents = async (): Promise<CalendarEventType[]> => {
+    try {
+      const targetUserId = businessUserId || user?.id;
       
-    if (error) {
-      console.error('Error creating event:', error);
+      if (!targetUserId) {
+        console.log("[useCalendarEvents] No user ID available for fetching events");
+        return [];
+      }
+
+      console.log("[useCalendarEvents] Fetching events for user:", targetUserId, "business:", businessId);
+
+      // Use the unified calendar service for consistency - this will fetch both events and approved bookings
+      const { events, bookings } = await getUnifiedCalendarEvents(businessId, targetUserId);
+      
+      // Combine all events and ensure no duplicates
+      const allEvents: CalendarEventType[] = [...events, ...bookings];
+      
+      // Additional deduplication by ID to ensure no duplicates
+      const uniqueEvents = allEvents.filter((event, index, self) => 
+        index === self.findIndex(e => e.id === event.id)
+      );
+
+      if (uniqueEvents.length !== allEvents.length) {
+        console.warn(`[useCalendarEvents] Removed ${allEvents.length - uniqueEvents.length} duplicate events`);
+      }
+
+      console.log(`[useCalendarEvents] ✅ Loaded ${uniqueEvents.length} unique events (${events.length} events + ${bookings.length} approved bookings)`);
+      
+      return uniqueEvents;
+
+    } catch (error) {
+      console.error("[useCalendarEvents] Error in fetchEvents:", error);
       throw error;
     }
-    
-    // Send confirmation email in background only if we have a valid recipient email
-    // and this is a new event (not from a booking request conversion)
-    const recipientEmail = event.social_network_link;
-    if (
-      recipientEmail && 
-      isValidEmail(recipientEmail) && 
-      !event.id && // Check if this is a new event, not an existing one
-      data
-    ) {
-      // Don't await this call anymore - make it run in the background
-      sendBookingConfirmationEmail(
-        data.id,
-        event.title || event.user_surname || '',
-        recipientEmail,
-        event.start_date as string,
-        event.end_date as string,
-        event.payment_status || 'not_paid',
-        event.payment_amount || null,
-        event.language || language || 'en', // Use event language, current language, or default to 'en'
-        event.event_notes // Pass the event notes
-      );
-    }
-    
-    return data;
   };
 
-  const updateEvent = async (event: Partial<CalendarEventType>): Promise<CalendarEventType> => {
-    if (!user) throw new Error("User must be authenticated to update events");
-    if (!event.id) throw new Error("Event ID is required for updates");
-    
-    try {
-      const { data: existingEvent, error: fetchError } = await supabase
-        .from('events')
-        .select('id, start_date, end_date, type, social_network_link, language')
-        .eq('id', event.id)
-        .single();
-        
-      if (fetchError) {
-        console.error('Error fetching existing event:', fetchError);
-        throw fetchError;
+  const queryKey = businessId ? ['business-events', businessId] : ['events', user?.id];
+
+  const {
+    data: events = [],
+    isLoading,
+    error,
+    refetch
+  } = useQuery({
+    queryKey,
+    queryFn: fetchEvents,
+    enabled: !!(businessUserId || user?.id),
+    staleTime: 0, // Always consider data stale for immediate updates
+    gcTime: 1000, // Keep in cache for 1 second only
+    refetchInterval: 1500, // Moderate polling every 1.5 seconds
+    refetchIntervalInBackground: false, // Disable background refetch to avoid visible loading
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+  });
+
+  // Debounced cache invalidation to prevent excessive calls
+  useEffect(() => {
+    let debounceTimer: NodeJS.Timeout;
+
+    const debouncedInvalidate = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey });
+        refetch();
+      }, 50);
+    };
+
+    const handleCacheInvalidation = () => {
+      console.log('[useCalendarEvents] Cache invalidation detected, refetching...');
+      debouncedInvalidate();
+    };
+
+    const handleEventDeletion = (event: CustomEvent) => {
+      console.log('[useCalendarEvents] Event deletion detected:', event.detail);
+      debouncedInvalidate();
+    };
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'calendar_invalidation_signal' || event.key === 'calendar_event_deleted') {
+        console.log('[useCalendarEvents] Cross-tab sync detected, refetching...');
+        debouncedInvalidate();
       }
-      
-      const startDateTime = new Date(event.start_date as string);
-      const endDateTime = new Date(event.end_date as string);
-      
-      // Only check availability if times have changed
-      const timesChanged = haveTimesChanged(
-        existingEvent.start_date,
-        existingEvent.end_date,
-        event.start_date as string,
-        event.end_date as string
-      );
-      
-      if (timesChanged) {
-        const { available, conflictDetails } = await checkTimeSlotAvailability(
-          startDateTime,
-          endDateTime,
-          event.id
-        );
-        
-        if (!available) {
-          throw new Error(`Time slot is no longer available: ${conflictDetails}`);
+    };
+
+    window.addEventListener('calendar-cache-invalidated', handleCacheInvalidation);
+    window.addEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      clearTimeout(debounceTimer);
+      window.removeEventListener('calendar-cache-invalidated', handleCacheInvalidation);
+      window.removeEventListener('calendar-event-deleted', handleEventDeletion as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [queryClient, queryKey, refetch]);
+
+  // Enhanced real-time subscriptions for both events and booking_requests
+  useEffect(() => {
+    if (!user?.id && !businessUserId) return;
+
+    const targetUserId = businessUserId || user?.id;
+    if (!targetUserId) return;
+
+    console.log('[useCalendarEvents] Setting up real-time subscriptions for both events and bookings');
+
+    let debounceTimer: NodeJS.Timeout;
+
+    const debouncedUpdate = () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        clearCalendarCache();
+        queryClient.invalidateQueries({ queryKey });
+        refetch();
+      }, 100);
+    };
+
+    // Subscribe to events table changes
+    const eventsChannel = supabase
+      .channel(`calendar_events_${targetUserId}_${Date.now()}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'events',
+          filter: `user_id=eq.${targetUserId}`
+        },
+        (payload) => {
+          console.log('[useCalendarEvents] Events table changed:', payload);
+          debouncedUpdate();
         }
+      )
+      .subscribe();
+
+    // Subscribe to booking_requests table changes for the business
+    let bookingsChannel: any = null;
+    if (businessId) {
+      bookingsChannel = supabase
+        .channel(`calendar_bookings_${businessId}_${Date.now()}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'booking_requests',
+            filter: `business_id=eq.${businessId}`
+          },
+          (payload) => {
+            console.log('[useCalendarEvents] Booking requests table changed:', payload);
+            debouncedUpdate();
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      clearTimeout(debounceTimer);
+      console.log('[useCalendarEvents] Cleaning up real-time subscriptions');
+      supabase.removeChannel(eventsChannel);
+      if (bookingsChannel) {
+        supabase.removeChannel(bookingsChannel);
       }
-      
-      // If an event's type is booking_request but update sets it to something else,
-      // this indicates approving a booking request
-      const wasBookingRequest = existingEvent.type === 'booking_request';
-      const isChangingType = event.type && event.type !== 'booking_request';
-      
-      if (wasBookingRequest && isChangingType) {
-        console.log("Converting booking request to regular event:", event.id);
-        
-        // Always preserve original booking ID
-        const bookingRequestId = event.id;
-        
-        // IMPORTANT: Fetch the original booking request to get its language
-        // This ensures we maintain the language from an external booking request
-        const { data: originalBooking, error: bookingFetchError } = await supabase
+    };
+  }, [user?.id, businessUserId, businessId, queryClient, queryKey, refetch]);
+
+  const createEventMutation = useMutation({
+    mutationFn: async (eventData: Partial<CalendarEventType>) => {
+      if (!user?.id) throw new Error("User not authenticated");
+
+      console.log("[useCalendarEvents] Creating event with data:", eventData);
+
+      const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+        p_event_data: {
+          title: eventData.user_surname || eventData.title,
+          user_surname: eventData.user_surname,
+          user_number: eventData.user_number,
+          social_network_link: eventData.social_network_link,
+          event_notes: eventData.event_notes,
+          event_name: eventData.event_name,
+          start_date: eventData.start_date,
+          end_date: eventData.end_date,
+          payment_status: eventData.payment_status || 'not_paid',
+          payment_amount: eventData.payment_amount?.toString() || '',
+          type: eventData.type || 'event',
+          is_recurring: eventData.is_recurring || false,
+          repeat_pattern: eventData.repeat_pattern,
+          repeat_until: eventData.repeat_until
+        },
+        p_additional_persons: [],
+        p_user_id: user.id,
+        p_event_id: null,
+        p_created_by_type: 'admin',
+        p_created_by_name: username || 'Admin',
+        p_last_edited_by_type: 'admin',
+        p_last_edited_by_name: username || 'Admin'
+      });
+
+      if (error) throw error;
+
+      clearCalendarCache();
+
+      return {
+        id: savedEventId,
+        title: eventData.user_surname || eventData.title || 'Untitled Event',
+        start_date: eventData.start_date || new Date().toISOString(),
+        end_date: eventData.end_date || new Date().toISOString(),
+        user_id: user.id,
+        type: eventData.type || 'event',
+        created_at: new Date().toISOString(),
+        ...eventData
+      } as CalendarEventType;
+    },
+    onSuccess: async () => {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+      }
+      toast({
+        title: "Success",
+        description: "Event created successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error("[useCalendarEvents] Error creating event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create event",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateEventMutation = useMutation({
+    mutationFn: async (eventData: Partial<CalendarEventType> & { id: string }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+
+      console.log("[useCalendarEvents] Updating event with data:", eventData);
+
+      // Check if this is a booking_request (type === 'booking_request') or regular event
+      if (eventData.type === 'booking_request') {
+        // Update booking_request table
+        const { error } = await supabase
           .from('booking_requests')
-          .select('language, payment_status, payment_amount')
-          .eq('id', bookingRequestId)
-          .maybeSingle();
-        
-        if (bookingFetchError) {
-          console.error("Error fetching original booking request:", bookingFetchError);
-        } else {
-          console.log("Original booking data:", originalBooking);
-        }
-        
-        // Use booking language if available, with proper fallbacks
-        const bookingLanguage = originalBooking?.language || '';
-        console.log("Original booking language:", bookingLanguage);
-        
-        // Make sure payment amount is properly formatted as a number if present
-        let paymentAmount = null;
-        if (event.payment_amount !== undefined && event.payment_amount !== null) {
-          paymentAmount = parseFloat(String(event.payment_amount));
-          if (isNaN(paymentAmount)) paymentAmount = null;
-        } else if (originalBooking?.payment_amount !== undefined && originalBooking?.payment_amount !== null) {
-          // Use the payment amount from the original booking if not provided in the event
-          paymentAmount = parseFloat(String(originalBooking.payment_amount));
-          if (isNaN(paymentAmount)) paymentAmount = null;
-        }
-        
-        // Determine the language to use, with appropriate fallbacks
-        // Priority: 1. Original booking language, 2. Event language, 3. Existing event language, 4. Current app language, 5. Default 'en'
-        const eventLanguage = bookingLanguage || event.language || existingEvent.language || language || 'en';
-        console.log("Event language for approval (prioritizing original booking):", eventLanguage);
-        
-        // Create a new event without direct file fields
-        // We need to ensure we have all required fields for the events table
-        const eventPayload: {
-          title: string;
-          start_date: string;
-          end_date: string;
-          user_id: string;
-          type: string;
-          user_surname?: string;
-          user_number?: string;
-          social_network_link?: string;
-          event_notes?: string;
-          payment_status?: string;
-          payment_amount?: number | null;
-          booking_request_id?: string;
-          language?: string;
-          source_url?: string;
-        } = {
-          // Required fields
-          title: event.title || "Untitled Event", // Ensure title is never undefined
-          start_date: event.start_date as string,
-          end_date: event.end_date as string,
-          user_id: user.id,
-          type: event.type || 'event',
-          
-          // Optional fields
-          user_surname: event.user_surname,
-          user_number: event.user_number,
-          social_network_link: event.social_network_link,
-          event_notes: event.event_notes,
-          payment_status: event.payment_status || originalBooking?.payment_status || 'not_paid',
-          payment_amount: paymentAmount,
-          booking_request_id: bookingRequestId,
-          language: eventLanguage, // Use the determined language with priority to original booking
-        };
-        
-        console.log("Creating new event with payload:", {
-          language: eventLanguage,
-          payment_status: eventPayload.payment_status,
-          payment_amount: paymentAmount
+          .update({
+            title: eventData.user_surname || eventData.title,
+            requester_name: eventData.user_surname || eventData.title,
+            requester_phone: eventData.user_number,
+            requester_email: eventData.social_network_link,
+            description: eventData.event_notes,
+            start_date: eventData.start_date,
+            end_date: eventData.end_date,
+            payment_status: eventData.payment_status || 'not_paid',
+            payment_amount: eventData.payment_amount || null,
+          })
+          .eq('id', eventData.id);
+
+        if (error) throw error;
+
+        clearCalendarCache();
+
+        return {
+          ...eventData,
+          title: eventData.user_surname || eventData.title || 'Untitled Event',
+        } as CalendarEventType;
+      } else {
+        // Get existing customer data to preserve it during update
+        const { data: existingCustomers, error: customersError } = await supabase.rpc('get_event_customers', {
+          p_event_id: eventData.id,
+          p_user_id: user.id
         });
-        
-        // Create the new event
-        const { data: newEvent, error: createError } = await supabase
-          .from('events')
-          .insert(eventPayload)
-          .select()
+
+        if (customersError) {
+          console.warn('Could not load existing customers, proceeding with empty array:', customersError);
+        }
+
+        // Update regular event using the existing RPC function
+        const { data: savedEventId, error } = await supabase.rpc('save_event_with_persons', {
+          p_event_data: {
+            title: eventData.user_surname || eventData.title,
+            user_surname: eventData.user_surname,
+            user_number: eventData.user_number,
+            social_network_link: eventData.social_network_link,
+            event_notes: eventData.event_notes,
+            event_name: eventData.event_name,
+            start_date: eventData.start_date,
+            end_date: eventData.end_date,
+            payment_status: eventData.payment_status || 'not_paid',
+            payment_amount: eventData.payment_amount?.toString() || '',
+            type: eventData.type || 'event',
+            is_recurring: eventData.is_recurring || false,
+            repeat_pattern: eventData.repeat_pattern,
+            repeat_until: eventData.repeat_until
+          },
+          p_additional_persons: existingCustomers || [],
+          p_user_id: user.id,
+          p_event_id: eventData.id,
+          p_created_by_type: 'admin',
+          p_created_by_name: username || 'Admin',
+          p_last_edited_by_type: 'admin',
+          p_last_edited_by_name: username || 'Admin'
+        });
+
+        if (error) throw error;
+
+        clearCalendarCache();
+
+        return {
+          id: savedEventId,
+          title: eventData.user_surname || eventData.title || 'Untitled Event',
+          start_date: eventData.start_date || new Date().toISOString(),
+          end_date: eventData.end_date || new Date().toISOString(),
+          user_id: user.id,
+          type: eventData.type || 'event',
+          created_at: eventData.created_at || new Date().toISOString(),
+          ...eventData
+        } as CalendarEventType;
+      }
+    },
+    onSuccess: async () => {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+      }
+      toast({
+        title: "Success",
+        description: "Event updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      console.error("[useCalendarEvents] Error updating event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update event",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: async ({ id, deleteChoice }: { id: string; deleteChoice?: "this" | "series" }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+
+      console.log("[useCalendarEvents] Deleting event:", id, deleteChoice);
+
+      // Determine the event type from the current events
+      const eventToDelete = events.find(e => e.id === id);
+      let eventType: 'event' | 'booking_request' = 'event';
+      
+      if (eventToDelete?.type === 'booking_request') {
+        eventType = 'booking_request';
+        console.log("[useCalendarEvents] Detected booking request for deletion");
+      } else {
+        // Double-check by querying the database directly
+        const { data: bookingCheck } = await supabase
+          .from('booking_requests')
+          .select('id')
+          .eq('id', id)
           .single();
           
-        if (createError) {
-          console.error("Error creating new event from booking:", createError);
-          throw createError;
-        }
-        
-        // Associate booking files with the new event
-        let associatedFiles = null;
-        try {
-          const associatedFile = await associateBookingFilesWithEvent(
-            bookingRequestId, 
-            newEvent.id, 
-            user.id
-          );
-          
-          // Create an array with the file if it exists
-          associatedFiles = associatedFile ? [associatedFile] : [];
-          
-          console.log("Associated files with new event:", associatedFiles);
-        } catch (fileError) {
-          console.error("Error copying booking files:", fileError);
-          associatedFiles = [];
-        }
-        
-        // Create a customer record if we have customer data in the booking
-        try {
-          if (event.user_surname || event.requester_name) {
-            console.log("Creating customer record from booking request");
-            
-            const customerData = {
-              title: event.user_surname || event.requester_name || event.title || '',
-              user_surname: event.user_surname || event.requester_name || event.title || '',
-              user_number: event.user_number || event.requester_phone || '',
-              social_network_link: event.social_network_link || event.requester_email || '',
-              event_notes: event.event_notes || event.description || '',
-              user_id: user.id,
-              type: 'customer',
-              // Optional: link to event dates
-              start_date: event.start_date,
-              end_date: event.end_date
-            };
-            
-            const { data: newCustomer, error: customerError } = await supabase
-              .from('customers')
-              .insert(customerData)
-              .select()
-              .single();
-              
-            if (customerError) {
-              console.error("Error creating customer from booking:", customerError);
-            } else if (newCustomer && associatedFiles.length > 0) {
-              console.log("Created customer from booking, now linking files");
-              
-              // Create file links for the customer using the new file paths
-              for (const fileRecord of associatedFiles) {
-                // Create customer file link using the NEW file path
-                const { error: customerFileError } = await supabase
-                  .from('customer_files_new')
-                  .insert({
-                    customer_id: newCustomer.id,
-                    filename: fileRecord.filename,
-                    file_path: fileRecord.file_path, // Use the NEW path in event_attachments
-                    content_type: fileRecord.content_type,
-                    size: fileRecord.size,
-                    user_id: user.id
-                  });
-                
-                if (customerFileError) {
-                  console.error("Error creating customer file link:", customerFileError);
-                } else {
-                  console.log("Successfully created file record for customer");
-                }
-              }
-            }
-          }
-        } catch (customerError) {
-          console.error("Error handling customer creation:", customerError);
-        }
-        
-        // Send approval email to customer with business address - this is the ONLY place we send emails
-        if (event.requester_email && isValidEmail(event.requester_email)) {
-          try {
-            console.log("Sending approval email with language and payment info:", {
-              status: eventPayload.payment_status,
-              amount: paymentAmount,
-              language: eventLanguage
-            });
-            
-            await sendBookingConfirmationEmail(
-              newEvent.id,
-              event.requester_name || event.title || '',
-              event.requester_email,
-              event.start_date as string,
-              event.end_date as string,
-              eventPayload.payment_status || 'not_paid',
-              paymentAmount, // Use our properly formatted amount
-              eventLanguage, // Use the original booking language as priority
-              event.event_notes || event.description // Pass event notes or description as notes
-            );
-          } catch (emailError) {
-            console.error('Error sending booking approval email:', emailError);
-          }
-        }
-        
-        // Soft-delete or update the original booking request
-        try {
-          const { error: updateBookingError } = await supabase
-            .from('booking_requests')
-            .update({ 
-              status: 'approved',
-              deleted_at: new Date().toISOString()  // Soft-delete the booking
-            })
-            .eq('id', bookingRequestId);
-            
-          if (updateBookingError) {
-            console.error("Error updating original booking:", updateBookingError);
-          }
-        } catch (bookingUpdateError) {
-          console.error("Error updating booking status:", bookingUpdateError);
-        }
-        
-        return newEvent;
-      }
-      
-      // Regular update for non-booking events or when not changing type
-      
-      // Process payment amount to ensure it's a valid number
-      if (event.payment_amount !== undefined) {
-        const numericAmount = parseFloat(String(event.payment_amount));
-        if (!isNaN(numericAmount)) {
-          event.payment_amount = numericAmount;
+        if (bookingCheck) {
+          eventType = 'booking_request';
+          console.log("[useCalendarEvents] Found booking request in database for deletion");
         }
       }
-      
-      // Make sure we preserve or update the language
-      if (!event.language) {
-        event.language = existingEvent.language || language || 'en';
-      }
-      
-      const { data, error } = await supabase
-        .from('events')
-        .update(event)
-        .eq('id', event.id)
-        .select()
-        .single();
-        
-      if (error) {
-        console.error('Error updating event:', error);
-        throw error;
-      }
-      
-      // Send email if email address has changed
-      const emailChanged = event.social_network_link && 
-                          event.social_network_link !== existingEvent.social_network_link;
-      
-      if (emailChanged && isValidEmail(event.social_network_link as string)) {
-        try {
-          // Make sure payment amount is properly formatted
-          let paymentAmount = null;
-          if (event.payment_amount !== undefined && event.payment_amount !== null) {
-            paymentAmount = parseFloat(String(event.payment_amount));
-            if (isNaN(paymentAmount)) paymentAmount = null;
-          }
-          
-          // Use the event language, existing language, current app language, or default to 'en'
-          const emailLanguage = event.language || existingEvent.language || language || 'en';
-          
-          console.log("Sending updated booking email with payment info:", {
-            status: event.payment_status,
-            amount: paymentAmount,
-            language: emailLanguage
-          });
-          
-          await sendBookingConfirmationEmail(
-            data.id,
-            event.title || event.user_surname || '',
-            event.social_network_link as string,
-            event.start_date as string,
-            event.end_date as string,
-            event.payment_status || 'not_paid',
-            paymentAmount,
-            emailLanguage, // Use determined language
-            event.event_notes // Pass the event notes
-          );
-        } catch (emailError) {
-          console.error('Error sending updated booking email:', emailError);
-        }
-      }
-      
-      return data;
-    } catch (error) {
-      console.error('Error in updateEvent:', error);
-      throw error;
-    }
-  };
 
-  const deleteEvent = async (eventId: string): Promise<void> => {
-    if (!user) throw new Error("User must be authenticated to delete events");
-    
-    // First check if this is an event created from a booking request
-    const { data: event, error: fetchError } = await supabase
-      .from('events')
-      .select('booking_request_id, payment_status, payment_amount')
-      .eq('id', eventId)
-      .maybeSingle();
+      console.log("[useCalendarEvents] Final event type for deletion:", eventType);
+
+      // Use the enhanced unified delete function
+      await deleteCalendarEvent(id, eventType, user.id);
+
+      return { success: true };
+    },
+    onSuccess: async () => {
+      console.log("[useCalendarEvents] Delete mutation success, triggering immediate refresh");
       
-    if (fetchError) {
-      console.error("Error fetching event:", fetchError);
-    }
-    
-    // Log the payment information that will be removed
-    if (event?.payment_status === 'partly_paid' || event?.payment_status === 'fully_paid') {
-      console.log(`Deleting event will remove payment amount ${event.payment_amount} from statistics`);
-    }
-    
-    // If this was created from a booking request, also update the request status
-    if (event?.booking_request_id) {
-      console.log("Event was created from booking request, updating request status");
+      // Immediate cache invalidation and refetch
+      clearCalendarCache();
       
-      // Update the booking request status to rejected
-      const { error: bookingError } = await supabase
-        .from('booking_requests')
-        .update({ status: 'rejected', deleted_at: new Date().toISOString() })
-        .eq('id', event.booking_request_id);
-        
-      if (bookingError) {
-        console.error("Error updating booking request:", bookingError);
-      }
-    }
-    
-    // Soft delete the event
-    const { error } = await supabase
-      .from('events')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', eventId);
-      
-    if (error) {
-      console.error('Error deleting event:', error);
-      throw error;
-    }
-    
-    // Invalidate all relevant queries to ensure data is refreshed
-    queryClient.invalidateQueries({ queryKey: ['events'] });
-    queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-    queryClient.invalidateQueries({ queryKey: ['business-events'] });
-    queryClient.invalidateQueries({ queryKey: ['approved-bookings'] });
-  };
-
-  const eventsQuery = useQuery({
-    queryKey: ['events', user?.id],
-    queryFn: getEvents,
-    enabled: !!user?.id,
-    refetchOnWindowFocus: true,
-    refetchInterval: 60000,
-  });
-
-  const businessEventsQuery = useQuery({
-    queryKey: ['business-events', businessId, businessUserId],
-    queryFn: getBusinessEvents,
-    enabled: !!(businessId || businessUserId),
-  });
-
-  const approvedBookingsQuery = useQuery({
-    queryKey: ['approved-bookings', businessId, businessUserId, user?.id],
-    queryFn: getApprovedBookings,
-    enabled: !!(businessId || businessUserId || user?.id),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: createEvent,
-    onSuccess: () => {
+      // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
+      if (businessId) {
+        queryClient.invalidateQueries({ queryKey: ['business-events', businessId] });
+      }
       
-      // Also invalidate statistics to reflect new event data
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-    },
-    onError: (error: Error) => {
+      // Force immediate refetch with a small delay
+      setTimeout(() => {
+        refetch();
+      }, 100);
+      
+      // Broadcast the deletion event
+      window.dispatchEvent(new CustomEvent('calendar-event-deleted', {
+        detail: { timestamp: Date.now() }
+      }));
+      
       toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive"
+        title: "Success",
+        description: "Event deleted successfully",
       });
     },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: updateEvent,
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
-      
-      // Also invalidate statistics to reflect updated event data
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      
+    onError: (error: any) => {
+      console.error("[useCalendarEvents] Error deleting event:", error);
       toast({
-        title: t("common.success"),
-        description: t("events.eventUpdated"),
-      });
-      return data;
-    },
-    onError: (error: Error) => {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive"
-      });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteEvent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['events', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['business-events', businessId, businessUserId] });
-      queryClient.invalidateQueries({ queryKey: ['approved-bookings', businessId, businessUserId] });
-      
-      // Explicitly invalidate statistics to ensure deleted event's income is removed
-      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
-      
-      toast({
-        title: t("common.success"),
-        description: t("events.eventDeleted"),
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: t("common.error"),
-        description: error.message,
-        variant: "destructive"
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive",
       });
     },
   });
 
   return {
-    events: eventsQuery.data || [],
-    businessEvents: businessEventsQuery.data || [],
-    approvedBookings: approvedBookingsQuery.data || [],
-    isLoading: eventsQuery.isLoading || businessEventsQuery.isLoading || approvedBookingsQuery.isLoading,
-    error: eventsQuery.error || businessEventsQuery.error || approvedBookingsQuery.error,
-    createEvent: createMutation.mutateAsync,
-    updateEvent: updateMutation.mutateAsync,
-    deleteEvent: deleteMutation.mutateAsync,
+    events,
+    isLoading,
+    error,
+    refetch,
+    createEvent: createEventMutation.mutateAsync,
+    updateEvent: updateEventMutation.mutateAsync,
+    deleteEvent: deleteEventMutation.mutateAsync,
   };
 };
-
-// Export the associateBookingFilesWithEvent function for external use
-export { associateBookingFilesWithEvent };

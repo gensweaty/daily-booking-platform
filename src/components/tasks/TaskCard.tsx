@@ -1,23 +1,30 @@
-
 import { Task } from "@/lib/types";
 import { Draggable } from "@hello-pangea/dnd";
-import { Pencil, Trash2, Paperclip } from "lucide-react";
+import { Pencil, Trash2, Paperclip, Clock, AlertCircle, Eye } from "lucide-react";
 import { Button } from "../ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "../shared/GeorgianAuthText";
+import { TaskDateInfo } from "./TaskDateInfo";
+import { TaskAssigneeDisplay } from "./TaskAssigneeDisplay";
+import { motion } from "framer-motion";
+import { useState } from "react";
+import { createPortal } from "react-dom";
 
 interface TaskCardProps {
   task: Task;
   index: number;
-  onEdit: (task: Task) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (task: Task) => void;
+  onView: (task: Task) => void;
+  onDelete?: (id: string) => void;
+  isPublicBoard?: boolean;
 }
 
-export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
+export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard = false }: TaskCardProps) => {
   const { language } = useLanguage();
   const isGeorgian = language === 'ka';
+  const [isHovered, setIsHovered] = useState(false);
   
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
@@ -33,70 +40,229 @@ export const TaskCard = ({ task, index, onEdit, onDelete }: TaskCardProps) => {
   const getTaskStyle = (status: string) => {
     switch (status) {
       case 'in-progress':
-        return 'border-l-4 border-l-amber-500';
+        return 'border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/70 to-transparent dark:from-amber-900/20 dark:to-transparent';
       case 'done':
-        return 'border-l-4 border-l-green-500';
+        return 'border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/70 to-transparent dark:from-green-900/20 dark:to-transparent';
       default:
-        return 'border-l-4 border-l-gray-300 dark:border-l-gray-600';
+        return 'border-l-4 border-l-gray-400 dark:border-l-gray-600 bg-gradient-to-r from-gray-50/70 to-transparent dark:from-gray-800/50 dark:to-transparent';
     }
+  };
+
+  const getPriorityIndicator = () => {
+    const isOverdue = task.deadline_at && new Date(task.deadline_at) < new Date();
+    const isDueSoon = task.deadline_at && 
+      new Date(task.deadline_at) < new Date(Date.now() + 24 * 60 * 60 * 1000) && 
+      new Date(task.deadline_at) > new Date();
+
+    if (isOverdue) {
+      return (
+        <motion.div
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="flex items-center text-red-500"
+        >
+          <AlertCircle className="h-3 w-3" />
+        </motion.div>
+      );
+    }
+    
+    if (isDueSoon) {
+      return (
+        <motion.div
+          animate={{ opacity: [0.5, 1, 0.5] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="flex items-center text-amber-500"
+        >
+          <Clock className="h-3 w-3" />
+        </motion.div>
+      );
+    }
+    
+    return null;
+  };
+
+  const handleTitleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onView(task);
+  };
+
+  const handleDescriptionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onView(task);
+  };
+
+  const iconVariants = {
+    idle: { scale: 1, rotate: 0 },
+    hover: { scale: 1.1, rotate: 5, transition: { duration: 0.2 } }
   };
 
   return (
     <Draggable draggableId={String(task.id)} index={index}>
-      {(provided) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={`p-4 bg-background dark:bg-gray-800 rounded-lg shadow ${getTaskStyle(task.status)}`}
-        >
-          <div className="flex justify-between items-start">
-            <div className={task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}>
-              <div className="flex items-center gap-2">
-                {isGeorgian ? (
-                  <h3 className="font-semibold">
-                    <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
-                  </h3>
-                ) : (
-                  <h3 className="font-semibold">{task.title}</h3>
-                )}
-                {files && files.length > 0 && (
-                  <div className="flex items-center text-gray-600">
-                    <Paperclip className="h-4 w-4" />
-                    <span className="text-sm ml-1">{files.length}</span>
+      {(provided, snapshot) => {
+        const child = (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className={`p-4 bg-card dark:bg-gray-800 rounded-xl relative overflow-hidden border border-border/80 dark:border-border/50 ${getTaskStyle(task.status)} ${
+              snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing' : 'shadow hover:shadow-md cursor-grab'
+            } transition-shadow duration-200`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            {/* Subtle animated background gradient */}
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0"
+              animate={{ opacity: isHovered && !snapshot.isDragging ? 1 : 0 }}
+              transition={{ duration: 0.3 }}
+            />
+            
+            <div className="relative z-10">
+              <div className="flex justify-between items-start gap-2 mb-3">
+                <div className={`flex-1 min-w-0 ${task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}`}>
+                  <div className="flex items-start gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      {isGeorgian ? (
+                        <motion.h3 
+                          className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight" 
+                          onClick={handleTitleClick}
+                          title={task.title}
+                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                        >
+                          <GeorgianAuthText fontWeight="bold">{task.title}</GeorgianAuthText>
+                        </motion.h3>
+                      ) : (
+                        <motion.h3 
+                          className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight"
+                          onClick={handleTitleClick}
+                          title={task.title}
+                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+                        >
+                          {task.title}
+                        </motion.h3>
+                      )}
+                    </div>
+                    
+                    {/* Priority indicators and file count */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {getPriorityIndicator()}
+                      {files && files.length > 0 && (
+                        <motion.div 
+                          className="flex items-center text-gray-600"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                          <motion.span 
+                            className="text-sm ml-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded-full"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: 0.1 }}
+                          >
+                            {files.length}
+                          </motion.span>
+                        </motion.div>
+                      )}
+                    </div>
                   </div>
+                  
+                  {task.description && (
+                    <motion.div 
+                      className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                      onClick={handleDescriptionClick}
+                      role="button"
+                      dangerouslySetInnerHTML={{ __html: task.description }}
+                    />
+                  )}
+                  
+                  <div className="mt-3">
+                    <TaskDateInfo 
+                      deadline={task.deadline_at} 
+                      reminderAt={task.reminder_at} 
+                      compact 
+                    />
+                  </div>
+                </div>
+                
+                <motion.div 
+                  className="flex gap-1 flex-shrink-0 opacity-0"
+                  animate={{ opacity: isHovered ? 1 : 0 }}
+                  transition={{ duration: 0.2, delay: 0.1 }}
+                >
+                  {/* Always show Preview */}
+                  <motion.div variants={iconVariants} initial="idle" whileHover="hover">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onView(task);
+                      }}
+                      className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
+                      title="Preview task"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
+
+                  {/* Conditionally show Edit */}
+                  {onEdit && (
+                    <motion.div variants={iconVariants} initial="idle" whileHover="hover">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(task);
+                        }}
+                        className="text-foreground hover:text-primary hover:bg-primary/10 h-8 w-8 transition-all duration-200"
+                        title="Edit task"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </motion.div>
+                  )}
+                </motion.div>
+
+              </div>
+
+              {/* Bottom row with assignee and delete button on the right */}
+              <div className="flex justify-end items-center gap-2 mt-2">
+                {/* Assignee avatar - always visible */}
+                <div className="flex-shrink-0">
+                  <TaskAssigneeDisplay task={task} size="sm" />
+                </div>
+                
+                {/* Delete button - shows on hover */}
+                {onDelete && (
+                  <motion.div 
+                    className="opacity-0"
+                    animate={{ opacity: isHovered ? 1 : 0 }}
+                    transition={{ duration: 0.2, delay: 0.15 }}
+                  >
+                    <motion.div 
+                      variants={iconVariants} 
+                      initial="idle" whileHover="hover"
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(task.id);
+                        }}
+                        className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
+                        title="Delete task"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </motion.div>
+                  </motion.div>
                 )}
               </div>
-              {task.description && (
-                <div 
-                  className="prose dark:prose-invert max-w-none mt-2 line-clamp-3"
-                  dangerouslySetInnerHTML={{ __html: task.description }}
-                />
-              )}
-            </div>
-            <div className="flex gap-0.5">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onEdit(task)}
-                className="text-foreground hover:text-foreground/80 h-8 w-8"
-                title="Edit task"
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onDelete(task.id)}
-                className="text-foreground hover:text-foreground/80 h-8 w-8"
-                title="Delete task"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
             </div>
           </div>
-        </div>
-      )}
+        );
+        return snapshot.isDragging ? createPortal(child, document.body) : child;
+      }}
     </Draggable>
   );
 };

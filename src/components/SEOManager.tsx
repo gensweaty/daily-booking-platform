@@ -8,7 +8,17 @@ import { SEO_CONFIG } from '@/utils/seo/seoConfig';
 
 export const SEOManager = () => {
   const location = useLocation();
-  const { language } = useLanguage();
+  
+  // Use a try-catch to handle potential context issues
+  let language = 'en';
+  try {
+    const { language: contextLanguage } = useLanguage();
+    language = contextLanguage;
+  } catch (error) {
+    console.warn('SEOManager: Language context not available, defaulting to English');
+    // Use default language if context is not available
+    language = 'en';
+  }
   
   useEffect(() => {
     const currentPath = location.pathname;

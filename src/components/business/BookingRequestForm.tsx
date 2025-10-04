@@ -555,7 +555,7 @@ export const BookingRequestForm = ({
             <SelectTrigger id="paymentStatus" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
               <SelectValue placeholder={isGeorgian ? "აირჩიეთ გადახდის სტატუსი" : t("events.selectPaymentStatus")} />
             </SelectTrigger>
-            <SelectContent className={`bg-background ${isGeorgian ? "font-georgian" : ""}`}>
+            <SelectContent className={cn("bg-background z-[2147483646] pointer-events-auto", isGeorgian ? "font-georgian" : "")} position="popper">
               <SelectItem value="not_paid" className={isGeorgian ? "font-georgian" : ""} style={georgianFontStyle}>
                 {isGeorgian ? "გადაუხდელი" : t("crm.notPaid")}
               </SelectItem>

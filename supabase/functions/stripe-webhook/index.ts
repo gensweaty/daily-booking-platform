@@ -1,11 +1,11 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 
 // Supabase admin client
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
 const encoder = new TextEncoder();
 
@@ -77,7 +77,7 @@ async function verifyStripeSignature(payload: string, signature: string, secret:
     return isValid;
     
   } catch (error) {
-    logStep("Signature verification error", { error: error.message });
+    logStep("Signature verification error", { error: (error as Error).message });
     return false;
   }
 }
@@ -258,7 +258,7 @@ async function handleCheckoutCompleted(session: any) {
     });
   } catch (error) {
     logStep("Error processing checkout", {
-      error: error.message
+      error: (error as Error).message
     });
     throw error;
   }
@@ -343,7 +343,7 @@ async function handleSubscriptionEvent(subscription: any, previousAttributes?: a
     });
   } catch (error) {
     logStep("Error processing subscription event", {
-      error: error.message
+      error: (error as Error).message
     });
     throw error;
   }
@@ -464,7 +464,7 @@ async function handleSubscriptionCanceled(subscription: any) {
     logStep("Subscription canceled successfully");
   } catch (error) {
     logStep("Error processing cancellation", {
-      error: error.message
+      error: (error as Error).message
     });
     throw error;
   }
@@ -486,7 +486,7 @@ async function findUserByEmail(email: string): Promise<string | null> {
     const matchingUser = users.users.find(u => u.email === email);
     return matchingUser?.id || null;
   } catch (error) {
-    logStep("Error finding user by email", { error: error.message, email });
+    logStep("Error finding user by email", { error: (error as Error).message, email });
     return null;
   }
 }

@@ -1,0 +1,9 @@
+
+/* Import all animation modules for better organization */
+@import './animations/keyframes.css';
+@import './animations/glow-effects.css';
+@import './animations/utilities.css';
+@import './animations/gradient-text.css';
+@import './animations/floating-elements.css';
+@import './animations/interactive-effects.css';
+@import './animations/performance.css';

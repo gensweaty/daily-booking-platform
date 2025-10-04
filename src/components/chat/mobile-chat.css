@@ -1,0 +1,88 @@
+/* Mobile Chat Optimizations */
+
+/* Dynamic viewport height support for mobile keyboards */
+@supports (height: 100dvh) {
+  .chat-mobile-viewport {
+    height: 100dvh;
+  }
+}
+
+/* Smooth touch animations for mobile chat */
+.chat-mobile-transition {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease-out;
+}
+
+/* Mobile keyboard adaptive padding */
+.chat-input-mobile {
+  /* Ensure input stays above keyboard with safe area */
+  padding-bottom: env(keyboard-inset-height, 0);
+  min-height: env(keyboard-inset-height, 0);
+}
+
+/* Touch-friendly interaction states */
+@media (max-width: 768px) {
+  .chat-mobile-button {
+    min-height: 44px; /* Apple's recommended touch target */
+    min-width: 44px;
+  }
+  
+  .chat-mobile-button:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease-out;
+  }
+  
+  /* Enhanced touch feedback for sidebar items */
+  .chat-sidebar-item {
+    transition: background-color 0.2s ease-out, transform 0.2s ease-out;
+  }
+  
+  .chat-sidebar-item:active {
+    transform: translateX(4px);
+    background-color: var(--muted);
+  }
+  
+  /* Smooth sidebar slide animations */
+  .chat-sidebar-slide {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .chat-sidebar-slide.open {
+    transform: translateX(0);
+  }
+  
+  /* Input focus optimizations for mobile */
+  .chat-textarea-mobile:focus {
+    /* Prevent zoom on iOS */
+    font-size: 16px;
+    /* Smooth focus transition */
+    box-shadow: 0 0 0 2px hsl(var(--ring));
+    transition: box-shadow 0.2s ease-out;
+  }
+  
+  /* Prevent overscroll on mobile chat */
+  .chat-container-mobile {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  .chat-mobile-button:active {
+    background-color: hsl(var(--muted) / 0.8);
+  }
+}
+
+/* Reduce animations for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .chat-mobile-transition {
+    transition: none;
+  }
+  
+  .chat-sidebar-slide {
+    transition: none;
+  }
+}

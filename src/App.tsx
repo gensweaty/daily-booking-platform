@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -9,6 +10,7 @@ import Contact from "@/pages/Contact";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ResetPassword } from "@/components/ResetPassword";
 import { PublicBusinessPage } from "@/components/business/PublicBusinessPage";
+import { PublicBoard } from "@/pages/PublicBoard";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
 import { useEffect } from "react";
@@ -151,14 +153,9 @@ const SessionAndRealtimeWrapper = ({ children }: { children: React.ReactNode }) 
 // Route-aware theme wrapper component that doesn't use hooks outside of component
 const RouteAwareThemeProvider = ({ children }: { children: React.ReactNode }) => {
   return (
-    <ThemeProvider 
-      defaultTheme="system"
-      storageKey="vite-ui-theme"
-      enableSystem={true}
-      enableColorScheme={true}
-    >
+    <>
       {children}
-    </ThemeProvider>
+    </>
   );
 };
 
@@ -250,50 +247,60 @@ const AppContent = () => {
   return (
     <SessionAndRealtimeWrapper>
       <AuthProvider>
-        <SEOManager />
-        <BusinessRouteInterceptor />
-        <RouteAwareThemeProvider>
-          <RouteAwareWrapper>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/dashboard" element={<Index />} />
-              <Route path="/dashboard/*" element={<Index />} />
-              <Route path="/legal" element={<Legal />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/business/:slug" element={<PublicBusinessPage />} />
-              <Route path="/business" element={<PublicBusinessPage />} />
-              <Route path="/login" element={<Index />} />
-              <Route path="/signup" element={<Index />} />
-              {/* Admin Panel Routes */}
-              <Route path="/admin-panel" element={<AdminPanel />} />
-              <Route 
-                path="/admin-panel/dashboard" 
-                element={
-                  <AdminRoute>
-                    <AdminPanelDashboard />
-                  </AdminRoute>
-                } 
-              />
-              <Route path="*" element={<Landing />} />
-            </Routes>
-            <Toaster />
-          </RouteAwareWrapper>
-        </RouteAwareThemeProvider>
+        <PublicBoardAuthProvider>
+          <BusinessRouteInterceptor />
+          <RouteAwareThemeProvider>
+            <RouteAwareWrapper>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/dashboard" element={<Index />} />
+                <Route path="/dashboard/*" element={<Index />} />
+                <Route path="/legal" element={<Legal />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                <Route path="/board/:slug" element={<PublicBoard />} />
+                <Route path="/login" element={<Index />} />
+                <Route path="/signup" element={<Index />} />
+                {/* Admin Panel Routes */}
+                <Route path="/admin-panel" element={<AdminPanel />} />
+                <Route 
+                  path="/admin-panel/dashboard" 
+                  element={
+                    <AdminRoute>
+                      <AdminPanelDashboard />
+                    </AdminRoute>
+                  } 
+                />
+                <Route path="*" element={<Landing />} />
+              </Routes>
+              {/* Global Chat Provider for all routes */}
+              <ChatProvider>
+                <div />
+              </ChatProvider>
+              <Toaster />
+            </RouteAwareWrapper>
+          </RouteAwareThemeProvider>
+        </PublicBoardAuthProvider>
       </AuthProvider>
     </SessionAndRealtimeWrapper>
   );
 };
 
 import { useMemoryOptimization } from "@/utils/memoryOptimizer";
+import { ChatProvider } from "@/components/chat/ChatProvider";
+import { PublicBoardAuthProvider } from "@/contexts/PublicBoardAuthContext";
 
 function App() {
   // Initialize memory optimization
   useMemoryOptimization();
 
-  // Enable Supabase realtime functionality
+  // Enable Supabase realtime functionality and warm up connection
   useEffect(() => {
+    // Warm up the connection on app mount
+    fetch('https://mrueqpffzauvdxmuwhfa.supabase.co/', { method: 'HEAD', cache: 'no-store', keepalive: true }).catch(()=>{});
+    
     // Enable Supabase realtime for the required tables
     const enableRealtimeTables = async () => {
       try {
@@ -327,13 +334,13 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <LanguageProvider>
           <BrowserRouter>
             <AppContent />
           </BrowserRouter>
-        </ThemeProvider>
-      </LanguageProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

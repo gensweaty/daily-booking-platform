@@ -25,7 +25,7 @@ interface BookingChartProps {
 }
 
 export const BookingChart = ({ data }: BookingChartProps) => {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isSpanish = language === 'es';
   
   // Check if the date range spans multiple months
@@ -55,9 +55,9 @@ export const BookingChart = ({ data }: BookingChartProps) => {
     return acc;
   }, []);
 
-  const title = isSpanish ? "Crecimiento Total de Reservas" : "Total Bookings Growth";
-  const xAxisLabel = isSpanish ? "Fechas de Reserva" : "Booking Dates";
-  const yAxisLabel = isSpanish ? "Total de Reservas" : "Total Bookings";
+  const title = t('analytics.totalBookingsGrowth');
+  const xAxisLabel = t('analytics.bookingDates');
+  const yAxisLabel = t('analytics.totalBookings');
 
   return (
     <Card className="p-4">

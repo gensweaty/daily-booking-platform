@@ -1,8 +1,8 @@
-
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useLocalizedDate } from "@/hooks/useLocalizedDate";
 
 interface CalendarGridProps {
   days: Date[];
@@ -38,10 +38,12 @@ export const CalendarGrid = ({
   const startDate = startOfWeek(days[0]);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isDarkTheme = theme === "dark";
+  const { getWeekdayName, formatDate } = useLocalizedDate();
   
-  const weekDays = Array.from({ length: 7 }, (_, i) => 
-    format(addDays(startDate, i), isMobile ? 'EEEEE' : 'EEE')
-  );
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const dayDate = addDays(startDate, i);
+    return getWeekdayName(dayDate, true, isMobile);
+  });
 
   const selectedDate = new Date(formattedSelectedDate);
   
@@ -95,8 +97,12 @@ export const CalendarGrid = ({
       );
     }
     
-    // For internal (dashboard) calendar
-    const name = event.requester_name || event.title || "";
+    // For internal (dashboard) calendar - use event_name if available, otherwise fall back to person name
+    // Add debug logging to see what we're getting
+    console.log("Calendar rendering event:", event.id, "event_name:", event.event_name, "title:", event.title, "user_surname:", event.user_surname);
+    
+    const displayTitle = event.event_name || event.requester_name || event.user_surname || event.title || "";
+    console.log("Calendar display title chosen:", displayTitle);
     
     // Display vertically on mobile for internal calendar with improved spacing
     if (isMobile) {
@@ -104,7 +110,7 @@ export const CalendarGrid = ({
         <div className="w-full flex flex-col items-center text-center justify-center space-y-0.5">
           {/* Don't include icon here, it will be added at the container level */}
           <span className="block font-medium text-[0.7rem] leading-tight truncate max-w-[90%]">
-            {name}
+            {displayTitle}
           </span>
           <span className="block text-[0.65rem] opacity-80 leading-tight truncate max-w-[90%]">
             {bookingHours}
@@ -117,7 +123,7 @@ export const CalendarGrid = ({
     return (
       <div className={`${includeIcon ? 'flex-1' : 'w-full'} min-w-0`}>
         <span className="block font-medium text-xs sm:text-sm truncate">
-          {name}
+          {displayTitle}
         </span>
         <span className="block text-xs sm:text-sm opacity-80 truncate">
           {bookingHours}
@@ -138,7 +144,10 @@ export const CalendarGrid = ({
           <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-gray-800 text-gray-200 border-gray-600' : 'bg-white'} sticky top-0 z-20 border-b ${isDarkTheme ? 'border-gray-600' : 'border-gray-200'} h-8 ${isMobile ? 'text-[0.7rem]' : ''}`}>
             {days.map((day, index) => (
               <div key={`header-${index}`} className={`p-1 text-center font-semibold ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>
-                {format(day, isMobile ? 'E d' : 'EEE d')}
+                {isMobile ? 
+                  `${getWeekdayName(day, true, true)} ${day.getDate()}` : 
+                  `${getWeekdayName(day, true)} ${day.getDate()}`
+                }
               </div>
             ))}
           </div>
@@ -147,7 +156,10 @@ export const CalendarGrid = ({
         {view === 'day' && (
           <div className={`${isDarkTheme ? 'bg-gray-800 text-gray-200 border-gray-600' : 'bg-white'} sticky top-0 z-20 border-b ${isDarkTheme ? 'border-gray-600' : 'border-gray-200'} h-8`}>
             <div className="p-1 text-center font-semibold text-xs sm:text-sm">
-              {format(days[0], isMobile ? 'E d' : 'EEEE, MMMM d')}
+              {isMobile ? 
+                `${getWeekdayName(days[0], true, true)} ${days[0].getDate()}` : 
+                formatDate(days[0], "full")
+              }
             </div>
           </div>
         )}

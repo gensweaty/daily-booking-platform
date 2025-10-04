@@ -1,5 +1,11 @@
 export type Language = 'en' | 'es' | 'ka';
 
+export interface LanguageContextType {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}
+
 export interface TranslationType {
   nav: {
     signin: string;
@@ -19,12 +25,14 @@ export interface TranslationType {
     crm: string;
     analytics: string;
     website: string;
+    teamChat: string;
     ownBookingWebsite: string;
     businessTitle: string;
     smartAppointment: string;
     automatedAnalytics: string;
     modernCRM: string;
     kanbanManagement: string;
+    teamCollaboration: string;
   };
   booking: {
     title: string;
@@ -49,6 +57,14 @@ export interface TranslationType {
     feature3: string;
     feature4: string;
     feature5: string;
+    exportToExcel: string;
+    totalBookingsGrowth: string;
+    bookingDates: string;
+    totalBookings: string;
+    threeMonthIncomeComparison: string;
+    monthIncomeComparison: string;
+    months: string;
+    income: string;
   };
   crm: {
     title: string;
@@ -98,6 +114,7 @@ export interface TranslationType {
     customerDeleted: string;
     noDataToExport: string;
     error: string;
+    open: string;
   };
   tasks: {
     title: string;
@@ -118,8 +135,56 @@ export interface TranslationType {
     taskUpdated: string;
     taskDeleted: string;
     taskAdded: string;
+    taskArchived: string;
+    deadline: string;
+    reminder: string;
+    setDeadline: string;
+    setReminder: string;
+    deadlineSet: string;
+    reminderSet: string;
+    reminderBeforeDeadline: string;
+    noDeadline: string;
+    noReminder: string;
+    editDeadline: string;
+    editReminder: string;
+    removeDeadline: string;
+    removeReminder: string;
+    taskReminder: string;
+    archive: string;
+    archived: string;
+    archivedTasks: string;
+    backToTasks: string;
+    searchArchivedTasks: string;
+    newestFirst: string;
+    oldestFirst: string;
+    noArchivedTasks: string;
+    noArchivedTasksSearch: string;
+    showingArchivedTasks: string;
+    restore: string;
+    archivedAgo: string;
+    restoreTask: string;
+    archiveTask: string;
+    archiveTaskConfirm: string;
+    restoreTaskConfirm: string;
+    completed: string;
+    loadingArchivedTasks: string;
+    deleteTask: string;
+    deleteTaskConfirmation: string;
+    emailReminder: string;
+    reminderEmailSent: string;
+    created: string;
+    file: string;
   };
   website: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+    feature5: string;
+  };
+  teamChat: {
     title: string;
     description: string;
     feature1: string;
@@ -234,6 +299,7 @@ export interface TranslationType {
     totalEvents: string;
     partlyPaid: string;
     fullyPaid: string;
+    notPaid: string;
     totalIncome: string;
     fromAllEvents: string;
     exportSuccessful: string;
@@ -252,8 +318,53 @@ export interface TranslationType {
     totalCustomers: string;
     withBooking: string;
     withoutBooking: string;
+    currentMonth: string;
+  };
+  publicBoard: {
+    public: string;
+    private: string;
+    boardSettings: string;
+    makePublic: string;
+    publicDescription: string;
+    boardSlug: string;
+    enterSlug: string;
+    slugDescription: string;
+    slugRequired: string;
+    emailAddress: string;
+    password: string;
+    enterPassword: string;
+    confirmPassword: string;
+    repeatPassword: string;
+    subUsers: string;
+    lastLogin: string;
+    userAlreadyExists: string;
+    subUserAlreadyExists: string;
+    needToRegister: string;
+    alreadyHaveAccess: string;
+    registerForBoard: string;
+    createAccountToAccess: string;
+    userNotFound: string;
+    register: string;
+    login: string;
+    magicWord: string;
+    enterMagicWord: string;
+    magicWordDescription: string;
+    publicLink: string;
+    linkCopied: string;
+    boardMadePublic: string;
+    boardMadePrivate: string;
+    errorSaving: string;
+    magicWordRequired: string;
+    enterFullName: string;
+    enterMagicWordForAccess: string;
+    accessBoard: string;
+    invalidAccess: string;
+    welcomeToBoard: string;
+    deleteSubUser: string;
+    deleteSubUserConfirm: string;
   };
   events: {
+    addEvent: string;
     submitBookingRequest: string;
     fullNameRequired: string;
     fullName: string;
@@ -273,6 +384,9 @@ export interface TranslationType {
     eventDeleted: string;
     eventUpdated: string;
     eventCreated: string;
+    recurringEventCreated: string;
+    eventSeriesDeleted: string;
+    eventSeriesUpdated: string;
     timeSlotUnavailable: string;
     timeSlotConflict: string;
     timeSlotNotAvailable: string;
@@ -286,6 +400,13 @@ export interface TranslationType {
     title: string;
     bookAppointment: string;
     submitRequest: string;
+    deleteEventConfirmTitle: string;
+    deleteEventConfirmMessage: string;
+    timeConflictError: string;
+    recurringEditTitle: string;
+    recurringDeleteTitle: string;
+    onlyThisEvent: string;
+    entireSeries: string;
   };
   contact: {
     email: string;
@@ -325,6 +446,7 @@ export interface TranslationType {
     success: string;
     error: string;
     warning: string;
+    add: string;
     submitting: string;
     loading: string;
     rateLimitReached: string;
@@ -345,6 +467,10 @@ export interface TranslationType {
     requests: string;
     backToHome: string;
     create: string;
+    download: string;
+    downloadStarted: string;
+    downloadError: string;
+    open: string;
     update: string;
     delete: string;
     and: string;
@@ -356,6 +482,15 @@ export interface TranslationType {
     authRequired: string;
     save: string;
     saving: string;
+    select: string;
+    fileDeleted: string;
+    minutesAgo: string;
+    hoursAgo: string;
+    daysAgo: string;
+    schedule: string;
+    created: string;
+    lastUpdated: string;
+    by: string;
   };
   auth: {
     welcome: string;
@@ -438,6 +573,9 @@ export interface TranslationType {
     requestApproved: string;
     requestSubmitted: string;
     requestSubmittedDescription: string;
+    errorApproving: string;
+    errorRejecting: string;
+    errorDeleting: string;
   };
   notes: {
     title: string;
@@ -564,10 +702,77 @@ export interface TranslationType {
     invalidFileType: string;
     fileTooLarge: string;
   };
-}
-
-export interface LanguageContextType {
-  language: Language;
-  setLanguage: (language: Language) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
+  recurring: {
+    doesNotRepeat: string;
+    daily: string;
+    weekly: string;
+    biweekly: string;
+    monthly: string;
+    yearly: string;
+    weeklyOn: string;
+    biweeklyOn: string;
+    monthlyOnDay: string;
+    annuallyOn: string;
+    repeatUntil: string;
+    repeat: string;
+    deleteEventTitle: string;
+    deleteEventBody: string;
+    deleteOnlyThis: string;
+    deleteWholeSeries: string;
+    editEventTitle: string;
+    editEventBody: string;
+    editOnlyThis: string;
+    editWholeSeries: string;
+  };
+  months: {
+    january: string;
+    february: string;
+    march: string;
+    april: string;
+    may: string;
+    june: string;
+    july: string;
+    august: string;
+    september: string;
+    october: string;
+    november: string;
+    december: string;
+  };
+  taskComments: {
+    title: string;
+    addComment: string;
+    noComments: string;
+    contentPlaceholder: string;
+    createSuccess: string;
+    updateSuccess: string;
+    deleteSuccess: string;
+    attachments: string;
+    addAttachment: string;
+  };
+  chat: {
+    teamChat: string;
+    general: string;
+    teamMembers: string;
+    owner: string;
+    teamMember: string;
+    directMessage: string;
+    typeMessage: string;
+    noTeamMembers: string;
+    loading: string;
+    messageDeleted: string;
+    channel: string;
+    deleteMessage: string;
+    deleteMessageConfirm: string;
+    deleteButton: string;
+    cancelButton: string;
+    edited: string;
+    customChats: string;
+    createCustomChat: string;
+    chatName: string;
+    selectParticipants: string;
+    noCustomChats: string;
+    deleteChat: string;
+    deleteChatConfirmTitle: string;
+    deleteChatConfirmMessage: string;
+  };
 }

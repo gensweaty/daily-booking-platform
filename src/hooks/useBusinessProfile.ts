@@ -13,14 +13,32 @@ export const useBusinessProfile = () => {
   const getBusinessProfile = async (): Promise<BusinessProfile | null> => {
     if (!user) return null;
     
-    const { data, error } = await supabase
-      .from("business_profiles")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    console.log("🔍 Fetching business profile for user:", user.id);
+    
+    try {
+      const { data, error } = await supabase
+        .from("business_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        console.error("❌ Error fetching business profile:", error);
+        // Don't throw error, return null to allow fallbacks
+        return null;
+      }
+      
+      if (!data) {
+        console.log("📋 No business profile found for user");
+        return null;
+      }
+      
+      console.log("✅ Business profile loaded:", data);
+      return data;
+    } catch (error) {
+      console.error("❌ Exception in getBusinessProfile:", error);
+      return null;
+    }
   };
 
   const createBusinessProfile = async (profile: Omit<BusinessProfile, "id" | "created_at" | "updated_at" | "user_id">): Promise<BusinessProfile> => {
@@ -201,6 +219,13 @@ export const useBusinessProfile = () => {
     staleTime: 30000, // Consider data fresh for 30 seconds
     refetchInterval: 60000, // Refetch every minute
     refetchOnWindowFocus: true,
+    retry: (failureCount, error) => {
+      // Don't retry if it's a permissions error or similar
+      if (error && typeof error === 'object' && 'code' in error) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 
   const createProfileMutation = useMutation({
@@ -213,6 +238,7 @@ export const useBusinessProfile = () => {
       });
     },
     onError: (error: any) => {
+      console.error("Error creating business profile:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to create business profile",
@@ -231,6 +257,7 @@ export const useBusinessProfile = () => {
       });
     },
     onError: (error: any) => {
+      console.error("Error updating business profile:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update business profile",

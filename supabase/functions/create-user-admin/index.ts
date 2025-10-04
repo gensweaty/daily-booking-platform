@@ -1,7 +1,7 @@
 
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { Resend } from "https://esm.sh/resend@4.3.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -214,6 +214,7 @@ serve(async (req) => {
         const { data: linkData, error: emailError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'signup',
           email,
+          password,
           options: {
             redirectTo: `${domain}/dashboard?verified=true`,
           }
@@ -287,7 +288,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: false, 
-            message: createError.message || "Error creating user",
+            message: (createError as Error).message || "Error creating user",
             error: createError
           }),
           {
@@ -312,7 +313,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || "An unexpected error occurred",
+        error: (error as Error).message || "An unexpected error occurred",
         success: false
       }),
       {

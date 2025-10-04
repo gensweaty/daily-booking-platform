@@ -6,11 +6,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLanguage } from "@/contexts/LanguageContext";
+import { useUserLanguage } from "@/hooks/useUserLanguage";
 import { LanguageText } from "./shared/LanguageText";
 
 export const LanguageSwitcher = () => {
-  const { language, setLanguage } = useLanguage();
+  const { language, updateLanguage, isLoading } = useUserLanguage();
 
   const languages = {
     en: {
@@ -27,10 +27,15 @@ export const LanguageSwitcher = () => {
     }
   };
 
+  const handleLanguageChange = async (code: 'en' | 'es' | 'ka') => {
+    if (isLoading) return;
+    await updateLanguage(code);
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9 relative p-1">
+        <Button variant="ghost" size="icon" className="h-9 w-9 relative p-1" disabled={isLoading}>
           <img 
             src={languages[language].flag}
             alt={language === 'en' ? "English" : language === 'es' ? "Spanish" : "Georgian"}
@@ -47,10 +52,11 @@ export const LanguageSwitcher = () => {
         {Object.entries(languages).map(([code, { label, flag }]) => (
           <DropdownMenuItem 
             key={code}
-            onClick={() => setLanguage(code as 'en' | 'es' | 'ka')} 
+            onClick={() => handleLanguageChange(code as 'en' | 'es' | 'ka')} 
             className={`flex items-center gap-2 hover:bg-accent cursor-pointer ${
               language === code ? 'bg-accent' : ''
             }`}
+            disabled={isLoading}
           >
             <img 
               src={flag} 

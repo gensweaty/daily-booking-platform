@@ -14,39 +14,60 @@ import { LanguageText } from "./shared/LanguageText";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { GeorgianAuthText } from "./shared/GeorgianAuthText";
 import { useQueryClient } from "@tanstack/react-query";
+import { PermissionGate } from "./PermissionGate";
+import { useBoardPresence } from "@/hooks/useBoardPresence";
+import { supabase } from "@/lib/supabase";
 
-export const Statistics = () => {
+const StatisticsContent = () => {
   const { user } = useAuth();
-  const { language } = useLanguage();
-  const queryClient = useQueryClient();
-  const isGeorgian = language === 'ka';
-  const currentDate = useMemo(() => new Date(), []);
-  const [dateRange, setDateRange] = useState({ 
-    start: startOfMonth(currentDate),
-    end: endOfMonth(currentDate)
+  const [dateRange, setDateRange] = useState<{ start: Date; end: Date | null }>({
+    start: startOfMonth(new Date()),
+    end: endOfMonth(new Date()),
   });
+  const queryClient = useQueryClient();
+
+  // Fetch user profile and board key for presence
+  const [userProfile, setUserProfile] = useState<{ username?: string; avatar_url?: string } | null>(null);
+  const [boardKey, setBoardKey] = useState<string | null>(null);
+  
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    // Fetch profile
+    supabase
+      .from("profiles")
+      .select("username, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setUserProfile(data || null));
+    
+    // Fetch board key (same one Tasks/CRM use)
+    supabase
+      .from("public_boards")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => setBoardKey(data?.id || user.id));
+  }, [user?.id]);
+
+  const currentPresenceUser = useMemo(
+    () => ({
+      name: userProfile?.username || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User",
+      email: user?.email || "",
+      avatar_url: userProfile?.avatar_url || user?.user_metadata?.avatar_url || null,
+    }),
+    [user, userProfile]
+  );
+
+  const { onlineUsers } = useBoardPresence(boardKey, currentPresenceUser);
 
   // Memoize userId for stable reference in dependencies
   const userId = useMemo(() => user?.id, [user?.id]);
   
   // Use optimized hooks instead of original ones
-  const { taskStats, eventStats, isLoading } = useOptimizedStatistics(userId, dateRange);
+  const { taskStats, eventStats, customerStats, isLoading } = useOptimizedStatistics(userId, dateRange);
   const { combinedData, isLoading: isLoadingCRM } = useOptimizedCRMData(userId, dateRange);
   const { exportToExcel } = useExcelExport();
-
-  // Calculate customer statistics from optimized data
-  const customerStats = useMemo(() => {
-    if (!combinedData) return { total: 0, withBooking: 0, withoutBooking: 0 };
-    
-    const total = combinedData.length;
-    const withBooking = combinedData.filter(item => 
-      item.create_event === true || 
-      (item.start_date && item.end_date)
-    ).length;
-    const withoutBooking = total - withBooking;
-    
-    return { total, withBooking, withoutBooking };
-  }, [combinedData]);
 
   // Add effect to validate eventStats and totalIncome specifically
   useEffect(() => {
@@ -61,26 +82,57 @@ export const Statistics = () => {
     }
   }, [eventStats]);
 
-  // Add effect for real-time updates of statistics when relevant data changes
+  // Enhanced effect for automatic data refresh when component mounts or becomes visible
   useEffect(() => {
-    // Function to refresh data
-    const refreshData = () => {
-      console.log("Refreshing statistics data");
+    const refreshAllStatistics = () => {
+      console.log("Refreshing all statistics data automatically");
+      
+      // Invalidate all statistics-related queries to force fresh data
       queryClient.invalidateQueries({ queryKey: ['optimized-task-stats'] });
       queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['optimized-customer-stats'] });
       queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
+      
+      // Also invalidate legacy query keys for compatibility
+      queryClient.invalidateQueries({ queryKey: ['taskStats'] });
+      queryClient.invalidateQueries({ queryKey: ['eventStats'] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['crm'] });
     };
 
-    // Set up periodic refresh every minute
-    const intervalId = setInterval(refreshData, 60000); // 1 minute
+    // Refresh data immediately when component mounts
+    refreshAllStatistics();
+
+    // Set up periodic refresh every 30 seconds for real-time updates
+    const intervalId = setInterval(refreshAllStatistics, 30000);
+
+    // Listen for page visibility changes to refresh when user returns to tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log("Page became visible - refreshing statistics");
+        refreshAllStatistics();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Listen for focus events to refresh when user returns to window
+    const handleFocus = () => {
+      console.log("Window focused - refreshing statistics");
+      refreshAllStatistics();
+    };
+
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
-  }, [queryClient]);
+  }, [queryClient, userId]); // Include userId to refresh when user changes
 
   const handleExport = useCallback(() => {
-    if (taskStats && eventStats) {
+    if (taskStats && eventStats && customerStats) {
       // Pass customer stats to the export function
       exportToExcel({ taskStats, eventStats, customerStats });
     }
@@ -89,9 +141,14 @@ export const Statistics = () => {
   const handleDateChange = useCallback((start: Date, end: Date | null) => {
     console.log("Date range changed to:", { start, end: end || start });
     setDateRange({ start, end: end || start });
-  }, []);
+    
+    // Immediately refresh data when date range changes
+    queryClient.invalidateQueries({ queryKey: ['optimized-event-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['optimized-customer-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
+  }, [queryClient]);
 
-  // Default task stats
+  // Default stats
   const defaultTaskStats = useMemo(() => ({ 
     total: 0, 
     completed: 0, 
@@ -108,7 +165,6 @@ export const Statistics = () => {
     dailyStats: []
   }), []);
 
-  // Default customer stats
   const defaultCustomerStats = useMemo(() => ({
     total: 0,
     withBooking: 0,
@@ -120,7 +176,7 @@ export const Statistics = () => {
   const currentEventStats = useMemo(() => eventStats || defaultEventStats, [eventStats, defaultEventStats]);
   const currentCustomerStats = useMemo(() => customerStats || defaultCustomerStats, [customerStats, defaultCustomerStats]);
   const chartData = useMemo(() => eventStats?.dailyStats || [], [eventStats?.dailyStats]);
-  const incomeData = useMemo(() => eventStats?.monthlyIncome || [], [eventStats?.monthlyIncome]);
+  const incomeData = useMemo(() => eventStats?.threeMonthIncome || [], [eventStats?.threeMonthIncome]);
 
   // Additional debugging to verify data
   useEffect(() => {
@@ -150,6 +206,8 @@ export const Statistics = () => {
         onDateChange={handleDateChange}
         onExport={handleExport}
         isLoading={isLoading || isLoadingCRM}
+        onlineUsers={onlineUsers}
+        currentUserEmail={user?.email}
       />
       
       {isLoading || isLoadingCRM ? (
@@ -180,5 +238,13 @@ export const Statistics = () => {
         </>
       )}
     </div>
+  );
+};
+
+export const Statistics = () => {
+  return (
+    <PermissionGate requiredPermission="statistics">
+      <StatisticsContent />
+    </PermissionGate>
   );
 };

@@ -5,8 +5,27 @@ export interface Task {
   description?: string;
   status: 'todo' | 'inprogress' | 'done';
   created_at: string;
+  updated_at?: string;
   user_id?: string;
   position: number;
+  deadline_at?: string;
+  reminder_at?: string;
+  archived?: boolean;
+  archived_at?: string;
+  email_reminder_enabled?: boolean;
+  reminder_sent_at?: string;
+  created_by_name?: string;
+  created_by_type?: string;
+  last_edited_by_name?: string;
+  last_edited_by_type?: string;
+  last_edited_at?: string;
+  assigned_to_type?: 'admin' | 'sub_user';
+  assigned_to_id?: string;
+  assigned_to_name?: string;
+  assigned_to_avatar_url?: string;
+  assigned_at?: string;
+  assigned_by_type?: 'admin' | 'sub_user';
+  assigned_by_id?: string;
 }
 
 export interface Note {
@@ -31,6 +50,9 @@ export interface Reminder {
 
 // Export BookingRequest from database.ts
 export { type BookingRequest } from '../types/database';
+
+// Export comment types
+export { type TaskComment, type CommentFile } from './types/comments';
 
 // Payment status type for consistency across components 
 // Includes both database and display formats

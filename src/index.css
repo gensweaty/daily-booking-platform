@@ -1,3 +1,4 @@
+@import './components/landing/animations.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -520,3 +521,41 @@
   letter-spacing: -0.2px !important;
   font-weight: inherit !important;
 }
+
+/* Chat portal is a normal node, non-interactive baseline */
+.chat-portal-root {
+  position: static;
+  pointer-events: none;
+}
+
+/* Only the visible chat surface should be clickable */
+#chat-floating-root,
+#chat-floating-root * {
+  pointer-events: auto;
+}
+
+/* Z-index contract: chat < popovers < dialogs/overlays */
+:root {
+  --z-chat: 40;
+  --z-popover: 50;
+  --z-dialog: 100;
+}
+
+/* Chat stays at its designated level */
+#chat-floating-root { 
+  z-index: var(--z-chat) !important; 
+}
+
+/* All Radix portals (including chat dialogs) are above chat */
+[data-radix-portal] { 
+  z-index: var(--z-popover) !important; 
+}
+
+/* Dialog overlays and content are at the top */
+[data-radix-portal] [role="dialog"],
+[data-radix-portal] [role="alertdialog"],
+[data-radix-portal] [data-radix-alert-dialog-overlay],
+[data-radix-portal] [data-radix-dialog-overlay] {
+  z-index: var(--z-dialog) !important;
+}
+

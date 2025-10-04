@@ -1,0 +1,14 @@
+
+/* Enhanced Text Gradients */
+.enhanced-gradient-text {
+  background: linear-gradient(45deg, #f97316, #4ade80, #9b87f5, #f97316);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientLoadAnimation 2s ease forwards;
+}
+
+.enhanced-gradient-text:hover {
+  animation: gradientTextShift 4s ease infinite;
+}

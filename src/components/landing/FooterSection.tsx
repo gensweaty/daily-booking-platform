@@ -1,4 +1,3 @@
-
 import { Link } from "react-router-dom";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -6,7 +5,7 @@ import { Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react";
 import { LanguageText } from "../shared/LanguageText";
 import { useEffect, useState } from "react";
 
-export const FooterSection = () => {
+const FooterSection = () => {
   const { theme, resolvedTheme } = useTheme();
   const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
@@ -137,4 +136,6 @@ export const FooterSection = () => {
       </div>
     </footer>
   );
-}
+};
+
+export default FooterSection;

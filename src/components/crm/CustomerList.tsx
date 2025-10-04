@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -15,6 +15,10 @@ import * as XLSX from 'xlsx';
 import { LanguageText } from "@/components/shared/LanguageText";
 import { getCurrencySymbol } from "@/lib/currency";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { PermissionGate } from "@/components/PermissionGate";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
+import { CRMFiltersProvider, useCRMFilters } from "@/hooks/useCRMFilters";
+import { CRMFilterButton } from "./CRMFilterButton";
 import {
   Table,
   TableBody,
@@ -45,6 +49,8 @@ import { useCRMData } from "@/hooks/useCRMData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { PaymentStatus } from "@/lib/types";
+import { PresenceCircles } from "@/components/presence/PresenceCircles";
+import { cn } from "@/lib/utils";
 
 const LoadingCustomerList = React.memo(() => {
   return (
@@ -89,10 +95,30 @@ const LoadingCustomerList = React.memo(() => {
 
 LoadingCustomerList.displayName = 'LoadingCustomerList';
 
-export const CustomerList = () => {
+interface CustomerListProps {
+  isPublicMode?: boolean;
+  externalUserName?: string;
+  externalUserEmail?: string;
+  publicBoardUserId?: string;
+  hasPermissions?: boolean;
+  onlineUsers?: Array<{ email?: string | null; name?: string | null; avatar_url?: string | null; online_at?: string | null }>;
+  currentUserEmail?: string;
+}
+
+const CustomerListContent = ({ 
+  isPublicMode = false, 
+  externalUserName, 
+  externalUserEmail,
+  publicBoardUserId,
+  hasPermissions = false,
+  onlineUsers = [],
+  currentUserEmail
+}: CustomerListProps = {}) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isSubUser } = useSubUserPermissions();
+  const { applyFilters } = useCRMFilters();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
@@ -113,7 +139,10 @@ export const CustomerList = () => {
   const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
   const isGeorgian = language === 'ka';
 
-  const { combinedData, isLoading, isFetching } = useCRMData(user?.id, dateRange);
+  const { combinedData, isLoading, isFetching } = useCRMData(
+    isPublicMode ? publicBoardUserId : user?.id, 
+    dateRange
+  );
 
   useEffect(() => {
     if (combinedData.length > 0 && !searchValueRef.current) {
@@ -134,45 +163,167 @@ export const CustomerList = () => {
     setCurrentPage(1);
   }, []);
 
+  // Apply CRM filters to the data
+  const displayedData = useMemo(() => {
+    const dataToFilter = filteredData.length > 0 ? filteredData : combinedData;
+    return applyFilters(dataToFilter);
+  }, [filteredData, combinedData, applyFilters]);
+
   const paginatedData = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
-    return filteredData.slice(startIndex, endIndex);
-  }, [filteredData, currentPage, pageSize]);
+    return displayedData.slice(startIndex, endIndex);
+  }, [displayedData, currentPage, pageSize]);
+
+  // Helper function to get the effective user ID for operations (same as CustomerDialog)
+  const getEffectiveUserId = useCallback(() => {
+    if (isPublicMode && publicBoardUserId) {
+      return publicBoardUserId;
+    }
+    return user?.id;
+  }, [isPublicMode, publicBoardUserId, user?.id]);
+
+  const canEditDelete = useCallback((customer: any) => {
+    // For non-public mode (regular authenticated users), check if they're a sub-user
+    if (!isPublicMode && !isSubUser) return true;
+    
+    console.log('🔍 Checking permissions for customer:', {
+      id: customer.id,
+      created_by_type: customer.created_by_type,
+      created_by_name: customer.created_by_name,
+      last_edited_by_type: customer.last_edited_by_type,
+      last_edited_by_name: customer.last_edited_by_name,
+      user_id: customer.user_id,
+      externalUserName,
+      publicBoardUserId,
+      isSubUser,
+      currentUserEmail: user?.email
+    });
+    
+    // Permission logic for both public mode (external sub-users) and regular sub-users
+    if (isPublicMode) {
+      // In public mode, allow edit/delete if:
+      // 1. The item was created by this sub-user, OR
+      // 2. The item was last edited by this sub-user, OR  
+      // 3. Legacy data without creator info but belongs to the board owner (for backwards compatibility)
+      const canEdit = (customer.created_by_type === 'sub_user' && customer.created_by_name === externalUserName) ||
+             (customer.last_edited_by_type === 'sub_user' && customer.last_edited_by_name === externalUserName) ||
+             (!customer.created_by_type && !customer.created_by_name && customer.user_id === publicBoardUserId);
+      
+      console.log('🔍 Public mode permission result:', canEdit);
+      return canEdit;
+    } else if (isSubUser) {
+      // For regular authenticated sub-users, allow edit/delete if:
+      // 1. The item was created by this sub-user (PRIMARY CHECK), OR
+      // 2. The item was last edited by this sub-user (SECONDARY CHECK), OR
+      // 3. Legacy data without metadata (BACKWARDS COMPATIBILITY)
+      const userEmail = user?.email;
+      if (!userEmail) return false;
+      
+      // Primary check: created_by metadata
+      if (customer.created_by_type === 'sub_user' && customer.created_by_name === userEmail) {
+        console.log('✅ Permission granted: Created by this sub-user');
+        return true;
+      }
+      
+      // Secondary check: last_edited_by metadata
+      if (customer.last_edited_by_type === 'sub_user' && customer.last_edited_by_name === userEmail) {
+        console.log('✅ Permission granted: Last edited by this sub-user');
+        return true;
+      }
+      
+      // Legacy fallback: no metadata exists
+      if (!customer.created_by_type && !customer.created_by_name && !customer.last_edited_by_type && !customer.last_edited_by_name) {
+        console.log('✅ Permission granted: Legacy data without metadata');
+        return true;
+      }
+      
+      console.log('❌ Permission denied: Not created or edited by this sub-user');
+      return false;
+    }
+    
+    return true; // Admin has all permissions
+  }, [isPublicMode, externalUserName, publicBoardUserId, isSubUser, user?.email, user?.id]);
 
   const handleDeleteCustomer = useCallback(async (customer: any) => {
-    if (!user?.id) {
+    const effectiveUserId = getEffectiveUserId();
+    
+    console.log('🗑️ Delete customer clicked:', {
+      customerId: customer.id,
+      hasPermissions,
+      isPublicMode,
+      userAgent: navigator.userAgent,
+      canEditDelete: canEditDelete(customer),
+      effectiveUserId,
+      publicBoardUserId
+    });
+    
+    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
+      console.log('❌ No effective user ID available');
       toast({
         title: t("common.error"),
-        description: t("common.missingUserInfo"),
+        description: isPublicMode ? "Board owner authentication required" : t("common.missingUserInfo"),
         variant: "destructive",
       });
       return;
     }
 
+    // Check permissions before opening dialog
+    if (!canEditDelete(customer)) {
+      console.log('❌ No permission to delete this customer');
+      toast({
+        title: t("common.error"),
+        description: "You can only delete items you created",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    console.log('✅ Opening delete confirmation dialog');
     setCustomerToDelete(customer);
     setIsDeleteConfirmOpen(true);
-  }, [user?.id, t, toast]);
+  }, [getEffectiveUserId, t, toast, hasPermissions, isPublicMode, canEditDelete]);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!customerToDelete || !user?.id) return;
+    const effectiveUserId = getEffectiveUserId();
+    if (!customerToDelete || !effectiveUserId) return;
+
+    // Check permissions in public mode
+    if (isPublicMode && !canEditDelete(customerToDelete)) {
+      toast({
+        title: t("common.error"),
+        description: "You can only delete items you created",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       if (customerToDelete.id.startsWith('event-')) {
         const eventId = customerToDelete.id.replace('event-', '');
         const { error } = await supabase
           .from('events')
-          .update({ deleted_at: new Date().toISOString() })
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+            last_edited_at: new Date().toISOString()
+          })
           .eq('id', eventId)
-          .eq('user_id', user.id);
+          .eq('user_id', effectiveUserId);
 
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('customers')
-          .update({ deleted_at: new Date().toISOString() })
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+            last_edited_at: new Date().toISOString()
+          })
           .eq('id', customerToDelete.id)
-          .eq('user_id', user.id);
+          .eq('user_id', effectiveUserId);
 
         if (error) throw error;
       }
@@ -197,7 +348,7 @@ export const CustomerList = () => {
         variant: "destructive",
       });
     }
-  }, [customerToDelete, user?.id, queryClient, toast, t]);
+  }, [customerToDelete, getEffectiveUserId, queryClient, toast, t, isPublicMode, canEditDelete, externalUserName, user?.email]);
 
   const handleSearchSelect = useCallback((customer: any) => {
     openEditDialog(customer);
@@ -332,12 +483,12 @@ export const CustomerList = () => {
   }, []);
 
   const handleExcelDownload = useCallback(() => {
-    if (!filteredData.length) return;
+    if (!displayedData.length) return;
 
     // Get currency symbol based on current language
     const currencySymbol = getCurrencySymbol(language);
 
-    const excelData = filteredData.map(customer => {
+    const excelData = displayedData.map(customer => {
       const paymentStatusText = customer.payment_status ? 
         customer.payment_status === 'not_paid' ? t("crm.notPaid") :
         customer.payment_status === 'partly' ? t("crm.paidPartly") :
@@ -385,11 +536,11 @@ export const CustomerList = () => {
       title: t("dashboard.exportSuccessful"),
       description: t("dashboard.exportSuccessMessage"),
     });
-  }, [filteredData, language, t, toast, formatTimeRange]);
+  }, [displayedData, language, t, toast, formatTimeRange]);
 
   const totalPages = useMemo(() => 
-    Math.ceil(filteredData.length / pageSize),
-    [filteredData.length, pageSize]
+    Math.ceil(displayedData.length / pageSize),
+    [displayedData.length, pageSize]
   );
 
   if (isLoading && combinedData.length === 0) {
@@ -397,47 +548,96 @@ export const CustomerList = () => {
   }
 
   return (
-    <div className="space-y-4 w-full max-w-[100vw] px-2 md:px-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 w-full md:w-auto">
-          <h2 className="text-2xl font-bold md:mb-0 -mt-4">{t("crm.title")}</h2>
-          <div className="w-full md:w-auto md:min-w-[200px]">
-            <DateRangeSelect 
-              selectedDate={dateRange}
-              onDateChange={handleDateRangeChange}
-              disabled={isFetching}
-            />
+    <div className={cn(
+      "space-y-4 w-full max-w-[100vw] px-2 md:px-4 overflow-hidden",
+      isPublicMode && "mt-6"
+    )}>
+      {/* Header and all action buttons on same line */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 lg:gap-4">
+        {/* Left side: Title and Presence */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <h2 className="text-lg md:text-xl lg:text-2xl font-bold">
+            {isGeorgian ? (
+              <GeorgianAuthText fontWeight="bold">CRM</GeorgianAuthText>
+            ) : (
+              t("crm.title")
+            )}
+          </h2>
+          <div className="shrink-0">
+            <PresenceCircles users={onlineUsers ?? []} max={5} />
           </div>
-          <div className="w-full md:w-auto">
-            <SearchCommand
-              data={combinedData}
-              setFilteredData={setFilteredData}
-              isLoading={isFetching}
-              resetPagination={resetPagination}
-            />
-          </div>
+        </div>
+
+        {/* Right side: All action buttons on same line */}
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <DateRangeSelect 
+            selectedDate={dateRange}
+            onDateChange={handleDateRangeChange}
+            disabled={isFetching}
+          />
+          <SearchCommand
+            data={combinedData}
+            setFilteredData={setFilteredData}
+            resetPagination={resetPagination}
+          />
+          <CRMFilterButton boardOwnerId={isPublicMode ? publicBoardUserId : user?.id} />
           <Button
-            variant="ghost"
-            size="icon"
             onClick={handleExcelDownload}
-            className="h-9 w-9 sm:-mt-4"
-            title={language === 'es' ? "Descargar como Excel" : "Download as Excel"}
-            disabled={isFetching || filteredData.length === 0}
+            variant="outline" 
+            size="default"
+            className="flex items-center gap-2 h-10 px-3"
+            title={t("statistics.exportExcel")}
+            disabled={isFetching}
           >
-            <FileSpreadsheet className="h-5 w-5" />
+            <FileSpreadsheet className="h-4 w-4" />
+            <span className="hidden sm:inline">Excel</span>
+          </Button>
+          <Button 
+            onClick={openCreateDialog} 
+            className="flex items-center gap-2 h-10 whitespace-nowrap"
+            disabled={isFetching}
+          >
+            <PlusCircle className="w-4 h-4" />
+            {t("crm.addCustomer")}
           </Button>
         </div>
-        <Button 
-          onClick={openCreateDialog} 
-          className="flex items-center gap-2 whitespace-nowrap"
-          disabled={isFetching}
-        >
-          <PlusCircle className="w-4 h-4" />
-          {t("crm.addCustomer")}
-        </Button>
       </div>
 
-      {!(isFetching && !isLoading) && filteredData.length > 0 && (
+      {/* Empty state when no customers */}
+      {!(isFetching && !isLoading) && displayedData.length === 0 && (
+        <div className="border-2 border-dashed border-border rounded-lg p-8 md:p-12 text-center bg-muted/30">
+          <div className="flex flex-col items-center justify-center space-y-3">
+            <div className="rounded-full bg-muted p-4">
+              <User className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold">
+              {isGeorgian ? (
+                <GeorgianAuthText fontWeight="semibold">{t("crm.noCustomers")}</GeorgianAuthText>
+              ) : (
+                t("crm.noCustomers")
+              )}
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-md">
+              {isGeorgian ? (
+                <GeorgianAuthText>{t("crm.noCustomersDescription")}</GeorgianAuthText>
+              ) : (
+                t("crm.noCustomersDescription")
+              )}
+            </p>
+            {!isFetching && (
+              <Button 
+                onClick={openCreateDialog}
+                className="mt-4"
+              >
+                <PlusCircle className="w-4 h-4 mr-2" />
+                {t("crm.addCustomer")}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!(isFetching && !isLoading) && displayedData.length > 0 && (
         <>
           <div className="w-full overflow-x-auto">
             <div className="min-w-[1000px]">
@@ -572,6 +772,7 @@ export const CustomerList = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => openEditDialog(customer)}
+                            title={isPublicMode ? "View/Edit (read-only unless you created it)" : "Edit"}
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -579,9 +780,20 @@ export const CustomerList = () => {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDeleteCustomer(customer)}
+                            disabled={isPublicMode && !canEditDelete(customer)}
+                            title={isPublicMode && !canEditDelete(customer) ? "You can only delete items you created" : "Delete"}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
+                          {isPublicMode && (
+                            <div className="flex items-center ml-2">
+                              {customer.created_by_type === 'sub_user' ? (
+                                <User className="w-3 h-3 text-blue-500" />
+                              ) : (
+                                <UserCog className="w-3 h-3 text-green-500" />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -611,7 +823,7 @@ export const CustomerList = () => {
               </Select>
             </div>
             <div className="text-sm text-muted-foreground">
-              {Math.min((currentPage - 1) * pageSize + 1, filteredData.length)}-{Math.min(currentPage * pageSize, filteredData.length)} {t("common.of")} {filteredData.length}
+              {Math.min((currentPage - 1) * pageSize + 1, displayedData.length)}-{Math.min(currentPage * pageSize, displayedData.length)} {t("common.of")} {displayedData.length}
             </div>
           </div>
         </>
@@ -622,6 +834,10 @@ export const CustomerList = () => {
         onOpenChange={setIsDialogOpen}
         customerId={selectedCustomer?.id}
         initialData={selectedCustomer}
+        isPublicMode={isPublicMode}
+        externalUserName={externalUserName}
+        externalUserEmail={externalUserEmail}
+        publicBoardUserId={publicBoardUserId}
       />
 
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
@@ -644,6 +860,14 @@ export const CustomerList = () => {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+};
+
+export const CustomerList = (props: CustomerListProps) => {
+  return (
+    <CRMFiltersProvider>
+      <CustomerListContent {...props} />
+    </CRMFiltersProvider>
   );
 };
 

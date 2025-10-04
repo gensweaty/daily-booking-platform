@@ -18,13 +18,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { testEmailSending } from "@/lib/api"; // Import the email sending function
+import { sendBookingConfirmationEmail, sendBookingConfirmationToMultipleRecipients } from "@/lib/api";
+import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
+import { uploadSingleCustomerFile } from "@/utils/customerFileUpload";
+import { useCRMFileRefresh } from "@/hooks/useCRMFileRefresh";
 
 interface CustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customerId?: string | null;
   initialData?: any;
+  isPublicMode?: boolean;
+  externalUserName?: string;
+  externalUserEmail?: string;
+  publicBoardUserId?: string;
 }
 
 export const CustomerDialog = ({
@@ -32,11 +39,19 @@ export const CustomerDialog = ({
   onOpenChange,
   customerId,
   initialData,
+  isPublicMode = false,
+  externalUserName,
+  externalUserEmail,
+  publicBoardUserId,
 }: CustomerDialogProps) => {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { isSubUser } = useSubUserPermissions();
   const queryClient = useQueryClient();
+  const { refreshCRMData, refreshFilesForCustomer } = useCRMFileRefresh();
+  const [subUserName, setSubUserName] = useState<string | null>(null);
+  const [adminUserName, setAdminUserName] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: "",
     user_number: "",
@@ -51,13 +66,51 @@ export const CustomerDialog = ({
   const [fileError, setFileError] = useState("");
   const [displayedFiles, setDisplayedFiles] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  // Add state for delete confirmation dialog
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
-  // Add state for event date/time pickers
   const [eventStartDate, setEventStartDate] = useState<Date>(new Date());
   const [eventEndDate, setEventEndDate] = useState<Date>(new Date());
   const [createEvent, setCreateEvent] = useState(false);
+
+  // Fetch user's fullname (either sub-user or admin)
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (!user?.email) return;
+
+      if (isSubUser) {
+        try {
+          const { data: subUserData, error } = await supabase
+            .from('sub_users')
+            .select('fullname')
+            .ilike('email', user.email.trim().toLowerCase())
+            .maybeSingle();
+
+          if (!error && subUserData) {
+            setSubUserName(subUserData.fullname);
+          }
+        } catch (error) {
+          console.error("Error fetching sub-user name:", error);
+        }
+      } else {
+        // Fetch admin user's profile
+        try {
+          const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (!error && profileData) {
+            setAdminUserName(profileData.username);
+          }
+        } catch (error) {
+          console.error("Error fetching admin user name:", error);
+        }
+      }
+    };
+
+    fetchUserName();
+  }, [isSubUser, user?.email, user?.id]);
 
   useEffect(() => {
     if (initialData) {
@@ -72,10 +125,8 @@ export const CustomerDialog = ({
         endDate: initialData.endDate || "",
       });
       
-      // Set the create_event checkbox state from initialData
       setCreateEvent(initialData.create_event || false);
       
-      // Set event dates if they exist in initialData
       if (initialData.start_date) {
         setEventStartDate(new Date(initialData.start_date));
       }
@@ -105,6 +156,7 @@ export const CustomerDialog = ({
       }
 
       try {
+        console.log(`🔍 [${isPublicMode ? 'Public' : 'Internal'}] Loading files for:`, customerId);
         let filesData: any[] = [];
         if (customerId.startsWith('event-')) {
           const eventId = customerId.replace('event-', '');
@@ -114,7 +166,7 @@ export const CustomerDialog = ({
             .eq('event_id', eventId);
 
           if (eventFilesError) {
-            console.error("Error loading event files:", eventFilesError);
+            console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error loading event files:`, eventFilesError);
           } else {
             filesData = eventFiles || [];
           }
@@ -125,16 +177,16 @@ export const CustomerDialog = ({
             .eq('customer_id', customerId);
 
           if (customerFilesError) {
-            console.error("Error loading customer files:", customerFilesError);
+            console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error loading customer files:`, customerFilesError);
           } else {
             filesData = customerFiles || [];
           }
         }
 
-        console.log("Files loaded for customer/event:", filesData);
+        console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] Files loaded for customer/event:`, filesData.length, 'files');
         setDisplayedFiles(filesData);
       } catch (error) {
-        console.error("Error loading files:", error);
+        console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error loading files:`, error);
         setDisplayedFiles([]);
       }
     };
@@ -144,140 +196,277 @@ export const CustomerDialog = ({
       setSelectedFile(null);
       setFileError("");
     }
-  }, [open, customerId]);
+  }, [open, customerId, isPublicMode]);
 
-  const uploadFile = async (customerId: string, file: File) => {
+  const copyFileFromCustomerToEvent = async (eventId: string, uploadedFileData: any) => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${customerId}/${crypto.randomUUID()}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
+      console.log("Starting file copy from customer to event storage");
+      
+      const { data: fileData, error: fetchError } = await supabase.storage
         .from('customer_attachments')
-        .upload(filePath, file);
-
+        .download(uploadedFileData.file_path);
+        
+      if (fetchError) {
+        console.error("Error downloading file for copying:", fetchError);
+        throw fetchError;
+      }
+      
+      const newFilePath = `${eventId}/${uploadedFileData.filename}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('event_attachments')
+        .upload(newFilePath, fileData);
+        
       if (uploadError) {
-        console.error('Error uploading file:', uploadError);
+        console.error("Error uploading file to event bucket:", uploadError);
         throw uploadError;
       }
-
-      const fileData = {
-        filename: file.name,
-        file_path: filePath,
-        content_type: file.type,
-        size: file.size,
-        user_id: user?.id,
-        customer_id: customerId,
+      
+      const eventFileData = {
+        event_id: eventId,
+        filename: uploadedFileData.filename,
+        file_path: newFilePath,
+        content_type: uploadedFileData.content_type,
+        size: uploadedFileData.size,
+        user_id: user.id
       };
-
-      const { error: fileRecordError } = await supabase
-        .from('customer_files_new')
-        .insert(fileData);
-
-      if (fileRecordError) {
-        console.error('Error creating file record:', fileRecordError);
-        throw fileRecordError;
+      
+      console.log("Creating event file record:", eventFileData);
+      
+      const { error: eventFileError } = await supabase
+        .from('event_files')
+        .insert(eventFileData);
+        
+      if (eventFileError) {
+        console.error("Error associating file with event:", eventFileError);
+      } else {
+        console.log("File associated with event successfully");
       }
-
-      return fileData;
-    } catch (error: any) {
-      console.error("Error during file upload:", error);
-      toast({
-        title: t("common.error"),
-        description: error.message || t("common.uploadError"),
-        variant: "destructive",
-      });
-      throw error;
+    } catch (fileAssociationError) {
+      console.error("Error copying file from customer to event:", fileAssociationError);
     }
   };
 
-  // Helper function to validate email format
+  // Remove the old uploadFile function since we're using the utility
+  // const uploadFile = async (customerId: string, file: File) => { ... }
+
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  // Helper function to send email notification for new event
-  const sendEventCreationEmail = async (eventData: any) => {
+  const sendEventCreationEmail = async (eventData: any, additionalPersons: any[] = []) => {
     try {
-      // Check if we have a valid customer email to send to
-      const customerEmail = eventData.social_network_link;
-      if (!customerEmail || !isValidEmail(customerEmail)) {
-        console.warn("No valid customer email found for sending notification");
-        return;
-      }
+      console.log(`🔔 Starting email notification process for event: ${eventData.title || eventData.user_surname}`);
       
-      // Get user's business profile for the email
       const { data: businessData } = await supabase
         .from('business_profiles')
         .select('*')
         .eq('user_id', user?.id)
         .maybeSingle();
       
-      console.log("Business data for email:", businessData);
+      console.log("📊 Business data for email:", businessData);
       
-      if (businessData) {
-        // Send email notification to the customer's email address
-        // Use the same email format/template as the calendar event emails
-        const emailResult = await testEmailSending(
-          customerEmail, // Customer's email
-          eventData.title || eventData.user_surname || '', // Customer name
-          businessData.business_name || '', // Business name from profile
+      if (!businessData) {
+        console.warn("❌ Missing business data for event notification - skipping email");
+        return;
+      }
+
+      const recipients: Array<{ email: string; name: string }> = [];
+      
+      const mainCustomerEmail = eventData.social_network_link;
+      if (mainCustomerEmail && isValidEmail(mainCustomerEmail)) {
+        recipients.push({
+          email: mainCustomerEmail,
+          name: eventData.title || eventData.user_surname || ''
+        });
+      }
+      
+      if (additionalPersons && additionalPersons.length > 0) {
+        additionalPersons.forEach(person => {
+          if (person.socialNetworkLink && isValidEmail(person.socialNetworkLink)) {
+            recipients.push({
+              email: person.socialNetworkLink,
+              name: person.userSurname || person.title || ''
+            });
+          }
+        });
+      }
+      
+      if (recipients.length === 0) {
+        console.warn("❌ No valid email addresses found for sending notifications");
+        return;
+      }
+      
+      console.log(`📧 Found ${recipients.length} recipients for email notifications with language: ${language}`);
+      
+      if (recipients.length === 1) {
+        const emailResult = await sendBookingConfirmationEmail(
+          recipients[0].email,
+          recipients[0].name,
+          businessData.business_name || '',
           eventData.start_date,
           eventData.end_date,
           eventData.payment_status || 'not_paid',
           eventData.payment_amount || null,
           businessData.contact_address || '',
           eventData.id,
-          null, // language parameter
-          eventData.event_notes || '' // Pass event notes to the email function
+          language || 'en',
+          eventData.event_notes || ''
         );
         
-        console.log("Event creation email result:", emailResult);
+        console.log("📧 Single email result:", emailResult);
         
-        if (emailResult?.error) {
-          console.warn("Failed to send event creation email:", emailResult.error);
+        if (emailResult?.success) {
+          console.log(`✅ Event creation email sent successfully to: ${recipients[0].email}`);
+          toast({
+            title: "Notification Sent",
+            description: `Booking confirmation sent to ${recipients[0].email}`
+          });
         } else {
-          console.log("Event creation email sent successfully to customer:", customerEmail);
+          console.warn(`❌ Failed to send event creation email to ${recipients[0].email}:`, emailResult.error);
+          toast({
+            variant: "destructive",
+            title: "Email Failed",
+            description: `Failed to send confirmation to ${recipients[0].email}`
+          });
         }
       } else {
-        console.warn("Missing business data for event notification");
+        const emailResults = await sendBookingConfirmationToMultipleRecipients(
+          recipients,
+          businessData.business_name || '',
+          eventData.start_date,
+          eventData.end_date,
+          eventData.payment_status || 'not_paid',
+          eventData.payment_amount || null,
+          businessData.contact_address || '',
+          eventData.id,
+          language || 'en',
+          eventData.event_notes || ''
+        );
+        
+        console.log("📧 Multiple email results:", emailResults);
+        
+        if (emailResults.successful > 0) {
+          console.log(`✅ Successfully sent ${emailResults.successful}/${emailResults.total} event creation emails`);
+          toast({
+            title: "Notifications Sent",
+            description: `Booking confirmations sent to ${emailResults.successful} of ${emailResults.total} recipients`
+          });
+        }
+        
+        if (emailResults.failed > 0) {
+          console.warn(`❌ Failed to send ${emailResults.failed}/${emailResults.total} event creation emails`);
+          toast({
+            variant: "destructive",
+            title: "Some Emails Failed",
+            description: `${emailResults.failed} email notifications failed to send`
+          });
+        }
       }
     } catch (error) {
-      console.error("Error sending event creation email:", error);
-      // Don't throw - we don't want to break the main flow if just the email fails
+      console.error("❌ Error sending event creation email:", error);
+      toast({
+        variant: "destructive",
+        title: "Email Error",
+        description: "Failed to send booking confirmation emails"
+      });
     }
+  };
+
+  // Helper function to get the effective user ID for operations
+  const getEffectiveUserId = () => {
+    if (isPublicMode && publicBoardUserId) {
+      return publicBoardUserId;
+    }
+    return user?.id;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user?.id) {
+    const effectiveUserId = getEffectiveUserId();
+
+    if (!effectiveUserId || effectiveUserId === 'temp-public-user') {
       toast({
         title: t("common.error"),
-        description: t("common.missingUserInfo"),
+        description: isPublicMode ? "Board owner authentication required" : t("common.missingUserInfo"),
         variant: "destructive"
       });
       return;
     }
 
     setIsLoading(true);
+    
+    // Declare uploadedFileData at function scope to be accessible throughout
+    let uploadedFileData: any = null;
+    
     try {
       const { title, user_number, social_network_link, event_notes, payment_status, payment_amount } = formData;
 
-      // For existing customers/events (update operation)
       if (customerId) {
-        const updates = {
-          title,
-          user_number,
-          social_network_link,
-          event_notes,
-          payment_status,
-          payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-          user_id: user.id,
-          create_event: createEvent, // Make sure to update the create_event flag
-          start_date: createEvent ? eventStartDate.toISOString() : null,
-          end_date: createEvent ? eventEndDate.toISOString() : null
-        };
+        // Determine if we're updating an event or customer
+        const isEventUpdate = customerId.startsWith('event-');
+        
+        let updates: any;
+        
+        if (isEventUpdate) {
+          // For events, use event-specific fields
+          updates = {
+            title,
+            user_surname: title, // Events use user_surname field
+            user_number,
+            social_network_link,
+            event_notes,
+            payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: effectiveUserId,
+            start_date: eventStartDate.toISOString(),
+            end_date: eventEndDate.toISOString(),
+            // Add edit metadata for sub-users
+            ...(isPublicMode && externalUserName ? {
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: externalUserName,
+              last_edited_at: new Date().toISOString()
+            } : isSubUser ? {
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: subUserName || user?.email || 'sub_user',
+              last_edited_at: new Date().toISOString()
+            } : {
+              last_edited_by_type: 'admin',
+              last_edited_by_name: adminUserName || user?.email || 'admin',
+              last_edited_at: new Date().toISOString()
+            })
+          };
+        } else {
+          // For customers, use customer-specific fields
+          updates = {
+            title,
+            user_number,
+            social_network_link,
+            event_notes,
+            payment_status,
+            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            user_id: effectiveUserId,
+            create_event: createEvent,
+            start_date: createEvent ? eventStartDate.toISOString() : null,
+            end_date: createEvent ? eventEndDate.toISOString() : null,
+            // Add edit metadata for sub-users
+            ...(isPublicMode && externalUserName ? {
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: externalUserName,
+              last_edited_at: new Date().toISOString()
+            } : isSubUser ? {
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: subUserName || user?.email || 'sub_user',
+              last_edited_at: new Date().toISOString()
+            } : {
+              last_edited_by_type: 'admin',
+              last_edited_by_name: adminUserName || user?.email || 'admin',
+              last_edited_at: new Date().toISOString()
+            })
+          };
+        }
 
         let tableToUpdate = 'customers';
         let id = customerId;
@@ -287,24 +476,63 @@ export const CustomerDialog = ({
           id = customerId.replace('event-', '');
         }
 
-        const { data, error } = await supabase
+        // Log data for debugging
+        console.log('🔍 CustomerDialog update data:', {
+          customerId,
+          isPublicMode,
+          externalUserName,
+          publicBoardUserId,
+          updates
+        });
+
+        // For public mode (sub-users), use simplified ownership logic
+        let query = supabase
           .from(tableToUpdate)
           .update(updates)
-          .eq('id', id)
-          .eq('user_id', user.id)
+          .eq('id', id);
+        
+        if (isPublicMode && publicBoardUserId) {
+          // In public mode, always filter by board owner's user_id
+          query = query.eq('user_id', publicBoardUserId);
+        } else {
+          query = query.eq('user_id', effectiveUserId);
+        }
+        
+        const { data, error } = await query
           .select()
           .single();
 
         if (error) throw error;
 
-        // If this is a customer and create_event is checked, create or update the corresponding event
+        if (selectedFile && customerId && !customerId.startsWith('event-')) {
+          try {
+            console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Uploading file for customer:`, customerId);
+            uploadedFileData = await uploadSingleCustomerFile(
+              customerId, 
+              selectedFile, 
+              getEffectiveUserId(), 
+              isPublicMode
+            );
+            console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File uploaded successfully:`, uploadedFileData);
+            
+            // Immediately update displayedFiles state to show the new file
+            setDisplayedFiles(prev => [...prev, uploadedFileData]);
+          } catch (uploadError) {
+            console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] File upload failed:`, uploadError);
+            toast({
+              title: t("common.error"),
+              description: "File upload failed",
+              variant: "destructive"
+            });
+          }
+        }
+
         if (tableToUpdate === 'customers' && createEvent) {
-          // Check if there's already an event with this title
           const { data: existingEvents, error: eventCheckError } = await supabase
             .from('events')
             .select('id')
             .eq('title', title)
-            .eq('user_id', user.id)
+            .eq('user_id', effectiveUserId)
             .is('deleted_at', null);
             
           if (eventCheckError) {
@@ -313,13 +541,13 @@ export const CustomerDialog = ({
           
           const eventData = {
             title: title,
-            user_surname: title, // Fix: use title as user_surname instead of user_number
+            user_surname: title,
             user_number: user_number,
             social_network_link: social_network_link,
-            event_notes: event_notes, // Ensure event_notes is included
+            event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-            user_id: user.id,
+            user_id: effectiveUserId,
             start_date: eventStartDate.toISOString(),
             end_date: eventEndDate.toISOString(),
           };
@@ -327,7 +555,6 @@ export const CustomerDialog = ({
           let createdEventId: string | null = null;
 
           if (existingEvents && existingEvents.length > 0) {
-            // Update existing event
             const { data: updatedEvent, error: eventUpdateError } = await supabase
               .from('events')
               .update(eventData)
@@ -345,14 +572,12 @@ export const CustomerDialog = ({
             } else {
               createdEventId = updatedEvent.id;
               
-              // Make sure to send email notification with updated event data including notes
               await sendEventCreationEmail({
                 ...updatedEvent,
-                event_notes: event_notes // Explicitly ensure notes are included
-              });
+                event_notes: event_notes
+              }, []);
             }
           } else {
-            // Create new event
             const { data: newEvent, error: eventCreateError } = await supabase
               .from('events')
               .insert(eventData)
@@ -369,25 +594,18 @@ export const CustomerDialog = ({
             } else {
               createdEventId = newEvent.id;
               
-              // Send email notification for the newly created event
               await sendEventCreationEmail({
                 ...newEvent,
-                event_notes: event_notes // Explicitly ensure notes are included 
-              });
+                event_notes: event_notes
+              }, []);
             }
           }
-        }
 
-        if (selectedFile && customerId && !customerId.startsWith('event-')) {
-          try {
-            await uploadFile(customerId, selectedFile);
-          } catch (uploadError) {
-            console.error("File upload failed:", uploadError);
+          if (uploadedFileData && createdEventId) {
+            await copyFileFromCustomerToEvent(createdEventId, uploadedFileData);
           }
         }
-      } 
-      // For new customers (insert operation)
-      else {
+      } else {
         const newCustomer = {
           title,
           user_number,
@@ -395,10 +613,27 @@ export const CustomerDialog = ({
           event_notes,
           payment_status,
           payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-          user_id: user.id,
+          user_id: effectiveUserId,
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
-          end_date: createEvent ? eventEndDate.toISOString() : null
+          end_date: createEvent ? eventEndDate.toISOString() : null,
+          // Add creator metadata for all users
+          ...(isPublicMode && externalUserName ? {
+            created_by_type: 'sub_user',
+            created_by_name: externalUserName,
+            last_edited_by_type: 'sub_user',
+            last_edited_by_name: externalUserName
+           } : isSubUser ? {
+             created_by_type: 'sub_user',
+             created_by_name: subUserName || user?.email || 'sub_user',
+             last_edited_by_type: 'sub_user',
+             last_edited_by_name: subUserName || user?.email || 'sub_user'
+           } : {
+            created_by_type: 'admin',
+            created_by_name: adminUserName || user?.email || 'admin',
+            last_edited_by_type: 'admin',
+            last_edited_by_name: adminUserName || user?.email || 'admin'
+          })
         };
 
         console.log("Creating new customer:", newCustomer);
@@ -416,33 +651,61 @@ export const CustomerDialog = ({
 
         console.log("Customer created:", customerData);
 
-        // Handle file upload for the new customer if a file was selected
-        let uploadedFileData = null;
         if (selectedFile && customerData) {
           try {
-            uploadedFileData = await uploadFile(customerData.id, selectedFile);
-            console.log("File uploaded for customer:", uploadedFileData);
+            console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Uploading file for new customer:`, customerData.id);
+            uploadedFileData = await uploadSingleCustomerFile(
+              customerData.id, 
+              selectedFile, 
+              effectiveUserId, 
+              isPublicMode
+            );
+            console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File uploaded successfully:`, uploadedFileData);
+            
+            // Immediately update displayedFiles state to show the new file
+            setDisplayedFiles(prev => [...prev, uploadedFileData]);
           } catch (uploadError) {
-            console.error("File upload failed:", uploadError);
+            console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] File upload failed:`, uploadError);
+            toast({
+              title: t("common.error"),
+              description: "File upload failed",
+              variant: "destructive"
+            });
           }
         }
 
-        // Create corresponding event if checkbox was checked
         if (createEvent && customerData) {
           const eventData = {
             title: title,
-            user_surname: title, // Use title as user_surname instead of user_number
+            user_surname: title,
             user_number: user_number,
-            social_network_link: social_network_link, // This contains the email address
-            event_notes: event_notes, // Ensure event_notes is included
+            social_network_link: social_network_link,
+            event_notes: event_notes,
             payment_status: payment_status,
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-            user_id: user.id,
+            user_id: effectiveUserId,
             start_date: eventStartDate.toISOString(),
             end_date: eventEndDate.toISOString(),
+            // Add metadata for sub-users when creating events from customers
+            ...(isPublicMode && externalUserName ? {
+              created_by_type: 'sub_user',
+              created_by_name: externalUserName,
+              last_edited_by_type: 'sub_user',
+              last_edited_by_name: externalUserName
+             } : isSubUser ? {
+               created_by_type: 'sub_user',
+               created_by_name: subUserName || user?.email || 'sub_user',
+               last_edited_by_type: 'sub_user',
+               last_edited_by_name: subUserName || user?.email || 'sub_user'
+             } : {
+               created_by_type: 'admin',
+               created_by_name: adminUserName || user?.email || 'admin',
+               last_edited_by_type: 'admin',
+               last_edited_by_name: adminUserName || user?.email || 'admin'
+             })
           };
 
-          console.log("Creating event from customer:", eventData);
+          console.log("Creating event from customer with payment status:", eventData.payment_status);
 
           const { data: eventResult, error: eventError } = await supabase
             .from('events')
@@ -458,9 +721,8 @@ export const CustomerDialog = ({
               variant: "destructive"
             });
           } else {
-            console.log("Event created successfully:", eventResult);
+            console.log("Event created successfully with payment status:", eventResult.payment_status);
             
-            // Send email notification to customer's email when creating a new event
             if (social_network_link && isValidEmail(social_network_link)) {
               await sendEventCreationEmail({
                 id: eventResult.id,
@@ -471,70 +733,27 @@ export const CustomerDialog = ({
                 end_date: eventEndDate.toISOString(),
                 payment_status: payment_status,
                 payment_amount: payment_amount ? parseFloat(payment_amount) : null,
-                event_notes: event_notes // Explicitly include event notes
+                event_notes: event_notes
               });
             }
             
-            // If we have a file, also associate it with the new event
             if (uploadedFileData && eventResult) {
-              try {
-                // Download the file from customer_attachments
-                const { data: fileData, error: fetchError } = await supabase.storage
-                  .from('customer_attachments')
-                  .download(uploadedFileData.file_path);
-                  
-                if (fetchError) {
-                  console.error("Error downloading file for copying:", fetchError);
-                  throw fetchError;
-                }
-                
-                // Create a new path for the event file
-                const newFilePath = `${eventResult.id}/${uploadedFileData.filename}`;
-                
-                // Upload the file to the event_attachments bucket
-                const { error: uploadError } = await supabase.storage
-                  .from('event_attachments')
-                  .upload(newFilePath, fileData);
-                  
-                if (uploadError) {
-                  console.error("Error uploading file to event bucket:", uploadError);
-                  throw uploadError;
-                }
-                
-                // Create the event_files record with proper information
-                const eventFileData = {
-                  event_id: eventResult.id,
-                  filename: uploadedFileData.filename,
-                  file_path: newFilePath,
-                  content_type: uploadedFileData.content_type,
-                  size: uploadedFileData.size,
-                  user_id: user.id
-                };
-                
-                console.log("Creating event file record:", eventFileData);
-                
-                const { error: eventFileError } = await supabase
-                  .from('event_files')
-                  .insert(eventFileData);
-                  
-                if (eventFileError) {
-                  console.error("Error associating file with event:", eventFileError);
-                } else {
-                  console.log("File associated with event successfully");
-                }
-              } catch (fileAssociationError) {
-                console.error("Error associating file with event:", fileAssociationError);
-              }
+              await copyFileFromCustomerToEvent(eventResult.id, uploadedFileData);
             }
           }
         }
       }
 
-      // Make sure to invalidate all the relevant queries
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      // Refresh CRM data and files after successful operation
+      console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Refreshing CRM data after customer operation`);
+      await refreshCRMData(isPublicMode);
+      
+      // Also refresh files for the specific customer if we have uploadedFileData
+      if (uploadedFileData && customerId && !customerId.startsWith('event-')) {
+        await refreshFilesForCustomer(customerId, isPublicMode);
+      }
+      
+      console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] CRM data refresh completed`);
 
       toast({
         title: t("common.success"),
@@ -554,13 +773,12 @@ export const CustomerDialog = ({
   };
 
   const handleDelete = async () => {
-    // Open confirmation dialog instead of deleting immediately
     setIsDeleteConfirmOpen(true);
   };
 
-  // Add new function to handle confirmed deletion
   const handleConfirmDelete = async () => {
-    if (!customerId || !user?.id) return;
+    const effectiveUserId = getEffectiveUserId();
+    if (!customerId || !effectiveUserId || effectiveUserId === 'temp-public-user') return;
 
     try {
       setIsLoading(true);
@@ -573,18 +791,35 @@ export const CustomerDialog = ({
         id = customerId.replace('event-', '');
       }
 
-      const { error } = await supabase
+      // Log data for debugging
+      console.log('🔍 CustomerDialog delete data:', {
+        customerId: id,
+        isPublicMode,
+        externalUserName,
+        publicBoardUserId
+      });
+
+      // For public mode (sub-users), use simplified ownership logic
+      let query = supabase
         .from(tableToUpdate)
         .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id)
-        .eq('user_id', user.id);
+        .eq('id', id);
+      
+      if (isPublicMode && publicBoardUserId) {
+        // In public mode, always filter by board owner's user_id
+        query = query.eq('user_id', publicBoardUserId);
+      } else {
+        query = query.eq('user_id', effectiveUserId);
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
 
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['customerFiles'] });
-      await queryClient.invalidateQueries({ queryKey: ['eventFiles'] });
+      // Refresh CRM data after successful deletion
+      console.log(`🔄 [${isPublicMode ? 'Public' : 'Internal'}] Refreshing CRM data after customer deletion`);
+      await refreshCRMData(isPublicMode);
+      console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] CRM data refresh completed`);
       
       toast({
         title: t("common.success"),
@@ -592,7 +827,6 @@ export const CustomerDialog = ({
       });
 
       onOpenChange(false);
-      // Close delete confirmation dialog
       setIsDeleteConfirmOpen(false);
     } catch (error: any) {
       console.error('Error deleting:', error);
@@ -606,10 +840,79 @@ export const CustomerDialog = ({
     }
   };
 
+  // Permission check functions for sub-users
+  const canEditCustomer = () => {
+    // Allow creation of new customers
+    if (!customerId) return true;
+    
+    // In public mode (sub-users), check if they created this customer
+    if (isPublicMode && externalUserName) {
+      return (
+        initialData?.created_by_type === 'sub_user' && 
+        initialData?.created_by_name === externalUserName
+      ) || (
+        // Also allow if they were the last to edit it
+        initialData?.last_edited_by_type === 'sub_user' &&
+        initialData?.last_edited_by_name === externalUserName
+      ) || (
+        // Allow if no metadata (legacy data)
+        !initialData?.created_by_type && !initialData?.created_by_name
+      );
+    }
+    
+    // For authenticated sub-users
+    if (isSubUser && user?.email) {
+      return (
+        initialData?.created_by_type === 'sub_user' && 
+        initialData?.created_by_name === user.email
+      ) || (
+        // Also allow if they were the last to edit it
+        initialData?.last_edited_by_type === 'sub_user' &&
+        initialData?.last_edited_by_name === user.email
+      ) || (
+        // Allow if no metadata (legacy data)
+        !initialData?.created_by_type && !initialData?.created_by_name
+      );
+    }
+    
+    // Main users can edit all customers they own
+    return true;
+  };
+
+  const canDeleteCustomer = () => {
+    // Don't allow deletion of new customers (no customerId yet)
+    if (!customerId) return false;
+    
+    // In public mode (sub-users), check if they created this customer
+    if (isPublicMode && externalUserName) {
+      return (
+        initialData?.created_by_type === 'sub_user' && 
+        initialData?.created_by_name === externalUserName
+      ) || (
+        // Allow if no metadata (legacy data)
+        !initialData?.created_by_type && !initialData?.created_by_name
+      );
+    }
+    
+    // For authenticated sub-users
+    if (isSubUser && user?.email) {
+      return (
+        initialData?.created_by_type === 'sub_user' && 
+        initialData?.created_by_name === user.email
+      ) || (
+        // Allow if no metadata (legacy data)
+        !initialData?.created_by_type && !initialData?.created_by_name
+      );
+    }
+    
+    // Main users can delete all customers they own
+    return true;
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-4xl w-full">
           <DialogTitle>
             {customerId ? t("crm.editCustomer") : t("crm.addCustomer")}
           </DialogTitle>
@@ -649,17 +952,43 @@ export const CustomerDialog = ({
               setEventEndDate={setEventEndDate}
               fileBucketName={customerId?.startsWith('event-') ? "event_attachments" : "customer_attachments"}
               fallbackBuckets={["event_attachments", "customer_attachments", "booking_attachments"]}
+              initialData={initialData}
+              currentUserName={externalUserName}
+              currentUserType={isPublicMode && externalUserName ? 'sub_user' : 'admin'}
+              isSubUser={isSubUser || (isPublicMode && !!externalUserName)}
             />
 
+            {/* Action Buttons with Permissions */}
             <div className="flex justify-between">
-              <Button
-                type="submit"
-                disabled={isLoading}
-                className="flex-1 mr-2"
-              >
-                {customerId ? t("common.update") : t("common.add")}
-              </Button>
-              {customerId && (
+              {/* Update Button */}
+              {canEditCustomer() ? (
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 mr-2"
+                >
+                  {customerId ? t("common.update") : t("common.add")}
+                </Button>
+              ) : customerId ? (
+                <Button
+                  type="submit"
+                  disabled={true}
+                  className="flex-1 mr-2"
+                >
+                  {t("common.update")}
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 mr-2"
+                >
+                  {t("common.add")}
+                </Button>
+              )}
+              
+              {/* Delete Button */}
+              {customerId && canDeleteCustomer() && (
                 <Button
                   type="button"
                   variant="destructive"
@@ -670,12 +999,32 @@ export const CustomerDialog = ({
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}
+              {customerId && !canDeleteCustomer() && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  disabled={true}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
+            
+            {/* Unified Permission Message */}
+            {customerId && (!canEditCustomer() || !canDeleteCustomer()) && (
+              <div className="mt-2 px-3 py-2 bg-muted/30 rounded-md border border-muted text-center">
+                <span className="text-sm text-muted-foreground">
+                  {language === 'en' ? "Only the customer creator can edit or delete this customer" : 
+                   language === 'es' ? "Solo el creador del cliente puede editar o eliminar este cliente" : 
+                   "მხოლოდ მომხმარებლის შემქმნელს შეუძლია ამ მომხმარებლის რედაქტირება ან წაშლა"}
+                </span>
+              </div>
+            )}
           </form>
         </DialogContent>
       </Dialog>
       
-      {/* Add deletion confirmation dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>

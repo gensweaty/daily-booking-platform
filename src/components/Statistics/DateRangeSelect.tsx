@@ -25,13 +25,13 @@ export const DateRangeSelect = memo(({ selectedDate, onDateChange, disabled }: D
   });
 
   return (
-    <div className="flex items-center gap-2 mb-4 w-full sm:w-auto">
+    <div className="flex items-center gap-2 w-full sm:w-auto">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             className={cn(
-              "w-full sm:w-[280px] justify-start text-left font-normal border-[#9b87f5]/30 hover:border-[#9b87f5] hover:bg-[#9b87f5]/5",
+              "w-full sm:w-[280px] h-10 justify-start text-left font-normal border-[#9b87f5]/30 hover:border-[#9b87f5] hover:bg-[#9b87f5]/5",
               !date && "text-muted-foreground"
             )}
             disabled={disabled}

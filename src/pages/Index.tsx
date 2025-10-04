@@ -11,7 +11,8 @@ import { DashboardContent } from "@/components/dashboard/DashboardContent"
 import { useSubscriptionRedirect } from "@/hooks/useSubscriptionRedirect"
 import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
-import { checkSubscriptionStatus } from "@/utils/optimizedStripeUtils"
+import { checkSubscriptionStatus } from "@/utils/optimizedStripeUtils";
+import { CommentNotificationsListener } from "@/components/notifications/CommentNotificationsListener"
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -181,8 +182,11 @@ const Index = () => {
             <DashboardContent 
               isTaskDialogOpen={isTaskDialogOpen}
               setIsTaskDialogOpen={setIsTaskDialogOpen}
+              username={username}
             />
           </motion.div>
+          {/* Global comment notifications for authenticated users */}
+          <CommentNotificationsListener />
         </motion.div>
       ) : (
         <>

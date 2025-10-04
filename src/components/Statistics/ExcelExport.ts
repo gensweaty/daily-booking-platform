@@ -1,4 +1,3 @@
-
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { useToast } from "../ui/use-toast";
@@ -72,23 +71,32 @@ export const useExcelExport = () => {
       [t('dashboard.additionalInfo')]: t('dashboard.fromAllEvents'),
     }];
 
-    // Transform events data for Excel with translated headers
-    const eventsData = data.eventStats.events.map(event => ({
-      [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
-      [t('events.phoneNumber')]: event.user_number || '',
-      [t('events.socialLinkEmail')]: event.social_network_link || '',
-      [t('events.paymentStatus')]: event.payment_status ? (
-        event.payment_status === 'not_paid' ? t("crm.notPaid") : 
-        event.payment_status === 'partly' ? t("crm.paidPartly") :
-        event.payment_status === 'fully' ? t("crm.paidFully") :
-        event.payment_status
-      ) : '',
-      [t('events.paymentAmount')]: event.payment_amount ? `${currencySymbol}${event.payment_amount}` : '',
-      [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
-      [t('events.time')]: event.start_date && event.end_date ? 
-        `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
-      [t('events.eventNotes')]: event.event_notes || '',
-    }));
+    // Transform events data for Excel with combined income calculation
+    const eventsData = data.eventStats.events.map(event => {
+      // Use combined_payment_amount if available (from multi-person calculation), 
+      // otherwise fall back to individual payment_amount
+      const totalEventIncome = event.combined_payment_amount || event.payment_amount || 0;
+      const personCount = event.person_count || 1;
+      
+      return {
+        [t('events.fullNameRequired')]: `${event.title || ''} ${event.user_surname || ''}`.trim(),
+        [t('events.phoneNumber')]: event.user_number || '',
+        [t('events.socialLinkEmail')]: event.social_network_link || '',
+        [t('events.paymentStatus')]: event.payment_status ? (
+          event.payment_status === 'not_paid' ? t("crm.notPaid") : 
+          event.payment_status === 'partly_paid' ? t("crm.paidPartly") :
+          event.payment_status === 'fully_paid' ? t("crm.paidFully") :
+          event.payment_status
+        ) : '',
+        [t('events.paymentAmount')]: totalEventIncome ? `${currencySymbol}${totalEventIncome}` : '',
+        [t('events.date')]: event.start_date ? format(new Date(event.start_date), 'dd.MM.yyyy') : '',
+        [t('events.time')]: event.start_date && event.end_date ? 
+          `${format(new Date(event.start_date), 'HH:mm')} - ${format(new Date(event.end_date), 'HH:mm')}` : '',
+        [t('events.eventNotes')]: event.event_notes || '',
+        [`${t('dashboard.totalPersons')}`]: personCount,
+        [`${t('dashboard.combinedIncome')}`]: totalEventIncome ? `${currencySymbol}${totalEventIncome}` : '',
+      };
+    });
 
     // Set Excel metadata in current language
     const wb = XLSX.utils.book_new();
@@ -115,7 +123,7 @@ export const useExcelExport = () => {
     const wsEvents = XLSX.utils.json_to_sheet(eventsData);
     XLSX.utils.book_append_sheet(wb, wsEvents, t('dashboard.eventsData'));
 
-    // Set events column widths
+    // Set events column widths (added 2 more columns for person count and combined income)
     wsEvents['!cols'] = [
       { wch: 20 },
       { wch: 15 },
@@ -125,6 +133,8 @@ export const useExcelExport = () => {
       { wch: 12 },
       { wch: 20 },
       { wch: 40 },
+      { wch: 15 }, // Total Persons
+      { wch: 18 }, // Combined Income
     ];
 
     // Generate Excel file with localized filename

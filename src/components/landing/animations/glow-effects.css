@@ -1,0 +1,68 @@
+
+/* Glow Effect Animations */
+@keyframes ultraSlowGentleSignUpGlow {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(155, 135, 245, 0.15), 
+                0 0 16px rgba(155, 135, 245, 0.08),
+                0 0 24px rgba(155, 135, 245, 0.04);
+  }
+  50% { 
+    box-shadow: 0 0 12px rgba(155, 135, 245, 0.2), 
+                0 0 24px rgba(155, 135, 245, 0.12),
+                0 0 36px rgba(155, 135, 245, 0.06);
+  }
+}
+
+@keyframes verySlowGentleSignUpGlow {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(155, 135, 245, 0.15), 
+                0 0 16px rgba(155, 135, 245, 0.08),
+                0 0 24px rgba(155, 135, 245, 0.04);
+  }
+  50% { 
+    box-shadow: 0 0 12px rgba(155, 135, 245, 0.2), 
+                0 0 24px rgba(155, 135, 245, 0.12),
+                0 0 36px rgba(155, 135, 245, 0.06);
+  }
+}
+
+@keyframes gentleSignUpGlow {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(155, 135, 245, 0.15), 
+                0 0 16px rgba(155, 135, 245, 0.08),
+                0 0 24px rgba(155, 135, 245, 0.04);
+  }
+  50% { 
+    box-shadow: 0 0 12px rgba(155, 135, 245, 0.2), 
+                0 0 24px rgba(155, 135, 245, 0.12),
+                0 0 36px rgba(155, 135, 245, 0.06);
+  }
+}
+
+@keyframes ultraGentlePulseGlow {
+  0%, 100% { 
+    box-shadow: 0 0 8px rgba(155, 135, 245, 0.15), 
+                0 0 16px rgba(155, 135, 245, 0.08),
+                0 0 24px rgba(155, 135, 245, 0.04);
+  }
+  50% { 
+    box-shadow: 0 0 12px rgba(155, 135, 245, 0.2), 
+                0 0 24px rgba(155, 135, 245, 0.12),
+                0 0 36px rgba(155, 135, 245, 0.06);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 5px rgba(155, 135, 245, 0.2); }
+  50% { box-shadow: 0 0 15px rgba(155, 135, 245, 0.3), 0 0 25px rgba(155, 135, 245, 0.1); }
+}
+
+@keyframes gentleGlow {
+  0% { opacity: 0.05; }
+  100% { opacity: 0.1; }
+}
+
+@keyframes subtleShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
