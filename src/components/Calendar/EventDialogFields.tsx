@@ -388,7 +388,12 @@ export const EventDialogFields = ({
               <SelectTrigger id={`paymentStatus-${isMain ? 'main' : person?.id}`} className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                 <SelectValue placeholder={t("events.selectPaymentStatus")} />
               </SelectTrigger>
-              <SelectContent className={cn("bg-background z-[2147483646] pointer-events-auto", isGeorgian ? "font-georgian" : "")} position="popper">
+              <SelectContent 
+                className={cn("bg-background pointer-events-auto", isGeorgian ? "font-georgian" : "")} 
+                position="popper"
+                style={{ zIndex: 2147483646 }}
+                sideOffset={5}
+              >
                 <SelectItem value="not_paid" className={cn(isGeorgian ? "font-georgian" : "")} style={georgianStyle}>
                   <LanguageText>{t("crm.notPaid")}</LanguageText>
                 </SelectItem>
