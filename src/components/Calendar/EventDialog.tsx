@@ -381,6 +381,9 @@ export const EventDialog = ({
   };
 
   // CRITICAL FIX: Enhanced form initialization with proper reminder data loading
+  // Use a ref to track if we've already loaded data for this event
+  const loadedEventRef = React.useRef<string | null>(null);
+  
   useEffect(() => {
     // Reset dialog states when opening
     setEditChoice(null);
@@ -392,6 +395,14 @@ export const EventDialog = ({
       if (open) {
         if (initialData || eventId) {
           const targetEventId = eventId || initialData?.id;
+          
+          // CRITICAL FIX: Only load if we haven't loaded this event yet or if event ID changed
+          if (loadedEventRef.current === targetEventId) {
+            console.log('🔒 Skipping reload - event already loaded:', targetEventId);
+            return;
+          }
+          
+          loadedEventRef.current = targetEventId;
           let eventData = initialData;
           
           // CRITICAL: Load fresh data for edit mode to get latest reminder info
@@ -491,7 +502,14 @@ export const EventDialog = ({
     };
 
     loadAndSetEventData();
-  }, [open, selectedDate, initialData, eventId]); // FIXED: Removed isVirtualEvent from dependencies
+  }, [open, selectedDate, eventId, initialData?.id]); // CRITICAL FIX: Watch eventId and initialData.id, not full initialData object
+  
+  // Reset the loaded event ref when dialog closes
+  useEffect(() => {
+    if (!open) {
+      loadedEventRef.current = null;
+    }
+  }, [open]);
 
   // CRITICAL FIX: Separate function to reset form fields
   const resetFormFields = () => {
