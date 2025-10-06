@@ -35,6 +35,29 @@ export const TasksPresenceHeader = ({ max = 5 }: { max?: number } = {}) => {
       }
     };
     init();
+
+    // Listen for profile updates to refresh avatar instantly
+    const channel = supabase
+      .channel('profile-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${user?.id}`
+        },
+        (payload) => {
+          if (payload.new.avatar_url) {
+            setAvatarUrl(payload.new.avatar_url);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.id]);
 
   const { onlineUsers } = useBoardPresence(

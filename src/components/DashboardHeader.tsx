@@ -80,11 +80,19 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     }
   };
 
-  const fetchSubscription = async () => {
+  const fetchSubscription = async (clearCache = false) => {
     if (!user) return;
     
     try {
       setIsLoading(true);
+      
+      // Clear cache if requested (e.g., after real-time update)
+      if (clearCache) {
+        console.log('Clearing subscription cache before fetch...');
+        const subscriptionCacheModule = await import('@/utils/subscriptionCache');
+        subscriptionCacheModule.subscriptionCache.clearCache();
+      }
+      
       console.log('Checking subscription status for user:', user.email);
       
       const statusResult = await checkSubscriptionStatus();
@@ -123,6 +131,36 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       }
       fetchSubscription();
       fetchUserProfile();
+
+      // CRITICAL FIX: Listen for subscription updates in real-time
+      console.log('Setting up real-time subscription listener for user:', user.id);
+      
+      const channel = supabase
+        .channel(`subscription-changes-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'subscriptions',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('🔄 Subscription updated in real-time:', payload);
+            toast({
+              title: "Subscription Updated",
+              description: "Your subscription has been updated. Refreshing...",
+            });
+            // Clear cache and refetch with fresh data
+            fetchSubscription(true);
+          }
+        )
+        .subscribe();
+
+      return () => {
+        console.log('Cleaning up subscription listener');
+        supabase.removeChannel(channel);
+      };
     }
   }, [user]);
 

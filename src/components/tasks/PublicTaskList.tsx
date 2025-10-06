@@ -369,7 +369,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
             <TaskFilterButton boardOwnerId={boardUserId} />
             <Button 
               onClick={() => setIsAddingTask(true)}
-              className="flex items-center gap-1 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-3 text-xs w-auto min-w-[80px]"
+              className="flex items-center gap-1 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-2 text-xs w-auto min-w-[70px]"
             >
               <Plus className="h-3 w-3" />
               <span>

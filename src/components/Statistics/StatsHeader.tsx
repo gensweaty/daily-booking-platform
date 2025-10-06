@@ -42,7 +42,7 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading,
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
         <DateRangeSelect 
           selectedDate={dateRange}
           onDateChange={handleDateChange}
@@ -52,7 +52,7 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading,
           variant="info"
           onClick={onExport}
           className={cn(
-            "rounded-md flex items-center gap-2",
+            "rounded-md flex items-center gap-2 w-full sm:w-auto justify-center",
             isGeorgian && "font-georgian"
           )}
           disabled={isLoading}
@@ -65,7 +65,7 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading,
           )}
         </Button>
         {onlineUsers.length > 0 && (
-          <div className="ml-2">
+          <div className="ml-0 sm:ml-2 flex justify-center sm:justify-start">
             <PresenceCircles users={onlineUsers} max={5} currentUserEmail={currentUserEmail} />
           </div>
         )}

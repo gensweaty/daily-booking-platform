@@ -5,8 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Search, Download, ChevronLeft, ChevronRight, Users, RefreshCw } from 'lucide-react';
+import { Search, Download, ChevronLeft, ChevronRight, Users, RefreshCw, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 
 interface UserData {
   id: string;
@@ -20,6 +22,8 @@ interface UserData {
   bookingsCount: number;
   customersCount: number;
   hasBusinessProfile: boolean;
+  subUsersCount: number;
+  subUsersEmails: string[];
 }
 
 export const CRMTable = () => {
@@ -29,6 +33,8 @@ export const CRMTable = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(20);
+  const [selectedPlans, setSelectedPlans] = useState<Record<string, string>>({});
+  const [changingPlan, setChangingPlan] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUserData();
@@ -98,6 +104,34 @@ export const CRMTable = () => {
     a.download = `users_export_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const handlePlanChange = async (userId: string, newPlan: string) => {
+    setChangingPlan(userId);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-change-user-plan', {
+        body: { userId, newPlan }
+      });
+
+      if (error) throw error;
+
+      toast.success(`Plan changed to ${newPlan} successfully`);
+      
+      // Refresh data
+      await fetchUserData();
+      
+      // Clear selection
+      setSelectedPlans(prev => {
+        const newPlans = { ...prev };
+        delete newPlans[userId];
+        return newPlans;
+      });
+    } catch (error) {
+      console.error('Error changing plan:', error);
+      toast.error('Failed to change plan');
+    } finally {
+      setChangingPlan(null);
+    }
   };
 
   const getStatusBadge = (status: string, plan: string) => {
@@ -190,7 +224,7 @@ export const CRMTable = () => {
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-border overflow-hidden">
+        <div className="rounded-lg border border-border overflow-hidden overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
@@ -202,6 +236,7 @@ export const CRMTable = () => {
                 <TableHead className="font-semibold text-foreground">Tasks</TableHead>
                 <TableHead className="font-semibold text-foreground">Bookings</TableHead>
                 <TableHead className="font-semibold text-foreground">Customers</TableHead>
+                <TableHead className="font-semibold text-foreground">Sub-Users</TableHead>
                 <TableHead className="font-semibold text-foreground">Business</TableHead>
               </TableRow>
             </TableHeader>
@@ -218,11 +253,57 @@ export const CRMTable = () => {
                       {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
                     </TableCell>
                     <TableCell>
-                      {getStatusBadge(user.subscriptionStatus, user.subscriptionPlan)}
+                      <div className="flex flex-col gap-2">
+                        {getStatusBadge(user.subscriptionStatus, user.subscriptionPlan)}
+                        <div className="flex items-center gap-1">
+                          <Select
+                            value={selectedPlans[user.id] || user.subscriptionPlan}
+                            onValueChange={(value) => setSelectedPlans(prev => ({ ...prev, [user.id]: value }))}
+                            disabled={changingPlan === user.id}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-[100px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background border-border">
+                              <SelectItem value="trial">Trial</SelectItem>
+                              <SelectItem value="monthly">Monthly</SelectItem>
+                              <SelectItem value="yearly">Yearly</SelectItem>
+                              <SelectItem value="ultimate">Ultimate</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {selectedPlans[user.id] && selectedPlans[user.id] !== user.subscriptionPlan && (
+                            <Button
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => handlePlanChange(user.id, selectedPlans[user.id])}
+                              disabled={changingPlan === user.id}
+                            >
+                              {changingPlan === user.id ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </TableCell>
                     <TableCell className="text-center font-medium">{user.tasksCount}</TableCell>
                     <TableCell className="text-center font-medium">{user.bookingsCount}</TableCell>
                     <TableCell className="text-center font-medium">{user.customersCount}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="secondary" className="w-fit">
+                          {user.subUsersCount} sub-user{user.subUsersCount !== 1 ? 's' : ''}
+                        </Badge>
+                        {user.subUsersEmails.length > 0 && (
+                          <div className="text-xs text-muted-foreground max-w-[200px]">
+                            {user.subUsersEmails.slice(0, 2).join(', ')}
+                            {user.subUsersEmails.length > 2 && ` +${user.subUsersEmails.length - 2} more`}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       {user.hasBusinessProfile ? (
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700">
@@ -236,7 +317,7 @@ export const CRMTable = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     No users found matching your search criteria.
                   </TableCell>
                 </TableRow>
