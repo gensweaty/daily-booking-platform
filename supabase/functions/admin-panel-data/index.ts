@@ -293,6 +293,15 @@ serve(async (req) => {
               .eq('user_id', authUser.id)
               .single()
             
+            // Get sub-users count and emails
+            const { data: subUsers } = await supabase
+              .from('sub_users')
+              .select('id, email, fullname')
+              .eq('board_owner_id', authUser.id)
+            
+            const subUsersCount = subUsers?.length || 0
+            const subUsersEmails = subUsers?.map(su => su.email || su.fullname).filter(Boolean) || []
+            
             console.log(`Final result for ${authUser.email}:`, {
               displayPlan,
               displayStatus
@@ -309,7 +318,9 @@ serve(async (req) => {
               tasksCount: tasksCount || 0,
               bookingsCount: bookingsCount || 0,
               customersCount: customersCount || 0,
-              hasBusinessProfile: !!businessProfile
+              hasBusinessProfile: !!businessProfile,
+              subUsersCount: subUsersCount,
+              subUsersEmails: subUsersEmails
             }
           } catch (error) {
             console.error(`Error processing user ${authUser.id}:`, error)
