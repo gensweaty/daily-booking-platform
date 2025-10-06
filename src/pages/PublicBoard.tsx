@@ -180,6 +180,36 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isAuthenticated, accessToken, slug]);
 
+  // Listen for sub-user avatar updates in real-time
+  useEffect(() => {
+    if (!isAuthenticated || !email || !boardData?.user_id) return;
+
+    const channel = supabase
+      .channel('sub-user-avatar-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sub_users',
+          filter: `board_owner_id=eq.${boardData.user_id}`
+        },
+        (payload) => {
+          // Check if this update is for the current user
+          if (payload.new.email?.toLowerCase() === email.toLowerCase()) {
+            if (payload.new.avatar_url) {
+              setAvatarUrl(payload.new.avatar_url);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isAuthenticated, email, boardData?.user_id]);
+
   const checkBoardAccess = async () => {
     if (!slug) return;
 

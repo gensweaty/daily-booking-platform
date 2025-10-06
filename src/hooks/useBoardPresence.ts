@@ -111,5 +111,18 @@ export function useBoardPresence(
     };
   }, [channelName, me?.email, me?.name, me?.avatar_url, scope]);
 
+  // Instant avatar update: when avatar_url changes, immediately re-track presence
+  useEffect(() => {
+    if (!channelRef.current || !me?.email) return;
+    
+    channelRef.current.track({
+      email: me.email,
+      name: me.name,
+      avatar_url: me.avatar_url,
+      scope,
+      online_at: new Date().toISOString(),
+    }).catch(() => {});
+  }, [me?.avatar_url]);
+
   return { onlineUsers };
 }
