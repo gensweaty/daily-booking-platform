@@ -94,8 +94,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = endOfDay(dateRange.end).toISOString();
       
-      // Get all calendar events, CRM events, and customers concurrently
-      const [calendarEventsResult, crmEventsResult, customersResult] = await Promise.all([
+      // Get all calendar events, CRM events, customers, and standalone customers concurrently
+      const [calendarEventsResult, crmEventsResult, customersResult, standaloneCustomersResult] = await Promise.all([
         supabase
           .from('events')
           .select('*')
@@ -121,6 +121,17 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           .eq('type', 'customer')
           .gte('start_date', startDateStr)
           .lte('start_date', endDateStr)
+          .is('deleted_at', null),
+
+        // Get standalone customers (customers without events) that have payment status
+        supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', userId)
+          .is('event_id', null)
+          .gte('created_at', startDateStr)
+          .lte('created_at', endDateStr)
+          .in('payment_status', ['partly_paid', 'fully_paid'])
           .is('deleted_at', null)
       ]);
 
@@ -138,8 +149,13 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         console.error('Error fetching customers:', customersResult.error);
         throw customersResult.error;
       }
+
+      if (standaloneCustomersResult.error) {
+        console.error('Error fetching standalone customers:', standaloneCustomersResult.error);
+        throw standaloneCustomersResult.error;
+      }
       
-      console.log(`Statistics - Found ${calendarEventsResult.data?.length || 0} calendar events, ${crmEventsResult.data?.length || 0} CRM events, and ${customersResult.data?.length || 0} additional customers`);
+      console.log(`Statistics - Found ${calendarEventsResult.data?.length || 0} calendar events, ${crmEventsResult.data?.length || 0} CRM events, ${customersResult.data?.length || 0} additional customers, and ${standaloneCustomersResult.data?.length || 0} standalone customers with payments`);
       
       // Normalize payment status values
       const normalizePaymentStatus = (status: string | null | undefined) => {
@@ -275,6 +291,58 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           all_persons: eventGroup
         });
       }
+
+      // Process standalone customers (customers without events)
+      (standaloneCustomersResult.data || []).forEach(customer => {
+        const status = normalizePaymentStatus(customer.payment_status);
+        const amount = parsePaymentAmount(customer.payment_amount);
+
+        // Count standalone customer payments
+        if (status === 'partly_paid') partlyPaid++;
+        if (status === 'fully_paid') fullyPaid++;
+        
+        // Add to total income
+        if (amount > 0) {
+          totalIncome += amount;
+          console.log(`Adding ${amount} from standalone customer ${customer.id}`);
+        }
+
+        // Add to daily bookings (using created_at as the date)
+        if (customer.created_at) {
+          try {
+            const customerDate = parseISO(customer.created_at);
+            const day = format(customerDate, 'yyyy-MM-dd');
+            // Note: We don't add to dailyBookings count as this is for events only
+            
+            // Add to monthly income
+            const month = format(customerDate, 'MMM yyyy');
+            monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
+          } catch (dateError) {
+            console.warn('Invalid date in standalone customer:', customer.created_at);
+          }
+        }
+
+        // Add standalone customer to processed events for Excel export
+        processedEvents.push({
+          id: customer.id,
+          title: customer.title,
+          user_surname: customer.title,
+          user_number: customer.user_number,
+          social_network_link: customer.social_network_link,
+          payment_status: status,
+          payment_amount: amount,
+          start_date: customer.created_at, // Use creation date as "event" date
+          end_date: customer.created_at,
+          event_notes: customer.event_notes,
+          source: 'standalone_customer',
+          combined_payment_amount: amount,
+          person_count: 1,
+          all_persons: [customer]
+        });
+      });
+
+      // Update total count to include standalone customers
+      total = eventGroups.size + (standaloneCustomersResult.data?.length || 0);
 
       // Get all days in the selected range for daily bookings
       const daysInRange = eachDayOfInterval({

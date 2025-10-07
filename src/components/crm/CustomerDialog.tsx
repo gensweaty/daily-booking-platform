@@ -445,7 +445,8 @@ export const CustomerDialog = ({
             user_number,
             social_network_link,
             event_notes,
-            payment_status,
+            // Always save payment status/amount for standalone customers
+            payment_status: payment_status || 'not_paid',
             payment_amount: payment_amount ? parseFloat(payment_amount) : null,
             user_id: effectiveUserId,
             create_event: createEvent,
@@ -611,7 +612,8 @@ export const CustomerDialog = ({
           user_number,
           social_network_link,
           event_notes,
-          payment_status,
+          // Always save payment status/amount for standalone customers
+          payment_status: payment_status || 'not_paid',
           payment_amount: payment_amount ? parseFloat(payment_amount) : null,
           user_id: effectiveUserId,
           create_event: createEvent,
