@@ -374,7 +374,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       
       if (isDefaultDateRange) {
         // We need to fetch events from the wider range for income calculation
-        const [additionalCalendarEvents, additionalCrmEvents, additionalCustomers] = await Promise.all([
+        const [additionalCalendarEvents, additionalCrmEvents, additionalCustomers, additionalStandaloneCustomers] = await Promise.all([
           supabase
             .from('events')
             .select('*')
@@ -399,6 +399,17 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             .eq('type', 'customer')
             .gte('start_date', incomeRangeStart.toISOString())
             .lte('start_date', incomeRangeEnd.toISOString())
+            .is('deleted_at', null),
+
+          // Fetch standalone customers (without events) for 3-month income view
+          supabase
+            .from('customers')
+            .select('*')
+            .eq('user_id', userId)
+            .is('event_id', null)
+            .gte('created_at', incomeRangeStart.toISOString())
+            .lte('created_at', incomeRangeEnd.toISOString())
+            .in('payment_status', ['partly_paid', 'fully_paid'])
             .is('deleted_at', null)
         ]);
 
@@ -456,6 +467,31 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             all_persons: eventGroup
           });
         }
+
+        // Add standalone customers to the income events
+        (additionalStandaloneCustomers.data || []).forEach(customer => {
+          const status = normalizePaymentStatus(customer.payment_status);
+          const amount = parsePaymentAmount(customer.payment_amount);
+
+          if (amount > 0) {
+            additionalProcessedEvents.push({
+              id: customer.id,
+              title: customer.title,
+              user_surname: customer.title,
+              user_number: customer.user_number,
+              social_network_link: customer.social_network_link,
+              payment_status: status,
+              payment_amount: amount,
+              start_date: customer.created_at,
+              end_date: customer.created_at,
+              event_notes: customer.event_notes,
+              source: 'standalone_customer',
+              combined_payment_amount: amount,
+              person_count: 1,
+              all_persons: [customer]
+            });
+          }
+        });
         
         allEventsForIncome = additionalProcessedEvents;
       }
