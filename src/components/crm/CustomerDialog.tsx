@@ -452,6 +452,7 @@ export const CustomerDialog = ({
             create_event: createEvent,
             start_date: createEvent ? eventStartDate.toISOString() : null,
             end_date: createEvent ? eventEndDate.toISOString() : null,
+            type: 'customer', // Ensure statistics queries will see it
             // Add edit metadata for sub-users
             ...(isPublicMode && externalUserName ? {
               last_edited_by_type: 'sub_user',
@@ -619,6 +620,7 @@ export const CustomerDialog = ({
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
           end_date: createEvent ? eventEndDate.toISOString() : null,
+          type: 'customer', // Ensure statistics queries will see it
           // Add creator metadata for all users
           ...(isPublicMode && externalUserName ? {
             created_by_type: 'sub_user',
