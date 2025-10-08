@@ -323,22 +323,26 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         }
 
         // Add standalone customer to processed events for Excel export
-        processedEvents.push({
-          id: customer.id,
-          title: customer.title,
-          user_surname: customer.title,
-          user_number: customer.user_number,
-          social_network_link: customer.social_network_link,
-          payment_status: status,
-          payment_amount: amount,
-          start_date: customer.created_at, // Use creation date as "event" date
-          end_date: customer.created_at,
-          event_notes: customer.event_notes,
-          source: 'standalone_customer',
-          combined_payment_amount: amount,
-          person_count: 1,
-          all_persons: [customer]
-        });
+        // Ensure date is valid and in ISO format for filtering
+        const customerStartDate = customer.created_at || customer.start_date;
+        if (customerStartDate && amount > 0) {
+          processedEvents.push({
+            id: customer.id,
+            title: customer.title,
+            user_surname: customer.title,
+            user_number: customer.user_number,
+            social_network_link: customer.social_network_link,
+            payment_status: status,
+            payment_amount: amount,
+            start_date: typeof customerStartDate === 'string' ? customerStartDate : new Date(customerStartDate).toISOString(),
+            end_date: typeof customerStartDate === 'string' ? customerStartDate : new Date(customerStartDate).toISOString(),
+            event_notes: customer.event_notes,
+            source: 'standalone_customer',
+            combined_payment_amount: amount,
+            person_count: 1,
+            all_persons: [customer]
+          });
+        }
       });
 
       // Update total count to include standalone customers
@@ -474,22 +478,25 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           const amount = parsePaymentAmount(customer.payment_amount);
 
           if (amount > 0) {
-            additionalProcessedEvents.push({
-              id: customer.id,
-              title: customer.title,
-              user_surname: customer.title,
-              user_number: customer.user_number,
-              social_network_link: customer.social_network_link,
-              payment_status: status,
-              payment_amount: amount,
-              start_date: customer.created_at,
-              end_date: customer.created_at,
-              event_notes: customer.event_notes,
-              source: 'standalone_customer',
-              combined_payment_amount: amount,
-              person_count: 1,
-              all_persons: [customer]
-            });
+            const customerStartDate = customer.created_at || customer.start_date;
+            if (customerStartDate) {
+              additionalProcessedEvents.push({
+                id: customer.id,
+                title: customer.title,
+                user_surname: customer.title,
+                user_number: customer.user_number,
+                social_network_link: customer.social_network_link,
+                payment_status: status,
+                payment_amount: amount,
+                start_date: typeof customerStartDate === 'string' ? customerStartDate : new Date(customerStartDate).toISOString(),
+                end_date: typeof customerStartDate === 'string' ? customerStartDate : new Date(customerStartDate).toISOString(),
+                event_notes: customer.event_notes,
+                source: 'standalone_customer',
+                combined_payment_amount: amount,
+                person_count: 1,
+                all_persons: [customer]
+              });
+            }
           }
         });
         
