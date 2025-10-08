@@ -76,6 +76,34 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
     }
   };
 
+  // Normalize payment status across variants/localizations
+  const normalizePaymentStatus = (raw: string | null | undefined): string => {
+    if (!raw) return 'not_paid';
+    const s = String(raw).toLowerCase().trim();
+
+    // common English variants
+    if (s.includes('fully') || s === 'paid' || s.includes('full')) return 'fully_paid';
+    if (s.includes('partial') || s.includes('partly') || s.includes('half')) return 'partly_paid';
+    if (s.includes('not') || s.includes('unpaid') || s === 'none') return 'not_paid';
+
+    // loose safety net: map any "paid" to partly/fully as "partly" unless explicitly fully
+    if (s.includes('paid')) return 'partly_paid';
+
+    // Georgian hints (harmless if unused)
+    if (s.includes('სრულ')) return 'fully_paid';
+    if (s.includes('ნაწილი')) return 'partly_paid';
+    if (s.includes('გაუხდ')) return 'not_paid';
+
+    return s;
+  };
+
+  // Prefer a payment timestamp; fall back gracefully
+  const resolvePaymentDate = (row: any): string | null => {
+    // If your schema has payment_date or paid_at, use it first
+    const candidate = row.payment_date || row.paid_at || row.created_at || row.start_date;
+    return candidate ? new Date(candidate).toISOString() : null;
+  };
+
   // Optimize events stats query with improved multi-person income calculation
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: eventStatsQueryKey,
@@ -128,10 +156,10 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           .from('customers')
           .select('*')
           .eq('user_id', userId)
-          .is('event_id', null)
+          .or('event_id.is.null,create_event.is.false')
+          .eq('type', 'customer')
           .gte('created_at', startDateStr)
           .lte('created_at', endDateStr)
-          .in('payment_status', ['partly_paid', 'fully_paid'])
           .is('deleted_at', null)
       ]);
 
@@ -156,15 +184,6 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       }
       
       console.log(`Statistics - Found ${calendarEventsResult.data?.length || 0} calendar events, ${crmEventsResult.data?.length || 0} CRM events, ${customersResult.data?.length || 0} additional customers, and ${standaloneCustomersResult.data?.length || 0} standalone customers with payments`);
-      
-      // Normalize payment status values
-      const normalizePaymentStatus = (status: string | null | undefined) => {
-        if (!status) return 'not_paid';
-        if (status.includes('partly')) return 'partly_paid';
-        if (status.includes('fully')) return 'fully_paid';
-        if (status.includes('not')) return 'not_paid';
-        return status;
-      };
       
       // Group events by their date/time to identify multi-person events
       const eventGroups = new Map<string, any[]>();
@@ -296,36 +315,28 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       (standaloneCustomersResult.data || []).forEach(customer => {
         const status = normalizePaymentStatus(customer.payment_status);
         const amount = parsePaymentAmount(customer.payment_amount);
+        const whenISO = resolvePaymentDate(customer);
 
-        // Count standalone customer payments
-        if (status === 'partly_paid') partlyPaid++;
-        if (status === 'fully_paid') fullyPaid++;
-        
-        // Add to total income
-        if (amount > 0) {
+        // Only count paid items with a usable timestamp
+        if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0 && whenISO) {
+          // tally counts (status-level)
+          if (status === 'partly_paid') partlyPaid++;
+          if (status === 'fully_paid') fullyPaid++;
+
+          // add to total income
           totalIncome += amount;
-          console.log(`Adding ${amount} from standalone customer ${customer.id}`);
-        }
 
-        // Add to daily bookings (using created_at as the date)
-        if (customer.created_at) {
+          // month bucketing by payment date
           try {
-            const customerDate = parseISO(customer.created_at);
-            const day = format(customerDate, 'yyyy-MM-dd');
-            // Note: We don't add to dailyBookings count as this is for events only
-            
-            // Add to monthly income
-            const month = format(customerDate, 'MMM yyyy');
-            monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
-          } catch (dateError) {
-            console.warn('Invalid date in standalone customer:', customer.created_at);
+            const dt = parseISO(whenISO);
+            const monthKey = format(dt, 'MMM yyyy');
+            monthlyIncomeMap.set(monthKey, (monthlyIncomeMap.get(monthKey) || 0) + amount);
+            console.log(`Adding ${amount} from standalone customer ${customer.id} to month ${monthKey}`);
+          } catch { 
+            console.warn('Invalid date for standalone customer:', customer.id);
           }
-        }
 
-        // Add standalone customer to processed events for Excel export
-        // Ensure date is valid and in ISO format for filtering
-        const customerStartDate = customer.created_at || customer.start_date;
-        if (customerStartDate && amount > 0) {
+          // push into processedEvents so exports + filtered sums see it
           processedEvents.push({
             id: customer.id,
             title: customer.title,
@@ -334,8 +345,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             social_network_link: customer.social_network_link,
             payment_status: status,
             payment_amount: amount,
-            start_date: typeof customerStartDate === 'string' ? customerStartDate : new Date(customerStartDate).toISOString(),
-            end_date: typeof customerStartDate === 'string' ? customerStartDate : new Date(customerStartDate).toISOString(),
+            start_date: whenISO, // normalized to payment date for consistent charts
+            end_date: whenISO,
             event_notes: customer.event_notes,
             source: 'standalone_customer',
             combined_payment_amount: amount,
@@ -410,10 +421,10 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             .from('customers')
             .select('*')
             .eq('user_id', userId)
-            .is('event_id', null)
+            .or('event_id.is.null,create_event.is.false')
+            .eq('type', 'customer')
             .gte('created_at', incomeRangeStart.toISOString())
             .lte('created_at', incomeRangeEnd.toISOString())
-            .in('payment_status', ['partly_paid', 'fully_paid'])
             .is('deleted_at', null)
         ]);
 
@@ -476,27 +487,25 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         (additionalStandaloneCustomers.data || []).forEach(customer => {
           const status = normalizePaymentStatus(customer.payment_status);
           const amount = parsePaymentAmount(customer.payment_amount);
+          const whenISO = resolvePaymentDate(customer);
 
-          if (amount > 0) {
-            const customerStartDate = customer.created_at || customer.start_date;
-            if (customerStartDate) {
-              additionalProcessedEvents.push({
-                id: customer.id,
-                title: customer.title,
-                user_surname: customer.title,
-                user_number: customer.user_number,
-                social_network_link: customer.social_network_link,
-                payment_status: status,
-                payment_amount: amount,
-                start_date: typeof customerStartDate === 'string' ? customerStartDate : new Date(customerStartDate).toISOString(),
-                end_date: typeof customerStartDate === 'string' ? customerStartDate : new Date(customerStartDate).toISOString(),
-                event_notes: customer.event_notes,
-                source: 'standalone_customer',
-                combined_payment_amount: amount,
-                person_count: 1,
-                all_persons: [customer]
-              });
-            }
+          if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0 && whenISO) {
+            additionalProcessedEvents.push({
+              id: customer.id,
+              title: customer.title,
+              user_surname: customer.title,
+              user_number: customer.user_number,
+              social_network_link: customer.social_network_link,
+              payment_status: status,
+              payment_amount: amount,
+              start_date: whenISO,
+              end_date: whenISO,
+              event_notes: customer.event_notes,
+              source: 'standalone_customer',
+              combined_payment_amount: amount,
+              person_count: 1,
+              all_persons: [customer]
+            });
           }
         });
         
@@ -540,25 +549,16 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       // Debug: Monthly income data
       console.log('Monthly income data with multi-person calculation:', monthlyIncome);
 
-      // Use current month income for totalIncome display if we're in default view
-      if (isDefaultDateRange) {
-        const currentMonthEvents = processedEvents.filter(event => {
-          if (!event.start_date) return false;
-          const eventDate = parseISO(event.start_date);
-          const currentMonthStart = startOfMonth(currentDate);
-          const currentMonthEnd = endOfDay(endOfMonth(currentDate));
-          return eventDate >= currentMonthStart && eventDate <= currentMonthEnd;
-        });
-        
-        let currentMonthIncome = 0;
-        currentMonthEvents.forEach(event => {
-          if (event.combined_payment_amount && event.combined_payment_amount > 0) {
-            currentMonthIncome += event.combined_payment_amount;
-          }
-        });
-        
-        totalIncome = currentMonthIncome;
-      }
+      // Calculate totalIncome based on the current selected date range
+      const totalIncomeInRange = processedEvents.reduce((sum, ev) => {
+        if (!ev.start_date) return sum;
+        const dt = parseISO(ev.start_date);
+        if (dt >= dateRange.start && dt <= endOfDay(dateRange.end)) {
+          return sum + (ev.combined_payment_amount || 0);
+        }
+        return sum;
+      }, 0);
+      totalIncome = Number.isFinite(totalIncomeInRange) ? totalIncomeInRange : 0;
       
       console.log('Income calculation summary with multi-person support:', {
         totalDirectCalculation: totalIncome,
