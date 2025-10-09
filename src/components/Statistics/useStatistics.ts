@@ -101,7 +101,20 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
   const resolvePaymentDate = (row: any): string | null => {
     // If your schema has payment_date or paid_at, use it first
     const candidate = row.payment_date || row.paid_at || row.created_at || row.start_date;
-    return candidate ? new Date(candidate).toISOString() : null;
+    
+    if (!candidate) {
+      console.warn('No valid date found for row:', row.id);
+      return null;
+    }
+    
+    try {
+      const isoDate = new Date(candidate).toISOString();
+      console.log(`Resolved payment date for ${row.id}: ${isoDate} (from ${candidate})`);
+      return isoDate;
+    } catch (error) {
+      console.error('Failed to parse date for row:', row.id, error);
+      return null;
+    }
   };
 
   // Optimize events stats query with improved multi-person income calculation
@@ -312,10 +325,13 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       }
 
       // Process standalone customers (customers without events)
+      console.log(`Processing ${standaloneCustomersResult.data?.length || 0} standalone customers`);
       (standaloneCustomersResult.data || []).forEach(customer => {
         const status = normalizePaymentStatus(customer.payment_status);
         const amount = parsePaymentAmount(customer.payment_amount);
         const whenISO = resolvePaymentDate(customer);
+
+        console.log(`Standalone customer ${customer.id}: status=${status}, amount=${amount}, whenISO=${whenISO}`);
 
         // Only count paid items with a usable timestamp
         if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0 && whenISO) {
@@ -525,9 +541,24 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         
         // Filter events within this month from the income events
         const monthEvents = allEventsForIncome.filter(event => {
-          if (!event.start_date) return false;
-          const eventDate = parseISO(event.start_date);
-          return eventDate >= monthStart && eventDate <= monthEnd;
+          // Try start_date first, fallback to created_at for standalone customers
+          const dateToUse = event.start_date || event.created_at;
+          if (!dateToUse) {
+            console.warn(`Skipping event ${event.id} - no valid date`);
+            return false;
+          }
+          
+          try {
+            const eventDate = parseISO(dateToUse);
+            const isInRange = eventDate >= monthStart && eventDate <= monthEnd;
+            if (isInRange && event.source === 'standalone_customer') {
+              console.log(`✅ Including standalone customer ${event.id} in month ${format(month, 'MMM yyyy')}`);
+            }
+            return isInRange;
+          } catch (error) {
+            console.error(`Invalid date for event ${event.id}:`, dateToUse);
+            return false;
+          }
         });
         
         // Calculate income from events using combined payment amounts
@@ -551,10 +582,24 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
 
       // Calculate totalIncome based on the current selected date range
       const totalIncomeInRange = processedEvents.reduce((sum, ev) => {
-        if (!ev.start_date) return sum;
-        const dt = parseISO(ev.start_date);
-        if (dt >= dateRange.start && dt <= endOfDay(dateRange.end)) {
-          return sum + (ev.combined_payment_amount || 0);
+        // Try start_date first, fallback to created_at for standalone customers
+        const dateToUse = ev.start_date || ev.created_at;
+        if (!dateToUse) {
+          console.warn(`Skipping event ${ev.id} from totalIncome - no valid date`);
+          return sum;
+        }
+        
+        try {
+          const dt = parseISO(dateToUse);
+          if (dt >= dateRange.start && dt <= endOfDay(dateRange.end)) {
+            const income = ev.combined_payment_amount || 0;
+            if (income > 0 && ev.source === 'standalone_customer') {
+              console.log(`✅ Including standalone customer ${ev.id} in totalIncome: ${income}`);
+            }
+            return sum + income;
+          }
+        } catch (error) {
+          console.error(`Invalid date for event ${ev.id}:`, dateToUse);
         }
         return sum;
       }, 0);
