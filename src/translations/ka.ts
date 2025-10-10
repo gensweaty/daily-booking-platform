@@ -308,6 +308,8 @@ export const translations: TranslationType = {
     notPaid: "გადაუხდელი",
     totalIncome: "სულ შემოსავალი",
     fromAllEvents: "ყველა ღონისძიებიდან",
+    fromEvents: "ღონისძიებები",
+    fromCustomers: "კლიენტები",
     exportSuccessful: "ექსპორტი წარმატებით დასრულდა",
     exportSuccessMessage: "თქვენი მონაცემები წარმატებით გაიგზავნა",
     changePassword: "პაროლის შეცვლა",

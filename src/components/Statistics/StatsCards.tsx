@@ -24,6 +24,8 @@ interface StatsCardsProps {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number | string | null | undefined;
+    eventIncome?: number;
+    standaloneCustomerIncome?: number;
   };
   customerStats: {
     total: number;
@@ -60,19 +62,30 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
     }
   }
 
-  // Format the income value to have 2 decimal places and add currency symbol
-  const formattedIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
+  // Parse separate income values
+  const validEventIncome = parsePaymentAmount(eventStats.eventIncome || 0);
+  const validStandaloneIncome = parsePaymentAmount(eventStats.standaloneCustomerIncome || 0);
+  
+  // Format the income values
+  const formattedTotalIncome = `${currencySymbol}${(validTotalIncome || 0).toFixed(2)}`;
+  const formattedEventIncome = `${currencySymbol}${(validEventIncome || 0).toFixed(2)}`;
+  const formattedStandaloneIncome = `${currencySymbol}${(validStandaloneIncome || 0).toFixed(2)}`;
   
   // Choose the appropriate currency icon based on language
   const CurrencyIcon = language === 'es' ? EuroIcon : 
                        language === 'ka' ? BanknoteIcon : DollarSign;
+  
+  // Create description with breakdown
+  const incomeDescription = validStandaloneIncome > 0 
+    ? `${t("dashboard.fromEvents")}: ${formattedEventIncome} • ${t("dashboard.fromCustomers")}: ${formattedStandaloneIncome}`
+    : t("dashboard.fromAllEvents");
   
   // Enhanced debugging to verify income data at every step
   console.log("StatsCards - Rendering with income data:", {
     rawIncome: eventStats.totalIncome,
     rawIncomeType: typeof eventStats.totalIncome,
     afterParsing: validTotalIncome,
-    formattedIncome,
+    formattedTotalIncome,
     currency: currencySymbol
   });
 
@@ -116,8 +129,8 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
       />
       <StatCard
         title={t("dashboard.totalIncome")}
-        value={formattedIncome}
-        description={t("dashboard.fromAllEvents")}
+        value={formattedTotalIncome}
+        description={incomeDescription}
         icon={CurrencyIcon}
         valueClassName="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent"
         color="blue"

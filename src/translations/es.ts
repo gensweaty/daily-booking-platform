@@ -308,6 +308,8 @@ export const translations: TranslationType = {
     notPaid: "No Pagado",
     totalIncome: "Ingresos Totales",
     fromAllEvents: "De todos los eventos",
+    fromEvents: "Eventos",
+    fromCustomers: "Clientes",
     exportSuccessful: "Exportación Exitosa",
     exportSuccessMessage: "Sus datos han sido exportados exitosamente",
     changePassword: "Cambiar Contraseña",

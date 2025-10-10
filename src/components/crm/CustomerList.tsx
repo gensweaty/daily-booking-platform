@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -51,6 +51,18 @@ import { Badge } from "@/components/ui/badge";
 import { PaymentStatus } from "@/lib/types";
 import { PresenceCircles } from "@/components/presence/PresenceCircles";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const LoadingCustomerList = React.memo(() => {
   return (
@@ -731,15 +743,32 @@ const CustomerListContent = ({
                         {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
                       </TableCell>
                       <TableCell className="py-2">
-                        <div className="space-y-1 text-sm">
-                          <div>{formatDate(customer.start_date || customer.created_at)}</div>
-                          <div className="text-gray-500">
-                            {customer.start_date && customer.end_date 
-                              ? formatTimeRange(customer.start_date, customer.end_date)
-                              : (customer.created_at ? format(new Date(customer.created_at), 'hh:mma').toLowerCase() : '-')
-                            }
-                          </div>
-                        </div>
+            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+              {customer.start_date ? (
+                <>
+                  {formatDate(customer.start_date)}
+                  {customer.end_date && ` - ${formatDate(customer.end_date)}`}
+                </>
+              ) : (
+                <>
+                  {formatDate(customer.created_at)}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p className="text-xs">
+                          <strong>Customer added date</strong>
+                          <br />
+                          This customer has no associated event. The date shown is when the customer was added to CRM.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </>
+              )}
+            </div>
                       </TableCell>
                       <TableCell className="py-2">
                         <div 

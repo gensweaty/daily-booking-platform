@@ -15,6 +15,8 @@ interface OptimizedEventStats {
   partlyPaid: number;
   fullyPaid: number;
   totalIncome: number;
+  eventIncome: number;
+  standaloneCustomerIncome: number;
   monthlyIncome: Array<{ month: string; income: number }>;
   threeMonthIncome: Array<{ month: string; income: number }>;
   dailyStats: Array<{ day: string; date: Date; month: string; bookings: number }>;
@@ -28,6 +30,33 @@ interface OptimizedCustomerStats {
 }
 
 export const useOptimizedStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
+  // Helper to parse payment amounts safely
+  const parsePaymentAmount = (amount: any): number => {
+    if (amount === null || amount === undefined) return 0;
+    if (amount === 'NaN' || amount === '') return 0;
+    
+    if (typeof amount === 'string') {
+      try {
+        const cleanedStr = amount.replace(',', '.').replace(/[^0-9.-]+/g, '');
+        const parsed = parseFloat(cleanedStr);
+        return isNaN(parsed) ? 0 : parsed;
+      } catch (e) {
+        return 0;
+      }
+    }
+    
+    if (typeof amount === 'number') {
+      return isNaN(amount) ? 0 : amount;
+    }
+    
+    try {
+      const converted = Number(amount);
+      return isNaN(converted) ? 0 : converted;
+    } catch (e) {
+      return 0;
+    }
+  };
+
   // Optimized task stats with better error handling and direct query fallback
   const { data: taskStats, isLoading: isLoadingTaskStats } = useQuery({
     queryKey: ['optimized-task-stats', userId],
@@ -80,6 +109,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         partlyPaid: 0,
         fullyPaid: 0,
         totalIncome: 0,
+        eventIncome: 0,
+        standaloneCustomerIncome: 0,
         monthlyIncome: [],
         threeMonthIncome: [],
         dailyStats: [],
@@ -107,6 +138,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           partlyPaid: 0,
           fullyPaid: 0,
           totalIncome: 0,
+          eventIncome: 0,
+          standaloneCustomerIncome: 0,
           monthlyIncome: [],
           threeMonthIncome: [],
           dailyStats: [],
@@ -131,6 +164,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           partlyPaid: 0,
           fullyPaid: 0,
           totalIncome: 0,
+          eventIncome: 0,
+          standaloneCustomerIncome: 0,
           monthlyIncome: [],
           threeMonthIncome: [],
           dailyStats: [],
@@ -208,6 +243,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       let partlyPaid = 0;
       let fullyPaid = 0;
       let totalIncome = 0;
+      let eventIncome = 0;
 
       const dailyBookings = new Map<string, number>();
       const monthlyIncomeMap = new Map<string, number>();
@@ -232,6 +268,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             : parseFloat(String(event.payment_amount));
           if (!isNaN(amount) && amount > 0) {
             totalIncome += amount;
+            eventIncome += amount;
           }
         }
 
@@ -302,6 +339,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             : parseFloat(String(firstInstance.payment_amount));
           if (!isNaN(amount) && amount > 0) {
             totalIncome += amount;
+            eventIncome += amount;
             console.log(`Added ${amount} from recurring series ${seriesId} (counted once)`);
 
             // Add to monthly income only once per series
@@ -330,6 +368,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
               : parseFloat(String(person.payment_amount));
             if (!isNaN(amount) && amount > 0) {
               totalIncome += amount;
+              eventIncome += amount;
               console.log(`Added ${amount} from additional person in recurring series ${seriesId} (counted once)`);
               
               // Add to monthly income
@@ -360,6 +399,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             : parseFloat(String(person.payment_amount));
           if (!isNaN(amount) && amount > 0) {
             totalIncome += amount;
+            eventIncome += amount;
             
             // Add to monthly income
             if (person.start_date) {
@@ -384,6 +424,38 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           month: format(date, 'MMM yyyy'),
           bookings
         };
+      });
+
+      // Get standalone customers income (customers without events)
+      const { data: standaloneCustomers, error: standaloneError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .is('event_id', null)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
+        .is('deleted_at', null);
+
+      let standaloneCustomerIncome = 0;
+      if (!standaloneError && standaloneCustomers) {
+        console.log(`Found ${standaloneCustomers.length} standalone customers in date range`);
+        standaloneCustomers.forEach(customer => {
+          const paymentStatus = customer.payment_status || '';
+          if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && customer.payment_amount) {
+            const amount = parsePaymentAmount(customer.payment_amount);
+            if (amount > 0) {
+              standaloneCustomerIncome += amount;
+              totalIncome += amount;
+              console.log(`Added ${amount} from standalone customer ${customer.id}`);
+            }
+          }
+        });
+      }
+
+      console.log('Income breakdown:', {
+        eventIncome,
+        standaloneCustomerIncome,
+        totalIncome
       });
 
       const monthlyIncome = Array.from(monthlyIncomeMap.entries()).map(([month, income]) => ({
@@ -554,6 +626,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         partlyPaid,
         fullyPaid,
         totalIncome,
+        eventIncome,
+        standaloneCustomerIncome,
         monthlyIncome,
         threeMonthIncome,
         dailyStats,
@@ -566,6 +640,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         partlyPaid: result.partlyPaid,
         fullyPaid: result.fullyPaid,
         totalIncome: result.totalIncome,
+        eventIncome: result.eventIncome,
+        standaloneCustomerIncome: result.standaloneCustomerIncome,
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
         additionalPersonsCount: additionalPersons.length,
@@ -654,13 +730,12 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // Get ALL standalone CRM customers (not just those created in date range)
+      // Get standalone CRM customers (customers without events, added in date range)
       const { data: standaloneCrmCustomers, error: standaloneCrmError } = await supabase
         .from('customers')
         .select('*')
         .eq('user_id', userId)
-        .or('type.neq.customer,type.is.null') // Get customers that are NOT additional persons
-        .is('event_id', null) // Not associated with events
+        .is('event_id', null) // Not associated with events (primary filter)
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr)
         .is('deleted_at', null);

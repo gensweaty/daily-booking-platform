@@ -302,6 +302,8 @@ export interface TranslationType {
     notPaid: string;
     totalIncome: string;
     fromAllEvents: string;
+    fromEvents: string;
+    fromCustomers: string;
     exportSuccessful: string;
     exportSuccessMessage: string;
     changePassword: string;
