@@ -103,6 +103,8 @@ export const translations: TranslationType = {
     editCustomer: "Editar Cliente",
     update: "Actualizar",
     dates: "Fechas",
+    eventDate: "Fecha del Evento",
+    addingDate: "Fecha de Adición",
     actions: "Acciones",
     customersPerPage: "Clientes por página",
     noCustomers: "No se encontraron clientes",

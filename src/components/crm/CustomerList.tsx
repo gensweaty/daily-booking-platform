@@ -671,12 +671,13 @@ const CustomerListContent = ({
                       )}
                     </TableHead>
                     <TableHead className="w-[250px]">{t("crm.socialLinkEmail")}</TableHead>
-                    <TableHead className="w-[120px]">
+                     <TableHead className="w-[120px]">
                       {language === 'en' ? 'Payment Status' : 
                        language === 'es' ? 'Estado de Pago' : 
                        'გადახდის სტატუსი'}
                     </TableHead>
-                    <TableHead className="w-[180px]">{t("crm.dates")}</TableHead>
+                    <TableHead className="w-[150px]">{t("crm.eventDate")}</TableHead>
+                    <TableHead className="w-[150px]">{t("crm.addingDate")}</TableHead>
                     <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
                     <TableHead className="w-[180px]">{t("common.attachments")}</TableHead>
                     <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
@@ -743,33 +744,22 @@ const CustomerListContent = ({
                         {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
                       </TableCell>
                       <TableCell className="py-2">
-            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <div className="text-xs text-muted-foreground">
               {customer.start_date ? (
                 <>
                   {formatDate(customer.start_date)}
                   {customer.end_date && ` - ${formatDate(customer.end_date)}`}
                 </>
               ) : (
-                <>
-                  {formatDate(customer.created_at)}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-3 w-3 text-muted-foreground/60 cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs">
-                        <p className="text-xs">
-                          <strong>Customer added date</strong>
-                          <br />
-                          This customer has no associated event. The date shown is when the customer was added to CRM.
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </>
+                '-'
               )}
             </div>
-                      </TableCell>
+          </TableCell>
+          <TableCell className="py-2">
+            <div className="text-xs text-muted-foreground">
+              {formatDate(customer.created_at)}
+            </div>
+          </TableCell>
                       <TableCell className="py-2">
                         <div 
                           className="flex items-start gap-2 group relative pr-6"

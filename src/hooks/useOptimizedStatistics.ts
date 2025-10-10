@@ -676,8 +676,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('parent_event_id', null)
         .is('deleted_at', null);
 
@@ -708,14 +708,15 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       }
       // Booking requests are intentionally excluded from customerStats to match CRM page counts.
 
-      // Get additional customers from CRM (type = 'customer') created in the date range
+      // Get additional customers from CRM (type = 'customer') whose events are in the date range
       const { data: crmCustomers, error: crmCustomersError } = await supabase
         .from('customers')
-        .select('*')
+        .select('*, events!inner(start_date)')
         .eq('user_id', userId)
         .eq('type', 'customer')
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .not('event_id', 'is', null)
+        .gte('events.start_date', startDateStr)
+        .lte('events.start_date', endDateStr)
         .is('deleted_at', null);
 
       if (crmCustomersError) {

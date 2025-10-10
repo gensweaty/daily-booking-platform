@@ -97,6 +97,8 @@ export interface TranslationType {
     editCustomer: string;
     update: string;
     dates: string;
+    eventDate: string;
+    addingDate: string;
     actions: string;
     customersPerPage: string;
     noCustomers: string;

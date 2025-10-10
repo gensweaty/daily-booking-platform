@@ -103,6 +103,8 @@ export const translations: TranslationType = {
     editCustomer: "კლიენტის რედაქტირება",
     update: "განახლება",
     dates: "თარიღები",
+    eventDate: "ივენთის თარიღი",
+    addingDate: "დამატების თარიღი",
     actions: "მოქმედებები",
     customersPerPage: "კლიენტები გვერდზე",
     noCustomers: "კლიენტები არ მოიძებნა",
