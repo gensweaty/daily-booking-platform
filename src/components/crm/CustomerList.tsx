@@ -732,8 +732,13 @@ const CustomerListContent = ({
                       </TableCell>
                       <TableCell className="py-2">
                         <div className="space-y-1 text-sm">
-                          <div>{formatDate(customer.start_date)}</div>
-                          <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
+                          <div>{formatDate(customer.start_date || customer.created_at)}</div>
+                          <div className="text-gray-500">
+                            {customer.start_date && customer.end_date 
+                              ? formatTimeRange(customer.start_date, customer.end_date)
+                              : (customer.created_at ? format(new Date(customer.created_at), 'hh:mma').toLowerCase() : '-')
+                            }
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="py-2">

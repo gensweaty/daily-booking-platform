@@ -329,31 +329,47 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       }
 
       // Process standalone customers (customers without events)
-      console.log(`Processing ${standaloneCustomers.length} standalone customers`);
+      console.log(`🔍 Processing ${standaloneCustomers.length} standalone customers from initial query`);
+      console.log(`📅 Date range: ${startDateStr} to ${endDateStr}`);
+      
       standaloneCustomers.forEach(customer => {
         const status = normalizePaymentStatus(customer.payment_status);
         const amount = parsePaymentAmount(customer.payment_amount);
         const effective = getEffectiveDate(customer, true); // created_at
 
-        console.log(`Standalone customer ${customer.id}: status=${status}, amount=${amount}, effective=${effective}`);
+        console.log(`👤 Standalone customer ${customer.id}:`, {
+          title: customer.title,
+          raw_status: customer.payment_status,
+          normalized_status: status,
+          raw_amount: customer.payment_amount,
+          parsed_amount: amount,
+          created_at: customer.created_at,
+          effective_date: effective,
+          event_id: customer.event_id,
+          create_event: customer.create_event
+        });
 
         // Only count paid items with a usable timestamp
         if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0 && effective) {
+          console.log(`✅ Including standalone customer ${customer.id} with amount ${amount}`);
+          
           // tally counts (status-level)
           if (status === 'partly_paid') partlyPaid++;
           if (status === 'fully_paid') fullyPaid++;
 
           // add to total income
           totalIncome += amount;
+          console.log(`💰 Total income now: ${totalIncome}`);
 
           // month bucketing by adding date (created_at)
           try {
             const dt = parseISO(effective);
             const monthKey = format(dt, 'MMM yyyy');
-            monthlyIncomeMap.set(monthKey, (monthlyIncomeMap.get(monthKey) || 0) + amount);
-            console.log(`Adding ${amount} from standalone customer ${customer.id} to month ${monthKey}`);
-          } catch { 
-            console.warn('Invalid date for standalone customer:', customer.id);
+            const previousMonthTotal = monthlyIncomeMap.get(monthKey) || 0;
+            monthlyIncomeMap.set(monthKey, previousMonthTotal + amount);
+            console.log(`📊 Adding ${amount} from standalone customer to month ${monthKey}, new total: ${previousMonthTotal + amount}`);
+          } catch (err) { 
+            console.warn('⚠️ Invalid date for standalone customer:', customer.id, err);
           }
 
           // push into processedEvents so exports + filtered sums see it
@@ -375,11 +391,21 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             effective_date: effective,
             effective_date_source: 'added_date'
           });
+        } else {
+          console.log(`❌ Skipping standalone customer ${customer.id}: status=${status}, amount=${amount}, effective=${effective}`);
         }
       });
+      
+      console.log(`📊 Final standalone stats: ${standaloneCustomers.length} found, ${partlyPaid + fullyPaid} with payments, total income: ${totalIncome}`);
 
-      // Update total count to include standalone customers
-      total = eventGroups.size + standaloneCustomers.length;
+      // Update total count to include standalone customers (only paid ones)
+      const paidStandaloneCount = standaloneCustomers.filter(c => {
+        const status = normalizePaymentStatus(c.payment_status);
+        const amount = parsePaymentAmount(c.payment_amount);
+        return (status === 'partly_paid' || status === 'fully_paid') && amount > 0;
+      }).length;
+      total = eventGroups.size + paidStandaloneCount;
+      console.log(`📊 Total count: ${eventGroups.size} event groups + ${paidStandaloneCount} paid standalone customers = ${total}`);
 
       // Get all days in the selected range for daily bookings
       const daysInRange = eachDayOfInterval({
