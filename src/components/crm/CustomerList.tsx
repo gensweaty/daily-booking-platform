@@ -455,7 +455,7 @@ const CustomerListContent = ({
       <div className={`font-medium ${textColorClass}`}>
         {displayStatus}
         {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && amount && (
-          <div className={`text-xs mt-0.5 ${language === 'ka' ? 'font-sans tabular-nums' : ''}`}>
+          <div className={`text-xs mt-0.5 ${language === 'ka' ? 'font-mono tracking-tight' : ''}`}>
             ({currencySymbol}{amount.toFixed(2)})
           </div>
         )}
@@ -744,7 +744,7 @@ const CustomerListContent = ({
                         {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
                       </TableCell>
                       <TableCell className="py-2">
-            <div className={`text-xs text-muted-foreground ${language === 'ka' ? 'font-sans tabular-nums' : ''}`}>
+            <div className={`text-xs text-muted-foreground ${language === 'ka' ? 'font-mono tracking-tight' : ''}`}>
               {customer.start_date ? (
                 <>
                   {format(new Date(customer.start_date), 'dd.MM.yyyy')}
@@ -756,7 +756,7 @@ const CustomerListContent = ({
             </div>
           </TableCell>
           <TableCell className="py-2">
-            <div className={`text-xs text-muted-foreground ${language === 'ka' ? 'font-sans tabular-nums' : ''}`}>
+            <div className={`text-xs text-muted-foreground ${language === 'ka' ? 'font-mono tracking-tight' : ''}`}>
               {customer.created_at ? format(new Date(customer.created_at), language === 'ka' ? 'dd.MM.yyyy HH:mm:ss' : 'dd.MM.yyyy HH:mm') : '-'}
             </div>
           </TableCell>
