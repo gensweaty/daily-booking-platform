@@ -17,6 +17,8 @@ interface StatsData {
     partlyPaid: number;
     fullyPaid: number;
     totalIncome: number;
+    eventIncome?: number;
+    standaloneCustomerIncome?: number;
     events: any[];
   };
   customerStats?: {
@@ -68,7 +70,17 @@ export const useExcelExport = () => {
       [t('dashboard.category')]: t('dashboard.financialSummary'),
       [t('dashboard.total')]: t('dashboard.totalIncome'),
       [t('dashboard.details')]: `${currencySymbol}${data.eventStats?.totalIncome?.toFixed(2) || '0.00'}`,
-      [t('dashboard.additionalInfo')]: t('dashboard.fromAllEvents'),
+      [t('dashboard.additionalInfo')]: '',
+    }, {
+      [t('dashboard.category')]: '',
+      [t('dashboard.total')]: t('dashboard.fromEvents'),
+      [t('dashboard.details')]: `${currencySymbol}${data.eventStats?.eventIncome?.toFixed(2) || '0.00'}`,
+      [t('dashboard.additionalInfo')]: '',
+    }, {
+      [t('dashboard.category')]: '',
+      [t('dashboard.total')]: t('dashboard.fromCustomers'),
+      [t('dashboard.details')]: `${currencySymbol}${data.eventStats?.standaloneCustomerIncome?.toFixed(2) || '0.00'}`,
+      [t('dashboard.additionalInfo')]: t('dashboard.withoutBooking'),
     }];
 
     // Transform events data for Excel with combined income calculation

@@ -99,6 +99,15 @@
     letter-spacing: -0.2px !important;
   }
   
+  /* Force uniform number display for Georgian */
+  .georgian-numbers {
+    font-family: 'Courier New', 'Consolas', monospace !important;
+    font-variant-numeric: tabular-nums !important;
+    letter-spacing: 0 !important;
+    font-size: 0.75rem !important;
+    line-height: 1.5 !important;
+  }
+  
   /* Fix for specific Georgian auth text component */
   .georgian-auth-text {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;
