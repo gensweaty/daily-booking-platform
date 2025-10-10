@@ -479,6 +479,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         
         // Use EXACT same logic as main calculation but for this specific month
         let monthIncome = 0;
+        let monthEventIncome = 0;
+        let monthCustomerIncome = 0;
         
         // Query events for this specific month
         const { data: monthEvents, error: monthEventsError } = await supabase
@@ -542,6 +544,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
                 : parseFloat(String(event.payment_amount));
               if (!isNaN(amount) && amount > 0) {
                 monthIncome += amount;
+                monthEventIncome += amount;
               }
             }
           });
@@ -555,6 +558,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
                 : parseFloat(String(firstInstance.payment_amount));
               if (!isNaN(amount) && amount > 0) {
                 monthIncome += amount;
+                monthEventIncome += amount;
               }
             }
           }
@@ -587,6 +591,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
                       : parseFloat(String(person.payment_amount));
                     if (!isNaN(amount) && amount > 0) {
                       monthIncome += amount;
+                      monthEventIncome += amount;
                     }
                   }
                 });
@@ -605,6 +610,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
                     : parseFloat(String(person.payment_amount));
                   if (!isNaN(amount) && amount > 0) {
                     monthIncome += amount;
+                    monthEventIncome += amount;
                   }
                 }
               });
@@ -612,12 +618,37 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           }
         }
 
+        // Query standalone customers for this month
+        const { data: monthStandaloneCustomers, error: monthStandaloneError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', userId)
+          .is('event_id', null)
+          .gte('created_at', monthStart.toISOString())
+          .lte('created_at', monthEnd.toISOString())
+          .is('deleted_at', null);
+
+        if (!monthStandaloneError && monthStandaloneCustomers) {
+          monthStandaloneCustomers.forEach(customer => {
+            const paymentStatus = customer.payment_status || '';
+            if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && customer.payment_amount) {
+              const amount = parsePaymentAmount(customer.payment_amount);
+              if (amount > 0) {
+                monthIncome += amount;
+                monthCustomerIncome += amount;
+              }
+            }
+          });
+        }
+
         threeMonthIncome.push({
           month: monthShort,
-          income: monthIncome
+          income: monthIncome,
+          eventIncome: monthEventIncome,
+          customerIncome: monthCustomerIncome
         });
 
-        console.log(`Month ${monthKey} income: ${monthIncome}`);
+        console.log(`Month ${monthKey} income: ${monthIncome} (events: ${monthEventIncome}, customers: ${monthCustomerIncome})`);
       }
 
 

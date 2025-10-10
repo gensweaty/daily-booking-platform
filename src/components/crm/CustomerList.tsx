@@ -740,15 +740,15 @@ const CustomerListContent = ({
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-2">
+                      <TableCell className="py-2 font-mono">
                         {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
                       </TableCell>
                       <TableCell className="py-2">
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground font-mono">
               {customer.start_date ? (
                 <>
-                  {formatDate(customer.start_date)}
-                  {customer.end_date && ` - ${formatDate(customer.end_date)}`}
+                  {format(new Date(customer.start_date), 'dd.MM.yyyy')}
+                  {customer.end_date && ` - ${format(new Date(customer.end_date), 'dd.MM.yyyy')}`}
                 </>
               ) : (
                 '-'
@@ -756,8 +756,8 @@ const CustomerListContent = ({
             </div>
           </TableCell>
           <TableCell className="py-2">
-            <div className="text-xs text-muted-foreground">
-              {formatDate(customer.created_at)}
+            <div className="text-xs text-muted-foreground font-mono">
+              {customer.created_at ? format(new Date(customer.created_at), 'dd.MM.yyyy HH:mm') : '-'}
             </div>
           </TableCell>
                       <TableCell className="py-2">

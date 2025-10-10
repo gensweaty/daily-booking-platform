@@ -19,6 +19,8 @@ interface IncomeChartProps {
   data: Array<{
     month: string;
     income: number;
+    eventIncome?: number;
+    customerIncome?: number;
   }>;
 }
 
@@ -105,9 +107,16 @@ export const IncomeChart = ({ data }: IncomeChartProps) => {
             />
             <Tooltip content={<CustomTooltip />} />
             <Bar
-              dataKey="income"
+              dataKey="eventIncome"
+              stackId="income"
               fill="#82ca9d"
-              name={yAxisLabel}
+              name={t('dashboard.fromEvents')}
+            />
+            <Bar
+              dataKey="customerIncome"
+              stackId="income"
+              fill="#a78bfa"
+              name={t('dashboard.fromCustomers')}
             />
           </BarChart>
         </ResponsiveContainer>

@@ -71,18 +71,23 @@ export const getLocalizedWeekdayName = (date: Date, language: Language, short: b
   }
 };
 
+// Helper to convert numbers to Latin numerals for Georgian
+const toLatinNumerals = (num: number): string => {
+  return num.toString();
+};
+
 export const getLocalizedDateFormat = (date: Date, language: Language, formatType: 'full' | 'monthYear' | 'dayMonth' | 'weekOf'): string => {
   switch (language) {
     case 'ka':
       switch (formatType) {
         case 'full':
-          return `${getLocalizedWeekdayName(date, language)}, ${getLocalizedMonthName(date, language)} ${date.getDate()}, ${date.getFullYear()}`;
+          return `${getLocalizedWeekdayName(date, language)}, ${getLocalizedMonthName(date, language)} ${toLatinNumerals(date.getDate())}, ${toLatinNumerals(date.getFullYear())}`;
         case 'monthYear':
-          return `${getLocalizedMonthName(date, language)} ${date.getFullYear()}`;
+          return `${getLocalizedMonthName(date, language)} ${toLatinNumerals(date.getFullYear())}`;
         case 'dayMonth':
-          return `${getLocalizedMonthName(date, language)} ${date.getDate()}`;
+          return `${getLocalizedMonthName(date, language)} ${toLatinNumerals(date.getDate())}`;
         case 'weekOf':
-          return `კვირა ${getLocalizedMonthName(date, language)} ${date.getDate()}, ${date.getFullYear()}`;
+          return `კვირა ${getLocalizedMonthName(date, language)} ${toLatinNumerals(date.getDate())}, ${toLatinNumerals(date.getFullYear())}`;
         default:
           return format(date, "PPP");
       }
