@@ -97,24 +97,13 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
     return s;
   };
 
-  // For standalone customers: prioritize paid_at, fallback to created_at
-  const buildStandaloneFilter = (startISO: string, endISO: string) => {
-    return `and(paid_at.gte.${startISO},paid_at.lte.${endISO}),and(paid_at.is.null,created_at.gte.${startISO},created_at.lte.${endISO})`;
-  };
-
-  const resolvePaymentDate = (row: any): string | null => {
-    // Prioritize paid_at for accurate payment timing
-    const candidate = row.paid_at || row.created_at || row.start_date;
-    
-    if (!candidate) {
-      return null;
-    }
-    
+  // Effective date: event → start_date, standalone customer → created_at
+  const getEffectiveDate = (row: any, isStandalone = false): string | null => {
+    const src = isStandalone ? row?.created_at : row?.start_date;
+    if (!src) return null;
     try {
-      const isoDate = new Date(candidate).toISOString();
-      return isoDate;
-    } catch (error) {
-      console.error('Failed to parse date for row:', row.id, error);
+      return new Date(src).toISOString();
+    } catch {
       return null;
     }
   };
@@ -166,7 +155,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           .lte('start_date', endDateStr)
           .is('deleted_at', null),
 
-        // Get standalone customers filtered by payment date (paid_at or created_at)
+        // Get standalone customers strictly by created_at
         supabase
           .from('customers')
           .select('*')
@@ -174,7 +163,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           .is('event_id', null)
           .eq('create_event', false)
           .is('deleted_at', null)
-          .or(buildStandaloneFilter(startDateStr, endDateStr))
+          .gte('created_at', startDateStr)
+          .lte('created_at', endDateStr)
       ]);
 
       if (calendarEventsResult.error) {
@@ -317,11 +307,14 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         }
 
         // Create a combined event entry for export compatibility
+        const effectiveEventDate = getEffectiveDate(mainEvent, false);
         processedEvents.push({
           ...mainEvent,
           combined_payment_amount: groupIncome,
           person_count: eventGroup.length,
-          all_persons: eventGroup
+          all_persons: eventGroup,
+          effective_date: effectiveEventDate,
+          effective_date_source: 'event_date'
         });
       }
 
@@ -330,12 +323,12 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       (standaloneCustomersResult.data || []).forEach(customer => {
         const status = normalizePaymentStatus(customer.payment_status);
         const amount = parsePaymentAmount(customer.payment_amount);
-        const whenISO = resolvePaymentDate(customer);
+        const effective = getEffectiveDate(customer, true); // created_at
 
-        console.log(`Standalone customer ${customer.id}: status=${status}, amount=${amount}, whenISO=${whenISO}`);
+        console.log(`Standalone customer ${customer.id}: status=${status}, amount=${amount}, effective=${effective}`);
 
         // Only count paid items with a usable timestamp
-        if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0 && whenISO) {
+        if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0 && effective) {
           // tally counts (status-level)
           if (status === 'partly_paid') partlyPaid++;
           if (status === 'fully_paid') fullyPaid++;
@@ -343,9 +336,9 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           // add to total income
           totalIncome += amount;
 
-          // month bucketing by payment date
+          // month bucketing by adding date (created_at)
           try {
-            const dt = parseISO(whenISO);
+            const dt = parseISO(effective);
             const monthKey = format(dt, 'MMM yyyy');
             monthlyIncomeMap.set(monthKey, (monthlyIncomeMap.get(monthKey) || 0) + amount);
             console.log(`Adding ${amount} from standalone customer ${customer.id} to month ${monthKey}`);
@@ -362,13 +355,15 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             social_network_link: customer.social_network_link,
             payment_status: status,
             payment_amount: amount,
-            start_date: whenISO, // normalized to payment date for consistent charts
-            end_date: whenISO,
+            start_date: effective,
+            end_date: effective,
             event_notes: customer.event_notes,
             source: 'standalone_customer',
             combined_payment_amount: amount,
             person_count: 1,
-            all_persons: [customer]
+            all_persons: [customer],
+            effective_date: effective,
+            effective_date_source: 'added_date'
           });
         }
       });
@@ -433,7 +428,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             .lte('start_date', incomeRangeEnd.toISOString())
             .is('deleted_at', null),
 
-          // Fetch standalone customers for 3-month income by payment date
+          // Fetch standalone customers for 3-month income strictly by created_at
           supabase
             .from('customers')
             .select('*')
@@ -441,7 +436,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             .is('event_id', null)
             .eq('create_event', false)
             .is('deleted_at', null)
-            .or(buildStandaloneFilter(incomeRangeStart.toISOString(), incomeRangeEnd.toISOString()))
+            .gte('created_at', incomeRangeStart.toISOString())
+            .lte('created_at', incomeRangeEnd.toISOString())
         ]);
 
         // Process additional events with the same grouping logic
@@ -495,7 +491,9 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             ...mainEvent,
             combined_payment_amount: groupIncome,
             person_count: eventGroup.length,
-            all_persons: eventGroup
+            all_persons: eventGroup,
+            effective_date: getEffectiveDate(mainEvent, false),
+            effective_date_source: 'event_date'
           });
         }
 
@@ -503,9 +501,9 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         (additionalStandaloneCustomers.data || []).forEach(customer => {
           const status = normalizePaymentStatus(customer.payment_status);
           const amount = parsePaymentAmount(customer.payment_amount);
-          const whenISO = resolvePaymentDate(customer);
+          const effective = getEffectiveDate(customer, true); // created_at
 
-          if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0 && whenISO) {
+          if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0 && effective) {
             additionalProcessedEvents.push({
               id: customer.id,
               title: customer.title,
@@ -514,13 +512,15 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
               social_network_link: customer.social_network_link,
               payment_status: status,
               payment_amount: amount,
-              start_date: whenISO,
-              end_date: whenISO,
+              start_date: effective,
+              end_date: effective,
               event_notes: customer.event_notes,
               source: 'standalone_customer',
               combined_payment_amount: amount,
               person_count: 1,
-              all_persons: [customer]
+              all_persons: [customer],
+              effective_date: effective,
+              effective_date_source: 'added_date'
             });
           }
         });
@@ -541,8 +541,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         
         // Filter events within this month from the income events
         const monthEvents = allEventsForIncome.filter(event => {
-          // Try start_date first, fallback to created_at for standalone customers
-          const dateToUse = event.start_date || event.created_at;
+          const dateToUse = event.effective_date || event.start_date || event.created_at;
           if (!dateToUse) {
             console.warn(`Skipping event ${event.id} - no valid date`);
             return false;
@@ -582,8 +581,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
 
       // Calculate totalIncome based on the current selected date range
       const totalIncomeInRange = processedEvents.reduce((sum, ev) => {
-        // Try start_date first, fallback to created_at for standalone customers
-        const dateToUse = ev.start_date || ev.created_at;
+        const dateToUse = ev.effective_date || ev.start_date || ev.created_at;
         if (!dateToUse) {
           console.warn(`Skipping event ${ev.id} from totalIncome - no valid date`);
           return sum;
