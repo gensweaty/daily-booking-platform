@@ -78,6 +78,7 @@ export interface TranslationType {
     paidPartly: string;
     paidFully: string;
     newCustomer: string;
+    fullName: string;
     fullNameRequired: string;
     fullNamePlaceholder: string;
     phoneNumber: string;

@@ -73,6 +73,7 @@ export const translations: TranslationType = {
     paidPartly: "Paid Partly",
     paidFully: "Paid Fully",
     newCustomer: "New Customer",
+    fullName: "Full Name",
     fullNameRequired: "Full Name",
     fullNamePlaceholder: "Enter customer's full name",
     phoneNumber: "Phone Number",

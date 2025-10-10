@@ -508,10 +508,10 @@ const CustomerListContent = ({
         customer.payment_status : '';
 
       return {
-        [t("crm.fullNameRequired")]: customer.title || '',
+        [language === 'ka' ? 'სრული სახელი' : t("crm.fullNameRequired")]: customer.title || '',
         [t("crm.phoneNumber")]: customer.user_number || '',
         [t("crm.socialLinkEmail")]: customer.social_network_link || '',
-        [language === 'en' ? 'Payment Status' : language === 'es' ? 'Estado de Pago' : 'გადახდის სტატუსი']: paymentStatusText,
+        [t("crm.paymentStatus")]: paymentStatusText,
         [t("crm.paymentAmount")]: customer.payment_amount ? `${currencySymbol}${customer.payment_amount}` : '',
         [t("crm.eventDate")]: customer.start_date ? 
           `${format(new Date(customer.start_date), 'dd.MM.yyyy')}${customer.end_date ? ` - ${format(new Date(customer.end_date), 'dd.MM.yyyy')}` : ''}` : '-',

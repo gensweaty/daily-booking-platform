@@ -84,6 +84,7 @@ export const translations: TranslationType = {
     paidPartly: "Pagado Parcialmente",
     paidFully: "Pagado Completamente",
     newCustomer: "Nuevo Cliente",
+    fullName: "Nombre Completo",
     fullNameRequired: "Nombre Completo",
     fullNamePlaceholder: "Ingrese el nombre completo del cliente",
     phoneNumber: "Número de Teléfono",
