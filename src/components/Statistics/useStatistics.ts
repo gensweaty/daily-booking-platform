@@ -155,13 +155,14 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           .lte('start_date', endDateStr)
           .is('deleted_at', null),
 
-        // Get standalone customers strictly by created_at
+        // Standalone customers = (no event OR create_event=false)
+        // Filter by created_at (added date) and keep only customer/legacy rows
         supabase
           .from('customers')
           .select('*')
           .eq('user_id', userId)
-          .is('event_id', null)
-          .eq('create_event', false)
+          .or('event_id.is.null,create_event.is.false')
+          .or('type.eq.customer,type.is.null')
           .is('deleted_at', null)
           .gte('created_at', startDateStr)
           .lte('created_at', endDateStr)
@@ -428,13 +429,13 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             .lte('start_date', incomeRangeEnd.toISOString())
             .is('deleted_at', null),
 
-          // Fetch standalone customers for 3-month income strictly by created_at
+          // Same logic as above, for the widened 3-month window
           supabase
             .from('customers')
             .select('*')
             .eq('user_id', userId)
-            .is('event_id', null)
-            .eq('create_event', false)
+            .or('event_id.is.null,create_event.is.false')
+            .or('type.eq.customer,type.is.null')
             .is('deleted_at', null)
             .gte('created_at', incomeRangeStart.toISOString())
             .lte('created_at', incomeRangeEnd.toISOString())
