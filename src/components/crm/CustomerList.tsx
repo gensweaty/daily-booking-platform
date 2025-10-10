@@ -740,11 +740,11 @@ const CustomerListContent = ({
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-2 font-mono">
+                      <TableCell className={`py-2 ${language === 'ka' ? 'font-mono' : ''}`}>
                         {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
                       </TableCell>
                       <TableCell className="py-2">
-            <div className="text-xs text-muted-foreground font-mono">
+            <div className={`text-xs text-muted-foreground ${language === 'ka' ? 'font-mono' : ''}`}>
               {customer.start_date ? (
                 <>
                   {format(new Date(customer.start_date), 'dd.MM.yyyy')}
@@ -756,7 +756,7 @@ const CustomerListContent = ({
             </div>
           </TableCell>
           <TableCell className="py-2">
-            <div className="text-xs text-muted-foreground font-mono">
+            <div className={`text-xs text-muted-foreground ${language === 'ka' ? 'font-mono' : ''}`}>
               {customer.created_at ? format(new Date(customer.created_at), 'dd.MM.yyyy HH:mm') : '-'}
             </div>
           </TableCell>
