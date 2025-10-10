@@ -98,18 +98,21 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
   };
 
   // Prefer a payment timestamp; fall back gracefully
+  // Build OR filter for paid window: paid_at in range OR (no paid_at → created_at in range)
+  const buildPaidWindowOr = (startISO: string, endISO: string) => (
+    `and(paid_at.gte.${startISO},paid_at.lte.${endISO}),and(paid_at.is.null,created_at.gte.${startISO},created_at.lte.${endISO})`
+  );
+
   const resolvePaymentDate = (row: any): string | null => {
-    // If your schema has payment_date or paid_at, use it first
-    const candidate = row.payment_date || row.paid_at || row.created_at || row.start_date;
+    // Prioritize paid_at for accurate payment timing
+    const candidate = row.paid_at || row.created_at || row.start_date;
     
     if (!candidate) {
-      console.warn('No valid date found for row:', row.id);
       return null;
     }
     
     try {
       const isoDate = new Date(candidate).toISOString();
-      console.log(`Resolved payment date for ${row.id}: ${isoDate} (from ${candidate})`);
       return isoDate;
     } catch (error) {
       console.error('Failed to parse date for row:', row.id, error);
@@ -164,15 +167,14 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           .lte('start_date', endDateStr)
           .is('deleted_at', null),
 
-        // Get standalone customers (customers without events) that have payment status
+        // Get standalone customers by payment window (paid_at or created_at)
         supabase
           .from('customers')
           .select('*')
           .eq('user_id', userId)
           .or('event_id.is.null,create_event.is.false')
           .or('type.eq.customer,type.is.null')
-          .gte('created_at', startDateStr)
-          .lte('created_at', endDateStr)
+          .or(buildPaidWindowOr(startDateStr, endDateStr))
           .is('deleted_at', null)
       ]);
 
@@ -432,15 +434,14 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             .lte('start_date', incomeRangeEnd.toISOString())
             .is('deleted_at', null),
 
-          // Fetch standalone customers (without events) for 3-month income view
+          // Fetch standalone customers for 3-month income by payment window
           supabase
             .from('customers')
             .select('*')
             .eq('user_id', userId)
             .or('event_id.is.null,create_event.is.false')
             .or('type.eq.customer,type.is.null')
-            .gte('created_at', incomeRangeStart.toISOString())
-            .lte('created_at', incomeRangeEnd.toISOString())
+            .or(buildPaidWindowOr(incomeRangeStart.toISOString(), incomeRangeEnd.toISOString()))
             .is('deleted_at', null)
         ]);
 

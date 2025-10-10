@@ -658,6 +658,7 @@ export type Database = {
           last_edited_at: string | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
+          paid_at: string | null
           parent_group_id: string | null
           payment_amount: number | null
           payment_status: string | null
@@ -683,6 +684,7 @@ export type Database = {
           last_edited_at?: string | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
+          paid_at?: string | null
           parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null
@@ -708,6 +710,7 @@ export type Database = {
           last_edited_at?: string | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
+          paid_at?: string | null
           parent_group_id?: string | null
           payment_amount?: number | null
           payment_status?: string | null

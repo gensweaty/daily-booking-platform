@@ -23,6 +23,34 @@ import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { uploadSingleCustomerFile } from "@/utils/customerFileUpload";
 import { useCRMFileRefresh } from "@/hooks/useCRMFileRefresh";
 
+// Normalize payment status for consistent DB writes
+const normalizeStatusForWrite = (raw?: string | null) => {
+  if (!raw) return 'not_paid';
+  const s = String(raw).toLowerCase();
+  if (s.includes('full')) return 'fully_paid';
+  if (s.includes('part')) return 'partly_paid';
+  if (s.includes('not') || s.includes('unpaid')) return 'not_paid';
+  if (s === 'fully_paid' || s === 'partly_paid' || s === 'not_paid') return s;
+  return 'not_paid';
+};
+
+// Compute paid_at timestamp based on payment status and amount
+const computePaidAt = (
+  nextStatus: string, 
+  amountNum: number | null, 
+  prevPaidAt?: string | null, 
+  prevStatus?: string
+) => {
+  // If not paid or zero/empty amount → clear paid_at
+  if (nextStatus === 'not_paid' || !amountNum || amountNum <= 0) return null;
+
+  // If transitioning from not paid → set now
+  if (!prevPaidAt || prevStatus === 'not_paid') return new Date().toISOString();
+
+  // Staying paid → keep previous timestamp
+  return prevPaidAt;
+};
+
 interface CustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -440,19 +468,23 @@ export const CustomerDialog = ({
           };
         } else {
           // For customers, use customer-specific fields
+          const nextStatus = normalizeStatusForWrite(payment_status);
+          const amountNum = payment_amount ? parseFloat(payment_amount) : null;
+
           updates = {
             title,
             user_number,
             social_network_link,
             event_notes,
             // Always save payment status/amount for standalone customers
-            payment_status: payment_status || 'not_paid',
-            payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+            payment_status: nextStatus,
+            payment_amount: amountNum,
             user_id: effectiveUserId,
             create_event: createEvent,
             start_date: createEvent ? eventStartDate.toISOString() : null,
             end_date: createEvent ? eventEndDate.toISOString() : null,
             type: 'customer', // Ensure statistics queries will see it
+            paid_at: computePaidAt(nextStatus, amountNum, initialData?.paid_at, initialData?.payment_status),
             // Add edit metadata for sub-users
             ...(isPublicMode && externalUserName ? {
               last_edited_by_type: 'sub_user',
@@ -608,19 +640,23 @@ export const CustomerDialog = ({
           }
         }
       } else {
+        const nextStatus = normalizeStatusForWrite(payment_status);
+        const amountNum = payment_amount ? parseFloat(payment_amount) : null;
+
         const newCustomer = {
           title,
           user_number,
           social_network_link,
           event_notes,
           // Always save payment status/amount for standalone customers
-          payment_status: payment_status || 'not_paid',
-          payment_amount: payment_amount ? parseFloat(payment_amount) : null,
+          payment_status: nextStatus,
+          payment_amount: amountNum,
           user_id: effectiveUserId,
           create_event: createEvent,
           start_date: createEvent ? eventStartDate.toISOString() : null,
           end_date: createEvent ? eventEndDate.toISOString() : null,
           type: 'customer', // Ensure statistics queries will see it
+          paid_at: computePaidAt(nextStatus, amountNum, null, null),
           // Add creator metadata for all users
           ...(isPublicMode && externalUserName ? {
             created_by_type: 'sub_user',
