@@ -51,8 +51,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
     // For string values (might include currency symbols)
     if (typeof amount === 'string') {
       try {
-        // Remove any non-numeric characters except dots and minus signs
-        const cleanedStr = amount.replace(/[^0-9.-]+/g, '');
+        // Remove any non-numeric characters except dots and minus signs, accept comma as decimal separator
+        const cleanedStr = amount.replace(',', '.').replace(/[^0-9.-]+/g, '');
         const parsed = parseFloat(cleanedStr);
         return isNaN(parsed) ? 0 : parsed;
       } catch (e) {
@@ -108,6 +108,15 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
     }
   };
 
+  // Standalone rules: strictly no event, and not marked to create an event
+  const isStandaloneRow = (r: any) =>
+    (r?.event_id == null) &&
+    (r?.create_event === false || r?.create_event == null) &&
+    (r?.type == null || r?.type === 'customer');
+
+  // Filter array safely
+  const onlyStandalone = (rows: any[] | null | undefined) => (rows ?? []).filter(isStandaloneRow);
+
   // Optimize events stats query with improved multi-person income calculation
   const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
     queryKey: eventStatsQueryKey,
@@ -155,16 +164,14 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           .lte('start_date', endDateStr)
           .is('deleted_at', null),
 
-        // Standalone customers = (no event OR create_event=false)
-        // Filter by created_at (added date) and keep only customer/legacy rows
+        // Standalone customers: select by created_at ONLY, event date dominates → exclude any with event_id
         supabase
           .from('customers')
           .select('*')
           .eq('user_id', userId)
-          .or('event_id.is.null,create_event.is.false')
-          .or('type.eq.customer,type.is.null')
           .is('deleted_at', null)
-          .gte('created_at', startDateStr)
+          .is('event_id', null)                 // hard exclude any that got an event later
+          .gte('created_at', startDateStr)      // added-date window
           .lte('created_at', endDateStr)
       ]);
 
@@ -187,8 +194,10 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
         console.error('Error fetching standalone customers:', standaloneCustomersResult.error);
         throw standaloneCustomersResult.error;
       }
+
+      const standaloneCustomers = onlyStandalone(standaloneCustomersResult.data);
       
-      console.log(`Statistics - Found ${calendarEventsResult.data?.length || 0} calendar events, ${crmEventsResult.data?.length || 0} CRM events, ${customersResult.data?.length || 0} additional customers, and ${standaloneCustomersResult.data?.length || 0} standalone customers with payments`);
+      console.log(`Statistics - Found ${calendarEventsResult.data?.length || 0} calendar events, ${crmEventsResult.data?.length || 0} CRM events, ${customersResult.data?.length || 0} additional customers, and ${standaloneCustomers.length} standalone customers with payments`);
       
       // Group events by their date/time to identify multi-person events
       const eventGroups = new Map<string, any[]>();
@@ -320,8 +329,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       }
 
       // Process standalone customers (customers without events)
-      console.log(`Processing ${standaloneCustomersResult.data?.length || 0} standalone customers`);
-      (standaloneCustomersResult.data || []).forEach(customer => {
+      console.log(`Processing ${standaloneCustomers.length} standalone customers`);
+      standaloneCustomers.forEach(customer => {
         const status = normalizePaymentStatus(customer.payment_status);
         const amount = parsePaymentAmount(customer.payment_amount);
         const effective = getEffectiveDate(customer, true); // created_at
@@ -370,7 +379,7 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       });
 
       // Update total count to include standalone customers
-      total = eventGroups.size + (standaloneCustomersResult.data?.length || 0);
+      total = eventGroups.size + standaloneCustomers.length;
 
       // Get all days in the selected range for daily bookings
       const daysInRange = eachDayOfInterval({
@@ -429,14 +438,13 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             .lte('start_date', incomeRangeEnd.toISOString())
             .is('deleted_at', null),
 
-          // Same logic as above, for the widened 3-month window
+          // Standalone customers: same pattern for 3-month window
           supabase
             .from('customers')
             .select('*')
             .eq('user_id', userId)
-            .or('event_id.is.null,create_event.is.false')
-            .or('type.eq.customer,type.is.null')
             .is('deleted_at', null)
+            .is('event_id', null)
             .gte('created_at', incomeRangeStart.toISOString())
             .lte('created_at', incomeRangeEnd.toISOString())
         ]);
@@ -498,8 +506,10 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           });
         }
 
+        const additionalStandaloneCustomers_filtered = onlyStandalone(additionalStandaloneCustomers.data);
+
         // Add standalone customers to the income events
-        (additionalStandaloneCustomers.data || []).forEach(customer => {
+        additionalStandaloneCustomers_filtered.forEach(customer => {
           const status = normalizePaymentStatus(customer.payment_status);
           const amount = parsePaymentAmount(customer.payment_amount);
           const effective = getEffectiveDate(customer, true); // created_at
