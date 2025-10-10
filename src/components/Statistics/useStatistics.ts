@@ -97,11 +97,10 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
     return s;
   };
 
-  // Prefer a payment timestamp; fall back gracefully
-  // Build OR filter for paid window: paid_at in range OR (no paid_at → created_at in range)
-  const buildPaidWindowOr = (startISO: string, endISO: string) => (
-    `and(paid_at.gte.${startISO},paid_at.lte.${endISO}),and(paid_at.is.null,created_at.gte.${startISO},created_at.lte.${endISO})`
-  );
+  // For standalone customers: prioritize paid_at, fallback to created_at
+  const buildStandaloneFilter = (startISO: string, endISO: string) => {
+    return `and(paid_at.gte.${startISO},paid_at.lte.${endISO}),and(paid_at.is.null,created_at.gte.${startISO},created_at.lte.${endISO})`;
+  };
 
   const resolvePaymentDate = (row: any): string | null => {
     // Prioritize paid_at for accurate payment timing
@@ -167,15 +166,15 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
           .lte('start_date', endDateStr)
           .is('deleted_at', null),
 
-        // Get standalone customers by payment window (paid_at or created_at)
+        // Get standalone customers filtered by payment date (paid_at or created_at)
         supabase
           .from('customers')
           .select('*')
           .eq('user_id', userId)
-          .or('event_id.is.null,create_event.is.false')
-          .or('type.eq.customer,type.is.null')
-          .or(buildPaidWindowOr(startDateStr, endDateStr))
+          .is('event_id', null)
+          .eq('create_event', false)
           .is('deleted_at', null)
+          .or(buildStandaloneFilter(startDateStr, endDateStr))
       ]);
 
       if (calendarEventsResult.error) {
@@ -434,15 +433,15 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
             .lte('start_date', incomeRangeEnd.toISOString())
             .is('deleted_at', null),
 
-          // Fetch standalone customers for 3-month income by payment window
+          // Fetch standalone customers for 3-month income by payment date
           supabase
             .from('customers')
             .select('*')
             .eq('user_id', userId)
-            .or('event_id.is.null,create_event.is.false')
-            .or('type.eq.customer,type.is.null')
-            .or(buildPaidWindowOr(incomeRangeStart.toISOString(), incomeRangeEnd.toISOString()))
+            .is('event_id', null)
+            .eq('create_event', false)
             .is('deleted_at', null)
+            .or(buildStandaloneFilter(incomeRangeStart.toISOString(), incomeRangeEnd.toISOString()))
         ]);
 
         // Process additional events with the same grouping logic
