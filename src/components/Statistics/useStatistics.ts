@@ -580,29 +580,8 @@ export const useStatistics = (userId: string | undefined, dateRange: { start: Da
       // Debug: Monthly income data
       console.log('Monthly income data with multi-person calculation:', monthlyIncome);
 
-      // Calculate totalIncome based on the current selected date range
-      const totalIncomeInRange = processedEvents.reduce((sum, ev) => {
-        const dateToUse = ev.effective_date || ev.start_date || ev.created_at;
-        if (!dateToUse) {
-          console.warn(`Skipping event ${ev.id} from totalIncome - no valid date`);
-          return sum;
-        }
-        
-        try {
-          const dt = parseISO(dateToUse);
-          if (dt >= dateRange.start && dt <= endOfDay(dateRange.end)) {
-            const income = ev.combined_payment_amount || 0;
-            if (income > 0 && ev.source === 'standalone_customer') {
-              console.log(`✅ Including standalone customer ${ev.id} in totalIncome: ${income}`);
-            }
-            return sum + income;
-          }
-        } catch (error) {
-          console.error(`Invalid date for event ${ev.id}:`, dateToUse);
-        }
-        return sum;
-      }, 0);
-      totalIncome = Number.isFinite(totalIncomeInRange) ? totalIncomeInRange : 0;
+      // Note: totalIncome is already calculated correctly during processing loop (lines 291 & 338)
+      // It includes event groups and standalone customers within the selected date range
       
       console.log('Income calculation summary with multi-person support:', {
         totalDirectCalculation: totalIncome,
