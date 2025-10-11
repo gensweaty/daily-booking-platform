@@ -4,8 +4,6 @@ import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
-import { useLanguage } from "@/contexts/LanguageContext"
-import { GeorgianAuthText } from "../shared/GeorgianAuthText"
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 relative overflow-hidden group",
@@ -54,44 +52,12 @@ export interface ButtonProps
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, children, ...props }, ref) => {
-    const { language, t } = useLanguage();
-    const isGeorgian = language === 'ka';
-    
     const Component = asChild ? Slot : "button"
-    
-    // For Georgian text, we need special handling
-    let wrappedChildren = children;
-    
-    // For button text that needs translation
-    if (isGeorgian && typeof children === 'string') {
-      // Special case for common button labels that need translation
-      if (children === 'add' || children === 'Add') {
-        wrappedChildren = (
-          <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
-            დამატება
-          </GeorgianAuthText>
-        );
-      } else if (children === 'update' || children === 'Update') {
-        wrappedChildren = (
-          <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
-            განახლება
-          </GeorgianAuthText>
-        );
-      } else {
-        // General case for other text
-        wrappedChildren = (
-          <GeorgianAuthText fontWeight={props.disabled ? 'normal' : 'bold'}>
-            {children}
-          </GeorgianAuthText>
-        );
-      }
-    }
     
     return (
       <Component
         className={cn(
           buttonVariants({ variant, size, className }),
-          isGeorgian ? "ka-text georgian-text-fix" : "",
           // Add GPU optimization for animated buttons
           (variant === "purple" || variant === "dynamic") ? "gpu-layer will-animate" : ""
         )}
@@ -99,7 +65,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       >
         <span className="relative z-10 flex items-center gap-2">
-          {wrappedChildren}
+          {children}
         </span>
       </Component>
     )
