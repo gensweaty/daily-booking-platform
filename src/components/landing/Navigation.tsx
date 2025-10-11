@@ -30,6 +30,15 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
     setIsMobileMenuOpen(false);
   };
 
+  const handlePricingClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const pricingSection = document.getElementById('pricing');
+    if (pricingSection) {
+      pricingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      handleMenuClose();
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -69,6 +78,14 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
             </AvatarFallback>
           </MemoizedAvatar>
           <LanguageText>{language === 'ka' ? "მართვის პანელი" : "Dashboard"}</LanguageText>
+        </Button>
+        
+        <Button 
+          onClick={handlePricingClick}
+          variant="outline" 
+          className="hover:scale-105 transition-transform text-sm glass-morphism hover:bg-accent/10"
+        >
+          {t('nav.pricing')}
         </Button>
         
         <Button 
@@ -136,6 +153,13 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
             {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
           </Button>
         </Link>
+        <Button 
+          onClick={handlePricingClick}
+          variant="outline" 
+          className="hover:scale-105 transition-all text-sm md:text-base glass-morphism hover:bg-accent/10"
+        >
+          {t('nav.pricing')}
+        </Button>
         <Link to="/contact">
           <Button variant="outline" className="hover:scale-105 transition-all text-sm md:text-base glass-morphism hover:bg-accent/10">
             {language === 'ka' ? "კონტაქტი" : t('nav.contact')}

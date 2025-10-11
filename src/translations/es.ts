@@ -17,6 +17,8 @@ export const translations: TranslationType = {
     signin: "Iniciar Sesión",
     startJourney: "Comenzar el Viaje", 
     contact: "Contacto",
+    pricing: "Precios",
+    signOut: "Cerrar Sesión",
   },
   hero: {
     title: "Aumente la Productividad de su Negocio con SmartBookly",

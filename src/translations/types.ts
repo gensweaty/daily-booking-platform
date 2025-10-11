@@ -11,6 +11,8 @@ export interface TranslationType {
     signin: string;
     startJourney: string;
     contact: string;
+    pricing: string;
+    signOut: string;
   };
   hero: {
     title: string;

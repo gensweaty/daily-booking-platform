@@ -6,6 +6,8 @@ export const translations: TranslationType = {
     signin: "Sign In",
     startJourney: "Start Journey",
     contact: "Contact",
+    pricing: "Pricing",
+    signOut: "Sign Out",
   },
   hero: {
     title: "Boost Your Business Productivity with SmartBookly",

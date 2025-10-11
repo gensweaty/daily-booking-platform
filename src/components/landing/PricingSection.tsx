@@ -112,7 +112,7 @@ export const PricingSection = () => {
   };
 
   return (
-    <section className="py-16 bg-gradient-to-br from-slate-900 via-primary/20 to-slate-800 text-white relative overflow-hidden">
+    <section id="pricing" className="py-16 bg-gradient-to-br from-slate-900 via-primary/20 to-slate-800 text-white relative overflow-hidden">
       {/* Reduced Background Elements */}
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-600/5 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
       <div 
