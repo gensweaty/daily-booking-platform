@@ -254,6 +254,91 @@ export const CustomerDialogFields = ({
         />
       </div>
 
+      {/* Payment Status for Standalone Customers (without events) */}
+      {!isEventBased && (
+        <div className="space-y-4 border-t pt-4 mt-4">
+          <Label className="font-medium">{t("crm.paymentDetails")}</Label>
+          
+          <div className="space-y-2">
+            <Label htmlFor="paymentStatus">
+              {isGeorgian ? (
+                <GeorgianAuthText>გადახდის სტატუსი</GeorgianAuthText>
+              ) : (
+                <LanguageText>{t("events.paymentStatus")}</LanguageText>
+              )}
+            </Label>
+            <Select value={paymentStatus} onValueChange={setPaymentStatus}>
+              <SelectTrigger 
+                id="paymentStatus" 
+                className={cn(isGeorgian ? "font-georgian" : "")}
+                style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+              >
+                <SelectValue placeholder={t("events.selectPaymentStatus")} />
+              </SelectTrigger>
+              <SelectContent 
+                className={cn("bg-background pointer-events-auto", isGeorgian ? "font-georgian" : "")} 
+                position="popper"
+                style={{ zIndex: 2147483646 }}
+                sideOffset={5}
+              >
+                <SelectItem 
+                  value="not_paid" 
+                  className={cn(isGeorgian ? "font-georgian" : "")}
+                  style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+                >
+                  <LanguageText>{t("crm.notPaid")}</LanguageText>
+                </SelectItem>
+                <SelectItem 
+                  value="partly_paid" 
+                  className={cn(isGeorgian ? "font-georgian" : "")}
+                  style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+                >
+                  <LanguageText>{t("crm.paidPartly")}</LanguageText>
+                </SelectItem>
+                <SelectItem 
+                  value="fully_paid" 
+                  className={cn(isGeorgian ? "font-georgian" : "")}
+                  style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+                >
+                  <LanguageText>{t("crm.paidFully")}</LanguageText>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {showPaymentAmount && (
+            <div className="space-y-2">
+              <Label htmlFor="paymentAmount">
+                {isGeorgian ? (
+                  <GeorgianAuthText>გადახდის თანხა</GeorgianAuthText>
+                ) : (
+                  <LanguageText>{t("events.paymentAmount")}</LanguageText>
+                )}
+              </Label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <span className="text-gray-500">{currencySymbol}</span>
+                </div>
+                <Input 
+                  id="paymentAmount"
+                  value={paymentAmount} 
+                  onChange={e => {
+                    const value = e.target.value;
+                    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+                      setPaymentAmount(value);
+                    }
+                  }} 
+                  className="pl-7" 
+                  placeholder="0.00" 
+                  type="text" 
+                  inputMode="decimal" 
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {isEventBased && startDate && endDate && (
         <div className="rounded-md bg-muted p-3 space-y-2">
           <Label className="font-medium">{t("events.eventDetails")}</Label>

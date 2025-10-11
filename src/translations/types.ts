@@ -11,6 +11,8 @@ export interface TranslationType {
     signin: string;
     startJourney: string;
     contact: string;
+    pricing: string;
+    signOut: string;
   };
   hero: {
     title: string;
@@ -78,7 +80,9 @@ export interface TranslationType {
     paidPartly: string;
     paidFully: string;
     newCustomer: string;
+    fullName: string;
     fullNameRequired: string;
+    paymentDetails: string;
     fullNamePlaceholder: string;
     phoneNumber: string;
     phoneNumberPlaceholder: string;
@@ -97,6 +101,8 @@ export interface TranslationType {
     editCustomer: string;
     update: string;
     dates: string;
+    eventDate: string;
+    addingDate: string;
     actions: string;
     customersPerPage: string;
     noCustomers: string;
@@ -302,6 +308,8 @@ export interface TranslationType {
     notPaid: string;
     totalIncome: string;
     fromAllEvents: string;
+    fromEvents: string;
+    fromCustomers: string;
     exportSuccessful: string;
     exportSuccessMessage: string;
     changePassword: string;

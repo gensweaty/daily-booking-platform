@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -51,6 +51,18 @@ import { Badge } from "@/components/ui/badge";
 import { PaymentStatus } from "@/lib/types";
 import { PresenceCircles } from "@/components/presence/PresenceCircles";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const LoadingCustomerList = React.memo(() => {
   return (
@@ -443,7 +455,7 @@ const CustomerListContent = ({
       <div className={`font-medium ${textColorClass}`}>
         {displayStatus}
         {(normalizedStatus === 'partly' || normalizedStatus === 'fully') && amount && (
-          <div className="text-xs mt-0.5">
+          <div className={`text-xs mt-0.5 ${language === 'ka' ? 'georgian-numbers' : ''}`}>
             ({currencySymbol}{amount.toFixed(2)})
           </div>
         )}
@@ -496,16 +508,15 @@ const CustomerListContent = ({
         customer.payment_status : '';
 
       return {
-        [t("crm.fullNameRequired")]: customer.title || '',
+        [language === 'ka' ? 'სრული სახელი' : t("crm.fullNameRequired")]: customer.title || '',
         [t("crm.phoneNumber")]: customer.user_number || '',
         [t("crm.socialLinkEmail")]: customer.social_network_link || '',
         [t("crm.paymentStatus")]: paymentStatusText,
         [t("crm.paymentAmount")]: customer.payment_amount ? `${currencySymbol}${customer.payment_amount}` : '',
-        [t("events.date")]: customer.start_date ? format(new Date(customer.start_date), 'dd.MM.yyyy') : '',
-        [t("events.time")]: customer.start_date && customer.end_date ? 
-          formatTimeRange(customer.start_date, customer.end_date) : '',
+        [t("crm.eventDate")]: customer.start_date ? 
+          `${format(new Date(customer.start_date), 'dd.MM.yyyy')}${customer.end_date ? ` - ${format(new Date(customer.end_date), 'dd.MM.yyyy')}` : ''}` : '-',
+        [t("crm.addingDate")]: customer.created_at ? format(new Date(customer.created_at), 'dd.MM.yyyy HH:mm:ss') : '-',
         [t("crm.comment")]: customer.event_notes || '',
-        [t("crm.dates")]: customer.id?.startsWith('event-') || (customer.start_date && customer.end_date) ? t("crm.yes") : t("crm.no")
       };
     });
 
@@ -518,10 +529,9 @@ const CustomerListContent = ({
       { wch: 30 },  // Social Link/Email
       { wch: 15 },  // Payment Status
       { wch: 15 },  // Payment Amount
-      { wch: 12 },  // Date
-      { wch: 20 },  // Time
+      { wch: 25 },  // Event Date
+      { wch: 20 },  // Adding Date
       { wch: 40 },  // Comment
-      { wch: 8 }    // Event
     ];
     ws['!cols'] = colWidths;
 
@@ -659,12 +669,13 @@ const CustomerListContent = ({
                       )}
                     </TableHead>
                     <TableHead className="w-[250px]">{t("crm.socialLinkEmail")}</TableHead>
-                    <TableHead className="w-[120px]">
+                     <TableHead className="w-[120px]">
                       {language === 'en' ? 'Payment Status' : 
                        language === 'es' ? 'Estado de Pago' : 
                        'გადახდის სტატუსი'}
                     </TableHead>
-                    <TableHead className="w-[180px]">{t("crm.dates")}</TableHead>
+                    <TableHead className="w-[150px]">{t("crm.eventDate")}</TableHead>
+                    <TableHead className="w-[150px]">{t("crm.addingDate")}</TableHead>
                     <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
                     <TableHead className="w-[180px]">{t("common.attachments")}</TableHead>
                     <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
@@ -727,15 +738,26 @@ const CustomerListContent = ({
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="py-2">
+                      <TableCell className={`py-2`}>
                         {formatPaymentStatus(customer.payment_status, customer.payment_amount)}
                       </TableCell>
                       <TableCell className="py-2">
-                        <div className="space-y-1 text-sm">
-                          <div>{formatDate(customer.start_date)}</div>
-                          <div className="text-gray-500">{formatTimeRange(customer.start_date, customer.end_date)}</div>
-                        </div>
-                      </TableCell>
+            <div className={`text-xs text-muted-foreground ${language === 'ka' ? 'georgian-numbers' : ''}`}>
+              {customer.start_date ? (
+                <>
+                  {format(new Date(customer.start_date), 'dd.MM.yyyy')}
+                  {customer.end_date && ` - ${format(new Date(customer.end_date), 'dd.MM.yyyy')}`}
+                </>
+              ) : (
+                '-'
+              )}
+            </div>
+          </TableCell>
+          <TableCell className="py-2">
+            <div className={`text-xs text-muted-foreground ${language === 'ka' ? 'georgian-numbers' : ''}`}>
+              {customer.created_at ? format(new Date(customer.created_at), language === 'ka' ? 'dd.MM.yyyy HH:mm:ss' : 'dd.MM.yyyy HH:mm') : '-'}
+            </div>
+          </TableCell>
                       <TableCell className="py-2">
                         <div 
                           className="flex items-start gap-2 group relative pr-6"

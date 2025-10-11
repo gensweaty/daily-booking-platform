@@ -99,6 +99,14 @@
     letter-spacing: -0.2px !important;
   }
   
+  /* Force uniform number display for Georgian */
+  .georgian-numbers {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif !important;
+    font-variant-numeric: tabular-nums !important;
+    letter-spacing: normal !important;
+    font-weight: 400 !important;
+  }
+  
   /* Fix for specific Georgian auth text component */
   .georgian-auth-text {
     font-family: 'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif !important;

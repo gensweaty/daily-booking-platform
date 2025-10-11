@@ -15,6 +15,8 @@ interface OptimizedEventStats {
   partlyPaid: number;
   fullyPaid: number;
   totalIncome: number;
+  eventIncome: number;
+  standaloneCustomerIncome: number;
   monthlyIncome: Array<{ month: string; income: number }>;
   threeMonthIncome: Array<{ month: string; income: number }>;
   dailyStats: Array<{ day: string; date: Date; month: string; bookings: number }>;
@@ -28,6 +30,33 @@ interface OptimizedCustomerStats {
 }
 
 export const useOptimizedStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
+  // Helper to parse payment amounts safely
+  const parsePaymentAmount = (amount: any): number => {
+    if (amount === null || amount === undefined) return 0;
+    if (amount === 'NaN' || amount === '') return 0;
+    
+    if (typeof amount === 'string') {
+      try {
+        const cleanedStr = amount.replace(',', '.').replace(/[^0-9.-]+/g, '');
+        const parsed = parseFloat(cleanedStr);
+        return isNaN(parsed) ? 0 : parsed;
+      } catch (e) {
+        return 0;
+      }
+    }
+    
+    if (typeof amount === 'number') {
+      return isNaN(amount) ? 0 : amount;
+    }
+    
+    try {
+      const converted = Number(amount);
+      return isNaN(converted) ? 0 : converted;
+    } catch (e) {
+      return 0;
+    }
+  };
+
   // Optimized task stats with better error handling and direct query fallback
   const { data: taskStats, isLoading: isLoadingTaskStats } = useQuery({
     queryKey: ['optimized-task-stats', userId],
@@ -80,6 +109,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         partlyPaid: 0,
         fullyPaid: 0,
         totalIncome: 0,
+        eventIncome: 0,
+        standaloneCustomerIncome: 0,
         monthlyIncome: [],
         threeMonthIncome: [],
         dailyStats: [],
@@ -107,6 +138,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           partlyPaid: 0,
           fullyPaid: 0,
           totalIncome: 0,
+          eventIncome: 0,
+          standaloneCustomerIncome: 0,
           monthlyIncome: [],
           threeMonthIncome: [],
           dailyStats: [],
@@ -131,6 +164,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           partlyPaid: 0,
           fullyPaid: 0,
           totalIncome: 0,
+          eventIncome: 0,
+          standaloneCustomerIncome: 0,
           monthlyIncome: [],
           threeMonthIncome: [],
           dailyStats: [],
@@ -208,6 +243,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       let partlyPaid = 0;
       let fullyPaid = 0;
       let totalIncome = 0;
+      let eventIncome = 0;
 
       const dailyBookings = new Map<string, number>();
       const monthlyIncomeMap = new Map<string, number>();
@@ -232,6 +268,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             : parseFloat(String(event.payment_amount));
           if (!isNaN(amount) && amount > 0) {
             totalIncome += amount;
+            eventIncome += amount;
           }
         }
 
@@ -302,6 +339,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             : parseFloat(String(firstInstance.payment_amount));
           if (!isNaN(amount) && amount > 0) {
             totalIncome += amount;
+            eventIncome += amount;
             console.log(`Added ${amount} from recurring series ${seriesId} (counted once)`);
 
             // Add to monthly income only once per series
@@ -330,6 +368,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
               : parseFloat(String(person.payment_amount));
             if (!isNaN(amount) && amount > 0) {
               totalIncome += amount;
+              eventIncome += amount;
               console.log(`Added ${amount} from additional person in recurring series ${seriesId} (counted once)`);
               
               // Add to monthly income
@@ -360,6 +399,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             : parseFloat(String(person.payment_amount));
           if (!isNaN(amount) && amount > 0) {
             totalIncome += amount;
+            eventIncome += amount;
             
             // Add to monthly income
             if (person.start_date) {
@@ -386,6 +426,38 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       });
 
+      // Get standalone customers income (customers without events)
+      const { data: standaloneCustomers, error: standaloneError } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('user_id', userId)
+        .is('event_id', null)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
+        .is('deleted_at', null);
+
+      let standaloneCustomerIncome = 0;
+      if (!standaloneError && standaloneCustomers) {
+        console.log(`Found ${standaloneCustomers.length} standalone customers in date range`);
+        standaloneCustomers.forEach(customer => {
+          const paymentStatus = customer.payment_status || '';
+          if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && customer.payment_amount) {
+            const amount = parsePaymentAmount(customer.payment_amount);
+            if (amount > 0) {
+              standaloneCustomerIncome += amount;
+              totalIncome += amount;
+              console.log(`Added ${amount} from standalone customer ${customer.id}`);
+            }
+          }
+        });
+      }
+
+      console.log('Income breakdown:', {
+        eventIncome,
+        standaloneCustomerIncome,
+        totalIncome
+      });
+
       const monthlyIncome = Array.from(monthlyIncomeMap.entries()).map(([month, income]) => ({
         month,
         income
@@ -407,6 +479,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         
         // Use EXACT same logic as main calculation but for this specific month
         let monthIncome = 0;
+        let monthEventIncome = 0;
+        let monthCustomerIncome = 0;
         
         // Query events for this specific month
         const { data: monthEvents, error: monthEventsError } = await supabase
@@ -470,6 +544,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
                 : parseFloat(String(event.payment_amount));
               if (!isNaN(amount) && amount > 0) {
                 monthIncome += amount;
+                monthEventIncome += amount;
               }
             }
           });
@@ -483,6 +558,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
                 : parseFloat(String(firstInstance.payment_amount));
               if (!isNaN(amount) && amount > 0) {
                 monthIncome += amount;
+                monthEventIncome += amount;
               }
             }
           }
@@ -515,6 +591,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
                       : parseFloat(String(person.payment_amount));
                     if (!isNaN(amount) && amount > 0) {
                       monthIncome += amount;
+                      monthEventIncome += amount;
                     }
                   }
                 });
@@ -533,6 +610,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
                     : parseFloat(String(person.payment_amount));
                   if (!isNaN(amount) && amount > 0) {
                     monthIncome += amount;
+                    monthEventIncome += amount;
                   }
                 }
               });
@@ -540,12 +618,37 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           }
         }
 
+        // Query standalone customers for this month
+        const { data: monthStandaloneCustomers, error: monthStandaloneError } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', userId)
+          .is('event_id', null)
+          .gte('created_at', monthStart.toISOString())
+          .lte('created_at', monthEnd.toISOString())
+          .is('deleted_at', null);
+
+        if (!monthStandaloneError && monthStandaloneCustomers) {
+          monthStandaloneCustomers.forEach(customer => {
+            const paymentStatus = customer.payment_status || '';
+            if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && customer.payment_amount) {
+              const amount = parsePaymentAmount(customer.payment_amount);
+              if (amount > 0) {
+                monthIncome += amount;
+                monthCustomerIncome += amount;
+              }
+            }
+          });
+        }
+
         threeMonthIncome.push({
           month: monthShort,
-          income: monthIncome
+          income: monthIncome,
+          eventIncome: monthEventIncome,
+          customerIncome: monthCustomerIncome
         });
 
-        console.log(`Month ${monthKey} income: ${monthIncome}`);
+        console.log(`Month ${monthKey} income: ${monthIncome} (events: ${monthEventIncome}, customers: ${monthCustomerIncome})`);
       }
 
 
@@ -554,6 +657,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         partlyPaid,
         fullyPaid,
         totalIncome,
+        eventIncome,
+        standaloneCustomerIncome,
         monthlyIncome,
         threeMonthIncome,
         dailyStats,
@@ -566,6 +671,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         partlyPaid: result.partlyPaid,
         fullyPaid: result.fullyPaid,
         totalIncome: result.totalIncome,
+        eventIncome: result.eventIncome,
+        standaloneCustomerIncome: result.standaloneCustomerIncome,
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
         additionalPersonsCount: additionalPersons.length,
@@ -600,8 +707,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('parent_event_id', null)
         .is('deleted_at', null);
 
@@ -632,14 +739,15 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       }
       // Booking requests are intentionally excluded from customerStats to match CRM page counts.
 
-      // Get additional customers from CRM (type = 'customer') created in the date range
+      // Get additional customers from CRM (type = 'customer') whose events are in the date range
       const { data: crmCustomers, error: crmCustomersError } = await supabase
         .from('customers')
-        .select('*')
+        .select('*, events!inner(start_date)')
         .eq('user_id', userId)
         .eq('type', 'customer')
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .not('event_id', 'is', null)
+        .gte('events.start_date', startDateStr)
+        .lte('events.start_date', endDateStr)
         .is('deleted_at', null);
 
       if (crmCustomersError) {
@@ -654,13 +762,12 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // Get ALL standalone CRM customers (not just those created in date range)
+      // Get standalone CRM customers (customers without events, added in date range)
       const { data: standaloneCrmCustomers, error: standaloneCrmError } = await supabase
         .from('customers')
         .select('*')
         .eq('user_id', userId)
-        .or('type.neq.customer,type.is.null') // Get customers that are NOT additional persons
-        .is('event_id', null) // Not associated with events
+        .is('event_id', null) // Not associated with events (primary filter)
         .gte('created_at', startDateStr)
         .lte('created_at', endDateStr)
         .is('deleted_at', null);

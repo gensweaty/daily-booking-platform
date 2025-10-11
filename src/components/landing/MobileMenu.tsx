@@ -14,11 +14,26 @@ export const MobileMenu = memo(({ isMobileMenuOpen, handleMenuClose }: MobileMen
   const { t, language } = useLanguage();
   const { user } = useAuth();
 
+  const handlePricingClick = () => {
+    const pricingSection = document.getElementById('pricing');
+    if (pricingSection) {
+      pricingSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      handleMenuClose();
+    }
+  };
+
   if (!isMobileMenuOpen) return null;
 
   if (user) {
     return (
       <div id="mobile-menu" className="fixed top-16 left-4 right-4 bg-background/95 backdrop-blur-md border rounded-lg shadow-2xl p-4 space-y-3 md:hidden animate-fade-in z-[100]" role="menu">
+        <Button 
+          onClick={handlePricingClick}
+          variant="outline" 
+          className="w-full justify-start hover:bg-accent/10 transition-all bg-background border-border"
+        >
+          {t('nav.pricing')}
+        </Button>
         <Link to="/contact" onClick={handleMenuClose} role="menuitem">
           <Button variant="outline" className="w-full justify-start hover:bg-accent/10 transition-all bg-background border-border">
             {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
@@ -40,6 +55,13 @@ export const MobileMenu = memo(({ isMobileMenuOpen, handleMenuClose }: MobileMen
           {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
         </Button>
       </Link>
+      <Button 
+        onClick={handlePricingClick}
+        variant="outline" 
+        className="w-full justify-start hover:bg-accent/10 transition-all bg-background border-border"
+      >
+        {t('nav.pricing')}
+      </Button>
       <Link to="/contact" onClick={handleMenuClose} role="menuitem">
         <Button variant="outline" className="w-full justify-start hover:bg-accent/10 transition-all bg-background border-border">
           {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
