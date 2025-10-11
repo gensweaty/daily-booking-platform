@@ -86,6 +86,7 @@ export const translations: TranslationType = {
     newCustomer: "Nuevo Cliente",
     fullName: "Nombre Completo",
     fullNameRequired: "Nombre Completo",
+    paymentDetails: "Detalles de Pago",
     fullNamePlaceholder: "Ingrese el nombre completo del cliente",
     phoneNumber: "Número de Teléfono",
     phoneNumberPlaceholder: "Ingrese el número de teléfono",

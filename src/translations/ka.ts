@@ -86,6 +86,7 @@ export const translations: TranslationType = {
     newCustomer: "ახალი კლიენტი",
     fullName: "სრული სახელი",
     fullNameRequired: "სრული სახელი აუცილებელია",
+    paymentDetails: "გადახდის დეტალები",
     fullNamePlaceholder: "შეიყვანეთ კლიენტის სრული სახელი",
     phoneNumber: "ტელეფონის ნომერი",
     phoneNumberPlaceholder: "შეიყვანეთ ტელეფონის ნომერი",

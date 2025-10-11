@@ -80,6 +80,7 @@ export interface TranslationType {
     newCustomer: string;
     fullName: string;
     fullNameRequired: string;
+    paymentDetails: string;
     fullNamePlaceholder: string;
     phoneNumber: string;
     phoneNumberPlaceholder: string;
