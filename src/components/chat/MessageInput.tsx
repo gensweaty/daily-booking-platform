@@ -118,6 +118,8 @@ export const MessageInput = ({
           // Get current local time from browser
           const now = new Date();
           const localTimeISO = now.toISOString();
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+          const tzOffsetMinutes = now.getTimezoneOffset(); // e.g. Asia/Tbilisi -> -240
           
           const { data, error } = await supabase.functions.invoke('ai-chat', {
             body: {
@@ -125,7 +127,8 @@ export const MessageInput = ({
               prompt: userMessage,
               ownerId: boardOwnerId,
               conversationHistory: conversationHistory,
-              userTimezone: userTimezone || 'UTC',
+              userTimezone: tz,
+              tzOffsetMinutes,
               currentLocalTime: localTimeISO
             }
           });

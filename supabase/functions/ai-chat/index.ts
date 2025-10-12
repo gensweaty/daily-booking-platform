@@ -13,9 +13,55 @@ serve(async (req) => {
   }
 
   try {
-    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone = 'UTC', currentLocalTime } = await req.json();
+    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes } = await req.json();
     
-    console.log('🤖 AI Chat request:', { channelId, ownerId, promptLength: prompt?.length, historyLength: conversationHistory.length, userTimezone });
+    console.log('🤖 AI Chat request:', { channelId, ownerId, promptLength: prompt?.length, historyLength: conversationHistory.length, userTimezone, tzOffsetMinutes });
+
+    // Timezone validation and formatting helpers
+    function isValidTimeZone(tz?: string) {
+      try {
+        if (!tz) return false;
+        new Intl.DateTimeFormat('en-US', { timeZone: tz });
+        return true;
+      } catch { return false; }
+    }
+
+    // Return either a valid IANA tz or null; keep offset as fallback
+    const effectiveTZ = isValidTimeZone(userTimezone) ? userTimezone : null;
+
+    function formatInUserZone(d: Date) {
+      if (effectiveTZ) {
+        return d.toLocaleString('en-US', {
+          timeZone: effectiveTZ,
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      // Fallback: shift by offset minutes, then print as UTC
+      if (typeof tzOffsetMinutes === 'number') {
+        const shifted = new Date(d.getTime() - tzOffsetMinutes * 60_000);
+        return shifted.toLocaleString('en-US', {
+          timeZone: 'UTC',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
+      }
+      // Last resort: UTC
+      return d.toLocaleString('en-US', {
+        timeZone: 'UTC',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    }
 
     // Client with user auth for reading data
     const supabaseClient = createClient(
@@ -281,7 +327,7 @@ serve(async (req) => {
 
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
 
-**USER TIMEZONE**: ${userTimezone}
+**USER TIMEZONE**: ${effectiveTZ || 'UTC (offset-based)'}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
 
 **REMINDERS - SERVER-SIDE TIME MATH**:
@@ -1127,13 +1173,14 @@ Remember: You're a smart assistant that understands context, remembers conversat
               }
               
               // 5) Build HUMAN message on server (no LLM)
-              const display = remindAtUtc.toLocaleString('en-US', {
-                timeZone: userTimezone,
-                hour12: true,
-                hour: '2-digit',
-                minute: '2-digit',
-                month: 'short',
-                day: 'numeric'
+              const display = formatInUserZone(remindAtUtc);
+              
+              console.log('Reminder debug:', {
+                effectiveTZ,
+                tzOffsetMinutes,
+                baseNow: currentLocalTime,
+                remindAtUtc: remindAtUtc.toISOString(),
+                display
               });
               
               const confirmation = `✅ Reminder set! I'll remind you about '${title}' at ${display}. You'll receive both an email and dashboard notification.`;
