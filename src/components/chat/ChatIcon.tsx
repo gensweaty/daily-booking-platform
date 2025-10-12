@@ -1,4 +1,4 @@
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Bot } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -43,7 +43,10 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false, 
         {isPending ? (
           <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
         ) : (
-          <MessageCircle className="h-4 w-4" />
+          <div className="flex items-center gap-1">
+            <MessageCircle className="h-4 w-4" />
+            <Bot className="h-3 w-3" />
+          </div>
         )}
         <span>
           {isPending ? loadingText : teamChatText}

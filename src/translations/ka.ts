@@ -758,7 +758,7 @@ export const translations: TranslationType = {
     december: "დეკემბერი"
   },
   chat: {
-    teamChat: "გუნდის ჩატი",
+    teamChat: "გუნდური ჩათი და AI",
     general: "ზოგადი",
     teamMembers: "გუნდის წევრები",
     owner: "მფლობელი",

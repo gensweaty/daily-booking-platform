@@ -758,7 +758,7 @@ export const translations: TranslationType = {
     addAttachment: "Add Attachment"
   },
   chat: {
-    teamChat: "Team Chat",
+    teamChat: "Team Chat & AI",
     general: "General",
     teamMembers: "Team Members",
     owner: "Owner",

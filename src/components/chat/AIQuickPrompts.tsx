@@ -77,11 +77,15 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
                 📖 Page Guides
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 bg-popover border z-50">
+            <DropdownMenuContent align="start" className="w-56 bg-popover border z-[9999]">
               {pageGuides.map(guide => (
                 <DropdownMenuItem 
                   key={guide.label}
-                  onClick={() => onPromptSelect(guide.prompt)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onPromptSelect(guide.prompt);
+                  }}
                   className="cursor-pointer"
                 >
                   {guide.label}
