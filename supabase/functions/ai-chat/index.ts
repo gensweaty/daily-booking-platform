@@ -153,11 +153,11 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_all_tasks",
-          description: "Get tasks with optional status filter",
+          description: "CRITICAL: Get ALL user's tasks with optional status filter. Use this IMMEDIATELY when user asks about tasks, task data, their task list, or anything related to tasks. This fetches the complete task list from the database. If user asks about tasks and you don't call this tool, you are making a mistake.",
           parameters: {
             type: "object",
             properties: {
-              status: { type: "string", enum: ["todo", "in_progress", "done"], description: "Filter by status (optional)" }
+              status: { type: "string", enum: ["todo", "inprogress", "done"], description: "Filter by status (optional). Use 'inprogress' not 'in_progress'" }
             }
           }
         }
@@ -343,7 +343,7 @@ serve(async (req) => {
 
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
 
-**CRITICAL: ALWAYS respond in ${userLanguage === 'ru' ? 'RUSSIAN' : userLanguage === 'ka' ? 'GEORGIAN' : userLanguage === 'es' ? 'SPANISH' : 'ENGLISH'} language. The user is communicating in ${userLanguage === 'ru' ? 'Russian' : userLanguage === 'ka' ? 'Georgian' : userLanguage === 'es' ? 'Spanish' : 'English'}, so ALL your responses must be in the same language.**
+**CRITICAL: ALWAYS respond in ${userLanguage === 'ru' ? 'RUSSIAN (Русский язык)' : userLanguage === 'ka' ? 'GEORGIAN (ქართული ენა)' : userLanguage === 'es' ? 'SPANISH (Español)' : 'ENGLISH'} language. The user's current message is in ${userLanguage === 'ru' ? 'Russian' : userLanguage === 'ka' ? 'Georgian' : userLanguage === 'es' ? 'Spanish' : 'English'}, so respond in that EXACT language. Never mix languages in a response. The user can switch languages - match whatever language they use in their current message.**
 
 **USER TIMEZONE**: ${effectiveTZ || 'UTC (offset-based)'}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
@@ -377,6 +377,8 @@ For excel: call generate_excel_report, provide markdown download link.
    - Example: User says "analyze 1 year payment data" → Call analyze_payment_history with months=12, then provide detailed analysis
    - You are an ASSISTANT - your job is to fetch data, analyze it, and present insights, not to direct users elsewhere
 2. **ALWAYS fetch and analyze data when asked**: 
+   - If user asks about tasks → Call get_all_tasks and present the results
+   - If user asks about "task data", "my tasks", "show tasks" → IMMEDIATELY call get_all_tasks, NEVER say there's no data without checking first
    - If user asks about payments, revenue, or financial history → Call analyze_payment_history
    - If user asks for "excel report", "export to excel", "download spreadsheet" → Call generate_excel_report with appropriate report_type
    - If user asks "what's on my schedule", "today's calendar" → Call get_todays_schedule
@@ -814,9 +816,11 @@ Remember: You're a smart assistant that understands context, remembers conversat
             }
 
             case 'get_all_tasks': {
+              console.log(`    🔍 Fetching tasks for user ${ownerId}, filter:`, args.status || 'all');
+              
               let query = supabaseClient
                 .from('tasks')
-                .select('id, title, description, status, priority, due_date, assignee')
+                .select('id, title, description, status, priority, deadline_at, reminder_at, created_at, updated_at, assigned_to_name')
                 .eq('user_id', ownerId)
                 .is('archived_at', null)
                 .order('created_at', { ascending: false });
@@ -825,9 +829,19 @@ Remember: You're a smart assistant that understands context, remembers conversat
                 query = query.eq('status', args.status);
               }
               
-              const { data: tasks } = await query.limit(50);
-              toolResult = { tasks: tasks || [], filter: args.status || 'all' };
-              console.log(`    ✓ Found ${toolResult.tasks.length} tasks`);
+              const { data: tasks, error: tasksError } = await query.limit(100);
+              
+              if (tasksError) {
+                console.error('    ❌ Error fetching tasks:', tasksError);
+                toolResult = { tasks: [], error: tasksError.message, filter: args.status || 'all' };
+              } else {
+                toolResult = { 
+                  tasks: tasks || [], 
+                  count: tasks?.length || 0,
+                  filter: args.status || 'all' 
+                };
+                console.log(`    ✅ Found ${tasks?.length || 0} tasks (filter: ${args.status || 'all'})`);
+              }
               break;
             }
 
@@ -1039,14 +1053,18 @@ Remember: You're a smart assistant that understands context, remembers conversat
                   record_count: 0
                 };
               } else {
+                // IMPORTANT: The downloadUrl is a signed URL that expires in 1 hour
+                // It should be accessed immediately by the user
                 toolResult = {
                   success: true,
                   download_url: excelData.downloadUrl,
                   filename: excelData.filename,
                   report_type: reportType,
-                  record_count: excelData.recordCount
+                  record_count: excelData.recordCount,
+                  expires_in: '1 hour',
+                  instruction: 'Click the link immediately to download - it expires in 1 hour'
                 };
-                console.log(`    ✅ Excel report generated: ${excelData.filename}, ${excelData.recordCount} records`);
+                console.log(`    ✅ Excel report ready: ${excelData.filename} (${excelData.recordCount} records)`);
               }
               break;
             }

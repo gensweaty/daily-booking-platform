@@ -187,25 +187,41 @@ serve(async (req) => {
     // Generate Excel file as buffer
     const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
-    // Upload to Supabase storage
+    // Upload to Supabase storage using service role (full access)
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('excel-reports')
       .upload(`${userId}/${filename}`, excelBuffer, {
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        upsert: true
+        upsert: true,
+        cacheControl: '3600'
       });
 
     if (uploadError) {
-      console.error('Upload error:', uploadError);
+      console.error('❌ Upload error:', uploadError);
       throw uploadError;
     }
 
-    // Get public URL (expires in 1 hour)
-    const { data: urlData } = await supabase.storage
-      .from('excel-reports')
-      .createSignedUrl(`${userId}/${filename}`, 3600);
+    console.log(`✅ File uploaded successfully: ${userId}/${filename}`);
 
-    console.log(`✅ Excel report generated: ${filename}, ${data.length} records`);
+    // Create signed URL with extended expiry and proper options
+    const { data: urlData, error: urlError } = await supabase.storage
+      .from('excel-reports')
+      .createSignedUrl(`${userId}/${filename}`, 7200, {
+        download: true  // Force download instead of inline display
+      });
+
+    if (urlError) {
+      console.error('❌ Signed URL generation error:', urlError);
+      throw urlError;
+    }
+
+    if (!urlData?.signedUrl) {
+      console.error('❌ No signed URL in response');
+      throw new Error('Failed to generate download URL');
+    }
+
+    console.log(`✅ Signed URL created: ${urlData.signedUrl.substring(0, 100)}...`);
+    console.log(`📊 Report complete: ${filename} with ${data.length} records`);
 
     return new Response(
       JSON.stringify({
