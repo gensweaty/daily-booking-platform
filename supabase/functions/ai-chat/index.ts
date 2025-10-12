@@ -248,24 +248,16 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: `Creates a custom reminder. User gets dashboard + email notifications at scheduled time. WORKFLOW: Call get_current_datetime(), add duration, call this with UTC time. RESPONSE: Say "✅ Reminder set! I'll remind you about '{title}' at {display_time}. You'll receive both an email and dashboard notification." Use display_time from response, never UTC.`,
+          description: "Creates a reminder with BOTH dashboard and email notifications. Use offset_minutes for relative times (e.g., 'in 2 minutes').",
           parameters: {
             type: "object",
             properties: {
-              title: {
-                type: "string",
-                description: "Brief title for the reminder notification"
-              },
-              message: {
-                type: "string",
-                description: "Optional detailed message for the notification"
-              },
-              remind_at: {
-                type: "string",
-                description: `ISO 8601 UTC timestamp when notification should trigger. Example: if currentTime is "2025-10-12T18:35:00.000Z" and user wants "in 5 minutes", use "2025-10-12T18:40:00.000Z".`
-              }
+              title: { type: "string", description: "Reminder title" },
+              message: { type: "string", description: "Optional reminder message" },
+              offset_minutes: { type: "number", description: "Minutes from now (browser time)", minimum: 1 },
+              absolute_local: { type: "string", description: "YYYY-MM-DDTHH:mm in user's local timezone (e.g., '2025-10-12T16:45')" }
             },
-            required: ["title", "remind_at"]
+            required: ["title"]
           }
         }
       }
@@ -292,12 +284,10 @@ serve(async (req) => {
 **USER TIMEZONE**: ${userTimezone}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
 
-**CREATING REMINDERS**:
-When user says "remind me in X" or "set reminder":
-1. Call get_current_datetime()
-2. Add duration to get remind_at (UTC)
-3. Call create_custom_reminder()
-4. Response: "✅ Reminder set! I'll remind you about '{title}' at {display_time}. You'll receive both an email and dashboard notification."
+**REMINDERS - SERVER-SIDE TIME MATH**:
+For relative times ("in 10 minutes"): use offset_minutes
+For absolute times ("today at 3pm"): use absolute_local (YYYY-MM-DDTHH:mm)
+Server calculates UTC and confirms immediately (no second response needed).
 
 Use display_time from tool (never UTC). No "if" statements, just confirm success.
 
@@ -1055,69 +1045,116 @@ Remember: You're a smart assistant that understands context, remembers conversat
             }
 
             case 'create_custom_reminder': {
-              console.log('📅 Creating custom reminder with args:', JSON.stringify(args));
-              const { title, message, remind_at } = args;
+              const { title, message, offset_minutes, absolute_local } = args;
               
-              // Parse the remind_at time - it should be in UTC ISO format
-              const reminderDate = new Date(remind_at);
-              const currentTime = new Date();
+              // 1) Base time is BROWSER time received from frontend
+              const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
               
-              // Verify remind_at is in the future (with 1 second tolerance)
-              if (reminderDate <= new Date(currentTime.getTime() - 1000)) {
-                const reminderUTC = reminderDate.toISOString();
-                const currentUTC = currentTime.toISOString();
-                console.warn(`⚠️ Reminder in the past! Current: ${currentUTC}, Reminder: ${reminderUTC}`);
-                toolResult = {
-                  success: false,
-                  error: `Reminder time must be in the future. Current time (UTC): ${currentUTC}, You tried to schedule: ${reminderUTC}`
-                };
+              // 2) Compute UTC remind time deterministically on server
+              let remindAtUtc: Date;
+              
+              if (typeof offset_minutes === 'number' && offset_minutes > 0) {
+                // Relative time: add offset to current browser time
+                remindAtUtc = new Date(baseNow.getTime() + offset_minutes * 60_000);
+              } else if (absolute_local) {
+                // Absolute time: convert local wall time to UTC
+                const [d, t] = absolute_local.split('T');
+                const [Y, M, D] = d.split('-').map(Number);
+                const [h, m] = t.split(':').map(Number);
+                
+                // Start from UTC guess, then adjust so it displays as desired wall time in user's TZ
+                let guess = new Date(Date.UTC(Y, M - 1, D, h, m));
+                
+                const fmt = (x: Date) =>
+                  new Intl.DateTimeFormat('en-CA', {
+                    timeZone: userTimezone,
+                    hour12: false,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                    .formatToParts(x)
+                    .reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                
+                // Adjustment loop (handles DST edges)
+                for (let i = 0; i < 3; i++) {
+                  const parts = fmt(guess);
+                  const want = `${Y}-${String(M).padStart(2, '0')}-${String(D).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                  const have = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+                  if (have === want) break;
+                  
+                  const deltaMin =
+                    ((Y - +parts.year) * 525600) +
+                    ((M - +parts.month) * 43200) +
+                    ((D - +parts.day) * 1440) +
+                    ((h - +parts.hour) * 60) +
+                    (m - +parts.minute);
+                  guess = new Date(guess.getTime() + deltaMin * 60_000);
+                }
+                remindAtUtc = guess;
+              } else {
+                toolResult = { success: false, error: 'Provide offset_minutes or absolute_local.' };
                 break;
               }
               
-              // Format reminder time in user's local timezone for display
-              const reminderTimeLocal = reminderDate.toLocaleString('en-US', {
-                timeZone: userTimezone,
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-              });
+              // 3) Validate future time
+              const nowUtc = new Date();
+              if (remindAtUtc <= new Date(nowUtc.getTime() - 1000)) {
+                toolResult = { success: false, error: 'Reminder time must be in the future.' };
+                break;
+              }
               
-              // Also get time-only format for easier reading
-              const reminderTimeShort = reminderDate.toLocaleString('en-US', {
-                timeZone: userTimezone,
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-              });
-              
-              console.log(`⏰ Creating reminder - UTC: ${reminderDate.toISOString()}, User TZ (${userTimezone}): ${reminderTimeLocal}`);
-              
-              const { data: reminderData, error: reminderError } = await supabaseClient
+              // 4) Store reminder (same as existing system)
+              const { data: reminderRow, error: reminderError } = await supabaseAdmin
                 .from('custom_reminders')
                 .insert({
                   user_id: ownerId,
                   title,
-                  message,
-                  remind_at
+                  message: message || '',
+                  remind_at: remindAtUtc.toISOString(),
+                  email_sent: false,
+                  reminder_sent_at: null
                 })
                 .select()
                 .single();
-
-              if (reminderError) throw reminderError;
-
-              toolResult = {
-                success: true,
-                reminder_id: reminderData.id,
-                title: title,
-                display_time: reminderTimeShort,
-                display_time_full: reminderTimeLocal,
-                user_timezone: userTimezone
-              };
-              console.log('✅ Reminder created - Display as:', reminderTimeShort, userTimezone);
-              break;
+              
+              if (reminderError) {
+                console.error('❌ Failed to create reminder:', reminderError);
+                toolResult = { success: false, error: reminderError.message };
+                break;
+              }
+              
+              // 5) Build HUMAN message on server (no LLM)
+              const display = remindAtUtc.toLocaleString('en-US', {
+                timeZone: userTimezone,
+                hour12: true,
+                hour: '2-digit',
+                minute: '2-digit',
+                month: 'short',
+                day: 'numeric'
+              });
+              
+              const confirmation = `✅ Reminder set! I'll remind you about '${title}' at ${display}. You'll receive both an email and dashboard notification.`;
+              
+              // 6) Write bot message now (skip second LLM call)
+              await supabaseAdmin.from('chat_messages').insert({
+                channel_id: channelId,
+                owner_id: ownerId,
+                sender_type: 'admin',
+                sender_name: 'Smartbookly AI',
+                content: confirmation,
+                message_type: 'text'
+              });
+              
+              // Return early with immediate response
+              return new Response(
+                JSON.stringify({ success: true, content: confirmation }),
+                {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                }
+              );
             }
           }
 
