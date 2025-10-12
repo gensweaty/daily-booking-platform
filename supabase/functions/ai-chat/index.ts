@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone = 'UTC' } = await req.json();
+    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone = 'UTC', currentLocalTime } = await req.json();
     
     console.log('🤖 AI Chat request:', { channelId, ownerId, promptLength: prompt?.length, historyLength: conversationHistory.length, userTimezone });
 
@@ -55,7 +55,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_current_datetime",
-          description: `Get the current date and time in user's timezone (${userTimezone}). CRITICAL: Returns time already adjusted for ${userTimezone}. Use this as base for all relative time calculations (e.g., 'in 2 minutes' means add 2 minutes to this returned time).`,
+          description: `Get the EXACT current date and time from user's device. This returns the actual current time in ISO format. For relative time calculations (e.g., 'in 2 minutes', 'in 1 hour'), parse this timestamp and add the duration.`,
           parameters: { type: "object", properties: {} }
         }
       },
@@ -208,18 +208,21 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: `Creates a custom reminder for user in timezone ${userTimezone}.
+          description: `Creates a custom reminder that will trigger an email and notification.
 
-CRITICAL TIME CALCULATION (USER TIMEZONE: ${userTimezone}):
-1. FIRST call get_current_datetime - returns current time in ${userTimezone}
-2. Add the requested duration (e.g., 2 minutes, 1 hour) to that time
-3. The result is already in correct format for remind_at parameter
-4. NEVER ask for confirmation - schedule immediately
+CRITICAL TIME CALCULATION - STEP BY STEP:
+1. FIRST call get_current_datetime to get the EXACT current ISO timestamp from user's device
+2. The returned currentDateTime is in ISO format like "2025-10-12T17:06:25.123Z"
+3. Parse this timestamp and add the requested duration:
+   - "in 2 minutes" → Add 120000 milliseconds (2 * 60 * 1000)
+   - "in 1 hour" → Add 3600000 milliseconds (60 * 60 * 1000)
+4. Convert result back to ISO string format for remind_at parameter
+5. NEVER guess the time - always use get_current_datetime first
 
-Example: User says "remind me in 2 minutes"
-→ Call get_current_datetime → Get "2025-10-12T16:43:00Z"
-→ Add 2 minutes → "2025-10-12T16:45:00Z"
-→ Call create_custom_reminder with remind_at="2025-10-12T16:45:00Z"`,
+EXAMPLE: User says "remind me in 2 minutes" at 17:06
+→ Call get_current_datetime → Returns "2025-10-12T17:06:00.000Z"
+→ Add 2 minutes (120000ms) → "2025-10-12T17:08:00.000Z"
+→ Call create_custom_reminder with remind_at="2025-10-12T17:08:00.000Z"`,
           parameters: {
             type: "object",
             properties: {
@@ -263,19 +266,18 @@ Example: User says "remind me in 2 minutes"
 **USER TIMEZONE**: ${userTimezone}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}. Use this for all relative date calculations.
 
-**CRITICAL: TIME ZONE AWARE TIME CALCULATIONS**
-The user is in timezone: ${userTimezone}
-
+**CRITICAL: ALWAYS GET EXACT CURRENT TIME FROM DEVICE**
 When scheduling reminders with relative time (e.g., "in 2 minutes", "in 1 hour"):
-1. Call get_current_datetime FIRST - it returns time in ${userTimezone} timezone
-2. Add the requested duration to that local time
-3. Convert the result to UTC using toISOString() before storing
-4. NEVER use approximate times or guess the current time
+1. Call get_current_datetime FIRST - it returns the EXACT current time from user's device in ISO format
+2. Parse the returned ISO timestamp (e.g., "2025-10-12T17:06:25.123Z")
+3. Add the requested duration in milliseconds
+4. Convert back to ISO format for remind_at
+5. NEVER guess or approximate - always use the exact time from get_current_datetime
 
-Example: User in ${userTimezone} says "remind me in 5 minutes" at 4:43 PM local time:
-- Call get_current_datetime → returns local time "2025-10-12T16:43:00Z" (already adjusted for ${userTimezone})
-- Add 5 minutes → "2025-10-12T16:48:00Z"
-- Use this as remind_at (it's already in correct format)
+Example: User says "remind me in 5 minutes" at 5:06 PM:
+- Call get_current_datetime → returns "2025-10-12T17:06:00.000Z"
+- Add 5 minutes (300000ms) → "2025-10-12T17:11:00.000Z"
+- Use this as remind_at
 
 **CONVERSATION INTELLIGENCE**:
 - Remember context from previous messages in this conversation
@@ -655,23 +657,20 @@ Remember: You're a smart assistant that understands context, remembers conversat
         try {
           switch (funcName) {
             case 'get_current_datetime': {
-              const now = new Date();
-              // Convert UTC to user's timezone
-              const localTimeString = now.toLocaleString("en-US", { timeZone: userTimezone });
-              const localDate = new Date(localTimeString);
-              const isoTime = localDate.toISOString();
+              // Use the actual local time from user's browser
+              const userLocalTime = currentLocalTime || new Date().toISOString();
+              const localDate = new Date(userLocalTime);
               
               toolResult = {
-                currentDateTime: isoTime,
+                currentDateTime: userLocalTime,
                 timestamp: localDate.getTime(),
-                date: isoTime.split('T')[0],
-                time: isoTime.split('T')[1].split('.')[0],
+                date: userLocalTime.split('T')[0],
+                time: userLocalTime.split('T')[1].split('.')[0],
                 dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][localDate.getDay()],
                 timezone: userTimezone,
-                utcTime: now.toISOString(),
-                instructions: `This is the current time in ${userTimezone}. When adding duration (e.g., 2 minutes), add it to this timestamp. The result is already timezone-adjusted and ready to use as remind_at.`
+                instructions: `CURRENT TIME: ${userLocalTime}. To calculate future time, parse this ISO timestamp and add the requested duration. For example: if current time is "2025-10-12T17:06:00.000Z" and user wants reminder in 2 minutes, add 2 minutes to get "2025-10-12T17:08:00.000Z"`
               };
-              console.log(`    ✓ Current time in ${userTimezone}: ${isoTime} (UTC: ${now.toISOString()})`);
+              console.log(`    ✓ Current time from user's device: ${userLocalTime} (timezone: ${userTimezone})`);
               break;
             }
 

@@ -110,13 +110,18 @@ export const MessageInput = ({
         
         // Call AI edge function (it will insert the AI response)
         try {
+          // Get current local time from browser
+          const now = new Date();
+          const localTimeISO = now.toISOString();
+          
           const { data, error } = await supabase.functions.invoke('ai-chat', {
             body: {
               channelId: currentChannelId,
               prompt: userMessage,
               ownerId: boardOwnerId,
               conversationHistory: conversationHistory,
-              userTimezone: userTimezone || 'UTC'
+              userTimezone: userTimezone || 'UTC',
+              currentLocalTime: localTimeISO
             }
           });
           
