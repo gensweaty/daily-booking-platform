@@ -4,8 +4,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.2';
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 // unpdf for PDF text extraction (no native dependencies)
 import { extractText as extractPdfText } from "https://esm.sh/unpdf@0.12.1";
-// Mammoth for DOCX text extraction
-import mammoth from "https://esm.sh/mammoth@1.6.0/dist/mammoth.browser.min.js";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -264,21 +262,11 @@ serve(async (req) => {
           }
         }
 
-        // Word documents (.docx) — extract text with Mammoth
+        // Word documents (.docx) - text extraction not supported in Edge runtime
         if (contentType.includes("word") || /\.docx$/i.test(filename)) {
-          try {
-            const arrayBuffer = await fileBlob.arrayBuffer();
-            // mammoth browser build expects { arrayBuffer }
-            const res = await (mammoth as any).extractRawText({ arrayBuffer });
-            const text: string = res?.value ?? "";
-            const preview = text.slice(0, 15000);
-            const more = text.length > 15000 ? "\n...(truncated)" : "";
-            console.log(`📝 Parsed DOCX: ${att.filename} (${text.length} chars)`);
-            return `📝 **Word: ${att.filename}**\n\`\`\`\n${preview}${more}\n\`\`\``;
-          } catch (e) {
-            console.error("DOCX parse error:", e);
-            return `📝 **Word: ${att.filename}** — couldn't extract text (file may be corrupted or not a .docx). If possible, re-save as DOCX or PDF and re-upload.`;
-          }
+          const sizeKB = Math.round((att.size || 0) / 1024);
+          console.log(`📝 Word doc detected: ${att.filename} (${sizeKB}KB)`);
+          return `📝 **Word: ${att.filename}** (${sizeKB}KB)\n\n⚠️ DOCX text extraction requires native libraries not available in this environment.\n\n**To help you with this document:**\n• Convert to PDF and re-upload (best option)\n• Copy and paste the text content into our chat\n• Describe what information you need from the document`;
         }
 
         // Legacy .doc files — not supported for parsing
