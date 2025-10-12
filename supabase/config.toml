@@ -50,6 +50,9 @@ verify_jwt = true
 [functions.send-comment-email]
 verify_jwt = false
 
+[functions.ai-chat]
+verify_jwt = true
+
 [storage]
 # The maximum file size allowed (e.g. "5MB", "500KB").
 # file_size_limit = "50MiB"

@@ -223,6 +223,7 @@ export type Database = {
           dm_pair_key: string | null
           emoji: string | null
           id: string
+          is_ai: boolean | null
           is_custom: boolean
           is_default: boolean | null
           is_deleted: boolean
@@ -242,6 +243,7 @@ export type Database = {
           dm_pair_key?: string | null
           emoji?: string | null
           id?: string
+          is_ai?: boolean | null
           is_custom?: boolean
           is_default?: boolean | null
           is_deleted?: boolean
@@ -261,6 +263,7 @@ export type Database = {
           dm_pair_key?: string | null
           emoji?: string | null
           id?: string
+          is_ai?: boolean | null
           is_custom?: boolean
           is_default?: boolean | null
           is_deleted?: boolean
@@ -1818,6 +1821,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      ensure_ai_channel: {
+        Args: { p_owner_id: string }
+        Returns: string
       }
       ensure_dm_channel: {
         Args: {
