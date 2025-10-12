@@ -248,7 +248,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: `Creates a custom reminder that will trigger DASHBOARD and EMAIL notifications at the specified time. NO downloads or reports involved. WORKFLOW: (1) Call get_current_datetime to get currentTime. (2) Add requested duration to currentTime to calculate remind_at in UTC ISO format. (3) Call this tool with calculated time. (4) Confirm to user using display_time from response. Tell user they'll receive dashboard notification AND email.`,
+          description: `Creates a custom reminder. User gets dashboard + email notifications at scheduled time. WORKFLOW: Call get_current_datetime(), add duration, call this with UTC time. RESPONSE: Say "✅ Reminder set! I'll remind you about '{title}' at {display_time}. You'll receive both an email and dashboard notification." Use display_time from response, never UTC.`,
           parameters: {
             type: "object",
             properties: {
@@ -290,39 +290,19 @@ serve(async (req) => {
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
 
 **USER TIMEZONE**: ${userTimezone}
-**CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}. Use this for all relative date calculations.
+**CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
 
-**REMINDERS - CRITICAL WORKFLOW**:
-When user asks to create a reminder (e.g., "remind me in 10 minutes", "set reminder for 2pm"):
-1. Call get_current_datetime() first to get exact current time in UTC
-2. Calculate remind_at by adding requested duration to currentTime (keep in UTC ISO format)
-3. Call create_custom_reminder() with the calculated UTC time
-4. Confirm to user using display_time from the tool response
-5. **CRITICAL**: Tell user they'll receive BOTH dashboard notification AND email reminder
-6. **NEVER mention downloads, reports, or provide any links** - reminders are notifications only!
+**CREATING REMINDERS**:
+When user says "remind me in X" or "set reminder":
+1. Call get_current_datetime()
+2. Add duration to get remind_at (UTC)
+3. Call create_custom_reminder()
+4. Response: "✅ Reminder set! I'll remind you about '{title}' at {display_time}. You'll receive both an email and dashboard notification."
 
-Example: "remind me in 10 minutes"
-✅ Step 1: get_current_datetime() → currentTime: "2025-10-12T18:35:00.000Z"
-✅ Step 2: Add 10 min → remind_at: "2025-10-12T18:45:00.000Z"  
-✅ Step 3: create_custom_reminder(title: "aaa", remind_at: "2025-10-12T18:45:00.000Z")
-✅ Step 4: Tool returns { display_time: "6:45 PM", display_time_full: "Oct 12, 2025, 06:45 PM" }
-✅ Step 5: Tell user: "✅ Reminder set! I'll remind you about 'aaa' Instantly. You'll receive both an email and dashboard notification."
+Use display_time from tool (never UTC). No "if" statements, just confirm success.
 
-**REMINDER RESPONSE FORMAT** (USE THIS EXACTLY):
-"✅ Reminder set! I'll remind you about '{title}' {display_time}. You'll receive both an email and dashboard notification."
-
-**NEVER say any of this for reminders**:
-❌ "provide the download link"
-❌ "If a report was generated"
-❌ "download in the correct markdown format"
-❌ Those instructions are ONLY for Excel reports, NOT reminders!
-
-**EXCEL REPORT GENERATION** (COMPLETELY DIFFERENT FROM REMINDERS):
-When user asks for "excel report", "export to excel", "download spreadsheet":
-1. Call generate_excel_report with appropriate report_type
-2. Wait for download_url in response
-3. Format as clickable Markdown link: 📊 **[Download Excel Report: {filename}]({download_url})**
-4. This download link instruction is ONLY for Excel reports, never for reminders!
+**EXCEL REPORTS**:
+For excel: call generate_excel_report, provide markdown download link.
 
 **TIME CALCULATION EXAMPLES**:
 - User says "remind me in 5 minutes" at 16:43 UTC → remind_at = 16:48 UTC
@@ -1157,13 +1137,12 @@ Remember: You're a smart assistant that understands context, remembers conversat
         }
       }
 
-      // Get final response after tool execution
+      // Get final response with clear instructions
       console.log('📤 Getting final AI response with tool results...');
       
-      // Add explicit instruction to generate user response
       const responsePrompt = {
         role: "user",
-        content: "Based on the tool results above, provide a clear, friendly response to the user. Always include what action was taken and any relevant details."
+        content: "Respond to the user. If create_custom_reminder was called successfully, say EXACTLY: '✅ Reminder set! I'll remind you about [title] at [display_time]. You'll receive both an email and dashboard notification.' Use the display_time from the tool result. For reports, include download link. Be concise."
       };
       
       const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
