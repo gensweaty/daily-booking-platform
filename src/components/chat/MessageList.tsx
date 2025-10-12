@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Reply, Edit, Trash2, Smile } from 'lucide-react';
+import { Reply, Edit, Trash2, Smile, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,7 @@ interface MessageListProps {
   onReply: (messageId: string) => void;
   onEdit: (message: ChatMessage) => void;
   onDelete: (messageId: string) => void;
+  isAITyping?: boolean;
 }
 
 export const MessageList = ({
@@ -53,6 +55,7 @@ export const MessageList = ({
   onReply,
   onEdit,
   onDelete,
+  isAITyping = false,
 }: MessageListProps) => {
   const { t } = useLanguage();
   const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
@@ -276,7 +279,29 @@ export const MessageList = ({
 
                 {/* Text */}
                 <div className={`text-sm leading-relaxed ${deleted ? 'text-muted-foreground italic' : 'text-foreground'}`}>
-                  {deleted ? `[${t('chat.messageDeleted')}]` : message.content}
+                  {deleted ? (
+                    `[${t('chat.messageDeleted')}]`
+                  ) : (
+                    <ReactMarkdown
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a
+                            {...props}
+                            className="text-primary hover:underline font-medium"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          />
+                        ),
+                        p: ({ node, ...props }) => <p {...props} className="mb-2 last:mb-0" />,
+                        strong: ({ node, ...props }) => <strong {...props} className="font-semibold" />,
+                        code: ({ node, ...props }) => (
+                          <code {...props} className="bg-muted px-1 py-0.5 rounded text-sm" />
+                        ),
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  )}
                 </div>
 
                 {/* Attachments — use your existing rich component so thumbnails & popup work again */}
@@ -346,6 +371,28 @@ export const MessageList = ({
           </div>
         );
       })}
+
+      {/* AI Typing Indicator */}
+      {isAITyping && (
+        <div className="group relative mt-4">
+          <div className="flex gap-3">
+            <div className="w-10 flex-shrink-0">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback className="bg-primary text-primary-foreground">AI</AvatarFallback>
+              </Avatar>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-sm">Smartbookly AI</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm italic">AI is thinking...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

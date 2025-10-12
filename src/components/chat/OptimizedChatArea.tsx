@@ -108,6 +108,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   } | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [isSendingToAI, setIsSendingToAI] = useState(false);
   
   // Participant dropdown state
   const [showParticipants, setShowParticipants] = useState(false);
@@ -803,6 +804,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             onDelete={(messageId: string) => {
               console.log('Delete message:', messageId);
             }}
+            isAITyping={isSendingToAI}
           />
           
           <div ref={bottomRef} />
@@ -821,6 +823,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           isAIChannel={channelInfo?.is_ai || false}
           boardOwnerId={boardOwnerId}
           userTimezone={userTimezone}
+          onAISending={setIsSendingToAI}
         />
       </div>
     </div>

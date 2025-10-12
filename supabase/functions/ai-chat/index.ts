@@ -347,10 +347,12 @@ When user asks for "excel report", "export to excel", "download spreadsheet", "g
 1. Call generate_excel_report with appropriate report_type: "payments", "events", "tasks", "customers", or "bookings"
 2. If months not specified, use 12 months (1 year) as default
 3. When you receive the download_url in the tool result:
-   - Format your response like: "📊 Here's your Excel report: [FILENAME] with [X] records. Download: [DOWNLOAD_URL]"
-   - Make the download URL clickable and clear
-   - Mention what data is included
-4. NEVER tell users to go to Statistics page to export manually - you have the tool to do it directly
+   - **CRITICAL**: Format the URL as a clickable Markdown link with this exact format:
+     📊 **[Download Excel Report: {filename}]({download_url})**
+   - Example: 📊 **[Download Excel Report: customers-12months-1760275102926.xlsx](https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/sign/excel-reports/...)**
+   - Then add a description line: "This report contains {count} records with all their details."
+4. NEVER show raw URLs - always use the Markdown link format above
+5. NEVER tell users to go to Statistics page to export manually - you have the tool to do it directly
 
 **TIME CALCULATION EXAMPLES**:
 - User says "remind me in 5 minutes" at 16:43 UTC → remind_at = 16:48 UTC

@@ -23,6 +23,7 @@ interface MessageInputProps {
   isAIChannel?: boolean;
   boardOwnerId?: string;
   userTimezone?: string;
+  onAISending?: (isSending: boolean) => void;
 }
 
 const ALLOWED_MIME: Record<string, string[]> = {
@@ -60,13 +61,15 @@ export const MessageInput = ({
   currentChannelId,
   isAIChannel = false,
   boardOwnerId,
-  userTimezone
+  userTimezone,
+  onAISending
 }: MessageInputProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSendingAI, setIsSendingAI] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +110,8 @@ export const MessageInput = ({
         onSendMessage(message.trim(), []);
         const userMessage = message.trim();
         setMessage('');
+        setIsSendingAI(true);
+        if (onAISending) onAISending(true);
         
         // Call AI edge function (it will insert the AI response)
         try {
@@ -145,6 +150,9 @@ export const MessageInput = ({
             description: 'AI service is temporarily unavailable', 
             variant: "destructive" 
           });
+        } finally {
+          setIsSendingAI(false);
+          if (onAISending) onAISending(false);
         }
       } else {
         // Handle normal message
