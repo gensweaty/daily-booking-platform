@@ -2,8 +2,8 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.2';
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
-// PDF.js for PDF text extraction (workerless for Edge runtime)
-import * as pdfjsLib from "https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.mjs?target=deno";
+// unpdf for PDF text extraction (no native dependencies)
+import { extractText as extractPdfText } from "https://esm.sh/unpdf@0.12.1";
 // Mammoth for DOCX text extraction
 import mammoth from "https://esm.sh/mammoth@1.6.0/dist/mammoth.browser.min.js";
 
@@ -200,39 +200,19 @@ serve(async (req) => {
           return `📄 **${att.filename}**\n\`\`\`\n${preview}${text.length > 15000 ? '\n...(truncated, showing first 15000 characters)' : ''}\n\`\`\``;
         }
 
-        // PDF — extract text with pdfjs-dist (worker disabled for Edge runtime)
+        // PDF — extract text with unpdf (no native dependencies)
         if (contentType === "application/pdf" || filename.endsWith(".pdf")) {
           try {
             const arrayBuffer = await fileBlob.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
+            const result = await extractPdfText(arrayBuffer, { mergePages: true });
+            
+            const text = result.text || '';
+            const pages = result.totalPages || 0;
+            const preview = text.slice(0, 15000);
+            const more = text.length > 15000 ? "\n...(truncated, showing first 15000 characters)" : "";
 
-            // Run pdf.js without a worker (Edge functions have no worker support)
-            (pdfjsLib as any).GlobalWorkerOptions.workerSrc = "";
-            const loadingTask = (pdfjsLib as any).getDocument({
-              data: bytes,
-              disableWorker: true,           // critical for Edge/Deno
-              cMapUrl: "https://unpkg.com/pdfjs-dist@3.11.174/cmaps/",
-              cMapPacked: true
-            });
-
-            const pdf = await loadingTask.promise;
-            const maxPages = Math.min(pdf.numPages || 0, 5); // first 5 pages for preview
-            let collected = "";
-
-            for (let p = 1; p <= maxPages; p++) {
-              const page = await pdf.getPage(p);
-              const content = await page.getTextContent();
-              const text = content.items
-                .map((it: any) => ("str" in it ? it.str : ""))
-                .join(" ");
-              collected += `\n\n--- Page ${p} ---\n${text}`;
-            }
-
-            const preview = collected.slice(0, 15000);
-            const more = collected.length > 15000 ? "\n...(truncated)" : "";
-
-            console.log(`📄 Parsed PDF: ${att.filename} (${pdf.numPages} pages, showing ${maxPages})`);
-            return `📄 **PDF: ${att.filename}**\n**Pages:** ${pdf.numPages}\n**Preview (first ${maxPages} pages):**\n\`\`\`\n${preview}${more}\n\`\`\``;
+            console.log(`📄 Parsed PDF: ${att.filename} (${pages} pages, ${text.length} chars)`);
+            return `📄 **PDF: ${att.filename}**\n**Pages:** ${pages}\n**Content:**\n\`\`\`\n${preview}${more}\n\`\`\``;
           } catch (e) {
             console.error("PDF parse error:", e);
             const sizeKB = Math.round((att.size || 0) / 1024);
