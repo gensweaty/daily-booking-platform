@@ -208,7 +208,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: "Creates a custom reminder at a specific time with an optional message. Use this when the user asks to 'schedule a reminder', 'remind me', 'set a reminder', etc. The reminder will send both an email and dashboard notification.",
+          description: "Creates a custom reminder. CRITICAL: When user says 'in X minutes/hours', first call get_current_datetime to get current time, then calculate remind_at by adding the specified duration. Schedule automatically without asking for confirmation. The reminder will send email + dashboard notification.",
           parameters: {
             type: "object",
             properties: {
@@ -222,7 +222,7 @@ serve(async (req) => {
               },
               remind_at: {
                 type: "string",
-                description: "ISO 8601 timestamp when to send the reminder (e.g., '2025-10-12T15:30:00Z')"
+                description: "ISO 8601 timestamp when to send the reminder. If user says 'in X minutes/hours', calculate from current time (get via get_current_datetime first). Format: '2025-10-12T15:30:00Z'"
               }
             },
             required: ["title", "remind_at"]
@@ -261,10 +261,14 @@ serve(async (req) => {
 
 **CUSTOM REMINDERS**:
 When user asks to "schedule a reminder", "remind me", or "set a reminder":
-1. Ask for TIME if not provided (e.g., "What time would you like to be reminded?")
-2. Ask for MESSAGE if not provided (e.g., "What should I remind you about?")
-3. Call create_custom_reminder with title and remind_at timestamp
-4. Confirm with exact time and explain they'll get email + dashboard notification
+1. **If user specifies relative time ("in 5 minutes", "in 2 hours")**: 
+   - Call get_current_datetime to get current time
+   - Calculate remind_at by adding the duration (e.g., if now is 10:00 and user says "in 30 minutes", remind_at = 10:30)
+   - Create reminder immediately WITHOUT asking for confirmation
+   - Confirm: "✅ Reminder scheduled for [exact time]"
+2. **If no time specified**: Ask "What time would you like to be reminded?"
+3. **If no message specified**: Ask "What should I remind you about?"
+4. After creating, explain: "You'll receive an email and dashboard notification at the scheduled time"
 
 **DATA ACCESS** - You have real-time read access to:
 📅 **Calendar**: All events, bookings, schedules, availability

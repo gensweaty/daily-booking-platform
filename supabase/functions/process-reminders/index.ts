@@ -16,6 +16,7 @@ const corsHeaders = {
 interface ReminderProcessingResult {
   taskReminders: number;
   eventReminders: number;
+  customReminders: number;
   errors: string[];
 }
 
@@ -38,6 +39,7 @@ const handler = async (req: Request): Promise<Response> => {
     const result: ReminderProcessingResult = {
       taskReminders: 0,
       eventReminders: 0,
+      customReminders: 0,
       errors: []
     };
 
@@ -141,10 +143,77 @@ const handler = async (req: Request): Promise<Response> => {
       result.errors.push(`Event processing exception: ${(error as Error).message}`);
     }
 
+    // Process Custom Reminders
+    try {
+      const { data: dueCustomReminders, error: customError } = await supabase
+        .from('custom_reminders')
+        .select('*')
+        .lte('remind_at', reminderCheckTime.toISOString())
+        .is('reminder_sent_at', null)
+        .is('deleted_at', null);
+
+      if (customError) {
+        console.error('❌ Error fetching due custom reminders:', customError);
+        result.errors.push(`Custom reminder fetch error: ${customError.message}`);
+      } else {
+        console.log(`🔔 Found ${dueCustomReminders?.length || 0} due custom reminders`);
+        
+        for (const reminder of dueCustomReminders || []) {
+          try {
+            console.log(`🔍 Processing custom reminder: ${reminder.title} (ID: ${reminder.id}, remind_at: ${reminder.remind_at})`);
+            
+            // Get user email for the reminder
+            const { data: userData, error: userError } = await supabase.auth.admin.getUserById(reminder.user_id);
+            
+            if (userError || !userData) {
+              console.error(`❌ Could not get user for reminder ${reminder.id}:`, userError);
+              result.errors.push(`Custom reminder ${reminder.id}: User not found`);
+              continue;
+            }
+
+            // Send email reminder
+            const { error: emailError } = await supabase.functions.invoke('send-custom-reminder-email', {
+              body: { 
+                reminderId: reminder.id,
+                userEmail: userData.user.email,
+                title: reminder.title,
+                message: reminder.message,
+                reminderTime: reminder.remind_at
+              }
+            });
+
+            if (emailError) {
+              console.error(`❌ Error sending custom reminder email for ${reminder.id}:`, emailError);
+              result.errors.push(`Custom reminder ${reminder.id}: ${emailError.message}`);
+            } else {
+              // Mark as sent
+              await supabase
+                .from('custom_reminders')
+                .update({ 
+                  reminder_sent_at: now.toISOString(),
+                  email_sent: true 
+                })
+                .eq('id', reminder.id);
+              
+              console.log(`✅ Custom reminder sent successfully: ${reminder.title}`);
+              result.customReminders++;
+            }
+          } catch (error) {
+            console.error(`❌ Exception processing custom reminder ${reminder.id}:`, error);
+            result.errors.push(`Custom reminder ${reminder.id} exception: ${(error as Error).message}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Custom reminder processing exception:', error);
+      result.errors.push(`Custom reminder processing exception: ${(error as Error).message}`);
+    }
+
     // Log final results
     console.log('📊 Processing complete:', {
       taskReminders: result.taskReminders,
       eventReminders: result.eventReminders,
+      customReminders: result.customReminders,
       totalErrors: result.errors.length,
       timestamp: now.toISOString()
     });
@@ -158,6 +227,7 @@ const handler = async (req: Request): Promise<Response> => {
       processed_at: now.toISOString(),
       task_reminders_sent: result.taskReminders,
       event_reminders_sent: result.eventReminders,
+      custom_reminders_sent: result.customReminders,
       errors: result.errors
     }), {
       status: 200,
