@@ -69,7 +69,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
       
       {isExpanded && (
         <div className="px-3 pb-3 space-y-2">
-          {/* First row - Page Guides + 2 actions */}
+          {/* First row - Page Guides dropdown + 2 quick actions */}
           <div className="flex flex-wrap gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -91,7 +91,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            {prompts.slice(0, 3).map(p => {
+            {prompts.slice(0, 2).map(p => {
               const Icon = p.icon;
               return (
                 <Button
@@ -108,9 +108,9 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
             })}
           </div>
 
-          {/* Second row - remaining actions */}
+          {/* Second row - 3 quick actions */}
           <div className="flex flex-wrap gap-2">
-            {prompts.slice(3).map(p => {
+            {prompts.slice(2, 5).map(p => {
               const Icon = p.icon;
               return (
                 <Button
@@ -126,6 +126,27 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
               );
             })}
           </div>
+
+          {/* Third row - remaining action(s) if any */}
+          {prompts.length > 5 && (
+            <div className="flex flex-wrap gap-2">
+              {prompts.slice(5).map(p => {
+                const Icon = p.icon;
+                return (
+                  <Button
+                    key={p.label}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onPromptSelect(p.text)}
+                    className="text-xs h-8"
+                  >
+                    <Icon className="h-3 w-3 mr-1.5" />
+                    {p.label}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
