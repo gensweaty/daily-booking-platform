@@ -95,6 +95,64 @@ serve(async (req) => {
       );
     }
 
+    // ---- TASK HELPERS (resilient to schema drift) ----
+    const STATUS_ALIASES: Record<string,string> = {
+      inprogress: "in_progress",
+      "in-progress": "in_progress",
+      todo: "todo",
+      done: "done"
+    };
+    const normStatus = (s?: string) => (s ? (STATUS_ALIASES[s] || s) : undefined);
+
+    function unifyStatus(s?: string) {
+      if (!s) return "unknown";
+      return STATUS_ALIASES[s] || s;
+    }
+
+    async function fetchTasksFlexible(client: ReturnType<typeof createClient>, ownerId: string, filters: {
+      status?: string, created_after?: string, created_before?: string
+    }) {
+      const combos = [
+        { ownerCol: "user_id",   archivedCol: "archived_at" },
+        { ownerCol: "owner_id",  archivedCol: "archived_at" },
+        { ownerCol: "board_owner_id", archivedCol: "archived_at" },
+        { ownerCol: "user_id",   archivedCol: null },
+        { ownerCol: "owner_id",  archivedCol: null },
+        { ownerCol: "board_owner_id", archivedCol: null },
+      ];
+      const out = { tasks: [] as any[], meta: {} as any };
+
+      for (const c of combos) {
+        try {
+          let q = client.from("tasks").select("*").eq(c.ownerCol as any, ownerId);
+
+          if (c.archivedCol) q = q.is(c.archivedCol as any, null);
+          if (filters.created_after)  q = q.gte("created_at", filters.created_after);
+          if (filters.created_before) q = q.lte("created_at", filters.created_before);
+          if (filters.status)         q = q.eq("status", normStatus(filters.status)!);
+
+          q = q.order("created_at", { ascending: false });
+
+          const { data, error } = await q;
+          if (error) {
+            // Column missing? try next combo
+            if (/column .* does not exist/i.test(error.message)) continue;
+            // Other errors: return immediately with empty data + error
+            return { ...out, error: error.message, meta: { tried: c } };
+          }
+          if (Array.isArray(data)) {
+            out.tasks = data;
+            out.meta = { used: c, filters };
+            return out;
+          }
+        } catch {
+          // Try next combo
+          continue;
+        }
+      }
+      return out; // nothing matched → empty
+    }
+
     // 2. Build comprehensive read-only tool functions
     const tools = [
       {
@@ -174,7 +232,7 @@ serve(async (req) => {
             properties: {
               status: { 
                 type: "string", 
-                enum: ["todo", "inprogress", "done"], 
+                enum: ["todo", "in_progress", "done"], 
                 description: "Filter by status (optional)" 
               },
               created_after: {
@@ -973,87 +1031,55 @@ Remember: You're a smart assistant that understands context, remembers conversat
             }
 
             case 'get_all_tasks': {
-              console.log(`    🔍 Fetching tasks for user ${ownerId}`);
-              console.log(`       Filters:`, { 
-                status: args.status || 'all', 
-                created_after: args.created_after || 'none',
-                created_before: args.created_before || 'none'
-              });
-              
-              let query = supabaseClient
-                .from('tasks')
-                .select('id, title, description, status, priority, deadline_at, reminder_at, created_at, updated_at, assigned_to_name')
-                .eq('user_id', ownerId)
-                .is('archived_at', null);
-              
-              // Apply filters
-              if (args.status) {
-                query = query.eq('status', args.status);
+              const filters = {
+                status: args.status,
+                created_after: args.created_after,
+                created_before: args.created_before
+              };
+
+              const res = await fetchTasksFlexible(supabaseClient, ownerId, filters);
+
+              // breakdown with normalized statuses
+              const breakdown: Record<string, number> = {};
+              for (const t of res.tasks) {
+                const s = unifyStatus(t.status);
+                breakdown[s] = (breakdown[s] || 0) + 1;
               }
-              if (args.created_after) {
-                query = query.gte('created_at', args.created_after);
-                console.log(`       📅 Date filter: created_at >= ${args.created_after}`);
-              }
-              if (args.created_before) {
-                query = query.lte('created_at', args.created_before);
-                console.log(`       📅 Date filter: created_at <= ${args.created_before}`);
-              }
-              
-              query = query.order('created_at', { ascending: false });
-              
-              const { data: tasks, error: tasksError } = await query;
-              
-              if (tasksError) {
-                console.error('    ❌ Error fetching tasks:', tasksError);
-                toolResult = { 
-                  tasks: [], 
-                  count: 0,
-                  error: tasksError.message, 
-                  filters_applied: { status: args.status, created_after: args.created_after, created_before: args.created_before }
-                };
-              } else {
-                // Calculate status breakdown
-                const statusBreakdown = (tasks || []).reduce((acc, task) => {
-                  acc[task.status] = (acc[task.status] || 0) + 1;
-                  return acc;
-                }, {} as Record<string, number>);
-                
-                toolResult = { 
-                  tasks: tasks || [], 
-                  count: tasks?.length || 0,
-                  status_breakdown: statusBreakdown,
-                  filters_applied: { 
-                    status: args.status || 'all', 
-                    created_after: args.created_after || 'none',
-                    created_before: args.created_before || 'none'
-                  }
-                };
-                console.log(`    ✅ Found ${tasks?.length || 0} tasks`);
-                console.log(`       Status breakdown:`, statusBreakdown);
-              }
+
+              toolResult = {
+                tasks: res.tasks,
+                count: res.tasks.length,
+                status_breakdown: breakdown,
+                filters_applied: {
+                  status: normStatus(filters.status) || 'all',
+                  created_after: filters.created_after || 'none',
+                  created_before: filters.created_before || 'none'
+                }
+              };
+              console.log(`    ✅ Tasks: ${res.tasks.length} (via ${res.meta?.used?.ownerCol || 'unknown'})`);
               break;
             }
 
             case 'get_task_statistics': {
-              const { data: tasks } = await supabaseClient
-                .from('tasks')
-                .select('status')
-                .eq('user_id', ownerId)
-                .is('archived_at', null);
-              
-              const stats = {
-                total: tasks?.length || 0,
-                todo: tasks?.filter(t => t.status === 'todo').length || 0,
-                in_progress: tasks?.filter(t => t.status === 'in_progress').length || 0,
-                done: tasks?.filter(t => t.status === 'done').length || 0
+              const res = await fetchTasksFlexible(supabaseClient, ownerId, {});
+              const total = res.tasks.length;
+
+              const counts = { todo: 0, in_progress: 0, done: 0, other: 0 };
+              for (const t of res.tasks) {
+                const s = unifyStatus(t.status);
+                if (s in counts) (counts as any)[s]++; else counts.other++;
+              }
+              const completion_rate = total ? Math.round((counts.done / total) * 100) : 0;
+
+              toolResult = {
+                total,
+                todo: counts.todo,
+                in_progress: counts.in_progress,
+                done: counts.done,
+                other: counts.other,
+                completion_rate
               };
-              
-              stats['completion_rate'] = stats.total > 0 
-                ? Math.round((stats.done / stats.total) * 100) 
-                : 0;
-              
-              toolResult = stats;
-              console.log(`    ✓ Task stats: ${stats.completion_rate}% complete`);
+              console.log(`    ✓ Task stats from ${res.tasks.length} rows (done=${counts.done})`);
               break;
             }
 

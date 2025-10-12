@@ -7,6 +7,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper functions for resilient field access
+const pick = (obj: any, keys: string[], fallback: any = "") =>
+  keys.find(k => obj?.[k] !== undefined && obj?.[k] !== null) ? obj[keys.find(k => obj?.[k] !== undefined && obj?.[k] !== null)!] : fallback;
+
+const normTaskStatus = (s?: string) => (s ? ( { inprogress: "in_progress", "in-progress": "in_progress" } as any)[s] || s : "");
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -99,33 +105,59 @@ serve(async (req) => {
 
       case 'tasks': {
         console.log(`📋 Fetching tasks for user ${userId} from ${startDate.toISOString()}`);
-        const { data: tasks, error: tasksError } = await supabase
-          .from('tasks')
-          .select('title, description, status, position, deadline_at, assigned_to_name, created_at, updated_at, created_by_name, last_edited_by_name')
-          .eq('user_id', userId)
-          .gte('created_at', startDate.toISOString())
-          .is('archived_at', null)
-          .order('created_at', { ascending: false });
-        
-        if (tasksError) {
-          console.error('❌ Error fetching tasks:', tasksError);
-          throw tasksError;
-        }
-        
-        console.log(`✅ Found ${tasks?.length || 0} tasks`);
 
-        data = (tasks || []).map(t => ({
-          'Title': t.title,
-          'Description': t.description || '',
-          'Status': t.status,
-          'Position': t.position || '',
-          'Assigned To': t.assigned_to_name || 'Unassigned',
-          'Deadline': t.deadline_at ? new Date(t.deadline_at).toLocaleDateString() : '',
-          'Created By': t.created_by_name || '',
-          'Last Edited By': t.last_edited_by_name || '',
-          'Created': new Date(t.created_at).toLocaleDateString(),
-          'Updated': t.updated_at ? new Date(t.updated_at).toLocaleDateString() : ''
-        }));
+        // Try owner_id variants & archived filter without breaking if a column doesn't exist
+        const combos = [
+          { ownerCol: "user_id",   archivedCol: "archived_at" },
+          { ownerCol: "owner_id",  archivedCol: "archived_at" },
+          { ownerCol: "board_owner_id", archivedCol: "archived_at" },
+          { ownerCol: "user_id",   archivedCol: null },
+          { ownerCol: "owner_id",  archivedCol: null },
+          { ownerCol: "board_owner_id", archivedCol: null },
+        ];
+
+        let tasks: any[] = [];
+        for (const c of combos) {
+          try {
+            let q = supabase.from('tasks').select('*').eq(c.ownerCol as any, userId);
+            if (c.archivedCol) q = q.is(c.archivedCol as any, null);
+            q = q.gte('created_at', startDate.toISOString()).order('created_at', { ascending: false });
+
+            const { data, error } = await q;
+            if (error) {
+              if (/column .* does not exist/i.test(error.message)) continue;
+              throw error;
+            }
+            tasks = data || [];
+            console.log(`✅ Tasks pull via ${c.ownerCol}${c.archivedCol ? '+archived_at' : ''}: ${tasks.length}`);
+            break;
+          } catch (e) {
+            console.log('↩︎ try next owner/archived combo', e instanceof Error ? e.message : e);
+            continue;
+          }
+        }
+
+        console.log(`✅ Consolidated tasks count: ${tasks.length}`);
+
+        data = tasks.map(t => {
+          const deadline = pick(t, ['deadline_at','due_date'], '');
+          const assignedTo = pick(t, ['assigned_to_name','assignee_name','assignee','assigned_to'], 'Unassigned');
+          const created = pick(t, ['created_at'], null);
+          const updated = pick(t, ['updated_at'], null);
+          const priority = pick(t, ['priority'], '');
+
+          return {
+            'Title': t.title || '',
+            'Description': t.description || '',
+            'Status': normTaskStatus(t.status) || '',
+            'Priority': priority,
+            'Assigned To': assignedTo,
+            'Deadline': deadline ? new Date(deadline).toLocaleString() : '',
+            'Created': created ? new Date(created).toLocaleString() : '',
+            'Updated': updated ? new Date(updated).toLocaleString() : ''
+          };
+        });
+
         filename = `tasks-${months}months-${Date.now()}.xlsx`;
         break;
       }
