@@ -162,20 +162,23 @@ const handler = async (req: Request): Promise<Response> => {
           try {
             console.log(`🔍 Processing custom reminder: ${reminder.title} (ID: ${reminder.id}, remind_at: ${reminder.remind_at})`);
             
-            // Get user email for the reminder
+            // Get user's own email from auth (this is the verified email)
             const { data: userData, error: userError } = await supabase.auth.admin.getUserById(reminder.user_id);
             
-            if (userError || !userData) {
-              console.error(`❌ Could not get user for reminder ${reminder.id}:`, userError);
-              result.errors.push(`Custom reminder ${reminder.id}: User not found`);
+            if (userError || !userData?.user?.email) {
+              console.error(`❌ Could not get user email for reminder ${reminder.id}:`, userError);
+              result.errors.push(`Custom reminder ${reminder.id}: User email not found`);
               continue;
             }
 
-            // Send email reminder
+            const userEmail = userData.user.email;
+            console.log(`📧 Sending reminder to user's own email: ${userEmail}`);
+
+            // 1. Send email reminder (to user's own verified email)
             const { error: emailError } = await supabase.functions.invoke('send-custom-reminder-email', {
               body: { 
                 reminderId: reminder.id,
-                userEmail: userData.user.email,
+                userEmail: userEmail,
                 title: reminder.title,
                 message: reminder.message,
                 reminderTime: reminder.remind_at
@@ -186,18 +189,51 @@ const handler = async (req: Request): Promise<Response> => {
               console.error(`❌ Error sending custom reminder email for ${reminder.id}:`, emailError);
               result.errors.push(`Custom reminder ${reminder.id}: ${emailError.message}`);
             } else {
-              // Mark as sent
-              await supabase
-                .from('custom_reminders')
-                .update({ 
-                  reminder_sent_at: now.toISOString(),
-                  email_sent: true 
-                })
-                .eq('id', reminder.id);
-              
-              console.log(`✅ Custom reminder sent successfully: ${reminder.title}`);
-              result.customReminders++;
+              console.log(`✅ Email sent to ${userEmail}`);
             }
+
+            // 2. Dashboard notification handled by frontend (CustomReminderNotifications component)
+
+            // 3. Send chat message in AI channel (if exists)
+            try {
+              // Find AI channel for this user
+              const { data: aiChannel } = await supabase
+                .from('chat_channels')
+                .select('id')
+                .eq('owner_id', reminder.user_id)
+                .eq('is_ai', true)
+                .eq('is_deleted', false)
+                .single();
+
+              if (aiChannel) {
+                // Send reminder message to AI chat
+                await supabase
+                  .from('chat_messages')
+                  .insert({
+                    channel_id: aiChannel.id,
+                    owner_id: reminder.user_id,
+                    sender_type: 'admin',
+                    sender_name: 'Smartbookly AI',
+                    content: `🔔 **Reminder Alert**\n\n**${reminder.title}**${reminder.message ? `\n\n${reminder.message}` : ''}\n\n_This is your scheduled reminder._`,
+                    message_type: 'text'
+                  });
+                console.log(`✅ Chat message sent to AI channel`);
+              }
+            } catch (chatError) {
+              console.error(`⚠️ Could not send chat message (non-critical):`, chatError);
+            }
+
+            // 4. Mark as fully processed
+            await supabase
+              .from('custom_reminders')
+              .update({ 
+                reminder_sent_at: now.toISOString(),
+                email_sent: true 
+              })
+              .eq('id', reminder.id);
+            
+            console.log(`✅ Custom reminder fully processed: ${reminder.title}`);
+            result.customReminders++;
           } catch (error) {
             console.error(`❌ Exception processing custom reminder ${reminder.id}:`, error);
             result.errors.push(`Custom reminder ${reminder.id} exception: ${(error as Error).message}`);
