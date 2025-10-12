@@ -780,7 +780,7 @@ For excel: call generate_excel_report, provide markdown download link.
 
 **EXCEL GENERATION RULES** 🔴:
 **CRITICAL**: When user asks for Excel/spreadsheet generation:
-1. Call `generate_excel_report` tool IMMEDIATELY - don't pre-check data
+1. Call generate_excel_report tool IMMEDIATELY - don't pre-check data
 2. DO NOT call get_all_tasks/get_all_events first to verify data exists
 3. The generate_excel_report tool checks for data and returns appropriate response
 4. If tool returns success=false with "No data found", THEN tell user no data exists
