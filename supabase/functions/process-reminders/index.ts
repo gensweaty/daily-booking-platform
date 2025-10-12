@@ -175,21 +175,29 @@ const handler = async (req: Request): Promise<Response> => {
             console.log(`📧 Sending reminder to user's own email: ${userEmail}`);
 
             // 1. Send email reminder (to user's own verified email)
-            const { error: emailError } = await supabase.functions.invoke('send-custom-reminder-email', {
+            const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-custom-reminder-email', {
               body: { 
                 reminderId: reminder.id,
                 userEmail: userEmail,
                 title: reminder.title,
                 message: reminder.message,
-                reminderTime: reminder.remind_at
+                reminderTime: reminder.remind_at,
+                userId: reminder.user_id
               }
             });
 
-            if (emailError) {
-              console.error(`❌ Error sending custom reminder email for ${reminder.id}:`, emailError);
-              result.errors.push(`Custom reminder ${reminder.id}: ${emailError.message}`);
+            if (emailError || !emailResult?.success) {
+              const errorMsg = emailError?.message || emailResult?.error || 'Unknown email error';
+              console.error(`❌ Error sending custom reminder email for ${reminder.id}:`, errorMsg);
+              result.errors.push(`Custom reminder ${reminder.id}: ${errorMsg}`);
+              // Skip marking as sent if email failed
+              continue;
+            } else if (emailResult?.duplicate) {
+              console.log(`⚠️ Duplicate email prevented for ${reminder.id}`);
+              // Continue to next reminder without marking as sent
+              continue;
             } else {
-              console.log(`✅ Email sent to ${userEmail}`);
+              console.log(`✅ Email sent to ${userEmail} in language ${emailResult.language || 'default'}`);
             }
 
             // 2. Dashboard notification handled by frontend (CustomReminderNotifications component)
