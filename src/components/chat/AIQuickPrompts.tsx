@@ -79,7 +79,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuPortal>
-              <DropdownMenuContent align="start" className="w-56 bg-popover border z-[99999]">
+              <DropdownMenuContent align="start" className="w-56 bg-background/95 backdrop-blur-sm border border-border shadow-lg z-[99999]">
                 {pageGuides.map(guide => (
                   <DropdownMenuItem 
                     key={guide.label}
@@ -88,7 +88,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
                       e.stopPropagation();
                       onPromptSelect(guide.prompt);
                     }}
-                    className="cursor-pointer"
+                    className="cursor-pointer hover:bg-muted"
                   >
                     {guide.label}
                   </DropdownMenuItem>
