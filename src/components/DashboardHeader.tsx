@@ -62,7 +62,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         .from('profiles')
         .select('avatar_url, username')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching profile:', error);
