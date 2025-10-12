@@ -8,6 +8,11 @@ interface AIQuickPromptsProps {
 export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
   const prompts = [
     { 
+      label: "📖 Page Guides", 
+      text: "Show me detailed guides for Calendar, CRM, Tasks, Business Page, Statistics, and Chat features. How do I use each page?",
+      icon: Bot
+    },
+    { 
       label: "Today's Schedule", 
       text: "What's on my schedule today?",
       icon: Calendar
@@ -41,11 +46,6 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
       label: "Free Time Slots", 
       text: "When am I free tomorrow?",
       icon: Search
-    },
-    { 
-      label: "Business Stats", 
-      text: "Show me my business statistics for this month",
-      icon: Bot
     },
   ];
 
