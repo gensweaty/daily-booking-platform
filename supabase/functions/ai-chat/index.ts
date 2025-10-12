@@ -170,6 +170,23 @@ serve(async (req) => {
       {
         type: "function",
         function: {
+          name: "analyze_payment_history",
+          description: "Analyze payment history and revenue over a specified time period. Use this when user asks to analyze payments, revenue, or financial data over time (e.g., '1 year', '6 months', 'last quarter'). Returns detailed breakdown by month with revenue, payment status counts, and trends.",
+          parameters: {
+            type: "object",
+            properties: {
+              months: { 
+                type: "number", 
+                description: "Number of months to analyze backwards from now (e.g., 12 for 1 year, 6 for half year)", 
+                default: 12 
+              }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "get_weekly_summary",
           description: "Get a comprehensive weekly summary: events, tasks, bookings, payments",
           parameters: { type: "object", properties: {} }
@@ -312,19 +329,24 @@ When user asks to "schedule a reminder", "remind me", or "set a reminder":
 ✅ **Tasks**: Task boards, status, assignments, progress, deadlines  
 👥 **CRM**: Complete customer database with contact info, notes, payment history
 📋 **Booking Requests**: Pending approvals, booking statistics
-📊 **Business Analytics**: Revenue, trends, monthly statistics
+📊 **Business Analytics**: Revenue, trends, monthly statistics, historical payment data
 
 **CRITICAL RULES - YOU MUST FOLLOW THESE**:
-1. **ALWAYS fetch calendar data when asked about schedule**: 
-   - If user asks "what's on my schedule", "today's calendar", "what's today" → IMMEDIATELY call get_todays_schedule (no need for get_current_datetime first)
-   - If user asks about "upcoming", "this week", "next week" → call get_upcoming_events with appropriate days
-   - NEVER respond about schedule without calling the actual data fetching tool
-   - Example: User says "what's my schedule today" → You MUST call get_todays_schedule before responding
-2. **Connect the dots**: Find patterns across calendar, tasks, and CRM data
-3. **Be proactive**: Suggest actions based on what you see (e.g., "You have 3 pending bookings that need approval")
-4. **Natural language dates**: Understand "tomorrow", "next Monday", "in 2 weeks" - calculate the exact date from today (${today})
-5. **Memory**: Reference previous messages - if user asks followup questions, maintain context
-6. **Be conversational**: Don't be robotic, use emojis, be helpful and friendly
+1. **BE PROACTIVE - DO THE WORK YOURSELF**: 
+   - When user asks to "analyze", "show me", "tell me about" data → IMMEDIATELY call the appropriate tool and provide the analysis
+   - NEVER tell users to go to another page or do it manually
+   - Example: User says "analyze 1 year payment data" → Call analyze_payment_history with months=12, then provide detailed analysis
+   - You are an ASSISTANT - your job is to fetch data, analyze it, and present insights, not to direct users elsewhere
+2. **ALWAYS fetch and analyze data when asked**: 
+   - If user asks about payments, revenue, or financial history → Call analyze_payment_history
+   - If user asks "what's on my schedule", "today's calendar" → Call get_todays_schedule
+   - If user asks about "upcoming", "this week" → Call get_upcoming_events
+   - NEVER respond about data without calling the actual data fetching tool first
+3. **Connect the dots**: Find patterns across calendar, tasks, and CRM data
+4. **Be proactive**: Suggest actions based on what you see (e.g., "You have 3 pending bookings that need approval")
+5. **Natural language dates**: Understand "tomorrow", "next Monday", "in 2 weeks" - calculate the exact date from today (${today})
+6. **Memory**: Reference previous messages - if user asks followup questions, maintain context
+7. **Be conversational**: Don't be robotic, use emojis, be helpful and friendly
 
 **DETAILED PAGE GUIDES** - When user asks about a specific page:
 
@@ -847,6 +869,92 @@ Remember: You're a smart assistant that understands context, remembers conversat
                 total_customers: customersResult.data?.length || 0
               };
               console.log(`    ✓ Business stats generated`);
+              break;
+            }
+
+            case 'analyze_payment_history': {
+              const months = args.months || 12;
+              const today = new Date();
+              const startDate = new Date(today);
+              startDate.setMonth(today.getMonth() - months);
+              
+              // Fetch all events with payments in the time period
+              const { data: events } = await supabaseClient
+                .from('events')
+                .select('payment_amount, payment_status, created_at, start_date')
+                .eq('user_id', ownerId)
+                .gte('created_at', startDate.toISOString())
+                .is('deleted_at', null)
+                .order('created_at', { ascending: true });
+              
+              // Fetch all customers in the time period
+              const { data: customers } = await supabaseClient
+                .from('customers')
+                .select('payment_amount, payment_status, created_at')
+                .eq('user_id', ownerId)
+                .gte('created_at', startDate.toISOString())
+                .is('deleted_at', null)
+                .order('created_at', { ascending: true });
+              
+              // Group by month
+              const monthlyData: Record<string, any> = {};
+              const allPayments = [
+                ...(events || []).map(e => ({ ...e, source: 'event' })),
+                ...(customers || []).map(c => ({ ...c, source: 'customer' }))
+              ];
+              
+              allPayments.forEach(item => {
+                const date = new Date(item.created_at);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                
+                if (!monthlyData[monthKey]) {
+                  monthlyData[monthKey] = {
+                    month: monthKey,
+                    total_revenue: 0,
+                    paid_count: 0,
+                    not_paid_count: 0,
+                    partial_count: 0,
+                    total_transactions: 0
+                  };
+                }
+                
+                const amount = Number(item.payment_amount) || 0;
+                monthlyData[monthKey].total_revenue += amount;
+                monthlyData[monthKey].total_transactions += 1;
+                
+                if (item.payment_status === 'paid') monthlyData[monthKey].paid_count += 1;
+                else if (item.payment_status === 'not_paid') monthlyData[monthKey].not_paid_count += 1;
+                else if (item.payment_status === 'partial') monthlyData[monthKey].partial_count += 1;
+              });
+              
+              const monthlyArray = Object.values(monthlyData).sort((a: any, b: any) => 
+                a.month.localeCompare(b.month)
+              );
+              
+              const totalRevenue = allPayments.reduce((sum, item) => sum + (Number(item.payment_amount) || 0), 0);
+              const paidCount = allPayments.filter(p => p.payment_status === 'paid').length;
+              const notPaidCount = allPayments.filter(p => p.payment_status === 'not_paid').length;
+              const avgMonthlyRevenue = monthlyArray.length > 0 ? totalRevenue / monthlyArray.length : 0;
+              
+              toolResult = {
+                period: `${months} months`,
+                start_date: startDate.toISOString().split('T')[0],
+                end_date: today.toISOString().split('T')[0],
+                summary: {
+                  total_revenue: totalRevenue,
+                  total_transactions: allPayments.length,
+                  paid_transactions: paidCount,
+                  not_paid_transactions: notPaidCount,
+                  average_monthly_revenue: Math.round(avgMonthlyRevenue),
+                  payment_completion_rate: allPayments.length > 0 ? Math.round((paidCount / allPayments.length) * 100) : 0
+                },
+                monthly_breakdown: monthlyArray,
+                insights: {
+                  best_month: monthlyArray.length > 0 ? monthlyArray.reduce((max: any, m: any) => m.total_revenue > max.total_revenue ? m : max) : null,
+                  worst_month: monthlyArray.length > 0 ? monthlyArray.reduce((min: any, m: any) => m.total_revenue < min.total_revenue ? m : min) : null
+                }
+              };
+              console.log(`    ✓ Analyzed ${months} months of payment history: ${totalRevenue} total revenue`);
               break;
             }
 
