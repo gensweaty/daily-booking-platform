@@ -15,25 +15,9 @@ export const getUserTimezone = (): string => {
 };
 
 export const getCurrentTimeInTimezone = (timezone: string): Date => {
-  try {
-    // Get current time in the specified timezone
-    const now = new Date();
-    
-    // Use proper timezone conversion
-    const timeInTimezone = new Date(now.toLocaleString("en-US", { timeZone: timezone }));
-    
-    console.log('Timezone conversion debug:', {
-      timezone,
-      utcTime: now.toISOString(),
-      localTimeString: now.toLocaleString("en-US", { timeZone: timezone }),
-      convertedTime: timeInTimezone.toISOString()
-    });
-    
-    return timeInTimezone;
-  } catch (error) {
-    console.warn('Failed to get time in timezone:', timezone, error);
-    return new Date();
-  }
+  // Date objects are always stored internally as UTC timestamps
+  // This function just returns current UTC time - timezone conversion happens during DISPLAY only
+  return new Date();
 };
 
 export const isDateTimeInFuture = (dateTime: string, timezone: string): boolean => {
