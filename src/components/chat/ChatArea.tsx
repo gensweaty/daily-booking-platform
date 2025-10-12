@@ -106,7 +106,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     name: string; 
     isDM: boolean; 
     dmPartner?: { name: string; avatar?: string };
-    avatar_url?: string; 
+    avatar_url?: string;
+    is_ai?: boolean;
   } | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -274,7 +275,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       // What kind of channel is this?
       const { data: ch, error: chErr } = await supabase
         .from('chat_channels')
-        .select('name, is_dm, avatar_url')
+        .select('name, is_dm, avatar_url, is_ai')
         .eq('id', activeChannelId)
         .maybeSingle();
       if (chErr) {
@@ -287,7 +288,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const info = { 
           name: ch?.name || t('chat.general'), 
           isDM: false,
-          avatar_url: ch?.avatar_url 
+          avatar_url: ch?.avatar_url,
+          is_ai: ch?.is_ai || false
         } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
@@ -1503,6 +1505,9 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             attachments: editingMessage.attachments
           } : null}
           onCancelEdit={handleCancelEdit}
+          currentChannelId={activeChannelId}
+          isAIChannel={channelInfo?.is_ai || false}
+          boardOwnerId={boardOwnerId}
         />
       </div>
     </div>

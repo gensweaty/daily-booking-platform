@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import { useToast } from '@/hooks/use-toast';
+import { AIQuickPrompts } from './AIQuickPrompts';
 
 interface MessageInputProps {
   onSendMessage: (content: string, attachments?: any[]) => void;
@@ -18,6 +19,9 @@ interface MessageInputProps {
   onCancelReply?: () => void;
   editingMessage?: ChatMessage | null;
   onCancelEdit?: () => void;
+  currentChannelId?: string | null;
+  isAIChannel?: boolean;
+  boardOwnerId?: string;
 }
 
 const ALLOWED_MIME: Record<string, string[]> = {
@@ -51,7 +55,10 @@ export const MessageInput = ({
   replyingTo,
   onCancelReply,
   editingMessage,
-  onCancelEdit
+  onCancelEdit,
+  currentChannelId,
+  isAIChannel = false,
+  boardOwnerId
 }: MessageInputProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -74,8 +81,67 @@ export const MessageInput = ({
           setMessage('');
           if (onCancelEdit) onCancelEdit();
         }
+      } else if (isAIChannel && currentChannelId && boardOwnerId) {
+        // Handle AI channel message
+        console.log('🤖 Sending message to AI channel');
+        
+        // Send user message first
+        onSendMessage(message.trim(), []);
+        const userMessage = message.trim();
+        setMessage('');
+        
+        // Call AI edge function
+        try {
+          const { data, error } = await supabase.functions.invoke('ai-chat', {
+            body: {
+              channelId: currentChannelId,
+              prompt: userMessage,
+              ownerId: boardOwnerId
+            }
+          });
+          
+          if (error) {
+            console.error('❌ AI error:', error);
+            toast({ 
+              title: "AI Error", 
+              description: error.message || 'Failed to get AI response', 
+              variant: "destructive" 
+            });
+            return;
+          }
+          
+          if (data?.content) {
+            console.log('✅ AI response received');
+            // Insert AI response as bot message
+            const { error: insertError } = await supabase.from('chat_messages').insert({
+              channel_id: currentChannelId,
+              owner_id: boardOwnerId,
+              sender_type: 'admin',
+              sender_name: 'Smartbookly AI',
+              sender_avatar_url: null,
+              content: data.content,
+              message_type: 'text'
+            });
+            
+            if (insertError) {
+              console.error('❌ Error inserting AI message:', insertError);
+              toast({ 
+                title: "Error", 
+                description: 'Failed to display AI response', 
+                variant: "destructive" 
+              });
+            }
+          }
+        } catch (aiError) {
+          console.error('❌ AI call failed:', aiError);
+          toast({ 
+            title: "AI Unavailable", 
+            description: 'AI service is temporarily unavailable', 
+            variant: "destructive" 
+          });
+        }
       } else {
-        // Handle new message
+        // Handle normal message
         let uploadedFiles: any[] = [];
         if (attachments.length > 0) {
           for (const file of attachments) {
@@ -224,6 +290,11 @@ export const MessageInput = ({
 
   return (
     <div className="p-4">
+      {/* AI Quick Prompts - show at top when in AI channel */}
+      {isAIChannel && !editingMessage && !replyingTo && (
+        <AIQuickPrompts onPromptSelect={(prompt) => setMessage(prompt)} />
+      )}
+
       {/* Reply Context */}
       {replyingTo && (
         <div className="mb-2 p-2 bg-muted/50 rounded border-l-2 border-primary flex items-start justify-between">

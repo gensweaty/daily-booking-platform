@@ -18,6 +18,7 @@ import { CreateCustomChatDialog } from './CreateCustomChatDialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
+import { useAIChannel } from '@/hooks/useAIChannel';
 
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
@@ -50,6 +51,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     isChannelRecentlyCleared
   });
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
+  
+  // AI Channel initialization
+  const { aiChannelId } = useAIChannel(isPublicBoard ? undefined : boardOwnerId);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
@@ -642,6 +646,41 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               onClose={closeDropdown}
             />
           </div>
+        )}
+
+        {/* AI Channel - only show for authenticated users, not on public boards */}
+        {aiChannelId && !isPublicBoard && (
+          <button
+            onClick={() => {
+              openChannel(aiChannelId);
+              enterChannel(aiChannelId);
+              setSwitchingChannelId(aiChannelId);
+              if (suppressionTimeoutRef.current) clearTimeout(suppressionTimeoutRef.current);
+              suppressionTimeoutRef.current = setTimeout(() => setSwitchingChannelId(null), 100);
+              if (onChannelSelect) onChannelSelect();
+            }}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left",
+              currentChannelId === aiChannelId
+                ? "bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-purple-700 dark:text-purple-300 font-medium shadow-sm border border-purple-500/20"
+                : "hover:bg-accent text-foreground"
+            )}
+          >
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-sm">
+                <span className="text-white text-lg">🤖</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium truncate">Smartbookly AI</div>
+                <div className="text-xs text-muted-foreground truncate">AI Assistant</div>
+              </div>
+            </div>
+            {getVisibleBadge(aiChannelId) > 0 && (
+              <Badge variant="default" className="ml-auto shrink-0 h-5 min-w-[20px] flex items-center justify-center px-1.5">
+                {getVisibleBadge(aiChannelId)}
+              </Badge>
+            )}
+          </button>
         )}
 
         {/* Team Members */}
