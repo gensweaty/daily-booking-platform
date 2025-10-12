@@ -83,11 +83,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
                 {pageGuides.map(guide => (
                   <DropdownMenuItem 
                     key={guide.label}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      onPromptSelect(guide.prompt);
-                    }}
+                    onClick={() => onPromptSelect(guide.prompt)}
                     className="cursor-pointer hover:bg-muted"
                   >
                     {guide.label}

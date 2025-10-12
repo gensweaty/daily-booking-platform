@@ -43,9 +43,9 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false, 
         {isPending ? (
           <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
         ) : (
-          <div className="relative">
+          <div className="relative w-4 h-4">
             <MessageCircle className="h-4 w-4" />
-            <Bot className="h-2.5 w-2.5 absolute bottom-0 right-0 translate-x-0.5 translate-y-0.5" />
+            <Bot className="h-2 w-2 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
           </div>
         )}
         <span>
