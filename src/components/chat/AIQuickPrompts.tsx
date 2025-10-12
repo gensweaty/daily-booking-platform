@@ -27,6 +27,11 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
 
   const prompts = [
     { 
+      label: "Schedule Reminder", 
+      text: "Schedule a reminder for me",
+      icon: Calendar
+    },
+    { 
       label: "Today's Schedule", 
       text: "What's on my schedule today?",
       icon: Calendar

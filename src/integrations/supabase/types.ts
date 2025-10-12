@@ -564,6 +564,42 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_reminders: {
+        Row: {
+          created_at: string
+          deleted_at: string | null
+          email_sent: boolean | null
+          id: string
+          message: string | null
+          remind_at: string
+          reminder_sent_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deleted_at?: string | null
+          email_sent?: boolean | null
+          id?: string
+          message?: string | null
+          remind_at: string
+          reminder_sent_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deleted_at?: string | null
+          email_sent?: boolean | null
+          id?: string
+          message?: string | null
+          remind_at?: string
+          reminder_sent_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       customer_files: {
         Row: {
           content_type: string | null
@@ -2139,6 +2175,15 @@ export type Database = {
           id: string
           name: string
           type: string
+        }[]
+      }
+      get_upcoming_custom_reminders: {
+        Args: { p_user_id: string }
+        Returns: {
+          id: string
+          message: string
+          remind_at: string
+          title: string
         }[]
       }
       get_user_participating_channels: {

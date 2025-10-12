@@ -38,6 +38,9 @@ verify_jwt = false
 [functions.send-task-reminder-email]
 verify_jwt = false
 
+[functions.send-custom-reminder-email]
+verify_jwt = false
+
 [functions.send-event-reminder-email]
 verify_jwt = false
 

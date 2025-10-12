@@ -203,6 +203,31 @@ serve(async (req) => {
             required: ["channelId"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_custom_reminder",
+          description: "Creates a custom reminder at a specific time with an optional message. Use this when the user asks to 'schedule a reminder', 'remind me', 'set a reminder', etc. The reminder will send both an email and dashboard notification.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: {
+                type: "string",
+                description: "Brief title for the reminder (required)"
+              },
+              message: {
+                type: "string",
+                description: "Optional detailed message for the reminder"
+              },
+              remind_at: {
+                type: "string",
+                description: "ISO 8601 timestamp when to send the reminder (e.g., '2025-10-12T15:30:00Z')"
+              }
+            },
+            required: ["title", "remind_at"]
+          }
+        }
       }
     ];
 
@@ -233,6 +258,13 @@ serve(async (req) => {
 - Understand relative references like "those customers", "that event", "the ones I mentioned"
 - Parse natural dates: "tomorrow" = ${tomorrow}, "next week", "in 3 days", etc. Calculate exact dates based on today (${today})
 - When user says "today" they mean ${today}, "this week" means this week starting from ${today}
+
+**CUSTOM REMINDERS**:
+When user asks to "schedule a reminder", "remind me", or "set a reminder":
+1. Ask for TIME if not provided (e.g., "What time would you like to be reminded?")
+2. Ask for MESSAGE if not provided (e.g., "What should I remind you about?")
+3. Call create_custom_reminder with title and remind_at timestamp
+4. Confirm with exact time and explain they'll get email + dashboard notification
 
 **DATA ACCESS** - You have real-time read access to:
 📅 **Calendar**: All events, bookings, schedules, availability
@@ -834,6 +866,32 @@ Remember: You're a smart assistant that understands context, remembers conversat
                 .limit(limit);
               toolResult = messages || [];
               console.log(`    ✓ Retrieved ${toolResult.length} messages`);
+              break;
+            }
+
+            case 'create_custom_reminder': {
+              console.log('📅 Creating custom reminder:', args);
+              const { title, message, remind_at } = args;
+              
+              const { data: reminderData, error: reminderError } = await supabaseClient
+                .from('custom_reminders')
+                .insert({
+                  user_id: ownerId,
+                  title,
+                  message,
+                  remind_at
+                })
+                .select()
+                .single();
+
+              if (reminderError) throw reminderError;
+
+              toolResult = {
+                success: true,
+                reminder: reminderData,
+                message: `✅ Reminder scheduled successfully for ${new Date(remind_at).toLocaleString()}`
+              };
+              console.log('✅ Custom reminder created:', reminderData);
               break;
             }
           }
