@@ -187,6 +187,29 @@ serve(async (req) => {
       {
         type: "function",
         function: {
+          name: "generate_excel_report",
+          description: "Generate an Excel (.xlsx) file with data and provide download link. Use this when user asks for 'excel report', 'export to excel', 'download excel', 'create spreadsheet', etc. Available report types: 'payments' (payment history), 'events' (calendar events), 'tasks' (task list), 'customers' (CRM data), 'bookings' (booking requests). ALWAYS use this tool when user asks for Excel/spreadsheet - don't direct them to do it manually.",
+          parameters: {
+            type: "object",
+            properties: {
+              report_type: {
+                type: "string",
+                enum: ["payments", "events", "tasks", "customers", "bookings"],
+                description: "Type of data to export"
+              },
+              months: {
+                type: "number",
+                description: "Number of months of historical data (default: 12)",
+                default: 12
+              }
+            },
+            required: ["report_type"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "get_weekly_summary",
           description: "Get a comprehensive weekly summary: events, tasks, bookings, payments",
           parameters: { type: "object", properties: {} }
@@ -310,14 +333,24 @@ When user asks to "schedule a reminder", "remind me", or "set a reminder":
    a) FIRST: Call get_current_datetime to get exact current UTC time
    b) PARSE: Extract currentDateTime value (e.g., "2025-10-12T16:43:25.123Z")
    c) CALCULATE: Add the specified duration to that timestamp:
-      - "in 2 minutes" → add 2 minutes to currentDateTime
-      - "in 1 hour" → add 60 minutes to currentDateTime
-      - Example: currentDateTime "2025-10-12T16:43:00Z" + 2 minutes = "2025-10-12T16:45:00Z"
+       - "in 2 minutes" → add 2 minutes to currentDateTime
+       - "in 1 hour" → add 60 minutes to currentDateTime
+       - Example: currentDateTime "2025-10-12T16:43:00Z" + 2 minutes = "2025-10-12T16:45:00Z"
    d) CREATE: Call create_custom_reminder with the calculated remind_at timestamp
    e) CONFIRM: "✅ Reminder scheduled for [exact time in user-friendly format]"
 2. **If no time specified**: Ask "What time would you like to be reminded?"
 3. **If no message specified**: Ask "What should I remind you about?"
 4. After creating, explain: "You'll receive an email and dashboard notification at the scheduled time"
+
+**EXCEL REPORT GENERATION**:
+When user asks for "excel report", "export to excel", "download spreadsheet", "give me excel":
+1. Call generate_excel_report with appropriate report_type: "payments", "events", "tasks", "customers", or "bookings"
+2. If months not specified, use 12 months (1 year) as default
+3. When you receive the download_url in the tool result:
+   - Format your response like: "📊 Here's your Excel report: [FILENAME] with [X] records. Download: [DOWNLOAD_URL]"
+   - Make the download URL clickable and clear
+   - Mention what data is included
+4. NEVER tell users to go to Statistics page to export manually - you have the tool to do it directly
 
 **TIME CALCULATION EXAMPLES**:
 - User says "remind me in 5 minutes" at 16:43 UTC → remind_at = 16:48 UTC
@@ -339,9 +372,11 @@ When user asks to "schedule a reminder", "remind me", or "set a reminder":
    - You are an ASSISTANT - your job is to fetch data, analyze it, and present insights, not to direct users elsewhere
 2. **ALWAYS fetch and analyze data when asked**: 
    - If user asks about payments, revenue, or financial history → Call analyze_payment_history
+   - If user asks for "excel report", "export to excel", "download spreadsheet" → Call generate_excel_report with appropriate report_type
    - If user asks "what's on my schedule", "today's calendar" → Call get_todays_schedule
    - If user asks about "upcoming", "this week" → Call get_upcoming_events
    - NEVER respond about data without calling the actual data fetching tool first
+   - NEVER direct users to do manual exports - you have the generate_excel_report tool to create files directly
 3. **Connect the dots**: Find patterns across calendar, tasks, and CRM data
 4. **Be proactive**: Suggest actions based on what you see (e.g., "You have 3 pending bookings that need approval")
 5. **Natural language dates**: Understand "tomorrow", "next Monday", "in 2 weeks" - calculate the exact date from today (${today})
@@ -955,6 +990,40 @@ Remember: You're a smart assistant that understands context, remembers conversat
                 }
               };
               console.log(`    ✓ Analyzed ${months} months of payment history: ${totalRevenue} total revenue`);
+              break;
+            }
+
+            case 'generate_excel_report': {
+              const reportType = args.report_type;
+              const months = args.months || 12;
+              
+              console.log(`    📊 Generating ${reportType} Excel report for ${months} months`);
+              
+              // Call the excel generator edge function
+              const { data: excelData, error: excelError } = await supabaseAdmin.functions.invoke('generate-excel-report', {
+                body: {
+                  reportType,
+                  months,
+                  userId: ownerId
+                }
+              });
+              
+              if (excelError) {
+                console.error('    ❌ Excel generation error:', excelError);
+                toolResult = {
+                  success: false,
+                  error: 'Failed to generate Excel report'
+                };
+              } else {
+                toolResult = {
+                  success: true,
+                  download_url: excelData.downloadUrl,
+                  filename: excelData.filename,
+                  report_type: reportType,
+                  record_count: excelData.recordCount
+                };
+                console.log(`    ✅ Excel report generated: ${excelData.filename}, ${excelData.recordCount} records`);
+              }
               break;
             }
 
