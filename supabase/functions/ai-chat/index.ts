@@ -2,6 +2,10 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.2';
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+// PDF.js for PDF text extraction (workerless for Edge runtime)
+import * as pdfjsLib from "https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.mjs?target=deno";
+// Mammoth for DOCX text extraction
+import mammoth from "https://esm.sh/mammoth@1.6.0/dist/mammoth.browser.min.js";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -196,11 +200,44 @@ serve(async (req) => {
           return `📄 **${att.filename}**\n\`\`\`\n${preview}${text.length > 15000 ? '\n...(truncated, showing first 15000 characters)' : ''}\n\`\`\``;
         }
 
-        // PDF - provide basic info (text extraction not supported in edge runtime)
-        if (contentType === 'application/pdf' || filename.endsWith('.pdf')) {
-          const sizeKB = Math.round((att.size || 0) / 1024);
-          console.log(`📄 PDF detected: ${att.filename} (${sizeKB}KB)`);
-          return `📄 **PDF: ${att.filename}**\n**Size:** ${sizeKB}KB\n\n⚠️ I can see you've uploaded a PDF, but I cannot directly extract text from PDF files in this environment.\n\n**To help you with this document:**\n• Copy and paste the text content into our chat\n• Describe what information you need from the PDF\n• Ask specific questions about the document`;
+        // PDF — extract text with pdfjs-dist (worker disabled for Edge runtime)
+        if (contentType === "application/pdf" || filename.endsWith(".pdf")) {
+          try {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+
+            // Run pdf.js without a worker (Edge functions have no worker support)
+            (pdfjsLib as any).GlobalWorkerOptions.workerSrc = "";
+            const loadingTask = (pdfjsLib as any).getDocument({
+              data: bytes,
+              disableWorker: true,           // critical for Edge/Deno
+              cMapUrl: "https://unpkg.com/pdfjs-dist@3.11.174/cmaps/",
+              cMapPacked: true
+            });
+
+            const pdf = await loadingTask.promise;
+            const maxPages = Math.min(pdf.numPages || 0, 5); // first 5 pages for preview
+            let collected = "";
+
+            for (let p = 1; p <= maxPages; p++) {
+              const page = await pdf.getPage(p);
+              const content = await page.getTextContent();
+              const text = content.items
+                .map((it: any) => ("str" in it ? it.str : ""))
+                .join(" ");
+              collected += `\n\n--- Page ${p} ---\n${text}`;
+            }
+
+            const preview = collected.slice(0, 15000);
+            const more = collected.length > 15000 ? "\n...(truncated)" : "";
+
+            console.log(`📄 Parsed PDF: ${att.filename} (${pdf.numPages} pages, showing ${maxPages})`);
+            return `📄 **PDF: ${att.filename}**\n**Pages:** ${pdf.numPages}\n**Preview (first ${maxPages} pages):**\n\`\`\`\n${preview}${more}\n\`\`\``;
+          } catch (e) {
+            console.error("PDF parse error:", e);
+            const sizeKB = Math.round((att.size || 0) / 1024);
+            return `📄 **PDF: ${att.filename}** (${sizeKB}KB)\nI couldn't extract text from this PDF. It may be scanned images or encrypted.\n• If it's scanned, OCR isn't available here — export the pages as images or upload a text-based copy.\n• If you think it should be text-based, try re-saving the PDF with "Save as PDF" and re-upload.`;
+          }
         }
 
         // CSV files
@@ -247,10 +284,26 @@ serve(async (req) => {
           }
         }
 
-        // Word documents (.docx) - basic metadata only (full extraction requires complex parsing)
-        if (contentType.includes('word') || /\.docx?$/i.test(filename)) {
-          console.log(`📝 Word doc detected: ${att.filename}`);
-          return `📝 **Word Document: ${att.filename}**\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\n⚠️ Word document text extraction is not fully supported. Please copy-paste the text content or describe what's in the document.`;
+        // Word documents (.docx) — extract text with Mammoth
+        if (contentType.includes("word") || /\.docx$/i.test(filename)) {
+          try {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            // mammoth browser build expects { arrayBuffer }
+            const res = await (mammoth as any).extractRawText({ arrayBuffer });
+            const text: string = res?.value ?? "";
+            const preview = text.slice(0, 15000);
+            const more = text.length > 15000 ? "\n...(truncated)" : "";
+            console.log(`📝 Parsed DOCX: ${att.filename} (${text.length} chars)`);
+            return `📝 **Word: ${att.filename}**\n\`\`\`\n${preview}${more}\n\`\`\``;
+          } catch (e) {
+            console.error("DOCX parse error:", e);
+            return `📝 **Word: ${att.filename}** — couldn't extract text (file may be corrupted or not a .docx). If possible, re-save as DOCX or PDF and re-upload.`;
+          }
+        }
+
+        // Legacy .doc files — not supported for parsing
+        if (/\.doc$/i.test(filename) && !/\.docx$/i.test(filename)) {
+          return `📝 **Word (.doc)** is not supported for text extraction. Please convert to DOCX or PDF.`;
         }
 
         // PowerPoint (.pptx)
