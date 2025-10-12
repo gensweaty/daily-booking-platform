@@ -6,6 +6,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 
 interface AIQuickPromptsProps {
@@ -77,21 +78,23 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
                 📖 Page Guides
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 bg-popover border z-[9999]">
-              {pageGuides.map(guide => (
-                <DropdownMenuItem 
-                  key={guide.label}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onPromptSelect(guide.prompt);
-                  }}
-                  className="cursor-pointer"
-                >
-                  {guide.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
+            <DropdownMenuPortal>
+              <DropdownMenuContent align="start" className="w-56 bg-popover border z-[99999]">
+                {pageGuides.map(guide => (
+                  <DropdownMenuItem 
+                    key={guide.label}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onPromptSelect(guide.prompt);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    {guide.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
           </DropdownMenu>
 
           {/* Compact grid layout for all quick actions */}
