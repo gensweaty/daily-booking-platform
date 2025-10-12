@@ -22,6 +22,7 @@ interface MessageInputProps {
   currentChannelId?: string | null;
   isAIChannel?: boolean;
   boardOwnerId?: string;
+  userTimezone?: string;
 }
 
 const ALLOWED_MIME: Record<string, string[]> = {
@@ -58,7 +59,8 @@ export const MessageInput = ({
   onCancelEdit,
   currentChannelId,
   isAIChannel = false,
-  boardOwnerId
+  boardOwnerId,
+  userTimezone
 }: MessageInputProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -113,7 +115,8 @@ export const MessageInput = ({
               channelId: currentChannelId,
               prompt: userMessage,
               ownerId: boardOwnerId,
-              conversationHistory: conversationHistory
+              conversationHistory: conversationHistory,
+              userTimezone: userTimezone || 'UTC'
             }
           });
           

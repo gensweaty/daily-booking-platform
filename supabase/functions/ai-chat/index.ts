@@ -13,9 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    const { channelId, prompt, ownerId, conversationHistory = [] } = await req.json();
+    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone = 'UTC' } = await req.json();
     
-    console.log('🤖 AI Chat request:', { channelId, ownerId, promptLength: prompt?.length, historyLength: conversationHistory.length });
+    console.log('🤖 AI Chat request:', { channelId, ownerId, promptLength: prompt?.length, historyLength: conversationHistory.length, userTimezone });
 
     // Client with user auth for reading data
     const supabaseClient = createClient(
@@ -55,7 +55,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_current_datetime",
-          description: "Get the current date and time in UTC. MUST call this before calculating relative times (e.g., 'in 2 minutes'). Returns exact current UTC timestamp that you should use as base for time calculations.",
+          description: `Get the current date and time in user's timezone (${userTimezone}). CRITICAL: Returns time already adjusted for ${userTimezone}. Use this as base for all relative time calculations (e.g., 'in 2 minutes' means add 2 minutes to this returned time).`,
           parameters: { type: "object", properties: {} }
         }
       },
@@ -208,7 +208,18 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: "Creates a custom reminder. CRITICAL TIME CALCULATION: When user says 'in X minutes/hours', you MUST: 1) Call get_current_datetime to get the exact current UTC time. 2) Parse the currentDateTime from the response (e.g., '2025-10-12T16:43:00.000Z'). 3) Add the specified duration in minutes/hours to that exact timestamp. 4) Use the calculated time as remind_at. Example: If currentDateTime is '2025-10-12T16:43:00.000Z' and user says 'in 2 minutes', remind_at = '2025-10-12T16:45:00.000Z'. Schedule automatically without asking for confirmation.",
+          description: `Creates a custom reminder for user in timezone ${userTimezone}.
+
+CRITICAL TIME CALCULATION (USER TIMEZONE: ${userTimezone}):
+1. FIRST call get_current_datetime - returns current time in ${userTimezone}
+2. Add the requested duration (e.g., 2 minutes, 1 hour) to that time
+3. The result is already in correct format for remind_at parameter
+4. NEVER ask for confirmation - schedule immediately
+
+Example: User says "remind me in 2 minutes"
+→ Call get_current_datetime → Get "2025-10-12T16:43:00Z"
+→ Add 2 minutes → "2025-10-12T16:45:00Z"
+→ Call create_custom_reminder with remind_at="2025-10-12T16:45:00Z"`,
           parameters: {
             type: "object",
             properties: {
@@ -222,7 +233,7 @@ serve(async (req) => {
               },
               remind_at: {
                 type: "string",
-                description: "ISO 8601 UTC timestamp when to send the reminder. CRITICAL: Must be calculated by taking the currentDateTime from get_current_datetime and adding the duration. Format: '2025-10-12T15:30:00Z' or '2025-10-12T15:30:00.000Z'"
+                description: `ISO 8601 timestamp when to send the reminder. CRITICAL: Get from get_current_datetime and add duration. Already accounts for ${userTimezone}. Format: '2025-10-12T15:30:00Z'`
               }
             },
             required: ["title", "remind_at"]
@@ -249,14 +260,22 @@ serve(async (req) => {
 
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
 
+**USER TIMEZONE**: ${userTimezone}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}. Use this for all relative date calculations.
 
-**CRITICAL: ALWAYS GET CURRENT TIME FIRST FOR RELATIVE TIME CALCULATIONS**
+**CRITICAL: TIME ZONE AWARE TIME CALCULATIONS**
+The user is in timezone: ${userTimezone}
+
 When scheduling reminders with relative time (e.g., "in 2 minutes", "in 1 hour"):
-1. Call get_current_datetime FIRST to get exact current UTC time (returns currentDateTime like "2025-10-12T16:43:25.123Z")
-2. Parse that timestamp and ADD the specified duration
-3. Use the calculated future timestamp as remind_at
-Example flow: User says "remind me in 2 minutes" at 16:43 → Call get_current_datetime → Get "2025-10-12T16:43:00Z" → Add 2 minutes → remind_at = "2025-10-12T16:45:00Z"
+1. Call get_current_datetime FIRST - it returns time in ${userTimezone} timezone
+2. Add the requested duration to that local time
+3. Convert the result to UTC using toISOString() before storing
+4. NEVER use approximate times or guess the current time
+
+Example: User in ${userTimezone} says "remind me in 5 minutes" at 4:43 PM local time:
+- Call get_current_datetime → returns local time "2025-10-12T16:43:00Z" (already adjusted for ${userTimezone})
+- Add 5 minutes → "2025-10-12T16:48:00Z"
+- Use this as remind_at (it's already in correct format)
 
 **CONVERSATION INTELLIGENCE**:
 - Remember context from previous messages in this conversation
@@ -637,17 +656,22 @@ Remember: You're a smart assistant that understands context, remembers conversat
           switch (funcName) {
             case 'get_current_datetime': {
               const now = new Date();
-              const isoTime = now.toISOString();
+              // Convert UTC to user's timezone
+              const localTimeString = now.toLocaleString("en-US", { timeZone: userTimezone });
+              const localDate = new Date(localTimeString);
+              const isoTime = localDate.toISOString();
+              
               toolResult = {
                 currentDateTime: isoTime,
-                timestamp: now.getTime(),
+                timestamp: localDate.getTime(),
                 date: isoTime.split('T')[0],
                 time: isoTime.split('T')[1].split('.')[0],
-                dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()],
-                timezone: 'UTC',
-                instructions: `Use this currentDateTime (${isoTime}) as the base for all time calculations. To add minutes: parse this timestamp and add the duration.`
+                dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][localDate.getDay()],
+                timezone: userTimezone,
+                utcTime: now.toISOString(),
+                instructions: `This is the current time in ${userTimezone}. When adding duration (e.g., 2 minutes), add it to this timestamp. The result is already timezone-adjusted and ready to use as remind_at.`
               };
-              console.log(`    ✓ Current UTC time: ${isoTime} (timestamp: ${now.getTime()})`);
+              console.log(`    ✓ Current time in ${userTimezone}: ${isoTime} (UTC: ${now.toISOString()})`);
               break;
             }
 

@@ -14,6 +14,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { detectNetworkQuality, isSlowNetwork, getOptimalPageSize, getOptimalPollingInterval } from '@/utils/networkDetector';
 import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
+import { getUserTimezone } from '@/utils/timezoneUtils';
 
 type Message = {
   id: string;
@@ -52,6 +53,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const location = useLocation();
+  const userTimezone = getUserTimezone();
 
   // Network optimization
   const networkInfo = useRef(detectNetworkQuality());
@@ -102,6 +104,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     isDM: boolean; 
     dmPartner?: { name: string; avatar?: string };
     avatar_url?: string;
+    is_ai?: boolean;
   } | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -238,7 +241,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       const { data: ch } = await supabase
         .from('chat_channels')
-        .select('name, is_dm, avatar_url')
+        .select('name, is_dm, avatar_url, is_ai')
         .eq('id', activeChannelId)
         .maybeSingle();
 
@@ -246,7 +249,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const info = { 
           name: ch?.name || t('chat.general'), 
           isDM: false,
-          avatar_url: ch?.avatar_url 
+          avatar_url: ch?.avatar_url,
+          is_ai: ch?.is_ai || false
         } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
@@ -813,6 +817,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           onCancelReply={() => setReplyingTo(null)}
           editingMessage={editingMessage ? { ...editingMessage, updated_at: editingMessage.updated_at || editingMessage.created_at } : null}
           onCancelEdit={() => setEditingMessage(null)}
+          currentChannelId={activeChannelId}
+          isAIChannel={channelInfo?.is_ai || false}
+          boardOwnerId={boardOwnerId}
+          userTimezone={userTimezone}
         />
       </div>
     </div>
