@@ -175,7 +175,7 @@ const handler = async (req: Request): Promise<Response> => {
             console.log(`📧 Sending reminder to user's own email: ${userEmail}`);
 
             // 1. Send email reminder (to user's own verified email)
-            const { data: emailRes, error: emailErr } = await supabase.functions.invoke('send-custom-reminder-email', {
+            const { error: emailError } = await supabase.functions.invoke('send-custom-reminder-email', {
               body: { 
                 reminderId: reminder.id,
                 userEmail: userEmail,
@@ -185,14 +185,11 @@ const handler = async (req: Request): Promise<Response> => {
               }
             });
 
-            if (emailErr || !emailRes?.success) {
-              const msg = emailErr?.message || emailRes?.error || 'Unknown email error';
-              console.error(`❌ Custom reminder email failed for ${reminder.id}:`, msg);
-              result.errors.push(`Custom reminder ${reminder.id}: ${msg}`);
-              // Do NOT mark as sent; continue to next reminder
-              continue;
+            if (emailError) {
+              console.error(`❌ Error sending custom reminder email for ${reminder.id}:`, emailError);
+              result.errors.push(`Custom reminder ${reminder.id}: ${emailError.message}`);
             } else {
-              console.log(`✅ Custom reminder email sent to ${userEmail}`);
+              console.log(`✅ Email sent to ${userEmail}`);
             }
 
             // 2. Dashboard notification handled by frontend (CustomReminderNotifications component)
@@ -233,8 +230,7 @@ const handler = async (req: Request): Promise<Response> => {
                 reminder_sent_at: now.toISOString(),
                 email_sent: true 
               })
-              .eq('id', reminder.id)
-              .is('reminder_sent_at', null);
+              .eq('id', reminder.id);
             
             console.log(`✅ Custom reminder fully processed: ${reminder.title}`);
             result.customReminders++;
