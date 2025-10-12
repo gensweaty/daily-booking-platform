@@ -17,6 +17,7 @@ serve(async (req) => {
     
     console.log('🤖 AI Chat request:', { channelId, ownerId, promptLength: prompt?.length });
 
+    // Client with user auth for reading data
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -25,6 +26,12 @@ serve(async (req) => {
           headers: { Authorization: req.headers.get('Authorization')! },
         },
       }
+    );
+
+    // Admin client for inserting AI messages (bypasses RLS)
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     // 1. Verify channel is AI channel
@@ -270,8 +277,29 @@ You CANNOT modify data. Always produce drafts that require human approval. Be co
         const finalMessage = finalResult.choices[0].message;
         console.log('✅ Final response received');
         
+        // Insert AI response into database
+        const { error: insertError } = await supabaseAdmin
+          .from('chat_messages')
+          .insert({
+            channel_id: channelId,
+            owner_id: ownerId,
+            sender_type: 'admin',
+            sender_name: 'Smartbookly AI',
+            content: finalMessage.content,
+            message_type: 'text'
+          });
+        
+        if (insertError) {
+          console.error('❌ Failed to insert AI response:', insertError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to save AI response' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
         return new Response(
           JSON.stringify({ 
+            success: true,
             content: finalMessage.content,
             toolCalls: message.tool_calls || []
           }),
@@ -282,8 +310,30 @@ You CANNOT modify data. Always produce drafts that require human approval. Be co
 
     // No tool calls or direct response
     console.log('✅ Direct response (no tools)');
+    
+    // Insert AI response into database
+    const { error: insertError } = await supabaseAdmin
+      .from('chat_messages')
+      .insert({
+        channel_id: channelId,
+        owner_id: ownerId,
+        sender_type: 'admin',
+        sender_name: 'Smartbookly AI',
+        content: message.content,
+        message_type: 'text'
+      });
+    
+    if (insertError) {
+      console.error('❌ Failed to insert AI response:', insertError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to save AI response' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     return new Response(
       JSON.stringify({ 
+        success: true,
         content: message.content,
         toolCalls: []
       }),

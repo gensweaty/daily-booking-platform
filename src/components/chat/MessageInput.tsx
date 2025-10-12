@@ -90,7 +90,7 @@ export const MessageInput = ({
         const userMessage = message.trim();
         setMessage('');
         
-        // Call AI edge function
+        // Call AI edge function (it will insert the AI response)
         try {
           const { data, error } = await supabase.functions.invoke('ai-chat', {
             body: {
@@ -110,27 +110,8 @@ export const MessageInput = ({
             return;
           }
           
-          if (data?.content) {
-            console.log('✅ AI response received');
-            // Insert AI response as bot message
-            const { error: insertError } = await supabase.from('chat_messages').insert({
-              channel_id: currentChannelId,
-              owner_id: boardOwnerId,
-              sender_type: 'admin',
-              sender_name: 'Smartbookly AI',
-              sender_avatar_url: null,
-              content: data.content,
-              message_type: 'text'
-            });
-            
-            if (insertError) {
-              console.error('❌ Error inserting AI message:', insertError);
-              toast({ 
-                title: "Error", 
-                description: 'Failed to display AI response', 
-                variant: "destructive" 
-              });
-            }
+          if (data?.success) {
+            console.log('✅ AI response received and saved');
           }
         } catch (aiError) {
           console.error('❌ AI call failed:', aiError);
