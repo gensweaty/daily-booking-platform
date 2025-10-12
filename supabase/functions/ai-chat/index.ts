@@ -248,35 +248,21 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: `Creates a custom reminder that will trigger an email and notification.
-
-CRITICAL TIME CALCULATION - STEP BY STEP:
-1. FIRST call get_current_datetime to get the EXACT current ISO timestamp from user's device
-2. The returned currentDateTime is in ISO format like "2025-10-12T17:06:25.123Z"
-3. Parse this timestamp and add the requested duration:
-   - "in 2 minutes" → Add 120000 milliseconds (2 * 60 * 1000)
-   - "in 1 hour" → Add 3600000 milliseconds (60 * 60 * 1000)
-4. Convert result back to ISO string format for remind_at parameter
-5. NEVER guess the time - always use get_current_datetime first
-
-EXAMPLE: User says "remind me in 2 minutes" at 17:06
-→ Call get_current_datetime → Returns "2025-10-12T17:06:00.000Z"
-→ Add 2 minutes (120000ms) → "2025-10-12T17:08:00.000Z"
-→ Call create_custom_reminder with remind_at="2025-10-12T17:08:00.000Z"`,
+          description: `Creates a custom reminder that will trigger email and dashboard notifications. Always call get_current_datetime first to get exact current time, then add the requested duration to calculate remind_at.`,
           parameters: {
             type: "object",
             properties: {
               title: {
                 type: "string",
-                description: "Brief title for the reminder (required)"
+                description: "Brief title for the reminder"
               },
               message: {
                 type: "string",
-                description: "Optional detailed message for the reminder"
+                description: "Optional detailed message"
               },
               remind_at: {
                 type: "string",
-                description: `ISO 8601 timestamp when to send the reminder. CRITICAL: Get from get_current_datetime and add duration. Already accounts for ${userTimezone}. Format: '2025-10-12T15:30:00Z'`
+                description: `ISO 8601 timestamp in UTC format (e.g., '2025-10-12T15:30:00Z'). Get current time from get_current_datetime tool and add requested duration.`
               }
             },
             required: ["title", "remind_at"]
@@ -306,18 +292,8 @@ EXAMPLE: User says "remind me in 2 minutes" at 17:06
 **USER TIMEZONE**: ${userTimezone}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}. Use this for all relative date calculations.
 
-**CRITICAL: ALWAYS GET EXACT CURRENT TIME FROM DEVICE**
-When scheduling reminders with relative time (e.g., "in 2 minutes", "in 1 hour"):
-1. Call get_current_datetime FIRST - it returns the EXACT current time from user's device in ISO format
-2. Parse the returned ISO timestamp (e.g., "2025-10-12T17:06:25.123Z")
-3. Add the requested duration in milliseconds
-4. Convert back to ISO format for remind_at
-5. NEVER guess or approximate - always use the exact time from get_current_datetime
-
-Example: User says "remind me in 5 minutes" at 5:06 PM:
-- Call get_current_datetime → returns "2025-10-12T17:06:00.000Z"
-- Add 5 minutes (300000ms) → "2025-10-12T17:11:00.000Z"
-- Use this as remind_at
+**REMINDER TIME CALCULATION**:
+For relative time reminders ("in X minutes/hours"), always call get_current_datetime first, add the duration, then create the reminder with that exact UTC time.
 
 **CONVERSATION INTELLIGENCE**:
 - Remember context from previous messages in this conversation
@@ -327,30 +303,9 @@ Example: User says "remind me in 5 minutes" at 5:06 PM:
 - Parse natural dates: "tomorrow" = ${tomorrow}, "next week", "in 3 days", etc. Calculate exact dates based on today (${today})
 - When user says "today" they mean ${today}, "this week" means this week starting from ${today}
 
-**CUSTOM REMINDER TIME HANDLING - CRITICAL DISPLAY RULES**:
-When users request reminders, you MUST:
-1. Get the current time from the "get_current_datetime" tool FIRST
-2. Calculate the exact UTC remind_at time based on the user's request
-3. Use the "create_custom_reminder" tool with the calculated UTC time
-4. **CRITICAL**: ALWAYS show the reminder time in the user's LOCAL timezone in your response
-
-**MANDATORY RESPONSE FORMAT** after creating a reminder:
-"✅ Reminder created! I'll remind you about '[title]' at **[TIME IN USER'S TIMEZONE]**.
-
-You'll receive:
-• 📧 Email notification
-• 🔔 Dashboard notification"
-
-**DISPLAY RULES - NEVER BREAK THESE**:
-- ❌ NEVER show UTC times in responses (e.g., "13:30 UTC")
-- ✅ ALWAYS show local time (e.g., "5:30 PM Georgia Time")
-- ✅ Use the remind_at_local value from the create_custom_reminder tool response
-- ✅ Include the timezone name for clarity
-
-Example:
-- Tool returns: remind_at_local="2025-10-12 17:30", user_timezone="Asia/Tbilisi"
-- You respond: "I'll remind you at **5:30 PM Georgia Time**"
-   - NEVER return empty responses
+**REMINDER RESPONSES**:
+After creating reminders, confirm with: "✅ Reminder set for [LOCAL TIME]. You'll get an email and dashboard notification."
+Always display times in the user's timezone, never UTC.
 
 **EXCEL REPORT GENERATION**:
 When user asks for "excel report", "export to excel", "download spreadsheet", "give me excel":
