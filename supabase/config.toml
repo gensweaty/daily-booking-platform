@@ -50,6 +50,9 @@ verify_jwt = false
 [functions.admin-delete-sub-users]
 verify_jwt = true
 
+[functions.admin-change-user-plan]
+verify_jwt = true
+
 [functions.send-comment-email]
 verify_jwt = false
 
