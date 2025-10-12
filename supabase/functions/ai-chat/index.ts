@@ -55,7 +55,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_current_datetime",
-          description: "Get the current date and time. Use this first to know what day it is before fetching schedules.",
+          description: "Get the current date and time in UTC. MUST call this before calculating relative times (e.g., 'in 2 minutes'). Returns exact current UTC timestamp that you should use as base for time calculations.",
           parameters: { type: "object", properties: {} }
         }
       },
@@ -208,7 +208,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: "Creates a custom reminder. CRITICAL: When user says 'in X minutes/hours', first call get_current_datetime to get current time, then calculate remind_at by adding the specified duration. Schedule automatically without asking for confirmation. The reminder will send email + dashboard notification.",
+          description: "Creates a custom reminder. CRITICAL TIME CALCULATION: When user says 'in X minutes/hours', you MUST: 1) Call get_current_datetime to get the exact current UTC time. 2) Parse the currentDateTime from the response (e.g., '2025-10-12T16:43:00.000Z'). 3) Add the specified duration in minutes/hours to that exact timestamp. 4) Use the calculated time as remind_at. Example: If currentDateTime is '2025-10-12T16:43:00.000Z' and user says 'in 2 minutes', remind_at = '2025-10-12T16:45:00.000Z'. Schedule automatically without asking for confirmation.",
           parameters: {
             type: "object",
             properties: {
@@ -222,7 +222,7 @@ serve(async (req) => {
               },
               remind_at: {
                 type: "string",
-                description: "ISO 8601 timestamp when to send the reminder. If user says 'in X minutes/hours', calculate from current time (get via get_current_datetime first). Format: '2025-10-12T15:30:00Z'"
+                description: "ISO 8601 UTC timestamp when to send the reminder. CRITICAL: Must be calculated by taking the currentDateTime from get_current_datetime and adding the duration. Format: '2025-10-12T15:30:00Z' or '2025-10-12T15:30:00.000Z'"
               }
             },
             required: ["title", "remind_at"]
@@ -251,6 +251,13 @@ serve(async (req) => {
 
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}. Use this for all relative date calculations.
 
+**CRITICAL: ALWAYS GET CURRENT TIME FIRST FOR RELATIVE TIME CALCULATIONS**
+When scheduling reminders with relative time (e.g., "in 2 minutes", "in 1 hour"):
+1. Call get_current_datetime FIRST to get exact current UTC time (returns currentDateTime like "2025-10-12T16:43:25.123Z")
+2. Parse that timestamp and ADD the specified duration
+3. Use the calculated future timestamp as remind_at
+Example flow: User says "remind me in 2 minutes" at 16:43 → Call get_current_datetime → Get "2025-10-12T16:43:00Z" → Add 2 minutes → remind_at = "2025-10-12T16:45:00Z"
+
 **CONVERSATION INTELLIGENCE**:
 - Remember context from previous messages in this conversation
 - Build on previous answers and refer back to earlier discussions
@@ -259,16 +266,25 @@ serve(async (req) => {
 - Parse natural dates: "tomorrow" = ${tomorrow}, "next week", "in 3 days", etc. Calculate exact dates based on today (${today})
 - When user says "today" they mean ${today}, "this week" means this week starting from ${today}
 
-**CUSTOM REMINDERS**:
+**CUSTOM REMINDERS - CRITICAL TIME CALCULATION**:
 When user asks to "schedule a reminder", "remind me", or "set a reminder":
-1. **If user specifies relative time ("in 5 minutes", "in 2 hours")**: 
-   - Call get_current_datetime to get current time
-   - Calculate remind_at by adding the duration (e.g., if now is 10:00 and user says "in 30 minutes", remind_at = 10:30)
-   - Create reminder immediately WITHOUT asking for confirmation
-   - Confirm: "✅ Reminder scheduled for [exact time]"
+1. **If user specifies relative time ("in 5 minutes", "in 2 hours", "in 30 minutes")**: 
+   a) FIRST: Call get_current_datetime to get exact current UTC time
+   b) PARSE: Extract currentDateTime value (e.g., "2025-10-12T16:43:25.123Z")
+   c) CALCULATE: Add the specified duration to that timestamp:
+      - "in 2 minutes" → add 2 minutes to currentDateTime
+      - "in 1 hour" → add 60 minutes to currentDateTime
+      - Example: currentDateTime "2025-10-12T16:43:00Z" + 2 minutes = "2025-10-12T16:45:00Z"
+   d) CREATE: Call create_custom_reminder with the calculated remind_at timestamp
+   e) CONFIRM: "✅ Reminder scheduled for [exact time in user-friendly format]"
 2. **If no time specified**: Ask "What time would you like to be reminded?"
 3. **If no message specified**: Ask "What should I remind you about?"
 4. After creating, explain: "You'll receive an email and dashboard notification at the scheduled time"
+
+**TIME CALCULATION EXAMPLES**:
+- User says "remind me in 5 minutes" at 16:43 UTC → remind_at = 16:48 UTC
+- User says "remind me in 1 hour" at 14:30 UTC → remind_at = 15:30 UTC
+- NEVER schedule in the past! Always add time to current, never subtract.
 
 **DATA ACCESS** - You have real-time read access to:
 📅 **Calendar**: All events, bookings, schedules, availability
@@ -621,14 +637,17 @@ Remember: You're a smart assistant that understands context, remembers conversat
           switch (funcName) {
             case 'get_current_datetime': {
               const now = new Date();
+              const isoTime = now.toISOString();
               toolResult = {
-                currentDateTime: now.toISOString(),
-                date: now.toISOString().split('T')[0],
-                time: now.toTimeString().split(' ')[0],
+                currentDateTime: isoTime,
+                timestamp: now.getTime(),
+                date: isoTime.split('T')[0],
+                time: isoTime.split('T')[1].split('.')[0],
                 dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()],
-                timezone: 'UTC'
+                timezone: 'UTC',
+                instructions: `Use this currentDateTime (${isoTime}) as the base for all time calculations. To add minutes: parse this timestamp and add the duration.`
               };
-              console.log(`    ✓ Current date/time: ${toolResult.date}`);
+              console.log(`    ✓ Current UTC time: ${isoTime} (timestamp: ${now.getTime()})`);
               break;
             }
 
@@ -874,8 +893,18 @@ Remember: You're a smart assistant that understands context, remembers conversat
             }
 
             case 'create_custom_reminder': {
-              console.log('📅 Creating custom reminder:', args);
+              console.log('📅 Creating custom reminder with args:', JSON.stringify(args));
               const { title, message, remind_at } = args;
+              
+              // Log time calculation for debugging
+              const currentTime = new Date().toISOString();
+              const reminderTime = new Date(remind_at).toISOString();
+              console.log(`⏰ Time check - Current: ${currentTime}, Scheduled: ${reminderTime}`);
+              
+              // Verify remind_at is in the future
+              if (new Date(remind_at) <= new Date()) {
+                console.warn('⚠️ Warning: Reminder scheduled in the past or current time!');
+              }
               
               const { data: reminderData, error: reminderError } = await supabaseClient
                 .from('custom_reminders')
@@ -893,7 +922,7 @@ Remember: You're a smart assistant that understands context, remembers conversat
               toolResult = {
                 success: true,
                 reminder: reminderData,
-                message: `✅ Reminder scheduled successfully for ${new Date(remind_at).toLocaleString()}`
+                message: `✅ Reminder scheduled successfully for ${new Date(remind_at).toLocaleString('en-US', { timeZone: 'UTC' })} UTC`
               };
               console.log('✅ Custom reminder created:', reminderData);
               break;
