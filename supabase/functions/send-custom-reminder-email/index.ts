@@ -69,7 +69,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`📧 Sending custom reminder email for reminder ${reminderId} to ${userEmail}`);
 
     const emailResponse = await resend.emails.send({
-      from: "Smartbookly <onboarding@resend.dev>",
+      from: "SmartBookly <noreply@smartbookly.com>",
       to: [userEmail],
       subject: `🔔 Reminder: ${title}`,
       html: `
