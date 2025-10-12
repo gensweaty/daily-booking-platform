@@ -4,6 +4,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.2';
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 // unpdf for PDF text extraction (no native dependencies)
 import { extractText as extractPdfText } from "https://esm.sh/unpdf@0.12.1";
+// PizZip for DOCX text extraction (DOCX files are ZIP archives with XML)
+import PizZip from "https://esm.sh/pizzip@3.1.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -262,11 +264,41 @@ serve(async (req) => {
           }
         }
 
-        // Word documents (.docx) - text extraction not supported in Edge runtime
+        // Word documents (.docx) — extract text using PizZip (DOCX = ZIP with XML)
         if (contentType.includes("word") || /\.docx$/i.test(filename)) {
-          const sizeKB = Math.round((att.size || 0) / 1024);
-          console.log(`📝 Word doc detected: ${att.filename} (${sizeKB}KB)`);
-          return `📝 **Word: ${att.filename}** (${sizeKB}KB)\n\n⚠️ DOCX text extraction requires native libraries not available in this environment.\n\n**To help you with this document:**\n• Convert to PDF and re-upload (best option)\n• Copy and paste the text content into our chat\n• Describe what information you need from the document`;
+          try {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const zip = new PizZip(arrayBuffer);
+            
+            // Extract the main document XML
+            const documentXml = zip.file("word/document.xml")?.asText();
+            
+            if (!documentXml) {
+              throw new Error("Could not find document.xml in DOCX file");
+            }
+            
+            // Parse XML and extract text from <w:t> elements
+            // Simple regex approach since we don't need DOM parsing
+            const textMatches = documentXml.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
+            const text = textMatches
+              .map(match => {
+                const content = match.replace(/<w:t[^>]*>/, '').replace(/<\/w:t>/, '');
+                return content;
+              })
+              .join(' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            
+            const preview = text.slice(0, 15000);
+            const more = text.length > 15000 ? "\n...(truncated, showing first 15000 characters)" : "";
+            
+            console.log(`📝 Parsed DOCX: ${att.filename} (${text.length} chars)`);
+            return `📝 **Word: ${att.filename}**\n**Content:**\n\`\`\`\n${preview}${more}\n\`\`\``;
+          } catch (e) {
+            console.error("DOCX parse error:", e);
+            const sizeKB = Math.round((att.size || 0) / 1024);
+            return `📝 **Word: ${att.filename}** (${sizeKB}KB)\nI couldn't extract text from this DOCX file. It may be corrupted or password-protected.\n• Try re-saving the file as a new DOCX\n• Convert to PDF and re-upload\n• Copy-paste the text content directly`;
+          }
         }
 
         // Legacy .doc files — not supported for parsing
