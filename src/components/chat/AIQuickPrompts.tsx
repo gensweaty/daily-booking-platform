@@ -37,19 +37,9 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
       icon: Calendar
     },
     { 
-      label: "This Week", 
-      text: "Give me a summary of this week - events, tasks, and bookings",
-      icon: MessageSquare
-    },
-    { 
       label: "Find Customer", 
       text: "Search for a customer",
       icon: Search
-    },
-    { 
-      label: "Pending Bookings", 
-      text: "How many booking requests need my approval?",
-      icon: Bot
     },
     { 
       label: "Task Progress", 
@@ -62,9 +52,9 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
       icon: MessageSquare
     },
     { 
-      label: "Free Time Slots", 
-      text: "When am I free tomorrow?",
-      icon: Search
+      label: "Excel Report", 
+      text: "Generate an Excel report with my statistics and data",
+      icon: Bot
     },
   ];
 
@@ -78,44 +68,64 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
       </div>
       
       {isExpanded && (
-        <div className="px-3 pb-3 flex flex-wrap gap-2">
-          {/* Page Guides Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="text-xs h-8">
-                <BookOpen className="h-3 w-3 mr-1.5" />
-                📖 Page Guides
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56">
-              {pageGuides.map(guide => (
-                <DropdownMenuItem 
-                  key={guide.label}
-                  onClick={() => onPromptSelect(guide.prompt)}
-                  className="cursor-pointer"
+        <div className="px-3 pb-3 space-y-2">
+          {/* First row - Page Guides + first 2 actions */}
+          <div className="flex flex-wrap gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="text-xs h-8">
+                  <BookOpen className="h-3 w-3 mr-1.5" />
+                  📖 Page Guides
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56 bg-popover border z-50">
+                {pageGuides.map(guide => (
+                  <DropdownMenuItem 
+                    key={guide.label}
+                    onClick={() => onPromptSelect(guide.prompt)}
+                    className="cursor-pointer"
+                  >
+                    {guide.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            {prompts.slice(0, 2).map(p => {
+              const Icon = p.icon;
+              return (
+                <Button
+                  key={p.label}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPromptSelect(p.text)}
+                  className="text-xs h-8"
                 >
-                  {guide.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                  <Icon className="h-3 w-3 mr-1.5" />
+                  {p.label}
+                </Button>
+              );
+            })}
+          </div>
 
-          {/* Other Quick Actions */}
-          {prompts.map(p => {
-            const Icon = p.icon;
-            return (
-              <Button
-                key={p.label}
-                variant="outline"
-                size="sm"
-                onClick={() => onPromptSelect(p.text)}
-                className="text-xs h-8"
-              >
-                <Icon className="h-3 w-3 mr-1.5" />
-                {p.label}
-              </Button>
-            );
-          })}
+          {/* Second row - remaining actions */}
+          <div className="flex flex-wrap gap-2">
+            {prompts.slice(2).map(p => {
+              const Icon = p.icon;
+              return (
+                <Button
+                  key={p.label}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onPromptSelect(p.text)}
+                  className="text-xs h-8"
+                >
+                  <Icon className="h-3 w-3 mr-1.5" />
+                  {p.label}
+                </Button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
