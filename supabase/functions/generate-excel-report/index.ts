@@ -168,9 +168,14 @@ serve(async (req) => {
     }
 
     if (data.length === 0) {
+      console.log(`ℹ️ No data found for ${reportType} report`);
       return new Response(
-        JSON.stringify({ error: 'No data found for the specified period' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          success: false,
+          error: 'No data found for the specified period',
+          recordCount: 0
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

@@ -69,7 +69,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
       
       {isExpanded && (
         <div className="px-3 pb-3 space-y-2">
-          {/* First row - Page Guides + first 2 actions */}
+          {/* First row - Page Guides + 2 actions */}
           <div className="flex flex-wrap gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -91,7 +91,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            {prompts.slice(0, 2).map(p => {
+            {prompts.slice(0, 3).map(p => {
               const Icon = p.icon;
               return (
                 <Button
@@ -110,7 +110,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
 
           {/* Second row - remaining actions */}
           <div className="flex flex-wrap gap-2">
-            {prompts.slice(2).map(p => {
+            {prompts.slice(3).map(p => {
               const Icon = p.icon;
               return (
                 <Button

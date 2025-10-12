@@ -325,7 +325,7 @@ serve(async (req) => {
     const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
     const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
-    // Detect user language from the conversation history
+    // Detect user language from the LATEST user message (most recent prompt)
     const detectLanguage = (text: string): string => {
       // Check for Cyrillic characters (Russian, etc.)
       if (/[\u0400-\u04FF]/.test(text)) return 'ru';
@@ -336,11 +336,10 @@ serve(async (req) => {
       return 'en'; // Default to English
     };
 
-    const userLanguage = conversationHistory.length > 0 
-      ? detectLanguage(conversationHistory[conversationHistory.length - 1]?.content || prompt)
-      : detectLanguage(prompt);
+    // Always detect from the current prompt (latest message) to allow language switching
+    const userLanguage = detectLanguage(prompt);
     
-    console.log('🌐 Detected user language:', userLanguage);
+    console.log('🌐 Detected user language from current message:', userLanguage);
 
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
 
@@ -1030,6 +1029,14 @@ Remember: You're a smart assistant that understands context, remembers conversat
                 toolResult = {
                   success: false,
                   error: 'Failed to generate Excel report'
+                };
+              } else if (excelData.success === false) {
+                // Handle case where no data was found
+                console.log(`    ℹ️ No data found for ${reportType} report`);
+                toolResult = {
+                  success: false,
+                  error: excelData.error || 'No data found',
+                  record_count: 0
                 };
               } else {
                 toolResult = {
