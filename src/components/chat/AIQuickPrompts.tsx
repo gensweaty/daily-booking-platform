@@ -9,12 +9,12 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
   const prompts = [
     { 
       label: "Today's Schedule", 
-      text: "Show me what's on my calendar today",
+      text: "What's on my schedule today?",
       icon: Calendar
     },
     { 
-      label: "Summarize Messages", 
-      text: "Summarize unread messages from the last 24 hours",
+      label: "This Week", 
+      text: "Give me a summary of this week - events, tasks, and bookings",
       icon: MessageSquare
     },
     { 
@@ -24,7 +24,27 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
     },
     { 
       label: "Pending Bookings", 
-      text: "How many booking requests are pending approval?",
+      text: "How many booking requests need my approval?",
+      icon: Bot
+    },
+    { 
+      label: "Task Progress", 
+      text: "Show me my task completion rate and what's pending",
+      icon: Calendar
+    },
+    { 
+      label: "Payment Summary", 
+      text: "Give me a summary of payments and revenue",
+      icon: MessageSquare
+    },
+    { 
+      label: "Free Time Slots", 
+      text: "When am I free tomorrow?",
+      icon: Search
+    },
+    { 
+      label: "Business Stats", 
+      text: "Show me my business statistics for this month",
       icon: Bot
     },
   ];
