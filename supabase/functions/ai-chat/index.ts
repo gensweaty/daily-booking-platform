@@ -63,7 +63,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_todays_schedule",
-          description: "Get today's calendar events and appointments",
+          description: "CRITICAL: Get today's calendar events and appointments. Use this IMMEDIATELY when user asks about today's schedule, what's on calendar today, or any variation asking about today's events. Do not try to answer without calling this function first.",
           parameters: { type: "object", properties: {} }
         }
       },
@@ -241,8 +241,12 @@ serve(async (req) => {
 📋 **Booking Requests**: Pending approvals, booking statistics
 📊 **Business Analytics**: Revenue, trends, monthly statistics
 
-**SMART BEHAVIOR**:
-1. **Auto-fetch relevant data**: When user asks about schedule/calendar, ALWAYS call get_current_datetime + get_todays_schedule or get_upcoming_events
+**CRITICAL RULES - YOU MUST FOLLOW THESE**:
+1. **ALWAYS fetch calendar data when asked about schedule**: 
+   - If user asks "what's on my schedule", "today's calendar", "what's today" → IMMEDIATELY call get_todays_schedule (no need for get_current_datetime first)
+   - If user asks about "upcoming", "this week", "next week" → call get_upcoming_events with appropriate days
+   - NEVER respond about schedule without calling the actual data fetching tool
+   - Example: User says "what's my schedule today" → You MUST call get_todays_schedule before responding
 2. **Connect the dots**: Find patterns across calendar, tasks, and CRM data
 3. **Be proactive**: Suggest actions based on what you see (e.g., "You have 3 pending bookings that need approval")
 4. **Natural language dates**: Understand "tomorrow", "next Monday", "in 2 weeks" - calculate the exact date from today (${today})

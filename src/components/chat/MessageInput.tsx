@@ -85,6 +85,22 @@ export const MessageInput = ({
         // Handle AI channel message
         console.log('🤖 Sending message to AI channel');
         
+        // Get recent conversation history (last 20 messages)
+        const { data: recentMessages, error: historyError } = await supabase
+          .from('chat_messages')
+          .select('sender_type, content')
+          .eq('channel_id', currentChannelId)
+          .eq('owner_id', boardOwnerId)
+          .order('created_at', { ascending: false })
+          .limit(20);
+
+        const conversationHistory = (recentMessages || [])
+          .reverse()
+          .map(msg => ({
+            role: msg.sender_type === 'system' ? 'assistant' : 'user',
+            content: msg.content
+          }));
+
         // Send user message first
         onSendMessage(message.trim(), []);
         const userMessage = message.trim();
@@ -96,7 +112,8 @@ export const MessageInput = ({
             body: {
               channelId: currentChannelId,
               prompt: userMessage,
-              ownerId: boardOwnerId
+              ownerId: boardOwnerId,
+              conversationHistory: conversationHistory
             }
           });
           
