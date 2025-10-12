@@ -1,6 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.2';
+import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+// @ts-ignore
+import pdfParse from "https://esm.sh/pdf-parse@1.1.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -188,35 +191,82 @@ serve(async (req) => {
         }
 
         // Text files - read content directly
-        if (contentType.startsWith('text/') || /\.(txt|md|csv)$/i.test(filename)) {
+        if (contentType.startsWith('text/') || /\.(txt|md|log|json|xml|yaml|yml)$/i.test(filename)) {
           const text = await fileBlob.text();
-          return `File: ${att.filename}\nContent:\n${text.substring(0, 10000)}${text.length > 10000 ? '...(truncated)' : ''}`;
+          const preview = text.substring(0, 15000);
+          console.log(`📄 Processed text file: ${att.filename} (${text.length} chars)`);
+          return `📄 **${att.filename}**\n\`\`\`\n${preview}${text.length > 15000 ? '\n...(truncated, showing first 15000 characters)' : ''}\n\`\`\``;
         }
 
         // PDF - extract text
         if (contentType === 'application/pdf' || filename.endsWith('.pdf')) {
-          // For PDFs, we'll provide basic info and let user know we can't fully extract
-          return `📄 PDF File: ${att.filename}\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\nI can see this is a PDF document. While I cannot extract all text from PDFs directly, I can help answer questions about it if you describe the content.`;
-        }
-
-        // Excel/CSV files
-        if (contentType.includes('spreadsheet') || /\.(xlsx?|csv)$/i.test(filename)) {
-          if (filename.endsWith('.csv')) {
-            const text = await fileBlob.text();
-            const lines = text.split('\n').slice(0, 100); // First 100 rows
-            return `📊 CSV File: ${att.filename}\nRows: ${lines.length}\nPreview:\n${lines.slice(0, 10).join('\n')}${lines.length > 10 ? '\n...(more rows)' : ''}`;
+          try {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const pdfData = await pdfParse(Buffer.from(arrayBuffer));
+            const text = pdfData.text || '';
+            const preview = text.substring(0, 15000);
+            console.log(`📄 Extracted PDF: ${att.filename} (${pdfData.numpages} pages, ${text.length} chars)`);
+            return `📄 **PDF: ${att.filename}**\n**Pages:** ${pdfData.numpages}\n**Content:**\n\`\`\`\n${preview}${text.length > 15000 ? '\n...(truncated, showing first 15000 characters)' : ''}\n\`\`\``;
+          } catch (pdfError) {
+            console.error(`PDF extraction error for ${att.filename}:`, pdfError);
+            return `📄 **PDF: ${att.filename}**\n⚠️ Unable to extract text. The PDF may be scanned or encrypted. Please describe its content or copy-paste text from it.`;
           }
-          return `📊 Excel File: ${att.filename}\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\nI can see this is an Excel file. To better analyze it, please describe what data it contains or what you'd like to know about it.`;
         }
 
-        // Word documents
+        // CSV files
+        if (filename.endsWith('.csv') || contentType === 'text/csv') {
+          try {
+            const text = await fileBlob.text();
+            const lines = text.split('\n').filter(l => l.trim());
+            const preview = lines.slice(0, 50).join('\n');
+            console.log(`📊 Processed CSV: ${att.filename} (${lines.length} rows)`);
+            return `📊 **CSV: ${att.filename}**\n**Rows:** ${lines.length}\n**Preview:**\n\`\`\`csv\n${preview}${lines.length > 50 ? '\n...(showing first 50 rows)' : ''}\n\`\`\``;
+          } catch (e) {
+            console.error(`CSV parse error for ${att.filename}:`, e);
+            return `📊 **CSV: ${att.filename}** - Unable to parse CSV file`;
+          }
+        }
+
+        // Excel files (.xlsx, .xls)
+        if (contentType.includes('spreadsheet') || /\.(xlsx?|xlsm)$/i.test(filename)) {
+          try {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'buffer' });
+            
+            let content = `📊 **Excel: ${att.filename}**\n**Sheets:** ${workbook.SheetNames.join(', ')}\n\n`;
+            
+            // Process first 3 sheets
+            for (let i = 0; i < Math.min(3, workbook.SheetNames.length); i++) {
+              const sheetName = workbook.SheetNames[i];
+              const sheet = workbook.Sheets[sheetName];
+              const csv = XLSX.utils.sheet_to_csv(sheet);
+              const lines = csv.split('\n').filter(l => l.trim()).slice(0, 30);
+              
+              content += `**Sheet: ${sheetName}**\n\`\`\`csv\n${lines.join('\n')}${csv.split('\n').length > 30 ? '\n...(showing first 30 rows)' : ''}\n\`\`\`\n\n`;
+            }
+            
+            if (workbook.SheetNames.length > 3) {
+              content += `...(${workbook.SheetNames.length - 3} more sheets not shown)\n`;
+            }
+            
+            console.log(`📊 Processed Excel: ${att.filename} (${workbook.SheetNames.length} sheets)`);
+            return content;
+          } catch (xlsError) {
+            console.error(`Excel parse error for ${att.filename}:`, xlsError);
+            return `📊 **Excel: ${att.filename}** - Unable to parse Excel file`;
+          }
+        }
+
+        // Word documents (.docx) - basic metadata only (full extraction requires complex parsing)
         if (contentType.includes('word') || /\.docx?$/i.test(filename)) {
-          return `📝 Word Document: ${att.filename}\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\nI can see this is a Word document. Please describe its content or let me know what you'd like to know about it.`;
+          console.log(`📝 Word doc detected: ${att.filename}`);
+          return `📝 **Word Document: ${att.filename}**\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\n⚠️ Word document text extraction is not fully supported. Please copy-paste the text content or describe what's in the document.`;
         }
 
-        // PowerPoint
+        // PowerPoint (.pptx)
         if (contentType.includes('presentation') || /\.pptx?$/i.test(filename)) {
-          return `📊 PowerPoint: ${att.filename}\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\nI can see this is a PowerPoint presentation. Please describe what it's about or what you'd like to know.`;
+          console.log(`📊 PowerPoint detected: ${att.filename}`);
+          return `📊 **PowerPoint: ${att.filename}**\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\n⚠️ PowerPoint text extraction is not fully supported. Please describe the content or copy-paste key text.`;
         }
 
         // Fallback
