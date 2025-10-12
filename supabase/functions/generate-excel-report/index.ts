@@ -98,22 +98,33 @@ serve(async (req) => {
       }
 
       case 'tasks': {
-        const { data: tasks } = await supabase
+        console.log(`📋 Fetching tasks for user ${userId} from ${startDate.toISOString()}`);
+        const { data: tasks, error: tasksError } = await supabase
           .from('tasks')
-          .select('title, description, status, priority, deadline, created_at')
+          .select('title, description, status, priority, deadline_at, assigned_to_name, created_at, updated_at')
           .eq('user_id', userId)
+          .gte('created_at', startDate.toISOString())
           .is('archived_at', null)
           .order('created_at', { ascending: false });
+        
+        if (tasksError) {
+          console.error('❌ Error fetching tasks:', tasksError);
+          throw tasksError;
+        }
+        
+        console.log(`✅ Found ${tasks?.length || 0} tasks`);
 
         data = (tasks || []).map(t => ({
           'Title': t.title,
           'Description': t.description || '',
           'Status': t.status,
           'Priority': t.priority || 'medium',
-          'Deadline': t.deadline ? new Date(t.deadline).toLocaleDateString() : '',
-          'Created': new Date(t.created_at).toLocaleDateString()
+          'Assigned To': t.assigned_to_name || 'Unassigned',
+          'Deadline': t.deadline_at ? new Date(t.deadline_at).toLocaleDateString() : '',
+          'Created': new Date(t.created_at).toLocaleDateString(),
+          'Updated': t.updated_at ? new Date(t.updated_at).toLocaleDateString() : ''
         }));
-        filename = `tasks-${Date.now()}.xlsx`;
+        filename = `tasks-${months}months-${Date.now()}.xlsx`;
         break;
       }
 

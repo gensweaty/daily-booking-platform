@@ -329,7 +329,31 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "generate_excel_report",
-          description: "Generate an Excel (.xlsx) file with data and provide download link. Use this when user asks for 'excel report', 'export to excel', 'download excel', 'create spreadsheet', etc. Available report types: 'payments' (payment history), 'events' (calendar events), 'tasks' (task list), 'customers' (CRM data), 'bookings' (booking requests). ALWAYS use this tool when user asks for Excel/spreadsheet - don't direct them to do it manually.",
+          description: `**MANDATORY - CALL THIS DIRECTLY FOR EXCEL REQUESTS**
+
+          Use this IMMEDIATELY when user asks for:
+          - "generate excel", "create excel", "excel report"
+          - "export to excel", "download excel spreadsheet"
+          - "excel about tasks/events/customers/payments/bookings"
+          
+          **CRITICAL**: DO NOT pre-check if data exists! Call this tool directly - it will check and return appropriate response.
+          
+          Available report types:
+          - "tasks": Task list with status, priority, deadlines
+          - "events": Calendar events with dates and payments
+          - "customers": CRM contacts with payment info
+          - "payments": Payment history from events and customers
+          - "bookings": Booking requests with status
+          
+          The tool will:
+          1. Query data for the specified period (months parameter)
+          2. Generate Excel file if data exists
+          3. Return download link OR error if no data
+          
+          If user mentions "last year", "last X months", "past year":
+          - Use months: 12 for "last year" or "past year"
+          - Use months: 6 for "last 6 months"
+          - Use months: 3 for "last quarter"`,
           parameters: {
             type: "object",
             properties: {
@@ -340,7 +364,7 @@ serve(async (req) => {
               },
               months: {
                 type: "number",
-                description: "Number of months of historical data (default: 12)",
+                description: "Number of months of historical data (default: 12). Use 12 for 'last year', 6 for 'half year', 3 for 'quarter'",
                 default: 12
               }
             },
@@ -753,6 +777,17 @@ For excel: call generate_excel_report, provide markdown download link.
 - Suggest next actions based on insights
 - Keep responses concise but complete
 - Format lists and data clearly with bullets/numbers
+
+**EXCEL GENERATION RULES** 🔴:
+**CRITICAL**: When user asks for Excel/spreadsheet generation:
+1. Call `generate_excel_report` tool IMMEDIATELY - don't pre-check data
+2. DO NOT call get_all_tasks/get_all_events first to verify data exists
+3. The generate_excel_report tool checks for data and returns appropriate response
+4. If tool returns success=false with "No data found", THEN tell user no data exists
+5. If tool returns success=true, provide download link immediately
+
+✅ CORRECT: User asks "excel tasks last year" → Call generate_excel_report(report_type="tasks", months=12) → Show download link or "no data" message
+❌ WRONG: User asks "excel tasks last year" → Call get_all_tasks first → Say "no task data" without trying generate_excel_report
 
 **LIMITATIONS**:
 ❌ You CANNOT modify data (read-only access)
