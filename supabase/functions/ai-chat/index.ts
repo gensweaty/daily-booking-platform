@@ -13,9 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes } = await req.json();
+    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [] } = await req.json();
     
-    console.log('🤖 AI Chat request:', { channelId, ownerId, promptLength: prompt?.length, historyLength: conversationHistory.length, userTimezone, tzOffsetMinutes });
+    console.log('🤖 AI Chat request:', { channelId, ownerId, promptLength: prompt?.length, historyLength: conversationHistory.length, userTimezone, tzOffsetMinutes, attachmentsCount: attachments.length });
 
     // Timezone validation and formatting helpers
     function isValidTimeZone(tz?: string) {
@@ -148,6 +148,74 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     // ---- END FAST-PATH ----
+
+    // ---- FILE ANALYSIS HELPERS ----
+    async function analyzeAttachment(att: any) {
+      try {
+        const { data: fileBlob, error } = await supabaseAdmin.storage
+          .from('chat_attachments')
+          .download(att.file_path);
+        
+        if (error || !fileBlob) {
+          console.error(`Failed to download ${att.filename}:`, error);
+          return `[Could not analyze ${att.filename}]`;
+        }
+
+        const contentType = att.content_type || '';
+        const filename = att.filename.toLowerCase();
+
+        // Images - use vision with Gemini
+        if (contentType.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)$/i.test(filename)) {
+          const arrayBuffer = await fileBlob.arrayBuffer();
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+          return {
+            type: 'image',
+            data: `data:${contentType};base64,${base64}`,
+            filename: att.filename
+          };
+        }
+
+        // Text files - read content directly
+        if (contentType.startsWith('text/') || /\.(txt|md|csv)$/i.test(filename)) {
+          const text = await fileBlob.text();
+          return `File: ${att.filename}\nContent:\n${text.substring(0, 10000)}${text.length > 10000 ? '...(truncated)' : ''}`;
+        }
+
+        // PDF - extract text
+        if (contentType === 'application/pdf' || filename.endsWith('.pdf')) {
+          // For PDFs, we'll provide basic info and let user know we can't fully extract
+          return `📄 PDF File: ${att.filename}\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\nI can see this is a PDF document. While I cannot extract all text from PDFs directly, I can help answer questions about it if you describe the content.`;
+        }
+
+        // Excel/CSV files
+        if (contentType.includes('spreadsheet') || /\.(xlsx?|csv)$/i.test(filename)) {
+          if (filename.endsWith('.csv')) {
+            const text = await fileBlob.text();
+            const lines = text.split('\n').slice(0, 100); // First 100 rows
+            return `📊 CSV File: ${att.filename}\nRows: ${lines.length}\nPreview:\n${lines.slice(0, 10).join('\n')}${lines.length > 10 ? '\n...(more rows)' : ''}`;
+          }
+          return `📊 Excel File: ${att.filename}\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\nI can see this is an Excel file. To better analyze it, please describe what data it contains or what you'd like to know about it.`;
+        }
+
+        // Word documents
+        if (contentType.includes('word') || /\.docx?$/i.test(filename)) {
+          return `📝 Word Document: ${att.filename}\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\nI can see this is a Word document. Please describe its content or let me know what you'd like to know about it.`;
+        }
+
+        // PowerPoint
+        if (contentType.includes('presentation') || /\.pptx?$/i.test(filename)) {
+          return `📊 PowerPoint: ${att.filename}\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\nI can see this is a PowerPoint presentation. Please describe what it's about or what you'd like to know.`;
+        }
+
+        // Fallback
+        return `📎 File: ${att.filename} (${contentType})\nSize: ${Math.round((att.size || 0) / 1024)}KB`;
+
+      } catch (error) {
+        console.error(`Error analyzing ${att.filename}:`, error);
+        return `[Error analyzing ${att.filename}]`;
+      }
+    }
+    // ---- END FILE ANALYSIS ----
 
     // ---- TASK HELPERS (resilient to schema drift) ----
     const STATUS_ALIASES: Record<string,string> = {
@@ -928,14 +996,57 @@ For excel: call generate_excel_report, provide markdown download link.
 
 Remember: You're a smart assistant that understands context, remembers conversation history, and provides useful insights based on real business data!`;
 
-    // Build conversation with history
+    // Process attachments if any
+    let attachmentContext = '';
+    const imageAttachments: any[] = [];
+    
+    if (attachments && attachments.length > 0) {
+      console.log(`📎 Processing ${attachments.length} attachments...`);
+      
+      for (const att of attachments) {
+        const analysis = await analyzeAttachment(att);
+        
+        if (typeof analysis === 'object' && analysis.type === 'image') {
+          // Image - add to multimodal content
+          imageAttachments.push(analysis);
+        } else {
+          // Text-based analysis
+          attachmentContext += `\n\n${analysis}`;
+        }
+      }
+      
+      if (attachmentContext) {
+        console.log(`✅ Added ${attachments.length} file analyses to context`);
+      }
+      if (imageAttachments.length > 0) {
+        console.log(`🖼️ Added ${imageAttachments.length} images for vision analysis`);
+      }
+    }
+
+    // Build conversation with history and attachments
+    const userMessage = attachmentContext 
+      ? `${prompt}\n\n--- Attached Files ---${attachmentContext}`
+      : prompt;
+    
     const messages = [
       { role: 'system', content: systemPrompt },
       ...conversationHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content
       })),
-      { role: 'user', content: prompt }
+      // For images, use multimodal content format
+      imageAttachments.length > 0 
+        ? { 
+            role: 'user', 
+            content: [
+              { type: 'text', text: userMessage },
+              ...imageAttachments.map(img => ({
+                type: 'image_url',
+                image_url: { url: img.data }
+              }))
+            ]
+          }
+        : { role: 'user', content: userMessage }
     ];
 
     console.log('📤 Calling Lovable AI with history...');

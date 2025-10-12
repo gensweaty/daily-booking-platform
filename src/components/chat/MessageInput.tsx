@@ -87,8 +87,34 @@ export const MessageInput = ({
           if (onCancelEdit) onCancelEdit();
         }
       } else if (isAIChannel && currentChannelId && boardOwnerId) {
-        // Handle AI channel message
-        console.log('🤖 Sending message to AI channel');
+        // Handle AI channel message with file support
+        console.log('🤖 Sending message to AI channel with attachments:', attachments.length);
+        
+        // Upload attachments if any
+        let uploadedFiles: any[] = [];
+        if (attachments.length > 0) {
+          for (const file of attachments) {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+            const filePath = `${fileName}`;
+
+            const { error: uploadError } = await supabase.storage.from('chat_attachments').upload(filePath, file);
+            if (uploadError) {
+              console.error('Upload error:', uploadError);
+              toast({ title: "Upload failed", description: `Could not upload ${file.name}`, variant: "destructive" });
+              continue;
+            }
+
+            const { data: pub } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
+            uploadedFiles.push({
+              filename: file.name,
+              file_path: filePath,
+              content_type: file.type || undefined,
+              size: file.size,
+              public_url: pub.publicUrl,
+            });
+          }
+        }
         
         // Get recent conversation history (last 20 messages)
         const { data: recentMessages, error: historyError } = await supabase
@@ -106,10 +132,11 @@ export const MessageInput = ({
             content: msg.content
           }));
 
-        // Send user message first
-        onSendMessage(message.trim(), []);
+        // Send user message with attachments
+        onSendMessage(message.trim(), uploadedFiles);
         const userMessage = message.trim();
         setMessage('');
+        setAttachments([]);
         setIsSendingAI(true);
         if (onAISending) onAISending(true);
         
@@ -119,7 +146,7 @@ export const MessageInput = ({
           const now = new Date();
           const localTimeISO = now.toISOString();
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-          const tzOffsetMinutes = now.getTimezoneOffset(); // e.g. Asia/Tbilisi -> -240
+          const tzOffsetMinutes = now.getTimezoneOffset();
           
           const { data, error } = await supabase.functions.invoke('ai-chat', {
             body: {
@@ -129,7 +156,8 @@ export const MessageInput = ({
               conversationHistory: conversationHistory,
               userTimezone: tz,
               tzOffsetMinutes,
-              currentLocalTime: localTimeISO
+              currentLocalTime: localTimeISO,
+              attachments: uploadedFiles
             }
           });
           
