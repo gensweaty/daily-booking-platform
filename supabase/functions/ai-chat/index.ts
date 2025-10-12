@@ -2,8 +2,6 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.2';
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
-// @ts-ignore
-import pdfParse from "https://esm.sh/pdf-parse@1.1.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -198,19 +196,11 @@ serve(async (req) => {
           return `📄 **${att.filename}**\n\`\`\`\n${preview}${text.length > 15000 ? '\n...(truncated, showing first 15000 characters)' : ''}\n\`\`\``;
         }
 
-        // PDF - extract text
+        // PDF - provide basic info (text extraction not supported in edge runtime)
         if (contentType === 'application/pdf' || filename.endsWith('.pdf')) {
-          try {
-            const arrayBuffer = await fileBlob.arrayBuffer();
-            const pdfData = await pdfParse(Buffer.from(arrayBuffer));
-            const text = pdfData.text || '';
-            const preview = text.substring(0, 15000);
-            console.log(`📄 Extracted PDF: ${att.filename} (${pdfData.numpages} pages, ${text.length} chars)`);
-            return `📄 **PDF: ${att.filename}**\n**Pages:** ${pdfData.numpages}\n**Content:**\n\`\`\`\n${preview}${text.length > 15000 ? '\n...(truncated, showing first 15000 characters)' : ''}\n\`\`\``;
-          } catch (pdfError) {
-            console.error(`PDF extraction error for ${att.filename}:`, pdfError);
-            return `📄 **PDF: ${att.filename}**\n⚠️ Unable to extract text. The PDF may be scanned or encrypted. Please describe its content or copy-paste text from it.`;
-          }
+          const sizeKB = Math.round((att.size || 0) / 1024);
+          console.log(`📄 PDF detected: ${att.filename} (${sizeKB}KB)`);
+          return `📄 **PDF: ${att.filename}**\n**Size:** ${sizeKB}KB\n\n⚠️ I can see you've uploaded a PDF, but I cannot directly extract text from PDF files in this environment.\n\n**To help you with this document:**\n• Copy and paste the text content into our chat\n• Describe what information you need from the PDF\n• Ask specific questions about the document`;
         }
 
         // CSV files
