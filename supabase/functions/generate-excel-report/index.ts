@@ -214,30 +214,46 @@ serve(async (req) => {
 
     console.log(`✅ File uploaded successfully: ${userId}/${filename}`);
 
-    // Create signed URL with extended expiry and proper options
-    const { data: urlData, error: urlError } = await supabase.storage
+    // Get public URL (bucket is now public for easy access)
+    const { data: urlData } = supabase.storage
       .from('excel-reports')
-      .createSignedUrl(`${userId}/${filename}`, 7200, {
-        download: true  // Force download instead of inline display
+      .getPublicUrl(`${userId}/${filename}`, {
+        download: true
       });
 
-    if (urlError) {
-      console.error('❌ Signed URL generation error:', urlError);
-      throw urlError;
-    }
-
-    if (!urlData?.signedUrl) {
-      console.error('❌ No signed URL in response');
+    if (!urlData?.publicUrl) {
+      console.error('❌ No public URL in response');
       throw new Error('Failed to generate download URL');
     }
 
-    console.log(`✅ Signed URL created: ${urlData.signedUrl.substring(0, 100)}...`);
+    console.log(`✅ Public URL created: ${urlData.publicUrl.substring(0, 100)}...`);
+    
+    // Background cleanup: delete files older than 24 hours
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    
+    supabase.storage
+      .from('excel-reports')
+      .list(userId, { limit: 100 })
+      .then(({ data: files }) => {
+        if (files) {
+          const oldFiles = files.filter(f => new Date(f.created_at) < oneDayAgo);
+          if (oldFiles.length > 0) {
+            const filesToDelete = oldFiles.map(f => `${userId}/${f.name}`);
+            supabase.storage.from('excel-reports').remove(filesToDelete)
+              .then(() => console.log(`🗑️ Cleaned up ${oldFiles.length} old files`))
+              .catch(err => console.error('⚠️ Cleanup error:', err));
+          }
+        }
+      })
+      .catch(err => console.error('⚠️ Cleanup listing error:', err));
+
     console.log(`📊 Report complete: ${filename} with ${data.length} records`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        downloadUrl: urlData?.signedUrl,
+        downloadUrl: urlData.publicUrl,
         filename,
         recordCount: data.length
       }),
