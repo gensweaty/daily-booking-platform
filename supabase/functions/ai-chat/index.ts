@@ -337,10 +337,11 @@ When user asks to "schedule a reminder", "remind me", or "set a reminder":
        - "in 1 hour" → add 60 minutes to currentDateTime
        - Example: currentDateTime "2025-10-12T16:43:00Z" + 2 minutes = "2025-10-12T16:45:00Z"
    d) CREATE: Call create_custom_reminder with the calculated remind_at timestamp
-   e) CONFIRM: "✅ Reminder scheduled for [exact time in user-friendly format]"
+   e) **ALWAYS CONFIRM**: After tool executes, you MUST provide a clear confirmation message like:
+      "✅ Reminder set! I'll remind you about '[title]' at [time in readable format]. You'll receive both an email and dashboard notification."
 2. **If no time specified**: Ask "What time would you like to be reminded?"
 3. **If no message specified**: Ask "What should I remind you about?"
-4. After creating, explain: "You'll receive an email and dashboard notification at the scheduled time"
+4. **CRITICAL**: After creating ANY reminder, ALWAYS respond with a confirmation message. NEVER return an empty response.
 
 **EXCEL REPORT GENERATION**:
 When user asks for "excel report", "export to excel", "download spreadsheet", "give me excel":
@@ -1149,6 +1150,13 @@ Remember: You're a smart assistant that understands context, remembers conversat
 
       // Get final response after tool execution
       console.log('📤 Getting final AI response with tool results...');
+      
+      // Add explicit instruction to generate user response
+      const responsePrompt = {
+        role: "user",
+        content: "Based on the tool results above, provide a clear, friendly response to the user. Always include what action was taken and any relevant details."
+      };
+      
       const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -1157,7 +1165,7 @@ Remember: You're a smart assistant that understands context, remembers conversat
         },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
-          messages: finalMessages
+          messages: [...finalMessages, responsePrompt]
         }),
       });
 
@@ -1165,6 +1173,15 @@ Remember: You're a smart assistant that understands context, remembers conversat
         const finalResult = await finalResponse.json();
         const finalMessage = finalResult.choices[0].message;
         console.log('✅ Final response received');
+        
+        // Check if we have actual content
+        if (!finalMessage.content || finalMessage.content.trim() === '') {
+          console.error('❌ Final message has no content:', JSON.stringify(finalMessage));
+          return new Response(
+            JSON.stringify({ error: 'AI did not generate a response' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
         
         // Insert AI response into database
         const { error: insertError } = await supabaseAdmin
