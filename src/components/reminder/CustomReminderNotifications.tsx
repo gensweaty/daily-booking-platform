@@ -10,22 +10,24 @@ export function CustomReminderNotifications() {
   const processedReminders = useRef<Set<string>>(new Set());
   const lastCheckTime = useRef<number>(Date.now());
 
-  // Fetch upcoming custom reminders
+  // Fetch upcoming custom reminders - check more frequently
   const { data: reminders } = useQuery({
     queryKey: ['custom-reminders', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
 
       const now = new Date();
-      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+      const threeMinutesFromNow = new Date(now.getTime() + 3 * 60 * 1000);
+
+      console.log('🔍 Checking custom reminders between', now.toISOString(), 'and', threeMinutesFromNow.toISOString());
 
       const { data, error } = await supabase
         .from('custom_reminders')
         .select('*')
         .eq('user_id', user.id)
         .is('deleted_at', null)
-        .lte('remind_at', fiveMinutesFromNow.toISOString())
-        .gte('remind_at', new Date(now.getTime() - 5 * 60 * 1000).toISOString())
+        .lte('remind_at', threeMinutesFromNow.toISOString())
+        .gte('remind_at', new Date(now.getTime() - 2 * 60 * 1000).toISOString())
         .or('reminder_sent_at.is.null,email_sent.eq.false');
 
       if (error) {
@@ -33,10 +35,11 @@ export function CustomReminderNotifications() {
         return [];
       }
 
+      console.log('📋 Found custom reminders:', data?.length || 0);
       return data || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 30000, // Check every 30 seconds
+    refetchInterval: 10000, // Check every 10 seconds (more frequent)
   });
 
   // Show dashboard notification
@@ -54,9 +57,9 @@ export function CustomReminderNotifications() {
   // Send email reminder
   const sendEmailReminder = async (reminder: any) => {
     try {
-      console.log('📧 Sending email for custom reminder:', reminder.id);
+      console.log('📧 Sending email for custom reminder:', reminder.id, 'to:', user?.email);
 
-      const { error } = await supabase.functions.invoke('send-custom-reminder-email', {
+      const { data, error } = await supabase.functions.invoke('send-custom-reminder-email', {
         body: {
           reminderId: reminder.id,
           userEmail: user?.email,
@@ -66,7 +69,10 @@ export function CustomReminderNotifications() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Email send error:', error);
+        throw error;
+      }
 
       // Mark email as sent
       await supabase
@@ -75,8 +81,18 @@ export function CustomReminderNotifications() {
         .eq('id', reminder.id);
 
       console.log('✅ Email sent for custom reminder:', reminder.id);
+      
+      // Show success toast
+      toast.success('Reminder email sent!', {
+        description: `Email sent for: ${reminder.title}`,
+        duration: 3000,
+      });
     } catch (error) {
       console.error('❌ Error sending custom reminder email:', error);
+      toast.error('Failed to send reminder email', {
+        description: 'The notification will still appear in your dashboard',
+        duration: 5000,
+      });
     }
   };
 
@@ -96,9 +112,9 @@ export function CustomReminderNotifications() {
 
       const remindTime = new Date(reminder.remind_at);
       
-      // Check if reminder is due (within 1 minute window)
-      if (remindTime <= now && remindTime > new Date(now.getTime() - 60000)) {
-        console.log('⏰ Processing custom reminder:', reminder);
+      // Check if reminder is due (within 2 minute window - more lenient)
+      if (remindTime <= now && remindTime > new Date(now.getTime() - 120000)) {
+        console.log('⏰ Processing custom reminder:', reminder.title, 'scheduled for:', remindTime.toISOString());
 
         // Show dashboard notification
         showDashboardNotification(reminder.title, reminder.message);
@@ -111,16 +127,28 @@ export function CustomReminderNotifications() {
           });
         }
 
-        // Send email reminder
+        // Send email reminder (async, don't wait)
         if (!reminder.email_sent) {
-          await sendEmailReminder(reminder);
+          sendEmailReminder(reminder).catch(err => {
+            console.error('Email send failed but continuing:', err);
+          });
         }
 
-        // Mark as sent
-        await supabase
-          .from('custom_reminders')
-          .update({ reminder_sent_at: new Date().toISOString() })
-          .eq('id', reminder.id);
+        // Mark as sent (don't wait for email)
+        try {
+          const { error: updateError } = await supabase
+            .from('custom_reminders')
+            .update({ reminder_sent_at: new Date().toISOString() })
+            .eq('id', reminder.id);
+          
+          if (updateError) {
+            console.error('Failed to mark reminder as sent:', updateError);
+          } else {
+            console.log('✅ Custom reminder marked as sent:', reminder.id);
+          }
+        } catch (err) {
+          console.error('Error marking reminder as sent:', err);
+        }
 
         // Mark as processed
         processedReminders.current.add(reminderKey);

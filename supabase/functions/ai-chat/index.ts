@@ -327,21 +327,28 @@ Example: User says "remind me in 5 minutes" at 5:06 PM:
 - Parse natural dates: "tomorrow" = ${tomorrow}, "next week", "in 3 days", etc. Calculate exact dates based on today (${today})
 - When user says "today" they mean ${today}, "this week" means this week starting from ${today}
 
-**CUSTOM REMINDERS - CRITICAL TIME CALCULATION**:
+**CUSTOM REMINDERS - CRITICAL TIME CALCULATION AND DISPLAY**:
 When user asks to "schedule a reminder", "remind me", or "set a reminder":
 1. **If user specifies relative time ("in 5 minutes", "in 2 hours", "in 30 minutes")**: 
-   a) FIRST: Call get_current_datetime to get exact current UTC time
-   b) PARSE: Extract currentDateTime value (e.g., "2025-10-12T16:43:25.123Z")
-   c) CALCULATE: Add the specified duration to that timestamp:
-       - "in 2 minutes" → add 2 minutes to currentDateTime
-       - "in 1 hour" → add 60 minutes to currentDateTime
-       - Example: currentDateTime "2025-10-12T16:43:00Z" + 2 minutes = "2025-10-12T16:45:00Z"
-   d) CREATE: Call create_custom_reminder with the calculated remind_at timestamp
-   e) **ALWAYS CONFIRM**: After tool executes, you MUST provide a clear confirmation message like:
-      "✅ Reminder set! I'll remind you about '[title]' at [time in readable format]. You'll receive both an email and dashboard notification."
+   a) FIRST: Call get_current_datetime to get exact current time
+   b) PARSE: Extract currentDateTime (UTC) value from response (e.g., "2025-10-12T16:43:25.123Z")
+   c) CALCULATE in UTC: Add the specified duration to currentDateTime:
+       - "in 2 minutes" → add 2 minutes (120000ms) to currentDateTime
+       - "in 1 hour" → add 60 minutes (3600000ms) to currentDateTime
+       - Example: currentDateTime "2025-10-12T13:43:00Z" + 2 minutes = "2025-10-12T13:45:00Z"
+   d) CREATE: Call create_custom_reminder with the calculated UTC remind_at timestamp
+   e) **DISPLAY TO USER IN THEIR TIMEZONE**: After tool executes successfully:
+      - Convert the UTC remind_at time to user's timezone (${userTimezone})
+      - Show: "✅ Reminder set! I'll remind you about '[title]' at [time in ${userTimezone}]. You'll receive both an email and dashboard notification."
+      - Example: If remind_at is "2025-10-12T13:45:00Z" and user is in ${userTimezone}, show the time converted to ${userTimezone}
+      - NEVER show UTC times in your responses unless user explicitly asks for UTC
 2. **If no time specified**: Ask "What time would you like to be reminded?"
 3. **If no message specified**: Ask "What should I remind you about?"
-4. **CRITICAL**: After creating ANY reminder, ALWAYS respond with a confirmation message. NEVER return an empty response.
+4. **CRITICAL DISPLAY RULES**:
+   - Store times in UTC (remind_at field)
+   - Display times to user in their timezone (${userTimezone})
+   - After creating reminder, ALWAYS respond with confirmation in user's local time
+   - NEVER return empty responses
 
 **EXCEL REPORT GENERATION**:
 When user asks for "excel report", "export to excel", "download spreadsheet", "give me excel":
@@ -717,20 +724,43 @@ Remember: You're a smart assistant that understands context, remembers conversat
         try {
           switch (funcName) {
             case 'get_current_datetime': {
-              // Use the actual local time from user's browser
+              // Use the actual local time from user's browser (always UTC ISO string)
               const userLocalTime = currentLocalTime || new Date().toISOString();
               const localDate = new Date(userLocalTime);
               
+              // Format the time in user's timezone for display
+              const userLocalTimeStr = localDate.toLocaleString('en-US', {
+                timeZone: userTimezone,
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+              });
+              
               toolResult = {
                 currentDateTime: userLocalTime,
+                currentDateTimeUTC: userLocalTime,
+                currentDateTimeInUserTZ: userLocalTimeStr,
+                userTimezone: userTimezone,
                 timestamp: localDate.getTime(),
                 date: userLocalTime.split('T')[0],
                 time: userLocalTime.split('T')[1].split('.')[0],
                 dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][localDate.getDay()],
-                timezone: userTimezone,
-                instructions: `CURRENT TIME: ${userLocalTime}. To calculate future time, parse this ISO timestamp and add the requested duration. For example: if current time is "2025-10-12T17:06:00.000Z" and user wants reminder in 2 minutes, add 2 minutes to get "2025-10-12T17:08:00.000Z"`
+                instructions: `CURRENT TIME (UTC): ${userLocalTime}. CURRENT TIME in user's timezone (${userTimezone}): ${userLocalTimeStr}. 
+                
+CRITICAL INSTRUCTIONS:
+1. ALL time calculations MUST be done in UTC using currentDateTime
+2. When showing times to user, ALWAYS convert to their timezone (${userTimezone})
+3. Example: User in ${userTimezone} asks "remind me in 2 minutes":
+   - Current UTC: ${userLocalTime}
+   - Add 2 min: ${new Date(localDate.getTime() + 2*60000).toISOString()}
+   - Show to user: ${new Date(localDate.getTime() + 2*60000).toLocaleString('en-US', {timeZone: userTimezone, hour: '2-digit', minute: '2-digit', hour12: true})} (${userTimezone})
+4. NEVER show UTC times to user unless they specifically ask for UTC`
               };
-              console.log(`    ✓ Current time from user's device: ${userLocalTime} (timezone: ${userTimezone})`);
+              console.log(`    ✓ Current time - UTC: ${userLocalTime}, User TZ (${userTimezone}): ${userLocalTimeStr})`);
               break;
             }
 
@@ -1102,11 +1132,28 @@ Remember: You're a smart assistant that understands context, remembers conversat
               // Log time calculation for debugging
               const currentTime = new Date().toISOString();
               const reminderTime = new Date(remind_at).toISOString();
-              console.log(`⏰ Time check - Current: ${currentTime}, Scheduled: ${reminderTime}`);
+              const reminderTimeLocal = new Date(remind_at).toLocaleString('en-US', {
+                timeZone: userTimezone,
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              });
               
-              // Verify remind_at is in the future
-              if (new Date(remind_at) <= new Date()) {
-                console.warn('⚠️ Warning: Reminder scheduled in the past or current time!');
+              console.log(`⏰ Time check - Current: ${currentTime}, Scheduled (UTC): ${reminderTime}, Scheduled (${userTimezone}): ${reminderTimeLocal}`);
+              
+              // Verify remind_at is in the future (with 1 second tolerance)
+              const now = new Date();
+              const reminderDate = new Date(remind_at);
+              if (reminderDate <= new Date(now.getTime() - 1000)) {
+                console.warn('⚠️ Warning: Reminder scheduled in the past!');
+                toolResult = {
+                  success: false,
+                  error: 'Reminder time must be in the future'
+                };
+                break;
               }
               
               const { data: reminderData, error: reminderError } = await supabaseClient
@@ -1125,9 +1172,12 @@ Remember: You're a smart assistant that understands context, remembers conversat
               toolResult = {
                 success: true,
                 reminder: reminderData,
-                message: `✅ Reminder scheduled successfully for ${new Date(remind_at).toLocaleString('en-US', { timeZone: 'UTC' })} UTC`
+                remind_at_utc: reminderTime,
+                remind_at_local: reminderTimeLocal,
+                user_timezone: userTimezone,
+                instructions: `CRITICAL: Show this time to user as "${reminderTimeLocal}" (in their ${userTimezone} timezone). DO NOT show UTC time.`
               };
-              console.log('✅ Custom reminder created:', reminderData);
+              console.log('✅ Custom reminder created:', reminderData, 'Display time:', reminderTimeLocal);
               break;
             }
           }
