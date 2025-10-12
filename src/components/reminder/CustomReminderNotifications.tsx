@@ -10,36 +10,33 @@ export function CustomReminderNotifications() {
   const processedReminders = useRef<Set<string>>(new Set());
   const lastCheckTime = useRef<number>(Date.now());
 
-  // Fetch upcoming custom reminders - check more frequently
+  // Fetch custom reminders - EXACT SAME PATTERN AS TASKS
   const { data: reminders } = useQuery({
     queryKey: ['custom-reminders', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-
+      
       const now = new Date();
-      const threeMinutesFromNow = new Date(now.getTime() + 3 * 60 * 1000);
-
-      console.log('🔍 Checking custom reminders between', now.toISOString(), 'and', threeMinutesFromNow.toISOString());
-
+      const futureWindow = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes window (same as tasks)
+      
       const { data, error } = await supabase
         .from('custom_reminders')
         .select('*')
         .eq('user_id', user.id)
+        .lte('remind_at', futureWindow.toISOString())
         .is('deleted_at', null)
-        .lte('remind_at', threeMinutesFromNow.toISOString())
-        .gte('remind_at', new Date(now.getTime() - 2 * 60 * 1000).toISOString())
-        .or('reminder_sent_at.is.null,email_sent.eq.false');
-
+        .order('remind_at', { ascending: true });
+      
       if (error) {
-        console.error('Error fetching custom reminders:', error);
-        return [];
+        console.error('❌ Error fetching custom reminders:', error);
+        throw error;
       }
-
-      console.log('📋 Found custom reminders:', data?.length || 0);
+      
+      console.log('🔔 Custom reminders fetched:', data?.length || 0);
       return data || [];
     },
     enabled: !!user?.id,
-    refetchInterval: 10000, // Check every 10 seconds (more frequent)
+    refetchInterval: 30000, // Refetch every 30 seconds (SAME AS TASKS)
   });
 
   // Show dashboard notification
@@ -96,65 +93,77 @@ export function CustomReminderNotifications() {
     }
   };
 
-  // Process due reminders
+  // Process due reminders - EXACT SAME LOGIC AS TASKS
   const processDueReminders = async (remindersToCheck: any[]) => {
     if (!remindersToCheck || remindersToCheck.length === 0) return;
-
+    
     const now = new Date();
-
+    let notificationsTriggered = 0;
+    
     for (const reminder of remindersToCheck) {
+      const reminderTime = new Date(reminder.remind_at);
       const reminderKey = `${reminder.id}-${reminder.remind_at}`;
       
-      // Skip if already processed
-      if (processedReminders.current.has(reminderKey)) {
-        continue;
-      }
-
-      const remindTime = new Date(reminder.remind_at);
+      // EXACT SAME DETECTION AS TASKS: Check if reminder is due (within 1 minute window)
+      const timeDiff = now.getTime() - reminderTime.getTime();
+      const isDue = timeDiff >= 0 && timeDiff <= 60000; // 0 to 60 seconds past due time (SAME AS TASKS)
       
-      // Check if reminder is due (within 2 minute window - more lenient)
-      if (remindTime <= now && remindTime > new Date(now.getTime() - 120000)) {
-        console.log('⏰ Processing custom reminder:', reminder.title, 'scheduled for:', remindTime.toISOString());
+      if (isDue && !processedReminders.current.has(reminderKey)) {
+        console.log('🔔 PROCESSING CUSTOM REMINDER:', reminder.title);
+        console.log('⏰ Reminder time:', reminderTime.toLocaleString());
+        console.log('🕐 Current time:', now.toLocaleString());
+        console.log('⏱️ Time difference:', timeDiff, 'ms');
+        console.log('📧 Email reminder will be sent to:', user?.email);
+        
+        // Mark as processed FIRST to prevent duplicate processing (SAME AS TASKS)
+        processedReminders.current.add(reminderKey);
+        console.log('✅ Marked as processed:', reminderKey);
 
+        // Update database IMMEDIATELY (mark as sent before email attempt)
+        try {
+          const { error: updateError } = await supabase
+            .from('custom_reminders')
+            .update({ reminder_sent_at: now.toISOString() })
+            .eq('id', reminder.id);
+          
+          if (updateError) {
+            console.error('❌ Error marking reminder as sent:', updateError);
+          } else {
+            console.log('✅ Database marked as sent:', reminder.id);
+          }
+        } catch (dbError) {
+          console.error('❌ Database update exception:', dbError);
+        }
+        
         // Show dashboard notification
         showDashboardNotification(reminder.title, reminder.message);
-
-        // Show system notification if permission granted
+        
+        // Show system notification
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification(`🔔 Reminder: ${reminder.title}`, {
             body: reminder.message || 'Time for your scheduled reminder',
             icon: '/favicon.ico',
           });
+          console.log('🔔 System notification sent');
         }
-
-        // Send email reminder (async, don't wait)
+        
+        // Send email reminder if not already sent (failure won't prevent dashboard notification)
         if (!reminder.email_sent) {
           sendEmailReminder(reminder).catch(err => {
-            console.error('Email send failed but continuing:', err);
+            console.error('❌ Email failed but continuing:', err);
           });
         }
-
-        // Mark as sent (don't wait for email)
-        try {
-          const { error: updateError } = await supabase
-            .from('custom_reminders')
-            .update({ reminder_sent_at: new Date().toISOString() })
-            .eq('id', reminder.id);
-          
-          if (updateError) {
-            console.error('Failed to mark reminder as sent:', updateError);
-          } else {
-            console.log('✅ Custom reminder marked as sent:', reminder.id);
-          }
-        } catch (err) {
-          console.error('Error marking reminder as sent:', err);
-        }
-
-        // Mark as processed
-        processedReminders.current.add(reminderKey);
-
-        console.log('✅ Custom reminder processed:', reminder.id);
+        
+        console.log('📊 Dashboard notification: ✅ Sent');
+        console.log('🔔 System notification: ✅ Sent');
+        console.log('📧 Email reminder:', !reminder.email_sent ? '✅ Attempted' : '⏭️ Already sent');
+        
+        notificationsTriggered++;
       }
+    }
+
+    if (notificationsTriggered > 0) {
+      console.log(`🎯 Total custom notifications triggered: ${notificationsTriggered}`);
     }
   };
 
@@ -184,20 +193,20 @@ export function CustomReminderNotifications() {
     };
   }, [user?.id, queryClient]);
 
-  // Check reminders periodically
+  // Single interval for checking due reminders - SAME AS TASKS
   useEffect(() => {
     if (!reminders || reminders.length === 0) return;
 
-    const interval = setInterval(() => {
-      const now = Date.now();
-      // Only process if it's been at least 1 second since last check
-      if (now - lastCheckTime.current >= 1000) {
-        lastCheckTime.current = now;
-        processDueReminders(reminders);
-      }
-    }, 2000);
+    console.log("⏰ Starting custom reminder checker");
 
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      processDueReminders(reminders);
+    }, 2000); // Check every 2 seconds (SAME AS TASKS)
+
+    return () => {
+      console.log("🛑 Stopping custom reminder checker");
+      clearInterval(interval);
+    };
   }, [reminders]);
 
   // Cleanup old processed reminders from memory
