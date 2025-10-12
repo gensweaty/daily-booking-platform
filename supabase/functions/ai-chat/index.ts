@@ -248,21 +248,21 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: `Creates a reminder. WORKFLOW: (1) Call get_current_datetime to get currentTime. (2) Add duration to currentTime to calculate remind_at (in UTC). (3) Call this tool with the calculated UTC time. (4) Confirm to user using display_time from response.`,
+          description: `Creates a custom reminder that will trigger DASHBOARD and EMAIL notifications at the specified time. NO downloads or reports involved. WORKFLOW: (1) Call get_current_datetime to get currentTime. (2) Add requested duration to currentTime to calculate remind_at in UTC ISO format. (3) Call this tool with calculated time. (4) Confirm to user using display_time from response. Tell user they'll receive dashboard notification AND email.`,
           parameters: {
             type: "object",
             properties: {
               title: {
                 type: "string",
-                description: "Brief title for the reminder"
+                description: "Brief title for the reminder notification"
               },
               message: {
                 type: "string",
-                description: "Optional detailed message"
+                description: "Optional detailed message for the notification"
               },
               remind_at: {
                 type: "string",
-                description: `ISO 8601 UTC timestamp. Example: if currentTime is "2025-10-12T18:35:00.000Z" and user wants "in 5 minutes", use "2025-10-12T18:40:00.000Z".`
+                description: `ISO 8601 UTC timestamp when notification should trigger. Example: if currentTime is "2025-10-12T18:35:00.000Z" and user wants "in 5 minutes", use "2025-10-12T18:40:00.000Z".`
               }
             },
             required: ["title", "remind_at"]
@@ -292,31 +292,37 @@ serve(async (req) => {
 **USER TIMEZONE**: ${userTimezone}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}. Use this for all relative date calculations.
 
-**CRITICAL - REMINDER WORKFLOW**:
-When creating reminders, follow this EXACT sequence:
-1. Call get_current_datetime() → get currentTime
-2. Calculate remind_at = currentTime + requested duration (keep in UTC)
-3. Call create_custom_reminder() with that UTC time
-4. Confirm using display_time from tool response (never show UTC)
+**REMINDERS - CRITICAL WORKFLOW**:
+When user asks to create a reminder (e.g., "remind me in 10 minutes", "set reminder for 2pm"):
+1. Call get_current_datetime() first to get exact current time in UTC
+2. Calculate remind_at by adding requested duration to currentTime (keep in UTC ISO format)
+3. Call create_custom_reminder() with the calculated UTC time
+4. Confirm to user using display_time from the tool response
+5. **CRITICAL**: Tell user they'll receive BOTH dashboard notification AND email reminder
+6. **NEVER mention downloads, reports, or provide any links** - reminders are notifications only!
 
 Example: "remind me in 10 minutes"
-✅ get_current_datetime() → currentTime: "2025-10-12T18:35:00.000Z"
-✅ Add 10 min → "2025-10-12T18:45:00.000Z"  
-✅ create_custom_reminder(remind_at: "2025-10-12T18:45:00.000Z")
-✅ Response → display_time: "6:45 PM"
-✅ Tell user: "✅ Reminder set for 6:45 PM!"
+✅ Step 1: get_current_datetime() → currentTime: "2025-10-12T18:35:00.000Z"
+✅ Step 2: Add 10 min → remind_at: "2025-10-12T18:45:00.000Z"  
+✅ Step 3: create_custom_reminder(title: "aaa", remind_at: "2025-10-12T18:45:00.000Z")
+✅ Step 4: Tool returns { display_time: "6:45 PM", display_time_full: "Oct 12, 2025, 06:45 PM" }
+✅ Step 5: Tell user: "✅ Reminder set! I'll remind you about 'aaa' Instantly. You'll receive both an email and dashboard notification."
 
-**EXCEL REPORT GENERATION**:
-When user asks for "excel report", "export to excel", "download spreadsheet", "give me excel":
-1. Call generate_excel_report with appropriate report_type: "payments", "events", "tasks", "customers", or "bookings"
-2. If months not specified, use 12 months (1 year) as default
-3. When you receive the download_url in the tool result:
-   - **CRITICAL**: Format the URL as a clickable Markdown link with this exact format:
-     📊 **[Download Excel Report: {filename}]({download_url})**
-   - Example: 📊 **[Download Excel Report: customers-12months-1760275102926.xlsx](https://mrueqpffzauvdxmuwhfa.supabase.co/storage/v1/object/sign/excel-reports/...)**
-   - Then add a description line: "This report contains {count} records with all their details."
-4. NEVER show raw URLs - always use the Markdown link format above
-5. NEVER tell users to go to Statistics page to export manually - you have the tool to do it directly
+**REMINDER RESPONSE FORMAT** (USE THIS EXACTLY):
+"✅ Reminder set! I'll remind you about '{title}' {display_time}. You'll receive both an email and dashboard notification."
+
+**NEVER say any of this for reminders**:
+❌ "provide the download link"
+❌ "If a report was generated"
+❌ "download in the correct markdown format"
+❌ Those instructions are ONLY for Excel reports, NOT reminders!
+
+**EXCEL REPORT GENERATION** (COMPLETELY DIFFERENT FROM REMINDERS):
+When user asks for "excel report", "export to excel", "download spreadsheet":
+1. Call generate_excel_report with appropriate report_type
+2. Wait for download_url in response
+3. Format as clickable Markdown link: 📊 **[Download Excel Report: {filename}]({download_url})**
+4. This download link instruction is ONLY for Excel reports, never for reminders!
 
 **TIME CALCULATION EXAMPLES**:
 - User says "remind me in 5 minutes" at 16:43 UTC → remind_at = 16:48 UTC
@@ -581,6 +587,7 @@ When user asks for "excel report", "export to excel", "download spreadsheet", "g
 ✓ Give business insights and recommendations
 ✓ Understand natural dates and relative references
 ✓ Remember conversation history and context
+✓ **Create custom reminders** - Set reminders and you'll receive BOTH dashboard notifications AND email alerts at the scheduled time (NO downloads involved)
 
 **Quick Actions** (buttons at bottom):
 • 📖 Page Guides: Get help with any feature
