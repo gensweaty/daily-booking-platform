@@ -95,6 +95,60 @@ serve(async (req) => {
       );
     }
 
+    // ---- FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
+    const lower = (prompt || "").toLowerCase();
+    const wantsExcel = /\b(excel|xlsx|spreadsheet|export)\b/.test(lower);
+
+    if (wantsExcel) {
+      console.log('📊 Excel fast-path triggered');
+      
+      // Infer report type from prompt (default: tasks)
+      let reportType: "tasks" | "events" | "customers" | "payments" | "bookings" = "tasks";
+      if (/\b(payment|revenue|income)\b/.test(lower)) reportType = "payments";
+      else if (/\b(event|schedule|calendar|appointment)\b/.test(lower)) reportType = "events";
+      else if (/\bcustomer|crm|client|contact\b/.test(lower)) reportType = "customers";
+      else if (/\bbooking(s)?\b/.test(lower)) reportType = "bookings";
+
+      // Infer window
+      let months = 12;
+      if (/\blast\s*6\s*months|\bhalf\s*year\b/i.test(prompt)) months = 6;
+      if (/\b(last|past)\s*year\b/i.test(prompt)) months = 12;
+      if (/\b(last\s*3\s*months|quarter)\b/i.test(prompt)) months = 3;
+
+      console.log(`  → Report type: ${reportType}, months: ${months}`);
+
+      const { data: excelData, error: excelError } = await supabaseAdmin.functions.invoke(
+        "generate-excel-report",
+        { body: { reportType, months, userId: ownerId } }
+      );
+
+      if (excelError) {
+        console.error("❌ Excel generation error:", excelError);
+        const msg = "Sorry, I couldn't generate the Excel file due to a server error.";
+        await supabaseAdmin.from("chat_messages").insert({
+          channel_id: channelId, owner_id: ownerId, sender_type: "admin",
+          sender_name: "Smartbookly AI", content: msg, message_type: "text"
+        });
+        return new Response(JSON.stringify({ success: false, error: msg }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      const content = excelData?.success
+        ? `📥 Your **${reportType}** report is ready.\n\n[Download Excel](${excelData.downloadUrl})\n\nRecords: **${excelData.recordCount}**\n\n*Link expires in 1 hour*`
+        : `ℹ️ No ${reportType} data found for the selected period.`;
+
+      await supabaseAdmin.from("chat_messages").insert({
+        channel_id: channelId, owner_id: ownerId, sender_type: "admin",
+        sender_name: "Smartbookly AI", content, message_type: "text"
+      });
+
+      console.log(`✅ Excel fast-path completed: ${reportType}`);
+
+      return new Response(JSON.stringify({ success: true, content }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    // ---- END FAST-PATH ----
+
     // ---- TASK HELPERS (resilient to schema drift) ----
     const STATUS_ALIASES: Record<string,string> = {
       inprogress: "in_progress",

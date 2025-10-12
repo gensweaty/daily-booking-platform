@@ -248,19 +248,17 @@ serve(async (req) => {
 
     console.log(`✅ File uploaded successfully: ${userId}/${filename}`);
 
-    // Get public URL (bucket is now public for easy access)
-    const { data: urlData } = supabase.storage
+    // Generate signed URL with 1-hour expiry
+    const { data: signed, error: signErr } = await supabase.storage
       .from('excel-reports')
-      .getPublicUrl(`${userId}/${filename}`, {
-        download: true
-      });
+      .createSignedUrl(`${userId}/${filename}`, 3600, { download: filename });
 
-    if (!urlData?.publicUrl) {
-      console.error('❌ No public URL in response');
-      throw new Error('Failed to generate download URL');
+    if (signErr || !signed?.signedUrl) {
+      console.error('❌ Signed URL error:', signErr);
+      throw new Error('Failed to generate signed download URL');
     }
 
-    console.log(`✅ Public URL created: ${urlData.publicUrl.substring(0, 100)}...`);
+    console.log(`✅ Signed URL created (expires in 1h): ${signed.signedUrl.substring(0, 100)}...`);
     
     // Background cleanup: delete files older than 24 hours
     const oneDayAgo = new Date();
@@ -287,9 +285,10 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        downloadUrl: urlData.publicUrl,
+        downloadUrl: signed.signedUrl,
         filename,
-        recordCount: data.length
+        recordCount: data.length,
+        expiresInSeconds: 3600
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
