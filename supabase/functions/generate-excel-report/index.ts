@@ -101,7 +101,7 @@ serve(async (req) => {
         console.log(`📋 Fetching tasks for user ${userId} from ${startDate.toISOString()}`);
         const { data: tasks, error: tasksError } = await supabase
           .from('tasks')
-          .select('title, description, status, priority, deadline_at, assigned_to_name, created_at, updated_at')
+          .select('title, description, status, position, deadline_at, assigned_to_name, created_at, updated_at, created_by_name, last_edited_by_name')
           .eq('user_id', userId)
           .gte('created_at', startDate.toISOString())
           .is('archived_at', null)
@@ -118,9 +118,11 @@ serve(async (req) => {
           'Title': t.title,
           'Description': t.description || '',
           'Status': t.status,
-          'Priority': t.priority || 'medium',
+          'Position': t.position || '',
           'Assigned To': t.assigned_to_name || 'Unassigned',
           'Deadline': t.deadline_at ? new Date(t.deadline_at).toLocaleDateString() : '',
+          'Created By': t.created_by_name || '',
+          'Last Edited By': t.last_edited_by_name || '',
           'Created': new Date(t.created_at).toLocaleDateString(),
           'Updated': t.updated_at ? new Date(t.updated_at).toLocaleDateString() : ''
         }));
