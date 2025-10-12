@@ -153,11 +153,38 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_all_tasks",
-          description: "CRITICAL: Get ALL user's tasks with optional status filter. Use this IMMEDIATELY when user asks about tasks, task data, their task list, or anything related to tasks. This fetches the complete task list from the database. If user asks about tasks and you don't call this tool, you are making a mistake.",
+          description: `**MANDATORY - CALL THIS FIRST FOR ANY TASK QUESTION**
+
+          Use this IMMEDIATELY when user mentions:
+          - "tasks", "task data", "my tasks", "show tasks"
+          - "task report", "task excel", "task statistics"  
+          - "last year tasks", "tasks for [period]"
+          - ANY question about tasks
+          
+          **CRITICAL**: NEVER say "no task data" without calling this tool first!
+          
+          Retrieves ALL tasks with optional filters:
+          - Status filter (todo/inprogress/done)
+          - Date range filter (created_after, created_before)
+          - Returns complete task details
+          
+          If this returns empty array, THEN you can say no data for that period.`,
           parameters: {
             type: "object",
             properties: {
-              status: { type: "string", enum: ["todo", "inprogress", "done"], description: "Filter by status (optional). Use 'inprogress' not 'in_progress'" }
+              status: { 
+                type: "string", 
+                enum: ["todo", "inprogress", "done"], 
+                description: "Filter by status (optional)" 
+              },
+              created_after: {
+                type: "string",
+                description: "ISO date (YYYY-MM-DD) - only tasks created after this date"
+              },
+              created_before: {
+                type: "string", 
+                description: "ISO date (YYYY-MM-DD) - only tasks created before this date"
+              }
             }
           }
         }
@@ -168,6 +195,74 @@ serve(async (req) => {
           name: "get_task_statistics",
           description: "Get task completion statistics and progress",
           parameters: { type: "object", properties: {} }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_all_events",
+          description: `**MANDATORY - CALL THIS FIRST FOR ANY CALENDAR/EVENTS QUESTION**
+
+          Use this IMMEDIATELY when user mentions:
+          - "calendar", "events", "bookings", "appointments"
+          - "payment history", "revenue", "income"
+          - "last year events", "events for [period]"
+          - ANY question about calendar data
+          
+          **CRITICAL**: NEVER say "no event data" without calling this tool first!
+          
+          Retrieves ALL calendar events with optional filters:
+          - Date range filter (start_date, end_date)
+          - Returns event details, payment info, customer data
+          
+          If this returns empty array, THEN you can say no data for that period.`,
+          parameters: {
+            type: "object",
+            properties: {
+              start_date: {
+                type: "string",
+                description: "ISO date (YYYY-MM-DD) - only events starting after this date"
+              },
+              end_date: {
+                type: "string",
+                description: "ISO date (YYYY-MM-DD) - only events ending before this date"
+              }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_all_customers",
+          description: `**MANDATORY - CALL THIS FIRST FOR ANY CRM/CUSTOMER QUESTION**
+
+          Use this IMMEDIATELY when user mentions:
+          - "customers", "CRM", "contacts", "clients"
+          - "customer data", "customer list"
+          - "last year customers", "customers for [period]"
+          - ANY question about CRM data
+          
+          **CRITICAL**: NEVER say "no customer data" without calling this tool first!
+          
+          Retrieves ALL customers with optional filters:
+          - Date range filter (created_after, created_before)
+          - Returns customer details, payment info, notes
+          
+          If this returns empty array, THEN you can say no data for that period.`,
+          parameters: {
+            type: "object",
+            properties: {
+              created_after: {
+                type: "string",
+                description: "ISO date (YYYY-MM-DD) - only customers created after this date"
+              },
+              created_before: {
+                type: "string",
+                description: "ISO date (YYYY-MM-DD) - only customers created before this date"
+              }
+            }
+          }
         }
       },
       {
@@ -823,31 +918,63 @@ Remember: You're a smart assistant that understands context, remembers conversat
             }
 
             case 'get_all_tasks': {
-              console.log(`    🔍 Fetching tasks for user ${ownerId}, filter:`, args.status || 'all');
+              console.log(`    🔍 Fetching tasks for user ${ownerId}`);
+              console.log(`       Filters:`, { 
+                status: args.status || 'all', 
+                created_after: args.created_after || 'none',
+                created_before: args.created_before || 'none'
+              });
               
               let query = supabaseClient
                 .from('tasks')
                 .select('id, title, description, status, priority, deadline_at, reminder_at, created_at, updated_at, assigned_to_name')
                 .eq('user_id', ownerId)
-                .is('archived_at', null)
-                .order('created_at', { ascending: false });
+                .is('archived_at', null);
               
+              // Apply filters
               if (args.status) {
                 query = query.eq('status', args.status);
               }
+              if (args.created_after) {
+                query = query.gte('created_at', args.created_after);
+                console.log(`       📅 Date filter: created_at >= ${args.created_after}`);
+              }
+              if (args.created_before) {
+                query = query.lte('created_at', args.created_before);
+                console.log(`       📅 Date filter: created_at <= ${args.created_before}`);
+              }
               
-              const { data: tasks, error: tasksError } = await query.limit(100);
+              query = query.order('created_at', { ascending: false });
+              
+              const { data: tasks, error: tasksError } = await query;
               
               if (tasksError) {
                 console.error('    ❌ Error fetching tasks:', tasksError);
-                toolResult = { tasks: [], error: tasksError.message, filter: args.status || 'all' };
+                toolResult = { 
+                  tasks: [], 
+                  count: 0,
+                  error: tasksError.message, 
+                  filters_applied: { status: args.status, created_after: args.created_after, created_before: args.created_before }
+                };
               } else {
+                // Calculate status breakdown
+                const statusBreakdown = (tasks || []).reduce((acc, task) => {
+                  acc[task.status] = (acc[task.status] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+                
                 toolResult = { 
                   tasks: tasks || [], 
                   count: tasks?.length || 0,
-                  filter: args.status || 'all' 
+                  status_breakdown: statusBreakdown,
+                  filters_applied: { 
+                    status: args.status || 'all', 
+                    created_after: args.created_after || 'none',
+                    created_before: args.created_before || 'none'
+                  }
                 };
-                console.log(`    ✅ Found ${tasks?.length || 0} tasks (filter: ${args.status || 'all'})`);
+                console.log(`    ✅ Found ${tasks?.length || 0} tasks`);
+                console.log(`       Status breakdown:`, statusBreakdown);
               }
               break;
             }
@@ -872,6 +999,136 @@ Remember: You're a smart assistant that understands context, remembers conversat
               
               toolResult = stats;
               console.log(`    ✓ Task stats: ${stats.completion_rate}% complete`);
+              break;
+            }
+
+            case 'get_all_events': {
+              console.log(`    📅 Fetching all events for user ${ownerId}`);
+              console.log(`       Filters:`, {
+                start_date: args.start_date || 'none',
+                end_date: args.end_date || 'none'
+              });
+              
+              let query = supabaseClient
+                .from('events')
+                .select('id, title, start_date, end_date, payment_status, payment_amount, event_notes, user_surname, user_number, created_at, type')
+                .eq('user_id', ownerId)
+                .is('deleted_at', null);
+              
+              // Apply date filters
+              if (args.start_date) {
+                query = query.gte('start_date', args.start_date);
+                console.log(`       📅 Date filter: start_date >= ${args.start_date}`);
+              }
+              if (args.end_date) {
+                query = query.lte('end_date', args.end_date);
+                console.log(`       📅 Date filter: end_date <= ${args.end_date}`);
+              }
+              
+              query = query.order('start_date', { ascending: false });
+              
+              const { data: events, error: eventsError } = await query;
+              
+              if (eventsError) {
+                console.error('    ❌ Error fetching events:', eventsError);
+                toolResult = {
+                  events: [],
+                  count: 0,
+                  error: eventsError.message,
+                  filters_applied: { start_date: args.start_date, end_date: args.end_date }
+                };
+              } else {
+                // Calculate payment breakdown
+                const paymentBreakdown = (events || []).reduce((acc, event) => {
+                  const status = event.payment_status || 'unknown';
+                  acc[status] = (acc[status] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+                
+                // Calculate total revenue
+                const totalRevenue = (events || []).reduce((sum, event) => {
+                  return sum + (Number(event.payment_amount) || 0);
+                }, 0);
+                
+                toolResult = {
+                  events: events || [],
+                  count: events?.length || 0,
+                  payment_breakdown: paymentBreakdown,
+                  total_revenue: totalRevenue,
+                  filters_applied: {
+                    start_date: args.start_date || 'none',
+                    end_date: args.end_date || 'none'
+                  }
+                };
+                console.log(`    ✅ Found ${events?.length || 0} events`);
+                console.log(`       Payment breakdown:`, paymentBreakdown);
+                console.log(`       Total revenue:`, totalRevenue);
+              }
+              break;
+            }
+
+            case 'get_all_customers': {
+              console.log(`    👥 Fetching all customers for user ${ownerId}`);
+              console.log(`       Filters:`, {
+                created_after: args.created_after || 'none',
+                created_before: args.created_before || 'none'
+              });
+              
+              let query = supabaseClient
+                .from('customers')
+                .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, event_notes, created_at, start_date, end_date')
+                .eq('user_id', ownerId)
+                .is('deleted_at', null);
+              
+              // Apply date filters
+              if (args.created_after) {
+                query = query.gte('created_at', args.created_after);
+                console.log(`       📅 Date filter: created_at >= ${args.created_after}`);
+              }
+              if (args.created_before) {
+                query = query.lte('created_at', args.created_before);
+                console.log(`       📅 Date filter: created_at <= ${args.created_before}`);
+              }
+              
+              query = query.order('created_at', { ascending: false });
+              
+              const { data: customers, error: customersError } = await query;
+              
+              if (customersError) {
+                console.error('    ❌ Error fetching customers:', customersError);
+                toolResult = {
+                  customers: [],
+                  count: 0,
+                  error: customersError.message,
+                  filters_applied: { created_after: args.created_after, created_before: args.created_before }
+                };
+              } else {
+                // Calculate payment breakdown
+                const paymentBreakdown = (customers || []).reduce((acc, customer) => {
+                  const status = customer.payment_status || 'unknown';
+                  acc[status] = (acc[status] || 0) + 1;
+                  return acc;
+                }, {} as Record<string, number>);
+                
+                // Calculate total revenue
+                const totalRevenue = (customers || []).reduce((sum, customer) => {
+                  return sum + (Number(customer.payment_amount) || 0);
+                }, 0);
+                
+                toolResult = {
+                  customers: customers || [],
+                  count: customers?.length || 0,
+                  payment_breakdown: paymentBreakdown,
+                  total_revenue: totalRevenue,
+                  filters_applied: {
+                    created_after: args.created_after || 'none',
+                    created_before: args.created_before || 'none'
+                  }
+                };
+                console.log(`    ✅ Found ${customers?.length || 0} customers`);
+                console.log(`       Payment breakdown:`, paymentBreakdown);
+                console.log(`       Total revenue:`, totalRevenue);
+              }
               break;
             }
 
