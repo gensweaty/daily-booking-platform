@@ -225,10 +225,16 @@ export const MessageList = ({
               {/* Avatar (first in group only) */}
               <div className="w-10 flex-shrink-0">
                 {isFirstInGroup ? (
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={message.sender_avatar || ''} />
-                    <AvatarFallback>{getInitials(message.sender_name || 'U')}</AvatarFallback>
-                  </Avatar>
+                  message.sender_name === 'Smartbookly AI' ? (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-sm">
+                      <span className="text-white text-lg">🤖</span>
+                    </div>
+                  ) : (
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={message.sender_avatar || ''} />
+                      <AvatarFallback>{getInitials(message.sender_name || 'U')}</AvatarFallback>
+                    </Avatar>
+                  )
                 ) : (
                   <div className="h-10 flex items-center justify-center">
                     {hoveredMessage === message.id && (

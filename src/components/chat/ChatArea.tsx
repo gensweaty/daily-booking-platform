@@ -139,6 +139,13 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const [generalId, setGeneralId] = useState<string | null>(null);
   const [generalIdLoading, setGeneralIdLoading] = useState(true);
 
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages.length]);
+
   // -------- helper: fetch attachments correctly for public vs internal
   const fetchAttachments = async (messageId: string) => {
     try {

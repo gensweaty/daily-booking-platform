@@ -325,7 +325,26 @@ serve(async (req) => {
     const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
     const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
+    // Detect user language from the conversation history
+    const detectLanguage = (text: string): string => {
+      // Check for Cyrillic characters (Russian, etc.)
+      if (/[\u0400-\u04FF]/.test(text)) return 'ru';
+      // Check for Georgian characters
+      if (/[\u10A0-\u10FF]/.test(text)) return 'ka';
+      // Check for Spanish specific characters/words
+      if (/[áéíóúñ¿¡]/i.test(text) || /\b(el|la|los|las|un|una|de|del|en|que|es|por)\b/i.test(text)) return 'es';
+      return 'en'; // Default to English
+    };
+
+    const userLanguage = conversationHistory.length > 0 
+      ? detectLanguage(conversationHistory[conversationHistory.length - 1]?.content || prompt)
+      : detectLanguage(prompt);
+    
+    console.log('🌐 Detected user language:', userLanguage);
+
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
+
+**CRITICAL: ALWAYS respond in ${userLanguage === 'ru' ? 'RUSSIAN' : userLanguage === 'ka' ? 'GEORGIAN' : userLanguage === 'es' ? 'SPANISH' : 'ENGLISH'} language. The user is communicating in ${userLanguage === 'ru' ? 'Russian' : userLanguage === 'ka' ? 'Georgian' : userLanguage === 'es' ? 'Spanish' : 'English'}, so ALL your responses must be in the same language.**
 
 **USER TIMEZONE**: ${effectiveTZ || 'UTC (offset-based)'}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
@@ -1172,7 +1191,7 @@ Remember: You're a smart assistant that understands context, remembers conversat
                 break;
               }
               
-              // 5) Build HUMAN message on server (no LLM)
+              // 5) Build HUMAN message on server (no LLM) - in user's language
               const display = formatInUserZone(remindAtUtc);
               
               console.log('Reminder debug:', {
@@ -1180,10 +1199,19 @@ Remember: You're a smart assistant that understands context, remembers conversat
                 tzOffsetMinutes,
                 baseNow: currentLocalTime,
                 remindAtUtc: remindAtUtc.toISOString(),
-                display
+                display,
+                userLanguage
               });
               
-              const confirmation = `✅ Reminder set! I'll remind you about '${title}' at ${display}. You'll receive both an email and dashboard notification.`;
+              // Localized confirmation messages
+              const confirmations = {
+                en: `✅ Reminder set! I'll remind you about '${title}' at ${display}. You'll receive both an email and dashboard notification.`,
+                ru: `✅ Напоминание установлено! Я напомню вам о '${title}' в ${display}. Вы получите уведомление по электронной почте и на панели управления.`,
+                ka: `✅ შეხსენება დაყენებულია! გაგახსენებთ '${title}' ${display}-ზე. მიიღებთ შეტყობინებას ელფოსტით და პანელზე.`,
+                es: `✅ ¡Recordatorio establecido! Te recordaré sobre '${title}' a las ${display}. Recibirás una notificación por correo electrónico y en el panel.`
+              };
+              
+              const confirmation = confirmations[userLanguage as keyof typeof confirmations] || confirmations.en;
               
               // 6) Write bot message now (skip second LLM call)
               await supabaseAdmin.from('chat_messages').insert({
