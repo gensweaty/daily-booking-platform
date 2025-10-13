@@ -120,10 +120,11 @@ export const FileDisplay = ({
       const newBuckets: {[key: string]: string} = {};
       const newSignedUrls: {[key: string]: string} = {};
       
-      // Enhanced bucket search - add 'customer_attachments' to fallbacks for better file finding
+      // Enhanced bucket search - include all possible storage buckets
       const allPossibleBuckets = [
         bucketName, 
         ...fallbackBuckets, 
+        'chat_attachments',    // Add chat_attachments for AI-uploaded files
         'customer_attachments', 
         'event_attachments',
         'booking_attachments'
@@ -146,15 +147,22 @@ export const FileDisplay = ({
         
         // Search through all possible buckets in priority order
         for (const bucket of bucketSearchOrder) {
-          console.log(`Checking if file ${file.filename} exists in ${bucket} at ${normalizedPath}`);
-          const exists = await checkFileExistence(bucket, normalizedPath);
+          // Strip bucket prefix from path if it exists (for chat_attachments, etc.)
+          let pathToCheck = normalizedPath;
+          const bucketPrefix = `${bucket}/`;
+          if (pathToCheck.startsWith(bucketPrefix)) {
+            pathToCheck = pathToCheck.substring(bucketPrefix.length);
+          }
+          
+          console.log(`Checking if file ${file.filename} exists in ${bucket} at ${pathToCheck}`);
+          const exists = await checkFileExistence(bucket, pathToCheck);
           
           if (exists) {
             foundBucket = bucket;
             console.log(`File found in ${bucket}`);
             
-            // Generate a signed URL for immediate use
-            const signedUrl = await generateSignedUrl(bucket, normalizedPath);
+            // Generate a signed URL for immediate use (use the stripped path)
+            const signedUrl = await generateSignedUrl(bucket, pathToCheck);
             if (signedUrl) {
               newSignedUrls[file.id] = signedUrl;
             }
@@ -166,8 +174,14 @@ export const FileDisplay = ({
         // If we found a bucket where the file exists, use it
         if (foundBucket) {
           newBuckets[file.id] = foundBucket;
+          // Strip bucket prefix from path for URL generation
+          let pathForUrl = normalizedPath;
+          const bucketPrefix = `${foundBucket}/`;
+          if (pathForUrl.startsWith(bucketPrefix)) {
+            pathForUrl = pathForUrl.substring(bucketPrefix.length);
+          }
           // Still store the direct URL as a fallback
-          newURLs[file.id] = `${getStorageUrl()}/object/public/${foundBucket}/${normalizedPath}`;
+          newURLs[file.id] = `${getStorageUrl()}/object/public/${foundBucket}/${pathForUrl}`;
         } else {
           // If we didn't find the file in any bucket, default to the primary
           console.log(`File not found in any bucket, defaulting to ${bucketName}`);
@@ -213,7 +227,13 @@ export const FileDisplay = ({
       const effectiveBucket = validatedBuckets[fileId] || bucketName;
       console.log(`Attempting to download file: ${fileName}, path: ${filePath}, fileId: ${fileId}, bucket: ${effectiveBucket}`);
       
-      const normalizedPath = normalizeFilePath(filePath);
+      let normalizedPath = normalizeFilePath(filePath);
+      
+      // Strip bucket prefix from path if it exists
+      const bucketPrefix = `${effectiveBucket}/`;
+      if (normalizedPath.startsWith(bucketPrefix)) {
+        normalizedPath = normalizedPath.substring(bucketPrefix.length);
+      }
       
       // Generate a signed URL instead of using direct URL
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
@@ -279,7 +299,14 @@ export const FileDisplay = ({
     
     // Fall back to direct URL if no signed URL is available
     const effectiveBucket = validatedBuckets[fileId] || bucketName;
-    const normalizedPath = normalizeFilePath(filePath);
+    let normalizedPath = normalizeFilePath(filePath);
+    
+    // Strip bucket prefix from path if it exists
+    const bucketPrefix = `${effectiveBucket}/`;
+    if (normalizedPath.startsWith(bucketPrefix)) {
+      normalizedPath = normalizedPath.substring(bucketPrefix.length);
+    }
+    
     return `${getStorageUrl()}/object/public/${effectiveBucket}/${normalizedPath}`;
   };
 
@@ -291,7 +318,13 @@ export const FileDisplay = ({
       
       // Generate a fresh signed URL with longer expiry for viewing
       const effectiveBucket = validatedBuckets[fileId] || bucketName;
-      const normalizedPath = normalizeFilePath(filePath);
+      let normalizedPath = normalizeFilePath(filePath);
+      
+      // Strip bucket prefix from path if it exists
+      const bucketPrefix = `${effectiveBucket}/`;
+      if (normalizedPath.startsWith(bucketPrefix)) {
+        normalizedPath = normalizedPath.substring(bucketPrefix.length);
+      }
       
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from(effectiveBucket)
@@ -325,9 +358,17 @@ export const FileDisplay = ({
       const effectiveBucket = validatedBuckets[fileId] || bucketName;
       console.log(`Deleting file from bucket ${effectiveBucket}, path: ${filePath}`);
       
+      let normalizedPath = normalizeFilePath(filePath);
+      
+      // Strip bucket prefix from path if it exists
+      const bucketPrefix = `${effectiveBucket}/`;
+      if (normalizedPath.startsWith(bucketPrefix)) {
+        normalizedPath = normalizedPath.substring(bucketPrefix.length);
+      }
+      
       const { error: storageError } = await supabase.storage
         .from(effectiveBucket)
-        .remove([normalizeFilePath(filePath)]);
+        .remove([normalizedPath]);
 
       if (storageError) {
         console.error('Error deleting file from storage:', storageError);
