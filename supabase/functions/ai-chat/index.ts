@@ -876,14 +876,14 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
    - MINIMUM required: Full name + start date + end date
    - Optional: phone, email/social, notes, payment details, event type
    - Example: "Add event for John Smith tomorrow at 2pm to 4pm" → CREATE IMMEDIATELY
-   - Example: "Update John's event to 3pm" → UPDATE with event_id
+   - Example: "Update John's event to 3pm" → First use get_upcoming_events or get_todays_schedule to find the event ID, then UPDATE with event_id
 
 2. **✅ CREATE/EDIT TASKS**
    - Tool: create_or_update_task
    - MINIMUM required: Task name
    - Optional: description, status, deadline, reminder, email reminder
    - Example: "Create task to call vendor" → CREATE IMMEDIATELY
-   - Example: "Mark task as done" → UPDATE with task_id and status='done'
+   - Example: "Mark task as done" → First use get_all_tasks to find the task ID, then UPDATE with task_id and status='done'
 
 3. **👥 CREATE/EDIT CUSTOMERS (CRM)**
    - Tool: create_or_update_customer
@@ -891,7 +891,13 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
    - Optional: phone, email/social, notes, payment details
    - Can optionally create linked event
    - Example: "Add customer Mike Jones, phone 555-1234" → CREATE IMMEDIATELY
-   - Example: "Update customer payment status to paid" → UPDATE with customer_id
+   - Example: "Update customer payment status to paid" → First use search tools to find customer ID, then UPDATE with customer_id
+
+4. **📎 FILE UPLOADS** (NEW!)
+   - You CAN process file attachments sent with messages
+   - When user attaches files (images, PDFs, documents), they are automatically uploaded to storage
+   - Files are linked to events automatically when creating/updating events
+   - Confirm to user: "✅ File '[filename]' has been attached to the event"
 
 **CRITICAL AGENT WORKFLOW RULES**:
 
@@ -900,6 +906,9 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 - If missing critical info (name or dates) → ask: "I need the full name and date/time to create the event"
 - If user provides payment info → include it in the tool call
 - NEVER ask for optional fields unless user wants to add them
+- ⚠️ **TIME CONFLICT CHECKING**: Before creating, system automatically checks if time slot is busy
+  - If conflict found: Inform user "That time slot is already booked with [existing event]. Would you like a different time?"
+  - If no conflict: Create the event
 
 **FOR TASK CREATION:**
 - User says "Create task to buy supplies" → YOU HAVE ALL INFO → create_or_update_task immediately
@@ -911,12 +920,19 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 - If they want to create event too → ask for event dates
 - Payment details are OPTIONAL - only include if provided
 
+**FOR EDITING/UPDATING:**
+- **CRITICAL**: ALWAYS search for the item FIRST before updating
+- Steps: 1) Call get_all_tasks / get_upcoming_events / search tools, 2) Find the item ID, 3) Call create_or_update_* with the ID
+- Example: "Update John's event" → Call get_upcoming_events → Find event with John → Call create_or_update_event with event_id
+- NEVER try to update without the ID - you MUST find it first
+
 **IMPORTANT PRINCIPLES:**
 1. **ACT IMMEDIATELY** when you have minimum required info (name for customers/tasks, name+dates for events)
 2. **DON'T OVER-ASK** - only ask for info that's truly critical or explicitly requested
-3. **CONFIRM SUCCESS** - After successful creation, confirm what was created with details
-4. **HANDLE ERRORS GRACEFULLY** - If creation fails, explain the error clearly and suggest fixes
+3. **CONFIRM SUCCESS** - After successful creation, confirm what was created with details and any attached files
+4. **HANDLE ERRORS GRACEFULLY** - If creation fails (time conflict, missing data), explain clearly and suggest fixes
 5. **MAINTAIN CONTEXT** - Remember what was just created to handle follow-up questions
+6. **SEARCH BEFORE UPDATE** - Always fetch existing data before attempting updates
 
 **REMINDERS - SERVER-SIDE TIME MATH**:
 For relative times ("in 10 minutes"): use offset_minutes
@@ -2040,6 +2056,33 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               console.log(`    📅 ${event_id ? 'Updating' : 'Creating'} event for ${full_name}`);
               
               try {
+                // Check for time conflicts BEFORE creating (only for new events)
+                if (!event_id) {
+                  const { data: conflicts } = await supabaseAdmin
+                    .from('events')
+                    .select('id, title, start_date, end_date, user_surname')
+                    .eq('user_id', ownerId)
+                    .is('deleted_at', null)
+                    .or(`and(start_date.lte.${end_date},end_date.gte.${start_date})`);
+                  
+                  if (conflicts && conflicts.length > 0) {
+                    const conflict = conflicts[0];
+                    const conflictName = conflict.user_surname || conflict.title;
+                    console.log(`    ⚠️ Time conflict detected with event: ${conflictName}`);
+                    toolResult = { 
+                      success: false, 
+                      error: 'time_conflict',
+                      conflict: {
+                        name: conflictName,
+                        start: conflict.start_date,
+                        end: conflict.end_date
+                      },
+                      message: `Time slot is already booked with "${conflictName}" from ${conflict.start_date} to ${conflict.end_date}. Please choose a different time.`
+                    };
+                    break;
+                  }
+                }
+
                 const eventData = {
                   title: full_name,
                   user_surname: full_name,
@@ -2055,7 +2098,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 };
 
                 if (event_id) {
-                  // Update existing event - correct parameter order
+                  // Update existing event
                   const { data: result, error: updateError } = await supabaseAdmin.rpc('save_event_with_persons', {
                     p_event_data: eventData,
                     p_additional_persons: [],
@@ -2072,14 +2115,51 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     toolResult = { success: false, error: updateError.message };
                   } else {
                     console.log(`    ✅ Event updated: ${full_name}`);
+                    
+                    // Handle file uploads for updated event
+                    let uploadedFiles = [];
+                    if (attachments && attachments.length > 0) {
+                      for (const attachment of attachments) {
+                        try {
+                          const fileName = `${Date.now()}_${attachment.name}`;
+                          const filePath = `${ownerId}/${event_id}/${fileName}`;
+                          
+                          // Upload to storage
+                          const { error: uploadError } = await supabaseAdmin.storage
+                            .from('event-files')
+                            .upload(filePath, attachment.data, {
+                              contentType: attachment.type,
+                              upsert: false
+                            });
+                          
+                          if (!uploadError) {
+                            // Insert file record
+                            await supabaseAdmin.from('event_files').insert({
+                              event_id: event_id,
+                              user_id: ownerId,
+                              filename: attachment.name,
+                              file_path: filePath,
+                              content_type: attachment.type,
+                              size: attachment.size
+                            });
+                            uploadedFiles.push(attachment.name);
+                            console.log(`    📎 File uploaded: ${attachment.name}`);
+                          }
+                        } catch (fileError) {
+                          console.error(`    ❌ File upload failed:`, fileError);
+                        }
+                      }
+                    }
+                    
                     toolResult = { 
                       success: true, 
                       event_id: result || event_id,
                       action: 'updated',
-                      message: `Event updated: ${full_name} on ${start_date}`
+                      message: `Event updated: ${full_name} on ${start_date}`,
+                      uploaded_files: uploadedFiles
                     };
                     
-                    // Broadcast change for real-time sync
+                    // Broadcast change
                     const ch = supabaseAdmin.channel(`public_board_events_${ownerId}`);
                     ch.subscribe((status) => {
                       if (status === 'SUBSCRIBED') {
@@ -2089,7 +2169,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     });
                   }
                 } else {
-                  // Create new event - correct parameter order
+                  // Create new event
                   const { data: newEventId, error: createError } = await supabaseAdmin.rpc('save_event_with_persons', {
                     p_event_data: eventData,
                     p_additional_persons: [],
@@ -2106,14 +2186,51 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     toolResult = { success: false, error: createError.message };
                   } else {
                     console.log(`    ✅ Event created: ${full_name} (ID: ${newEventId})`);
+                    
+                    // Handle file uploads for new event
+                    let uploadedFiles = [];
+                    if (attachments && attachments.length > 0) {
+                      for (const attachment of attachments) {
+                        try {
+                          const fileName = `${Date.now()}_${attachment.name}`;
+                          const filePath = `${ownerId}/${newEventId}/${fileName}`;
+                          
+                          // Upload to storage
+                          const { error: uploadError } = await supabaseAdmin.storage
+                            .from('event-files')
+                            .upload(filePath, attachment.data, {
+                              contentType: attachment.type,
+                              upsert: false
+                            });
+                          
+                          if (!uploadError) {
+                            // Insert file record
+                            await supabaseAdmin.from('event_files').insert({
+                              event_id: newEventId,
+                              user_id: ownerId,
+                              filename: attachment.name,
+                              file_path: filePath,
+                              content_type: attachment.type,
+                              size: attachment.size
+                            });
+                            uploadedFiles.push(attachment.name);
+                            console.log(`    📎 File uploaded: ${attachment.name}`);
+                          }
+                        } catch (fileError) {
+                          console.error(`    ❌ File upload failed:`, fileError);
+                        }
+                      }
+                    }
+                    
                     toolResult = { 
                       success: true, 
                       event_id: newEventId,
                       action: 'created',
-                      message: `Event created: ${full_name} on ${start_date}`
+                      message: `Event created: ${full_name} on ${start_date}`,
+                      uploaded_files: uploadedFiles
                     };
                     
-                    // Broadcast change for real-time sync
+                    // Broadcast change
                     const ch = supabaseAdmin.channel(`public_board_events_${ownerId}`);
                     ch.subscribe((status) => {
                       if (status === 'SUBSCRIBED') {
@@ -2342,7 +2459,16 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       
       const responsePrompt = {
         role: "user",
-        content: "Respond to the user. If create_custom_reminder was called successfully, say EXACTLY: '✅ Reminder set! I'll remind you about [title] at [display_time]. You'll receive both an email and dashboard notification.' Use the display_time from the tool result. For reports, include download link. Be concise."
+        content: `Respond to the user about the action result. 
+
+IMPORTANT RESPONSE RULES:
+- If time_conflict error: Say "⚠️ That time slot is already booked with [conflict name]. Would you like a different time?"
+- If event/task/customer was created: Confirm with "✅ [Type] created: [name] on [date/time]"
+- If event/task/customer was updated: Confirm with "✅ [Type] updated: [name]"
+- If files were uploaded: Add "📎 Files attached: [list file names]"
+- If create_custom_reminder: Say "✅ Reminder set! I'll remind you about [title] at [display_time]. You'll receive both an email and dashboard notification."
+- For excel reports: Include download link
+- Be concise and use the user's language (${userLanguage})`
       };
       
       const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
