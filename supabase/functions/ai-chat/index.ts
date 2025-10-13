@@ -710,6 +710,114 @@ serve(async (req) => {
             required: ["title"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_or_update_event",
+          description: `Create or update calendar events/appointments/bookings.
+          
+MANDATORY fields:
+- full_name: Customer/client full name
+- start_date: Event start date/time (ISO format YYYY-MM-DDTHH:mm or user timezone)
+- end_date: Event end date/time (ISO format YYYY-MM-DDTHH:mm or user timezone)
+
+OPTIONAL fields (if user provides):
+- phone_number: Contact phone
+- social_media: Email or social network link  
+- notes: Event notes or description
+- payment_status: 'not_paid', 'partly_paid', or 'fully_paid'
+- payment_amount: Payment amount (number)
+- event_name: Type of event (birthday, meeting, etc)
+
+For EDIT: Include event_id to update existing event`,
+          parameters: {
+            type: "object",
+            properties: {
+              event_id: { type: "string", description: "Event ID for editing (optional)" },
+              full_name: { type: "string", description: "Customer full name (REQUIRED)" },
+              start_date: { type: "string", description: "Event start (ISO format YYYY-MM-DDTHH:mm)" },
+              end_date: { type: "string", description: "Event end (ISO format YYYY-MM-DDTHH:mm)" },
+              phone_number: { type: "string" },
+              social_media: { type: "string", description: "Email or social link" },
+              notes: { type: "string" },
+              payment_status: { type: "string", enum: ["not_paid", "partly_paid", "fully_paid"] },
+              payment_amount: { type: "number" },
+              event_name: { type: "string" }
+            },
+            required: ["full_name", "start_date", "end_date"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_or_update_task",
+          description: `Create or update tasks.
+          
+MANDATORY fields:
+- task_name: Task title/name
+
+OPTIONAL fields (if user provides):
+- description: Task description/notes
+- status: 'todo', 'in_progress', or 'done'
+- deadline: Task deadline (ISO format YYYY-MM-DDTHH:mm)
+- reminder: Reminder time (ISO format YYYY-MM-DDTHH:mm)
+- email_reminder: Enable email reminder (boolean)
+
+For EDIT: Include task_id to update existing task`,
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "Task ID for editing (optional)" },
+              task_name: { type: "string", description: "Task title (REQUIRED)" },
+              description: { type: "string" },
+              status: { type: "string", enum: ["todo", "in_progress", "done"] },
+              deadline: { type: "string", description: "Deadline ISO timestamp" },
+              reminder: { type: "string", description: "Reminder ISO timestamp" },
+              email_reminder: { type: "boolean" }
+            },
+            required: ["task_name"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_or_update_customer",
+          description: `Create or update customers/clients in CRM.
+          
+MANDATORY fields:
+- full_name: Customer full name
+
+OPTIONAL fields (if user provides):
+- phone_number: Contact phone
+- social_media: Email or social network link
+- notes: Customer notes
+- payment_status: 'not_paid', 'partly_paid', or 'fully_paid'
+- payment_amount: Payment amount (number)
+- create_event: Create linked event (boolean)
+- event_start: Event start date if create_event is true
+- event_end: Event end date if create_event is true
+
+For EDIT: Include customer_id to update existing customer`,
+          parameters: {
+            type: "object",
+            properties: {
+              customer_id: { type: "string", description: "Customer ID for editing (optional)" },
+              full_name: { type: "string", description: "Customer full name (REQUIRED)" },
+              phone_number: { type: "string" },
+              social_media: { type: "string", description: "Email or social link" },
+              notes: { type: "string" },
+              payment_status: { type: "string", enum: ["not_paid", "partly_paid", "fully_paid"] },
+              payment_amount: { type: "number" },
+              create_event: { type: "boolean", description: "Also create calendar event" },
+              event_start: { type: "string", description: "Event start if create_event=true" },
+              event_end: { type: "string", description: "Event end if create_event=true" }
+            },
+            required: ["full_name"]
+          }
+        }
       }
     ];
 
@@ -758,6 +866,57 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 
 **USER TIMEZONE**: ${effectiveTZ || 'UTC (offset-based)'}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
+
+**🤖 AI AGENT CAPABILITIES - YOU CAN NOW CREATE AND EDIT DATA!**
+
+**WRITE CAPABILITIES** (NEW - You are now an active agent!):
+
+1. **📅 CREATE/EDIT CALENDAR EVENTS**
+   - Tool: create_or_update_event
+   - MINIMUM required: Full name + start date + end date
+   - Optional: phone, email/social, notes, payment details, event type
+   - Example: "Add event for John Smith tomorrow at 2pm to 4pm" → CREATE IMMEDIATELY
+   - Example: "Update John's event to 3pm" → UPDATE with event_id
+
+2. **✅ CREATE/EDIT TASKS**
+   - Tool: create_or_update_task
+   - MINIMUM required: Task name
+   - Optional: description, status, deadline, reminder, email reminder
+   - Example: "Create task to call vendor" → CREATE IMMEDIATELY
+   - Example: "Mark task as done" → UPDATE with task_id and status='done'
+
+3. **👥 CREATE/EDIT CUSTOMERS (CRM)**
+   - Tool: create_or_update_customer
+   - MINIMUM required: Full name
+   - Optional: phone, email/social, notes, payment details
+   - Can optionally create linked event
+   - Example: "Add customer Mike Jones, phone 555-1234" → CREATE IMMEDIATELY
+   - Example: "Update customer payment status to paid" → UPDATE with customer_id
+
+**CRITICAL AGENT WORKFLOW RULES**:
+
+**FOR EVENT CREATION:**
+- User says "Add event for Sarah at 3pm tomorrow" → YOU HAVE ALL INFO → create_or_update_event immediately
+- If missing critical info (name or dates) → ask: "I need the full name and date/time to create the event"
+- If user provides payment info → include it in the tool call
+- NEVER ask for optional fields unless user wants to add them
+
+**FOR TASK CREATION:**
+- User says "Create task to buy supplies" → YOU HAVE ALL INFO → create_or_update_task immediately
+- If they want deadline/reminder → they'll specify it, otherwise create without
+- NEVER over-ask for optional fields
+
+**FOR CUSTOMER CREATION:**
+- User says "Add customer Lisa Brown" → YOU HAVE ALL INFO → create_or_update_customer immediately
+- If they want to create event too → ask for event dates
+- Payment details are OPTIONAL - only include if provided
+
+**IMPORTANT PRINCIPLES:**
+1. **ACT IMMEDIATELY** when you have minimum required info (name for customers/tasks, name+dates for events)
+2. **DON'T OVER-ASK** - only ask for info that's truly critical or explicitly requested
+3. **CONFIRM SUCCESS** - After successful creation, confirm what was created with details
+4. **HANDLE ERRORS GRACEFULLY** - If creation fails, explain the error clearly and suggest fixes
+5. **MAINTAIN CONTEXT** - Remember what was just created to handle follow-up questions
 
 **REMINDERS - SERVER-SIDE TIME MATH**:
 For relative times ("in 10 minutes"): use offset_minutes
@@ -1045,6 +1204,7 @@ For excel: call generate_excel_report, provide markdown download link.
 6. **Deleting Message**: Hover over message → Click delete icon → Confirm
 
 **AI Assistant (That's Me!) Can**:
+✓ **CREATE & EDIT** events, tasks, and customers for you
 ✓ Answer questions about your calendar, tasks, CRM
 ✓ Provide real-time data and statistics
 ✓ Find customers, check schedules
@@ -1094,12 +1254,14 @@ For excel: call generate_excel_report, provide markdown download link.
 ✅ CORRECT: User asks "excel tasks last year" → Call generate_excel_report(report_type="tasks", months=12) → Show download link or "no data" message
 ❌ WRONG: User asks "excel tasks last year" → Call get_all_tasks first → Say "no task data" without trying generate_excel_report
 
-**LIMITATIONS**:
-❌ You CANNOT modify data (read-only access)
-❌ You CANNOT create/edit/delete events, tasks, customers
-✅ You CAN provide insights, answer questions, find information, give recommendations
+**YOUR FULL CAPABILITIES**:
+✅ You CAN create and edit events, tasks, and customers
+✅ You CAN provide insights, answer questions, and analyze data
+✅ You CAN generate Excel reports and set reminders
+✅ You CAN understand natural language and maintain conversation context
+❌ You CANNOT delete data (only create/update for safety)
 
-Remember: You're a smart assistant that understands context, remembers conversation history, and provides useful insights based on real business data!`;
+Remember: You're a powerful AI agent that can both READ and WRITE data. Act proactively to help users manage their business!`;
 
     // Process attachments if any
     let attachmentContext = '';
@@ -1870,6 +2032,279 @@ Remember: You're a smart assistant that understands context, remembers conversat
                   headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 }
               );
+            }
+
+            case 'create_or_update_event': {
+              const { event_id, full_name, start_date, end_date, phone_number, social_media, notes, payment_status, payment_amount, event_name } = args;
+              
+              console.log(`    📅 ${event_id ? 'Updating' : 'Creating'} event for ${full_name}`);
+              
+              try {
+                const eventData = {
+                  title: full_name,
+                  user_surname: full_name,
+                  user_number: phone_number || "",
+                  social_network_link: social_media || "",
+                  event_notes: notes || "",
+                  event_name: event_name || "",
+                  start_date: start_date,
+                  end_date: end_date,
+                  payment_status: payment_status || "not_paid",
+                  payment_amount: payment_amount || null,
+                  user_id: ownerId,
+                  type: "event",
+                  created_by_type: "admin",
+                  created_by_name: "Smartbookly AI",
+                  last_edited_by_type: "admin",
+                  last_edited_by_name: "Smartbookly AI"
+                };
+
+                if (event_id) {
+                  // Update existing event
+                  const { data: result, error: updateError } = await supabaseAdmin.rpc('save_event_with_persons', {
+                    p_event_id: event_id,
+                    p_event_data: eventData,
+                    p_additional_persons: [],
+                    p_edited_by_type: "admin",
+                    p_edited_by_name: "Smartbookly AI"
+                  });
+                  
+                  if (updateError) {
+                    console.error('    ❌ Failed to update event:', updateError);
+                    toolResult = { success: false, error: updateError.message };
+                  } else {
+                    console.log(`    ✅ Event updated: ${full_name}`);
+                    toolResult = { 
+                      success: true, 
+                      event_id: event_id,
+                      action: 'updated',
+                      message: `Event updated: ${full_name} on ${start_date}`
+                    };
+                  }
+                } else {
+                  // Create new event
+                  const { data: eventId, error: createError } = await supabaseAdmin.rpc('save_event_with_persons', {
+                    p_event_data: eventData,
+                    p_additional_persons: [],
+                    p_edited_by_type: "admin",
+                    p_edited_by_name: "Smartbookly AI"
+                  });
+                  
+                  if (createError) {
+                    console.error('    ❌ Failed to create event:', createError);
+                    toolResult = { success: false, error: createError.message };
+                  } else {
+                    console.log(`    ✅ Event created: ${full_name} (ID: ${eventId})`);
+                    toolResult = { 
+                      success: true, 
+                      event_id: eventId,
+                      action: 'created',
+                      message: `Event created: ${full_name} on ${start_date}`
+                    };
+                    
+                    // Broadcast change for real-time sync
+                    const ch = supabaseAdmin.channel(`public_board_events_${ownerId}`);
+                    ch.subscribe((status) => {
+                      if (status === 'SUBSCRIBED') {
+                        ch.send({ type: 'broadcast', event: 'events-changed', payload: { ts: Date.now(), source: 'ai' } });
+                        supabaseAdmin.removeChannel(ch);
+                      }
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('    ❌ Error in create_or_update_event:', error);
+                toolResult = { success: false, error: error.message || 'Unknown error' };
+              }
+              break;
+            }
+
+            case 'create_or_update_task': {
+              const { task_id, task_name, description, status, deadline, reminder, email_reminder } = args;
+              
+              console.log(`    ✅ ${task_id ? 'Updating' : 'Creating'} task: ${task_name}`);
+              
+              try {
+                const taskData = {
+                  title: task_name,
+                  description: description || "",
+                  status: status || "todo",
+                  user_id: ownerId,
+                  position: 0,
+                  deadline_at: deadline || null,
+                  reminder_at: reminder || null,
+                  email_reminder_enabled: email_reminder || false,
+                  created_by_type: "admin",
+                  created_by_name: "Smartbookly AI",
+                  last_edited_by_type: "admin",
+                  last_edited_by_name: "Smartbookly AI",
+                  last_edited_at: new Date().toISOString()
+                };
+
+                if (task_id) {
+                  // Update existing task
+                  const { error: updateError } = await supabaseAdmin
+                    .from('tasks')
+                    .update(taskData)
+                    .eq('id', task_id)
+                    .eq('user_id', ownerId);
+                  
+                  if (updateError) {
+                    console.error('    ❌ Failed to update task:', updateError);
+                    toolResult = { success: false, error: updateError.message };
+                  } else {
+                    console.log(`    ✅ Task updated: ${task_name}`);
+                    toolResult = { 
+                      success: true, 
+                      task_id: task_id,
+                      action: 'updated',
+                      message: `Task updated: ${task_name}`
+                    };
+                  }
+                } else {
+                  // Create new task
+                  const { data: newTask, error: createError } = await supabaseAdmin
+                    .from('tasks')
+                    .insert(taskData)
+                    .select()
+                    .single();
+                  
+                  if (createError) {
+                    console.error('    ❌ Failed to create task:', createError);
+                    toolResult = { success: false, error: createError.message };
+                  } else {
+                    console.log(`    ✅ Task created: ${task_name} (ID: ${newTask.id})`);
+                    toolResult = { 
+                      success: true, 
+                      task_id: newTask.id,
+                      action: 'created',
+                      message: `Task created: ${task_name}`
+                    };
+                    
+                    // Broadcast change for real-time sync
+                    const ch = supabaseAdmin.channel(`public_board_tasks_${ownerId}`);
+                    ch.subscribe((status) => {
+                      if (status === 'SUBSCRIBED') {
+                        ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now(), source: 'ai' } });
+                        supabaseAdmin.removeChannel(ch);
+                      }
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('    ❌ Error in create_or_update_task:', error);
+                toolResult = { success: false, error: error.message || 'Unknown error' };
+              }
+              break;
+            }
+
+            case 'create_or_update_customer': {
+              const { customer_id, full_name, phone_number, social_media, notes, payment_status, payment_amount, create_event, event_start, event_end } = args;
+              
+              console.log(`    👥 ${customer_id ? 'Updating' : 'Creating'} customer: ${full_name}`);
+              
+              try {
+                const customerData = {
+                  title: full_name,
+                  user_surname: full_name,
+                  user_number: phone_number || "",
+                  social_network_link: social_media || "",
+                  event_notes: notes || "",
+                  payment_status: payment_status || "not_paid",
+                  payment_amount: payment_amount || null,
+                  user_id: ownerId,
+                  type: "customer",
+                  created_by_type: "admin",
+                  created_by_name: "Smartbookly AI",
+                  last_edited_by_type: "admin",
+                  last_edited_by_name: "Smartbookly AI"
+                };
+
+                if (customer_id) {
+                  // Update existing customer
+                  const { error: updateError } = await supabaseAdmin
+                    .from('customers')
+                    .update(customerData)
+                    .eq('id', customer_id)
+                    .eq('user_id', ownerId);
+                  
+                  if (updateError) {
+                    console.error('    ❌ Failed to update customer:', updateError);
+                    toolResult = { success: false, error: updateError.message };
+                  } else {
+                    console.log(`    ✅ Customer updated: ${full_name}`);
+                    toolResult = { 
+                      success: true, 
+                      customer_id: customer_id,
+                      action: 'updated',
+                      message: `Customer updated: ${full_name}`
+                    };
+                  }
+                } else {
+                  // Create new customer
+                  const { data: newCustomer, error: createError } = await supabaseAdmin
+                    .from('customers')
+                    .insert(customerData)
+                    .select()
+                    .single();
+                  
+                  if (createError) {
+                    console.error('    ❌ Failed to create customer:', createError);
+                    toolResult = { success: false, error: createError.message };
+                  } else {
+                    console.log(`    ✅ Customer created: ${full_name} (ID: ${newCustomer.id})`);
+                    let message = `Customer created: ${full_name}`;
+                    
+                    // If create_event is true, also create the event
+                    if (create_event && event_start && event_end) {
+                      const { data: eventId, error: eventError } = await supabaseAdmin.rpc('save_event_with_persons', {
+                        p_event_data: {
+                          title: full_name,
+                          user_surname: full_name,
+                          user_number: phone_number || "",
+                          social_network_link: social_media || "",
+                          event_notes: notes || "",
+                          start_date: event_start,
+                          end_date: event_end,
+                          payment_status: payment_status || "not_paid",
+                          payment_amount: payment_amount || null,
+                          user_id: ownerId,
+                          type: "event",
+                          customer_id: newCustomer.id,
+                          created_by_type: "admin",
+                          created_by_name: "Smartbookly AI"
+                        },
+                        p_additional_persons: []
+                      });
+                      
+                      if (!eventError) {
+                        message += ` and event created for ${event_start}`;
+                        console.log(`    ✅ Linked event created (ID: ${eventId})`);
+                      }
+                    }
+                    
+                    toolResult = { 
+                      success: true, 
+                      customer_id: newCustomer.id,
+                      action: 'created',
+                      message
+                    };
+                    
+                    // Broadcast change for real-time sync
+                    const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
+                    ch.subscribe((status) => {
+                      if (status === 'SUBSCRIBED') {
+                        ch.send({ type: 'broadcast', event: 'customers-changed', payload: { ts: Date.now(), source: 'ai' } });
+                        supabaseAdmin.removeChannel(ch);
+                      }
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('    ❌ Error in create_or_update_customer:', error);
+                toolResult = { success: false, error: error.message || 'Unknown error' };
+              }
+              break;
             }
           }
 
