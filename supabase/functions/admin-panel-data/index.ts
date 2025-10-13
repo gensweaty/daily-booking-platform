@@ -45,16 +45,34 @@ serve(async (req) => {
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
       
-      // Get all users for subscription distribution (not filtered by date)
-      const { data: allUsers } = await supabase.functions.invoke('admin-panel-data', {
-        body: { type: 'users' }
-      });
-
+      // Get all subscriptions for distribution stats
+      const { data: allSubscriptions } = await supabase
+        .from('subscriptions')
+        .select('plan_type, status, current_period_end, subscription_end_date, trial_end_date')
+      
       let subscriptionStats = { trial: 0, monthly: 0, yearly: 0, ultimate: 0 }
       
-      if (allUsers && Array.isArray(allUsers)) {
-        subscriptionStats = allUsers.reduce((acc: any, user) => {
-          const plan = user.subscriptionPlan || 'trial'
+      if (allSubscriptions) {
+        const now = new Date()
+        subscriptionStats = allSubscriptions.reduce((acc: any, sub) => {
+          let plan = 'trial'
+          
+          if (sub.plan_type === 'ultimate') {
+            plan = 'ultimate'
+          } else if (sub.plan_type === 'yearly') {
+            if (sub.status === 'active') {
+              const endDate = sub.current_period_end ? new Date(sub.current_period_end) : 
+                             sub.subscription_end_date ? new Date(sub.subscription_end_date) : null
+              plan = (endDate && endDate > now) ? 'yearly' : 'trial'
+            }
+          } else if (sub.plan_type === 'monthly') {
+            if (sub.status === 'active') {
+              const endDate = sub.current_period_end ? new Date(sub.current_period_end) : 
+                             sub.subscription_end_date ? new Date(sub.subscription_end_date) : null
+              plan = (endDate && endDate > now) ? 'monthly' : 'trial'
+            }
+          }
+          
           acc[plan] = (acc[plan] || 0) + 1
           return acc
         }, { trial: 0, monthly: 0, yearly: 0, ultimate: 0 })
