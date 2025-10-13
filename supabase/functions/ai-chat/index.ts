@@ -779,45 +779,40 @@ For EDIT: Include event_id to update existing event`,
         type: "function",
         function: {
           name: "create_or_update_task",
-          description: `Create or update tasks with FULL feature support.
+          description: `Create or update tasks with FULL capabilities - files attach automatically!
           
 MANDATORY fields:
 - task_name: Task title/name
 
-OPTIONAL fields (use when user specifies):
-- description: Task description/notes (rich text)
-- status: 'todo' (default), 'inprogress', or 'done'
-- deadline: Task deadline (ISO format YYYY-MM-DDTHH:mm)
-- reminder: Reminder time (ISO format YYYY-MM-DDTHH:mm, must be before deadline)
-- email_reminder: Enable email reminder (boolean, auto-enabled when reminder is set)
-- assigned_to_type: 'admin' or 'sub_user' (for team assignment)
-- assigned_to_id: UUID of assignee (get from get_sub_users tool)
-- file_attachment_ids: Array of file IDs from uploaded files in chat (see file IDs in message)
+OPTIONAL fields:
+- description: Task description
+- status: 'todo' | 'inprogress' | 'done' (default: todo)
+- deadline: ISO timestamp YYYY-MM-DDTHH:mm
+- reminder: ISO timestamp (before deadline, enables email auto)
+- email_reminder: boolean (auto-enabled with reminder)
+- assigned_to_name: Name of team member to assign (match from sub-users list)
 
-For EDIT: Include task_id to update existing task
+FILE ATTACHMENTS:
+- Files uploaded in chat are AUTOMATICALLY attached - no IDs needed!
+- Works exactly like events - just create the task
 
-CRITICAL FOR FILE ATTACHMENTS:
-- When user uploads files IN CHAT and says "add to task" or "attach file to task"
-- Look for file IDs in the user message (format: "File ID: xxx | Name: yyy")
-- Pass those file IDs in file_attachment_ids array
-- Example: user uploads file.json → you see "File ID: abc-123" → use file_attachment_ids: ["abc-123"]`,
+TEAM ASSIGNMENT:
+- Use assigned_to_name with person's name (e.g., "papex", "John", "Sarah")
+- System auto-matches to sub-users - no manual ID lookup!
+- If name is unique, assignment happens automatically
+
+For EDIT: Include task_id`,
           parameters: {
             type: "object",
             properties: {
-              task_id: { type: "string", description: "Task ID for editing (optional)" },
+              task_id: { type: "string", description: "Task ID for edit (optional)" },
               task_name: { type: "string", description: "Task title (REQUIRED)" },
-              description: { type: "string", description: "Task description" },
-              status: { type: "string", enum: ["todo", "inprogress", "done"], description: "Task status (default: todo)" },
-              deadline: { type: "string", description: "Deadline ISO timestamp YYYY-MM-DDTHH:mm" },
-              reminder: { type: "string", description: "Reminder ISO timestamp (must be before deadline)" },
-              email_reminder: { type: "boolean", description: "Enable email reminder" },
-              assigned_to_type: { type: "string", enum: ["admin", "sub_user"], description: "Assignee type (use with assigned_to_id)" },
-              assigned_to_id: { type: "string", description: "Assignee UUID (get from get_sub_users tool)" },
-              file_attachment_ids: { 
-                type: "array", 
-                items: { type: "string" },
-                description: "Array of file IDs uploaded in chat (look for 'File ID: xxx' in user message)" 
-              }
+              description: { type: "string" },
+              status: { type: "string", enum: ["todo", "inprogress", "done"] },
+              deadline: { type: "string", description: "Deadline (YYYY-MM-DDTHH:mm)" },
+              reminder: { type: "string", description: "Reminder time (before deadline)" },
+              email_reminder: { type: "boolean", description: "Email reminder flag" },
+              assigned_to_name: { type: "string", description: "Team member name for assignment" }
             },
             required: ["task_name"]
           }
@@ -1014,37 +1009,47 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
      * "create unassigned task" → omit assignment fields
    - NEVER say "I need an ID" - you can look it up by name!
    
-    **FILE ATTACHMENTS FROM CHAT (CRITICAL - READ CAREFULLY!):**
-    - ✅ When user uploads files IN CHAT, they appear in the message as "File ID: xxx | Name: yyy"
-    - ✅ ALWAYS look for "File ID:" in the user message when they say "attach file" or "add file to task"
-    - ✅ Extract the file ID(s) from the message and pass in file_attachment_ids array
-    - ✅ DO NOT make up file IDs - only use the ones explicitly shown in the message
-    - Process: 
-      1. User uploads file in chat → System adds "File ID: abc-123 | Name: file.json" to message
-      2. You see this in the message → Extract the ID "abc-123"
-      3. Pass file_attachment_ids: ["abc-123"] when creating task
-      4. System automatically links this file to the task
-    - Example messages you'll see:
-      * "add task improve AI" + "🔗 **UPLOADED FILES**: File ID: abc-123 | Name: file.json"
-      * You respond by calling create_or_update_task with file_attachment_ids: ["abc-123"]
-    - These files will appear in task edit popup and task preview popup (just like event files!)
-    - Users can ALSO upload files manually in task form UI later
-    - CRITICAL: Only include file IDs that are explicitly shown in the current message
-   
-   **DEADLINES & REMINDERS:**
-   - ✅ You CAN set deadlines (any future date/time)
-   - ✅ You CAN set reminders (must be before deadline, auto-enables email)
-   - Examples:
-     * "deadline tomorrow at 5pm" → deadline_at="2025-10-14T17:00:00Z"
-     * "remind me 1 hour before" → reminder_at=(deadline minus 1 hour)
-     * "task due next Monday with reminder day before"
-   
-   **Complete Examples:**
-   - "Create task 'Call vendor' in progress status, assign to papex, deadline tomorrow 5pm"
-     → get_sub_users first, find papex, CREATE with status="inprogress", assignment, deadline
-   - "Add task 'Review report' with this file, assign to team member John"
-     → get_sub_users, find John, CREATE with file_attachment_ids from chat upload
-   - "Mark task as done" → get_all_tasks to find ID, then UPDATE status='done'
+    **FILE ATTACHMENTS (AUTOMATIC - LIKE EVENTS!):**
+    - ✅ Files uploaded in chat are AUTOMATICALLY attached when creating tasks
+    - ✅ NO manual File ID extraction needed - system handles it automatically
+    - ✅ Works EXACTLY like events - just create the task, files attach automatically
+    - Examples:
+      * User uploads file.json in chat → says "add task with this file"
+      * You call create_or_update_task → System auto-links the uploaded file
+      * File appears in task popup just like event files!
+    - CRITICAL: Do NOT ask for File IDs - system handles attachment automatically!
+    
+    **TEAM ASSIGNMENT (AUTO-MATCH BY NAME!):**
+    - ✅ Use assigned_to_name parameter with the person's name (e.g., "papex", "John")
+    - ✅ System AUTOMATICALLY matches name to sub-users or admin
+    - ✅ NO need to call get_sub_users first - system does it internally!
+    - ✅ If name uniquely matches, assignment happens automatically
+    - Examples:
+      * "assign to papex" → assigned_to_name="papex" → System finds matching sub-user
+      * "assign to me" → assigned_to_name="admin" → Assigns to board owner
+      * "assign to Sarah" → assigned_to_name="Sarah" → Auto-finds Sarah in team
+    - CRITICAL: Do NOT ask "which papex?" - if name is unique, just assign!
+    
+    **DEADLINES & REMINDERS:**
+    - ✅ Set deadlines (any future date/time in ISO format)
+    - ✅ Set reminders (before deadline, auto-enables email)
+    - Examples:
+      * "deadline tomorrow 5pm" → deadline="2025-10-14T17:00"
+      * "remind 1 hour before" → reminder=(deadline - 1 hour)
+    
+    **BE DECISIVE - DO NOT ASK CLARIFYING QUESTIONS:**
+    - ✅ If user says "add task", just CREATE IT immediately
+    - ✅ If user uploads file, it attaches AUTOMATICALLY
+    - ✅ If user says "assign to [name]", match the name and assign
+    - ❌ DO NOT ask "which file?", "which person?", "do you want to upload?"
+    - ❌ DO NOT ask for confirmations - just DO IT
+    
+    **Examples:**
+    - "task improve AI, assign papex, deadline tomorrow 5pm, attach file"
+      → CREATE with assigned_to_name="papex", deadline, file auto-attaches
+    - "add task call vendor for John in progress"
+      → CREATE with assigned_to_name="John", status="inprogress"
+    - "task done" → get_all_tasks → UPDATE status="done"
 
 3. **👥 CREATE/EDIT CUSTOMERS (CRM)**
    - Tool: create_or_update_customer
@@ -1511,14 +1516,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     }
 
     // Build conversation with history and attachments
-    // CRITICAL: Tell AI about uploaded files with IDs for task attachment
-    let fileIdsInfo = '';
-    if (uploadedFileRecords.length > 0) {
-      fileIdsInfo = `\n\n🔗 **UPLOADED FILES (use these IDs for task attachments)**:\n${uploadedFileRecords.map(f => `- File ID: ${f.id} | Name: ${f.filename} | Type: ${f.content_type || 'unknown'}`).join('\n')}`;
-    }
-    
-    const userMessage = attachmentContext || fileIdsInfo
-      ? `${prompt}${attachmentContext ? `\n\n--- Attached Files ---${attachmentContext}` : ''}${fileIdsInfo}`
+    // CRITICAL: Make files automatically available like events - no manual ID lookup needed!
+    const userMessage = attachmentContext 
+      ? `${prompt}\n\n--- Attached Files ---${attachmentContext}`
       : prompt;
     
     const messages = [
@@ -2637,21 +2637,54 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'create_or_update_task': {
-              const { task_id, task_name, description, status, deadline, reminder, email_reminder, assigned_to_type, assigned_to_id, file_attachment_ids } = args;
+              const { task_id, task_name, description, status, deadline, reminder, email_reminder, assigned_to_name } = args;
               
               console.log(`    ✅ ${task_id ? 'Updating' : 'Creating'} task: ${task_name}`, { 
                 status,
-                assigned_to_type, 
-                assigned_to_id, 
-                file_attachment_ids,
+                assigned_to_name,
                 deadline,
-                reminder 
+                reminder,
+                has_attachments: uploadedFileRecords.length > 0
               });
               
               try {
-                // Normalize status to match database values
+                // Auto-resolve assignment by name (like events auto-handle files!)
+                let assignedToType = null;
+                let assignedToId = null;
+                
+                if (assigned_to_name) {
+                  const nameLower = assigned_to_name.toLowerCase().trim();
+                  console.log(`    👤 Resolving assignment for: "${assigned_to_name}"`);
+                  
+                  if (nameLower === 'admin' || nameLower === 'me') {
+                    assignedToType = 'admin';
+                    assignedToId = ownerId;
+                    console.log(`    ✓ Assigned to admin (board owner)`);
+                  } else {
+                    // Check sub-users by name match
+                    const { data: subUsers } = await supabaseAdmin
+                      .from('sub_users')
+                      .select('id, fullname, email')
+                      .eq('board_owner_id', ownerId);
+                    
+                    const match = subUsers?.find(su => 
+                      su.fullname?.toLowerCase().includes(nameLower) ||
+                      su.email?.toLowerCase().includes(nameLower)
+                    );
+                    
+                    if (match) {
+                      assignedToType = 'sub_user';
+                      assignedToId = match.id;
+                      console.log(`    ✓ Assigned to sub-user: ${match.fullname} (${match.id})`);
+                    } else {
+                      console.log(`    ⚠️ No match found for "${assigned_to_name}" - creating unassigned task`);
+                    }
+                  }
+                }
+                
+                // Normalize status
                 const normalizedStatus = normStatus(status) || "todo";
-                console.log(`    📊 Status normalization: "${status}" → "${normalizedStatus}"`);
+                console.log(`    📊 Status: "${status}" → "${normalizedStatus}"`);
                 
                 const taskData = {
                   title: task_name,
@@ -2661,23 +2694,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   position: 0,
                   deadline_at: deadline || null,
                   reminder_at: reminder || null,
-                  email_reminder_enabled: email_reminder || false,
-                  assigned_to_type: assigned_to_type || null,
-                  assigned_to_id: assigned_to_id || null,
+                  email_reminder_enabled: reminder ? true : (email_reminder || false),
+                  assigned_to_type: assignedToType,
+                  assigned_to_id: assignedToId,
                   created_by_type: requesterType,
                   created_by_name: requesterName,
                   last_edited_by_type: requesterType,
                   last_edited_by_name: requesterName,
                   last_edited_at: new Date().toISOString()
                 };
-                
-                console.log(`    📝 Task data prepared:`, {
-                  title: taskData.title,
-                  status: taskData.status,
-                  has_deadline: !!taskData.deadline_at,
-                  has_reminder: !!taskData.reminder_at,
-                  assigned_to: taskData.assigned_to_type ? `${taskData.assigned_to_type}:${taskData.assigned_to_id}` : 'unassigned'
-                });
 
                 if (task_id) {
                   // Update existing task
@@ -2691,23 +2716,23 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     console.error('    ❌ Failed to update task:', updateError);
                     toolResult = { success: false, error: updateError.message };
                   } else {
-                    // Handle file attachments for updated task
-                    if (file_attachment_ids && file_attachment_ids.length > 0) {
-                      console.log(`    📎 Linking ${file_attachment_ids.length} files to task ${task_id}`);
-                      for (const fileId of file_attachment_ids) {
+                    // Auto-link uploaded files (like events!)
+                    if (uploadedFileRecords.length > 0) {
+                      console.log(`    📎 Auto-linking ${uploadedFileRecords.length} files to task`);
+                      for (const file of uploadedFileRecords) {
                         await supabaseAdmin
                           .from('files')
                           .update({ task_id: task_id, parent_type: 'task' })
-                          .eq('id', fileId);
+                          .eq('id', file.id);
                       }
                     }
                     
-                    console.log(`    ✅ Task updated: ${task_name}`);
                     toolResult = { 
                       success: true, 
                       task_id: task_id,
                       action: 'updated',
-                      files_attached: file_attachment_ids?.length || 0,
+                      files_attached: uploadedFileRecords.length,
+                      assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
                       message: `Task updated: ${task_name}`
                     };
                   }
@@ -2725,14 +2750,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   } else {
                     console.log(`    ✅ Task created: ${task_name} (ID: ${newTask.id})`);
                     
-                    // Handle file attachments for new task
-                    if (file_attachment_ids && file_attachment_ids.length > 0) {
-                      console.log(`    📎 Linking ${file_attachment_ids.length} files to new task ${newTask.id}`);
-                      for (const fileId of file_attachment_ids) {
+                    // Auto-link uploaded files (like events!)
+                    if (uploadedFileRecords.length > 0) {
+                      console.log(`    📎 Auto-linking ${uploadedFileRecords.length} files to new task`);
+                      for (const file of uploadedFileRecords) {
                         await supabaseAdmin
                           .from('files')
                           .update({ task_id: newTask.id, parent_type: 'task' })
-                          .eq('id', fileId);
+                          .eq('id', file.id);
                       }
                     }
                     
@@ -2740,11 +2765,12 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       success: true, 
                       task_id: newTask.id,
                       action: 'created',
-                      files_attached: file_attachment_ids?.length || 0,
-                      message: `Task created: ${task_name}`
+                      files_attached: uploadedFileRecords.length,
+                      assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
+                      message: `Task created: ${task_name}. ${uploadedFileRecords.length > 0 ? `Files attached: ${uploadedFileRecords.map(f => f.filename).join(', ')}.` : ''} ${assignedToType ? `Assigned to ${assigned_to_name}.` : ''}`
                     };
                     
-                    // Broadcast change for real-time sync
+                    // Broadcast change
                     const ch = supabaseAdmin.channel(`public_board_tasks_${ownerId}`);
                     ch.subscribe((status) => {
                       if (status === 'SUBSCRIBED') {
