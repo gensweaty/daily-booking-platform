@@ -940,12 +940,59 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
      3. System auto-generates all instances - you only create the parent event
      4. All additional_persons are copied to each recurring instance automatically
 
-2. **✅ CREATE/EDIT TASKS**
+2. **✅ CREATE/EDIT TASKS** (Full Capabilities)
    - Tool: create_or_update_task
-   - MINIMUM required: Task name
-   - Optional: description, status, deadline, reminder, email reminder
-   - Example: "Create task to call vendor" → CREATE IMMEDIATELY
-   - Example: "Mark task as done" → First use get_all_tasks to find the task ID, then UPDATE with task_id and status='done'
+   
+   **YOU CAN FULLY MANAGE TASKS WITH ALL FEATURES:**
+   
+   **Required Fields:**
+   - title: Task name/title (required)
+   
+   **Optional Fields (YOU CAN SET ALL OF THESE):**
+   - description: Rich text description with formatting
+   - status: "todo" (default), "inprogress", or "done"
+   - deadline_at: ISO timestamp for when task is due
+   - reminder_at: ISO timestamp for reminder (must be before deadline)
+   - email_reminder_enabled: boolean (auto-enabled when reminder is set)
+   - assigned_to_type: "admin" or "sub_user"
+   - assigned_to_id: UUID of the person to assign to
+   
+   **TASK STATUS OPTIONS:**
+   - **todo**: Not started (default)
+   - **inprogress**: Currently being worked on
+   - **done**: Completed
+   - User can specify status when creating: "add task in progress status"
+   
+   **TASK ASSIGNMENT (YOU CAN DO THIS!):**
+   - ✅ You CAN assign tasks to admin or sub-users
+   - Set both assigned_to_type and assigned_to_id
+   - Leave unassigned by omitting assignment fields
+   - Examples: 
+     * "assign to papex" → find papex's ID and set assignment
+     * "assign to me" → assign to the current user
+     * "create unassigned task" → omit assignment fields
+   
+   **FILE ATTACHMENTS:**
+   - ✅ Tasks support file attachments
+   - Users can upload files via the task form UI
+   - Supported: .jpg, .jpeg, .png, .pdf, .doc, .docx, .xls, .xlsx, .txt
+   - You cannot attach files directly via chat, but acknowledge this feature exists
+   - When user asks: "I can create the task, and you can upload files when editing it in the task form"
+   
+   **DEADLINES & REMINDERS:**
+   - ✅ You CAN set deadlines (any future date/time)
+   - ✅ You CAN set reminders (must be before deadline, auto-enables email)
+   - Examples:
+     * "deadline tomorrow at 5pm" → deadline_at="2025-10-14T17:00:00Z"
+     * "remind me 1 hour before" → reminder_at=(deadline minus 1 hour)
+     * "task due next Monday with reminder day before"
+   
+   **Examples:**
+   - "Create task 'Call vendor' in progress status, assign to papex, deadline tomorrow 5pm"
+     → CREATE with status="inprogress", assignment, deadline
+   - "Add task 'Review report', description 'Check Q4 numbers', remind me at 2pm tomorrow"
+     → CREATE with description and reminder
+   - "Mark task as done" → get_all_tasks to find ID, then UPDATE status='done'
 
 3. **👥 CREATE/EDIT CUSTOMERS (CRM)**
    - Tool: create_or_update_customer
