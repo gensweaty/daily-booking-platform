@@ -2749,8 +2749,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       }
                     }
                     
-                    // Real-time will automatically sync via postgres_changes subscription
-                    console.log(`    📢 Task will sync via real-time postgres_changes`);
+                    // Broadcast change for real-time sync
+                    console.log(`    📢 Broadcasting task creation for real-time updates`);
+                    const taskChannel = supabaseAdmin.channel(`public_board_tasks_${ownerId}`);
+                    taskChannel.subscribe((status) => {
+                      if (status === 'SUBSCRIBED') {
+                        taskChannel.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now(), source: 'ai' } });
+                        supabaseAdmin.removeChannel(taskChannel);
+                      }
+                    });
                     
                     toolResult = { 
                       success: true, 
