@@ -495,22 +495,6 @@ serve(async (req) => {
       {
         type: "function",
         function: {
-          name: "get_sub_users",
-          description: "Get list of sub-users (team members) for the current workspace. Use this when user wants to assign tasks to team members or asks about team members.",
-          parameters: { type: "object", properties: {} }
-        }
-      },
-      {
-        type: "function",
-        function: {
-          name: "get_public_board_status",
-          description: "Check if user has a public board enabled and get its details",
-          parameters: { type: "object", properties: {} }
-        }
-      },
-      {
-        type: "function",
-        function: {
           name: "get_all_events",
           description: `**MANDATORY - CALL THIS FIRST FOR ANY CALENDAR/EVENTS QUESTION**
 
@@ -779,40 +763,29 @@ For EDIT: Include event_id to update existing event`,
         type: "function",
         function: {
           name: "create_or_update_task",
-          description: `Create or update tasks with FULL capabilities - files attach automatically!
+          description: `Create or update tasks.
           
 MANDATORY fields:
 - task_name: Task title/name
 
-OPTIONAL fields:
-- description: Task description
-- status: 'todo' | 'inprogress' | 'done' (default: todo)
-- deadline: ISO timestamp YYYY-MM-DDTHH:mm
-- reminder: ISO timestamp (before deadline, enables email auto)
-- email_reminder: boolean (auto-enabled with reminder)
-- assigned_to_name: Name of team member to assign (match from sub-users list)
+OPTIONAL fields (if user provides):
+- description: Task description/notes
+- status: 'todo', 'in_progress', or 'done'
+- deadline: Task deadline (ISO format YYYY-MM-DDTHH:mm)
+- reminder: Reminder time (ISO format YYYY-MM-DDTHH:mm)
+- email_reminder: Enable email reminder (boolean)
 
-FILE ATTACHMENTS:
-- Files uploaded in chat are AUTOMATICALLY attached - no IDs needed!
-- Works exactly like events - just create the task
-
-TEAM ASSIGNMENT:
-- Use assigned_to_name with person's name (e.g., "papex", "John", "Sarah")
-- System auto-matches to sub-users - no manual ID lookup!
-- If name is unique, assignment happens automatically
-
-For EDIT: Include task_id`,
+For EDIT: Include task_id to update existing task`,
           parameters: {
             type: "object",
             properties: {
-              task_id: { type: "string", description: "Task ID for edit (optional)" },
+              task_id: { type: "string", description: "Task ID for editing (optional)" },
               task_name: { type: "string", description: "Task title (REQUIRED)" },
               description: { type: "string" },
-              status: { type: "string", enum: ["todo", "inprogress", "done"] },
-              deadline: { type: "string", description: "Deadline (YYYY-MM-DDTHH:mm)" },
-              reminder: { type: "string", description: "Reminder time (before deadline)" },
-              email_reminder: { type: "boolean", description: "Email reminder flag" },
-              assigned_to_name: { type: "string", description: "Team member name for assignment" }
+              status: { type: "string", enum: ["todo", "in_progress", "done"] },
+              deadline: { type: "string", description: "Deadline ISO timestamp" },
+              reminder: { type: "string", description: "Reminder ISO timestamp" },
+              email_reminder: { type: "boolean" }
             },
             required: ["task_name"]
           }
@@ -904,14 +877,6 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 **USER TIMEZONE**: ${effectiveTZ || 'UTC (offset-based)'}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
 
-**👥 WORKSPACE & TEAM CONTEXT**:
-- Some users work solo, others have TEAM COLLABORATION with sub-users (team members)
-- Sub-users are additional team members who can access the workspace
-- Use get_sub_users tool to check if user has team members
-- Use get_public_board_status to check if user has public board enabled
-- When assigning tasks, you can assign to admin OR sub-users by name
-- You MUST call get_sub_users before assigning tasks by name to team members
-
 **🤖 AI AGENT CAPABILITIES - YOU CAN NOW CREATE AND EDIT DATA!**
 
 **WRITE CAPABILITIES** (NEW - You are now an active agent!):
@@ -975,67 +940,12 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
      3. System auto-generates all instances - you only create the parent event
      4. All additional_persons are copied to each recurring instance automatically
 
-2. **✅ CREATE/EDIT TASKS** (Full Capabilities + Team Assignment)
+2. **✅ CREATE/EDIT TASKS**
    - Tool: create_or_update_task
-   
-   **CRITICAL: JUST CREATE THE TASK - NO QUESTIONS ASKED!**
-   
-   **Required Fields:**
-   - task_name: Task name/title (required)
-   
-   **Optional Fields (YOU CAN SET ALL OF THESE):**
-   - description: Rich text description with formatting
-   - status: "todo" (default), "inprogress", or "done"
-   - deadline: ISO timestamp for when task is due
-   - reminder: ISO timestamp for reminder (must be before deadline)
-   - email_reminder: boolean (auto-enabled when reminder is set)
-   - assigned_to_name: Name of person to assign to (e.g., "papex", "Sarah", "admin")
-   
-   **TASK STATUS OPTIONS:**
-   - **todo**: Not started (default) - ALSO accepts: "to do", "pending", "backlog"
-   - **inprogress**: Currently being worked on - ALSO accepts: "in progress", "working", "active"
-   - **done**: Completed - ALSO accepts: "completed", "finished", "closed"
-   - User can specify status when creating: "add task in progress status" → status="inprogress"
-   
-   **FILE ATTACHMENTS (100% AUTOMATIC - ZERO CONFIG!):**
-   - ✅ Files uploaded in chat are AUTOMATICALLY attached to tasks
-   - ✅ NO parameters needed - NO file IDs - NO extra work!
-   - ✅ Works EXACTLY like events - just create the task, files attach themselves
-   - ✅ User uploads image.png → says "add task with this" → You call create_or_update_task → Done!
-   - ❌ NEVER ask "which file?" or "do you want to attach?" - Files auto-attach ALWAYS
-   
-   **TEAM ASSIGNMENT (100% AUTOMATIC - JUST USE NAMES!):**
-   - ✅ Use assigned_to_name parameter with ANY name mentioned (e.g., "papex", "John", "Sarah")
-   - ✅ System AUTOMATICALLY finds matching sub-user or admin - NO IDs needed!
-   - ✅ NEVER call get_sub_users before creating tasks - it's UNNECESSARY
-   - ✅ Name matching is fuzzy - "papex" matches "Papex Grigolia" automatically
-   - Examples:
-     * "assign to papex" → assigned_to_name="papex" (system finds them)
-     * "task for Sarah" → assigned_to_name="Sarah" (system finds them)
-     * "assign to me" or "assign to admin" → assigned_to_name="admin"
-   - ❌ NEVER ask "which person?" - if name is mentioned, use it!
-   
-   **DEADLINES & REMINDERS:**
-   - ✅ Set deadlines in ISO format: "2025-10-14T17:00:00Z"
-   - ✅ Set reminders (before deadline): "2025-10-14T16:00:00Z"
-   - Examples:
-     * "deadline tomorrow 5pm" → deadline=(tomorrow at 17:00 in user timezone)
-     * "remind 1 hour before" → reminder=(deadline - 1 hour)
-   
-   **BE DECISIVE - CREATE IMMEDIATELY:**
-   - ✅ When user says "add task" → CALL create_or_update_task RIGHT NOW
-   - ✅ When user uploads file + says "add task" → Files attach AUTOMATICALLY
-   - ✅ When user says "assign to [name]" → Use that name in assigned_to_name
-   - ❌ NEVER ask "should I create?" or "which file?" or "which person?"
-   - ❌ NEVER call get_sub_users first - it's a WASTE OF TIME
-   - ❌ NEVER say "I'll create" - JUST CREATE IT IN THE SAME RESPONSE
-    
-    **Examples:**
-    - "task improve AI, assign papex, deadline tomorrow 5pm, attach file"
-      → CREATE with assigned_to_name="papex", deadline, file auto-attaches
-    - "add task call vendor for John in progress"
-      → CREATE with assigned_to_name="John", status="inprogress"
-    - "task done" → get_all_tasks → UPDATE status="done"
+   - MINIMUM required: Task name
+   - Optional: description, status, deadline, reminder, email reminder
+   - Example: "Create task to call vendor" → CREATE IMMEDIATELY
+   - Example: "Mark task as done" → First use get_all_tasks to find the task ID, then UPDATE with task_id and status='done'
 
 3. **👥 CREATE/EDIT CUSTOMERS (CRM)**
    - Tool: create_or_update_customer
@@ -1440,7 +1350,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     // Process attachments if any
     let attachmentContext = '';
     const imageAttachments: any[] = [];
-    const uploadedFileRecords: any[] = []; // Store file records with IDs
     
     if (attachments && attachments.length > 0) {
       console.log(`📎 Processing ${attachments.length} attachments...`);
@@ -1451,34 +1360,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         size: a.size 
       })));
       
-      // CRITICAL: Create file records in `files` table so AI can reference them by ID
       for (const att of attachments) {
         console.log(`  → Processing: ${att.filename} from path: ${att.file_path}`);
-        
-        // Insert file record into `files` table with source='chat'
-        const { data: fileRecord, error: fileError } = await supabaseAdmin
-          .from('files')
-          .insert({
-            filename: att.filename,
-            file_path: att.file_path,
-            content_type: att.content_type || null,
-            size: att.size || null,
-            user_id: ownerId,
-            source: 'chat',
-            parent_type: 'chat',
-            task_id: null, // Will be linked when task is created
-            created_at: new Date().toISOString()
-          })
-          .select('id, filename, file_path, content_type, size')
-          .single();
-        
-        if (fileError) {
-          console.error(`❌ Failed to create file record for ${att.filename}:`, fileError);
-        } else {
-          console.log(`✅ Created file record ID: ${fileRecord.id} for ${att.filename}`);
-          uploadedFileRecords.push(fileRecord);
-        }
-        
         const analysis = await analyzeAttachment(att);
         
         if (typeof analysis === 'object' && analysis.type === 'image') {
@@ -1496,13 +1379,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       if (imageAttachments.length > 0) {
         console.log(`🖼️ Added ${imageAttachments.length} images for vision analysis`);
       }
-      if (uploadedFileRecords.length > 0) {
-        console.log(`✅ Created ${uploadedFileRecords.length} file records with IDs`);
-      }
     }
 
     // Build conversation with history and attachments
-    // CRITICAL: Make files automatically available like events - no manual ID lookup needed!
     const userMessage = attachmentContext 
       ? `${prompt}\n\n--- Attached Files ---${attachmentContext}`
       : prompt;
@@ -2623,66 +2502,20 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'create_or_update_task': {
-              const { task_id, task_name, description, status, deadline, reminder, email_reminder, assigned_to_name } = args;
+              const { task_id, task_name, description, status, deadline, reminder, email_reminder } = args;
               
-              console.log(`    ✅ ${task_id ? 'Updating' : 'Creating'} task: ${task_name}`, { 
-                status,
-                assigned_to_name,
-                deadline,
-                reminder,
-                has_attachments: uploadedFileRecords.length > 0
-              });
+              console.log(`    ✅ ${task_id ? 'Updating' : 'Creating'} task: ${task_name}`);
               
               try {
-                // Auto-resolve assignment by name (like events auto-handle files!)
-                let assignedToType = null;
-                let assignedToId = null;
-                
-                if (assigned_to_name) {
-                  const nameLower = assigned_to_name.toLowerCase().trim();
-                  console.log(`    👤 Resolving assignment for: "${assigned_to_name}"`);
-                  
-                  if (nameLower === 'admin' || nameLower === 'me') {
-                    assignedToType = 'admin';
-                    assignedToId = ownerId;
-                    console.log(`    ✓ Assigned to admin (board owner)`);
-                  } else {
-                    // Check sub-users by name match
-                    const { data: subUsers } = await supabaseAdmin
-                      .from('sub_users')
-                      .select('id, fullname, email')
-                      .eq('board_owner_id', ownerId);
-                    
-                    const match = subUsers?.find(su => 
-                      su.fullname?.toLowerCase().includes(nameLower) ||
-                      su.email?.toLowerCase().includes(nameLower)
-                    );
-                    
-                    if (match) {
-                      assignedToType = 'sub_user';
-                      assignedToId = match.id;
-                      console.log(`    ✓ Assigned to sub-user: ${match.fullname} (${match.id})`);
-                    } else {
-                      console.log(`    ⚠️ No match found for "${assigned_to_name}" - creating unassigned task`);
-                    }
-                  }
-                }
-                
-                // Normalize status
-                const normalizedStatus = normStatus(status) || "todo";
-                console.log(`    📊 Status: "${status}" → "${normalizedStatus}"`);
-                
                 const taskData = {
                   title: task_name,
                   description: description || "",
-                  status: normalizedStatus,
+                  status: status || "todo",
                   user_id: ownerId,
                   position: 0,
                   deadline_at: deadline || null,
                   reminder_at: reminder || null,
-                  email_reminder_enabled: reminder ? true : (email_reminder || false),
-                  assigned_to_type: assignedToType,
-                  assigned_to_id: assignedToId,
+                  email_reminder_enabled: email_reminder || false,
                   created_by_type: requesterType,
                   created_by_name: requesterName,
                   last_edited_by_type: requesterType,
@@ -2702,23 +2535,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     console.error('    ❌ Failed to update task:', updateError);
                     toolResult = { success: false, error: updateError.message };
                   } else {
-                    // Auto-link uploaded files (like events!)
-                    if (uploadedFileRecords.length > 0) {
-                      console.log(`    📎 Auto-linking ${uploadedFileRecords.length} files to task`);
-                      for (const file of uploadedFileRecords) {
-                        await supabaseAdmin
-                          .from('files')
-                          .update({ task_id: task_id, parent_type: 'task' })
-                          .eq('id', file.id);
-                      }
-                    }
-                    
+                    console.log(`    ✅ Task updated: ${task_name}`);
                     toolResult = { 
                       success: true, 
                       task_id: task_id,
                       action: 'updated',
-                      files_attached: uploadedFileRecords.length,
-                      assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
                       message: `Task updated: ${task_name}`
                     };
                   }
@@ -2735,28 +2556,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     toolResult = { success: false, error: createError.message };
                   } else {
                     console.log(`    ✅ Task created: ${task_name} (ID: ${newTask.id})`);
-                    
-                    // Auto-link uploaded files (like events!)
-                    if (uploadedFileRecords.length > 0) {
-                      console.log(`    📎 Auto-linking ${uploadedFileRecords.length} files to new task`);
-                      for (const file of uploadedFileRecords) {
-                        await supabaseAdmin
-                          .from('files')
-                          .update({ task_id: newTask.id, parent_type: 'task' })
-                          .eq('id', file.id);
-                      }
-                    }
-                    
                     toolResult = { 
                       success: true, 
                       task_id: newTask.id,
                       action: 'created',
-                      files_attached: uploadedFileRecords.length,
-                      assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
-                      message: `Task created: ${task_name}. ${uploadedFileRecords.length > 0 ? `Files attached: ${uploadedFileRecords.map(f => f.filename).join(', ')}.` : ''} ${assignedToType ? `Assigned to ${assigned_to_name}.` : ''}`
+                      message: `Task created: ${task_name}`
                     };
                     
-                    // Broadcast change
+                    // Broadcast change for real-time sync
                     const ch = supabaseAdmin.channel(`public_board_tasks_${ownerId}`);
                     ch.subscribe((status) => {
                       if (status === 'SUBSCRIBED') {
@@ -2768,63 +2575,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 }
               } catch (error) {
                 console.error('    ❌ Error in create_or_update_task:', error);
-                toolResult = { success: false, error: error.message || 'Unknown error' };
-              }
-              break;
-            }
-            
-            case 'get_sub_users': {
-              console.log('    👥 Fetching sub-users (team members)');
-              
-              try {
-                const { data: subUsers, error: subUsersError } = await supabaseClient
-                  .from('sub_users')
-                  .select('id, fullname, email, avatar_url')
-                  .eq('board_owner_id', ownerId);
-                  
-                if (subUsersError) {
-                  console.error('    ❌ Failed to fetch sub-users:', subUsersError);
-                  toolResult = { success: false, error: subUsersError.message };
-                } else {
-                  console.log(`    ✅ Found ${subUsers.length} sub-users`);
-                  toolResult = { 
-                    success: true, 
-                    sub_users: subUsers,
-                    count: subUsers.length,
-                    message: subUsers.length > 0 ? `Found ${subUsers.length} team member(s)` : 'No team members - this is a solo workspace'
-                  };
-                }
-              } catch (error) {
-                console.error('    ❌ Error fetching sub-users:', error);
-                toolResult = { success: false, error: error.message || 'Unknown error' };
-              }
-              break;
-            }
-            
-            case 'get_public_board_status': {
-              console.log('    🌐 Checking public board status');
-              
-              try {
-                const { data: publicBoard, error: boardError } = await supabaseClient
-                  .from('public_boards')
-                  .select('id, slug, is_active, magic_word, created_at')
-                  .eq('user_id', ownerId)
-                  .maybeSingle();
-                  
-                if (boardError) {
-                  console.error('    ❌ Failed to fetch public board:', boardError);
-                  toolResult = { success: false, error: boardError.message };
-                } else {
-                  console.log(`    ✅ Public board ${publicBoard?.is_active ? 'enabled' : 'not enabled'}`);
-                  toolResult = { 
-                    success: true, 
-                    public_board: publicBoard,
-                    is_enabled: !!publicBoard?.is_active,
-                    message: publicBoard?.is_active ? `Public board enabled at /${publicBoard.slug}` : 'Public board not enabled'
-                  };
-                }
-              } catch (error) {
-                console.error('    ❌ Error checking public board:', error);
                 toolResult = { success: false, error: error.message || 'Unknown error' };
               }
               break;
