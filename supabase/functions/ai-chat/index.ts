@@ -95,7 +95,9 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 1. Verify channel is AI channel
+    // 1. Verify channel is AI channel and user has access
+    // For sub-users on public boards: They send their email in senderName
+    // For main users: They use their user_id
     const { data: channel, error: channelError } = await supabaseClient
       .from('chat_channels')
       .select('is_ai, owner_id')
@@ -108,6 +110,47 @@ serve(async (req) => {
         JSON.stringify({ error: 'Invalid AI channel' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Verify user has access to this workspace
+    // Either they are the owner OR they are a sub-user of this workspace
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    
+    if (user && user.id !== ownerId) {
+      // Not the owner, check if they're a sub-user
+      const { data: subUser } = await supabaseClient
+        .from('sub_users')
+        .select('id')
+        .eq('board_owner_id', ownerId)
+        .eq('email', user.email)
+        .single();
+      
+      if (!subUser) {
+        console.error('❌ User not authorized for this workspace');
+        return new Response(
+          JSON.stringify({ error: 'Not authorized' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+    
+    // For external users (public board), verify they have valid access
+    if (!user && senderType === 'sub_user') {
+      // External sub-user - verify they have public board access
+      const { data: publicBoard } = await supabaseClient
+        .from('public_boards')
+        .select('id')
+        .eq('user_id', ownerId)
+        .eq('is_active', true)
+        .single();
+      
+      if (!publicBoard) {
+        console.error('❌ Public board not active');
+        return new Response(
+          JSON.stringify({ error: 'Public board not accessible' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // ---- FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
