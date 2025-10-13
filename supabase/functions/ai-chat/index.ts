@@ -779,29 +779,45 @@ For EDIT: Include event_id to update existing event`,
         type: "function",
         function: {
           name: "create_or_update_task",
-          description: `Create or update tasks.
+          description: `Create or update tasks with FULL feature support.
           
 MANDATORY fields:
 - task_name: Task title/name
 
-OPTIONAL fields (if user provides):
-- description: Task description/notes
-- status: 'todo', 'in_progress', or 'done'
+OPTIONAL fields (use when user specifies):
+- description: Task description/notes (rich text)
+- status: 'todo' (default), 'inprogress', or 'done'
 - deadline: Task deadline (ISO format YYYY-MM-DDTHH:mm)
-- reminder: Reminder time (ISO format YYYY-MM-DDTHH:mm)
-- email_reminder: Enable email reminder (boolean)
+- reminder: Reminder time (ISO format YYYY-MM-DDTHH:mm, must be before deadline)
+- email_reminder: Enable email reminder (boolean, auto-enabled when reminder is set)
+- assigned_to_type: 'admin' or 'sub_user' (for team assignment)
+- assigned_to_id: UUID of assignee (get from get_sub_users tool)
+- file_attachment_ids: Array of file IDs from uploaded files in chat (see file IDs in message)
 
-For EDIT: Include task_id to update existing task`,
+For EDIT: Include task_id to update existing task
+
+CRITICAL FOR FILE ATTACHMENTS:
+- When user uploads files IN CHAT and says "add to task" or "attach file to task"
+- Look for file IDs in the user message (format: "File ID: xxx | Name: yyy")
+- Pass those file IDs in file_attachment_ids array
+- Example: user uploads file.json → you see "File ID: abc-123" → use file_attachment_ids: ["abc-123"]`,
           parameters: {
             type: "object",
             properties: {
               task_id: { type: "string", description: "Task ID for editing (optional)" },
               task_name: { type: "string", description: "Task title (REQUIRED)" },
-              description: { type: "string" },
-              status: { type: "string", enum: ["todo", "in_progress", "done"] },
-              deadline: { type: "string", description: "Deadline ISO timestamp" },
-              reminder: { type: "string", description: "Reminder ISO timestamp" },
-              email_reminder: { type: "boolean" }
+              description: { type: "string", description: "Task description" },
+              status: { type: "string", enum: ["todo", "inprogress", "done"], description: "Task status (default: todo)" },
+              deadline: { type: "string", description: "Deadline ISO timestamp YYYY-MM-DDTHH:mm" },
+              reminder: { type: "string", description: "Reminder ISO timestamp (must be before deadline)" },
+              email_reminder: { type: "boolean", description: "Enable email reminder" },
+              assigned_to_type: { type: "string", enum: ["admin", "sub_user"], description: "Assignee type (use with assigned_to_id)" },
+              assigned_to_id: { type: "string", description: "Assignee UUID (get from get_sub_users tool)" },
+              file_attachment_ids: { 
+                type: "array", 
+                items: { type: "string" },
+                description: "Array of file IDs uploaded in chat (look for 'File ID: xxx' in user message)" 
+              }
             },
             required: ["task_name"]
           }
@@ -998,15 +1014,22 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
      * "create unassigned task" → omit assignment fields
    - NEVER say "I need an ID" - you can look it up by name!
    
-   **FILE ATTACHMENTS FROM CHAT (CRITICAL!):**
-   - ✅ When user uploads files IN CHAT and says "add as attachment" or "upload this to task"
-   - ✅ Files uploaded in chat ARE ALREADY in storage and have IDs
-   - ✅ Use the file_attachment_ids parameter to link chat files to task
-   - Process: User uploads file → you get file ID → pass file_attachment_ids: [file_id]
-   - Example: "add task 'improve AI', upload file as attachment" 
-     → If file uploaded in message, include its ID in file_attachment_ids
-   - These files will appear in task edit popup and task preview popup
-   - Users can ALSO upload files manually in task form UI
+    **FILE ATTACHMENTS FROM CHAT (CRITICAL - READ CAREFULLY!):**
+    - ✅ When user uploads files IN CHAT, they appear in the message as "File ID: xxx | Name: yyy"
+    - ✅ ALWAYS look for "File ID:" in the user message when they say "attach file" or "add file to task"
+    - ✅ Extract the file ID(s) from the message and pass in file_attachment_ids array
+    - ✅ DO NOT make up file IDs - only use the ones explicitly shown in the message
+    - Process: 
+      1. User uploads file in chat → System adds "File ID: abc-123 | Name: file.json" to message
+      2. You see this in the message → Extract the ID "abc-123"
+      3. Pass file_attachment_ids: ["abc-123"] when creating task
+      4. System automatically links this file to the task
+    - Example messages you'll see:
+      * "add task improve AI" + "🔗 **UPLOADED FILES**: File ID: abc-123 | Name: file.json"
+      * You respond by calling create_or_update_task with file_attachment_ids: ["abc-123"]
+    - These files will appear in task edit popup and task preview popup (just like event files!)
+    - Users can ALSO upload files manually in task form UI later
+    - CRITICAL: Only include file IDs that are explicitly shown in the current message
    
    **DEADLINES & REMINDERS:**
    - ✅ You CAN set deadlines (any future date/time)
@@ -1426,6 +1449,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     // Process attachments if any
     let attachmentContext = '';
     const imageAttachments: any[] = [];
+    const uploadedFileRecords: any[] = []; // Store file records with IDs
     
     if (attachments && attachments.length > 0) {
       console.log(`📎 Processing ${attachments.length} attachments...`);
@@ -1436,8 +1460,34 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         size: a.size 
       })));
       
+      // CRITICAL: Create file records in `files` table so AI can reference them by ID
       for (const att of attachments) {
         console.log(`  → Processing: ${att.filename} from path: ${att.file_path}`);
+        
+        // Insert file record into `files` table with source='chat'
+        const { data: fileRecord, error: fileError } = await supabaseAdmin
+          .from('files')
+          .insert({
+            filename: att.filename,
+            file_path: att.file_path,
+            content_type: att.content_type || null,
+            size: att.size || null,
+            user_id: ownerId,
+            source: 'chat',
+            parent_type: 'chat',
+            task_id: null, // Will be linked when task is created
+            created_at: new Date().toISOString()
+          })
+          .select('id, filename, file_path, content_type, size')
+          .single();
+        
+        if (fileError) {
+          console.error(`❌ Failed to create file record for ${att.filename}:`, fileError);
+        } else {
+          console.log(`✅ Created file record ID: ${fileRecord.id} for ${att.filename}`);
+          uploadedFileRecords.push(fileRecord);
+        }
+        
         const analysis = await analyzeAttachment(att);
         
         if (typeof analysis === 'object' && analysis.type === 'image') {
@@ -1455,11 +1505,20 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       if (imageAttachments.length > 0) {
         console.log(`🖼️ Added ${imageAttachments.length} images for vision analysis`);
       }
+      if (uploadedFileRecords.length > 0) {
+        console.log(`✅ Created ${uploadedFileRecords.length} file records with IDs`);
+      }
     }
 
     // Build conversation with history and attachments
-    const userMessage = attachmentContext 
-      ? `${prompt}\n\n--- Attached Files ---${attachmentContext}`
+    // CRITICAL: Tell AI about uploaded files with IDs for task attachment
+    let fileIdsInfo = '';
+    if (uploadedFileRecords.length > 0) {
+      fileIdsInfo = `\n\n🔗 **UPLOADED FILES (use these IDs for task attachments)**:\n${uploadedFileRecords.map(f => `- File ID: ${f.id} | Name: ${f.filename} | Type: ${f.content_type || 'unknown'}`).join('\n')}`;
+    }
+    
+    const userMessage = attachmentContext || fileIdsInfo
+      ? `${prompt}${attachmentContext ? `\n\n--- Attached Files ---${attachmentContext}` : ''}${fileIdsInfo}`
       : prompt;
     
     const messages = [
