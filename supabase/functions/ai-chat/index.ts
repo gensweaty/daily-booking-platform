@@ -2748,6 +2748,18 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       }
                     }
                     
+                    // 5. Broadcast change for real-time sync (CRITICAL: Do this BEFORE setting success)
+                    try {
+                      await supabaseAdmin
+                        .from('tasks')
+                        .update({ updated_at: new Date().toISOString() })
+                        .eq('id', newTaskId);
+                      
+                      console.log(`    📢 Broadcasting task creation for real-time updates`);
+                    } catch (broadcastError) {
+                      console.error(`    ⚠️ Broadcast failed but task created:`, broadcastError);
+                    }
+                    
                     toolResult = { 
                       success: true, 
                       task_id: newTaskId,
@@ -2756,15 +2768,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       assigned_to: assignedToActualName,
                       files_attached: attachedFileCount
                     };
-                    
-                    // 5. Broadcast change for real-time sync
-                    const ch = supabaseAdmin.channel(`public_board_tasks_${ownerId}`);
-                    ch.subscribe((status) => {
-                      if (status === 'SUBSCRIBED') {
-                        ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now(), source: 'ai' } });
-                        supabaseAdmin.removeChannel(ch);
-                      }
-                    });
                   }
                 }
               } catch (error) {
