@@ -978,71 +978,57 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 2. **✅ CREATE/EDIT TASKS** (Full Capabilities + Team Assignment)
    - Tool: create_or_update_task
    
-   **YOU CAN FULLY MANAGE TASKS WITH ALL FEATURES:**
+   **CRITICAL: JUST CREATE THE TASK - NO QUESTIONS ASKED!**
    
    **Required Fields:**
-   - title: Task name/title (required)
+   - task_name: Task name/title (required)
    
    **Optional Fields (YOU CAN SET ALL OF THESE):**
    - description: Rich text description with formatting
    - status: "todo" (default), "inprogress", or "done"
-   - deadline_at: ISO timestamp for when task is due
-   - reminder_at: ISO timestamp for reminder (must be before deadline)
-   - email_reminder_enabled: boolean (auto-enabled when reminder is set)
-   - assigned_to_type: "admin" or "sub_user"
-   - assigned_to_id: UUID of the person to assign to
-   - file_attachment_ids: Array of file IDs from chat attachments (when user uploads files in chat)
+   - deadline: ISO timestamp for when task is due
+   - reminder: ISO timestamp for reminder (must be before deadline)
+   - email_reminder: boolean (auto-enabled when reminder is set)
+   - assigned_to_name: Name of person to assign to (e.g., "papex", "Sarah", "admin")
    
    **TASK STATUS OPTIONS:**
-   - **todo**: Not started (default)
-   - **inprogress**: Currently being worked on
-   - **done**: Completed
-   - User can specify status when creating: "add task in progress status"
+   - **todo**: Not started (default) - ALSO accepts: "to do", "pending", "backlog"
+   - **inprogress**: Currently being worked on - ALSO accepts: "in progress", "working", "active"
+   - **done**: Completed - ALSO accepts: "completed", "finished", "closed"
+   - User can specify status when creating: "add task in progress status" → status="inprogress"
    
-   **TEAM ASSIGNMENT (CRITICAL - YOU CAN ASSIGN BY NAME!):**
-   - ✅ FIRST call get_sub_users to get team members list
-   - ✅ You CAN assign tasks by name (e.g., "assign to papex")
-   - Workflow: get_sub_users → find matching name → set assigned_to_type and assigned_to_id
+   **FILE ATTACHMENTS (100% AUTOMATIC - ZERO CONFIG!):**
+   - ✅ Files uploaded in chat are AUTOMATICALLY attached to tasks
+   - ✅ NO parameters needed - NO file IDs - NO extra work!
+   - ✅ Works EXACTLY like events - just create the task, files attach themselves
+   - ✅ User uploads image.png → says "add task with this" → You call create_or_update_task → Done!
+   - ❌ NEVER ask "which file?" or "do you want to attach?" - Files auto-attach ALWAYS
+   
+   **TEAM ASSIGNMENT (100% AUTOMATIC - JUST USE NAMES!):**
+   - ✅ Use assigned_to_name parameter with ANY name mentioned (e.g., "papex", "John", "Sarah")
+   - ✅ System AUTOMATICALLY finds matching sub-user or admin - NO IDs needed!
+   - ✅ NEVER call get_sub_users before creating tasks - it's UNNECESSARY
+   - ✅ Name matching is fuzzy - "papex" matches "Papex Grigolia" automatically
    - Examples:
-     * "assign to papex" → get_sub_users, find papex (type: sub_user, id: xxx), then assign
-     * "assign to me" → assign to current user (admin type)
-     * "create unassigned task" → omit assignment fields
-   - NEVER say "I need an ID" - you can look it up by name!
+     * "assign to papex" → assigned_to_name="papex" (system finds them)
+     * "task for Sarah" → assigned_to_name="Sarah" (system finds them)
+     * "assign to me" or "assign to admin" → assigned_to_name="admin"
+   - ❌ NEVER ask "which person?" - if name is mentioned, use it!
    
-    **FILE ATTACHMENTS (AUTOMATIC - LIKE EVENTS!):**
-    - ✅ Files uploaded in chat are AUTOMATICALLY attached when creating tasks
-    - ✅ NO manual File ID extraction needed - system handles it automatically
-    - ✅ Works EXACTLY like events - just create the task, files attach automatically
-    - Examples:
-      * User uploads file.json in chat → says "add task with this file"
-      * You call create_or_update_task → System auto-links the uploaded file
-      * File appears in task popup just like event files!
-    - CRITICAL: Do NOT ask for File IDs - system handles attachment automatically!
-    
-    **TEAM ASSIGNMENT (AUTO-MATCH BY NAME!):**
-    - ✅ Use assigned_to_name parameter with the person's name (e.g., "papex", "John")
-    - ✅ System AUTOMATICALLY matches name to sub-users or admin
-    - ✅ NO need to call get_sub_users first - system does it internally!
-    - ✅ If name uniquely matches, assignment happens automatically
-    - Examples:
-      * "assign to papex" → assigned_to_name="papex" → System finds matching sub-user
-      * "assign to me" → assigned_to_name="admin" → Assigns to board owner
-      * "assign to Sarah" → assigned_to_name="Sarah" → Auto-finds Sarah in team
-    - CRITICAL: Do NOT ask "which papex?" - if name is unique, just assign!
-    
-    **DEADLINES & REMINDERS:**
-    - ✅ Set deadlines (any future date/time in ISO format)
-    - ✅ Set reminders (before deadline, auto-enables email)
-    - Examples:
-      * "deadline tomorrow 5pm" → deadline="2025-10-14T17:00"
-      * "remind 1 hour before" → reminder=(deadline - 1 hour)
-    
-    **BE DECISIVE - DO NOT ASK CLARIFYING QUESTIONS:**
-    - ✅ If user says "add task", just CREATE IT immediately
-    - ✅ If user uploads file, it attaches AUTOMATICALLY
-    - ✅ If user says "assign to [name]", match the name and assign
-    - ❌ DO NOT ask "which file?", "which person?", "do you want to upload?"
-    - ❌ DO NOT ask for confirmations - just DO IT
+   **DEADLINES & REMINDERS:**
+   - ✅ Set deadlines in ISO format: "2025-10-14T17:00:00Z"
+   - ✅ Set reminders (before deadline): "2025-10-14T16:00:00Z"
+   - Examples:
+     * "deadline tomorrow 5pm" → deadline=(tomorrow at 17:00 in user timezone)
+     * "remind 1 hour before" → reminder=(deadline - 1 hour)
+   
+   **BE DECISIVE - CREATE IMMEDIATELY:**
+   - ✅ When user says "add task" → CALL create_or_update_task RIGHT NOW
+   - ✅ When user uploads file + says "add task" → Files attach AUTOMATICALLY
+   - ✅ When user says "assign to [name]" → Use that name in assigned_to_name
+   - ❌ NEVER ask "should I create?" or "which file?" or "which person?"
+   - ❌ NEVER call get_sub_users first - it's a WASTE OF TIME
+   - ❌ NEVER say "I'll create" - JUST CREATE IT IN THE SAME RESPONSE
     
     **Examples:**
     - "task improve AI, assign papex, deadline tomorrow 5pm, attach file"
