@@ -2050,23 +2050,21 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   start_date: start_date,
                   end_date: end_date,
                   payment_status: payment_status || "not_paid",
-                  payment_amount: payment_amount || null,
-                  user_id: ownerId,
-                  type: "event",
-                  created_by_type: "admin",
-                  created_by_name: "Smartbookly AI",
-                  last_edited_by_type: "admin",
-                  last_edited_by_name: "Smartbookly AI"
+                  payment_amount: payment_amount ? payment_amount.toString() : "",
+                  type: "event"
                 };
 
                 if (event_id) {
-                  // Update existing event
+                  // Update existing event - correct parameter order
                   const { data: result, error: updateError } = await supabaseAdmin.rpc('save_event_with_persons', {
-                    p_event_id: event_id,
                     p_event_data: eventData,
                     p_additional_persons: [],
-                    p_edited_by_type: "admin",
-                    p_edited_by_name: "Smartbookly AI"
+                    p_user_id: ownerId,
+                    p_event_id: event_id,
+                    p_created_by_type: "admin",
+                    p_created_by_name: "Smartbookly AI",
+                    p_last_edited_by_type: "admin",
+                    p_last_edited_by_name: "Smartbookly AI"
                   });
                   
                   if (updateError) {
@@ -2076,28 +2074,41 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     console.log(`    ✅ Event updated: ${full_name}`);
                     toolResult = { 
                       success: true, 
-                      event_id: event_id,
+                      event_id: result || event_id,
                       action: 'updated',
                       message: `Event updated: ${full_name} on ${start_date}`
                     };
+                    
+                    // Broadcast change for real-time sync
+                    const ch = supabaseAdmin.channel(`public_board_events_${ownerId}`);
+                    ch.subscribe((status) => {
+                      if (status === 'SUBSCRIBED') {
+                        ch.send({ type: 'broadcast', event: 'events-changed', payload: { ts: Date.now(), source: 'ai' } });
+                        supabaseAdmin.removeChannel(ch);
+                      }
+                    });
                   }
                 } else {
-                  // Create new event
-                  const { data: eventId, error: createError } = await supabaseAdmin.rpc('save_event_with_persons', {
+                  // Create new event - correct parameter order
+                  const { data: newEventId, error: createError } = await supabaseAdmin.rpc('save_event_with_persons', {
                     p_event_data: eventData,
                     p_additional_persons: [],
-                    p_edited_by_type: "admin",
-                    p_edited_by_name: "Smartbookly AI"
+                    p_user_id: ownerId,
+                    p_event_id: null,
+                    p_created_by_type: "admin",
+                    p_created_by_name: "Smartbookly AI",
+                    p_last_edited_by_type: "admin",
+                    p_last_edited_by_name: "Smartbookly AI"
                   });
                   
                   if (createError) {
                     console.error('    ❌ Failed to create event:', createError);
                     toolResult = { success: false, error: createError.message };
                   } else {
-                    console.log(`    ✅ Event created: ${full_name} (ID: ${eventId})`);
+                    console.log(`    ✅ Event created: ${full_name} (ID: ${newEventId})`);
                     toolResult = { 
                       success: true, 
-                      event_id: eventId,
+                      event_id: newEventId,
                       action: 'created',
                       message: `Event created: ${full_name} on ${start_date}`
                     };
@@ -2267,6 +2278,17 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                           start_date: event_start,
                           end_date: event_end,
                           payment_status: payment_status || "not_paid",
+                          payment_amount: payment_amount ? payment_amount.toString() : "",
+                          type: "event"
+                        },
+                        p_additional_persons: [],
+                        p_user_id: ownerId,
+                        p_event_id: null,
+                        p_created_by_type: "admin",
+                        p_created_by_name: "Smartbookly AI",
+                        p_last_edited_by_type: "admin",
+                        p_last_edited_by_name: "Smartbookly AI"
+                      });
                           payment_amount: payment_amount || null,
                           user_id: ownerId,
                           type: "event",
