@@ -2716,31 +2716,31 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     const newTaskId = newTask.id;
                     console.log(`    ✅ Task created: ${task_name} (ID: ${newTaskId})`);
                     
-                    // 4. CRITICAL: Link uploaded files to task (like events do)
+                    // 4. CRITICAL: Link uploaded files to task (SAME AS EVENTS)
                     let attachedFileCount = 0;
-                    if (uploadedFiles && uploadedFiles.length > 0) {
-                      console.log(`    📎 Linking ${uploadedFiles.length} uploaded files to task...`);
+                    if (attachments && attachments.length > 0) {
+                      console.log(`    📎 Linking ${attachments.length} uploaded files to task...`);
                       
-                      for (const fileInfo of uploadedFiles) {
+                      for (const attachment of attachments) {
                         try {
                           const { error: fileError } = await supabaseAdmin
                             .from('files')
                             .insert({
                               task_id: newTaskId,
                               user_id: ownerId,
-                              filename: fileInfo.filename,
-                              file_path: fileInfo.file_path,
-                              content_type: fileInfo.content_type,
-                              size: fileInfo.size,
+                              filename: attachment.filename,
+                              file_path: attachment.file_path,
+                              content_type: attachment.content_type,
+                              size: attachment.size,
                               source: 'chat',
                               parent_type: 'task'
                             });
                           
                           if (fileError) {
-                            console.error(`    ❌ Failed to link file ${fileInfo.filename}:`, fileError);
+                            console.error(`    ❌ Failed to link file ${attachment.filename}:`, fileError);
                           } else {
                             attachedFileCount++;
-                            console.log(`    ✅ File linked: ${fileInfo.filename}`);
+                            console.log(`    ✅ File linked: ${attachment.filename}`);
                           }
                         } catch (err) {
                           console.error(`    ❌ Error linking file:`, err);
