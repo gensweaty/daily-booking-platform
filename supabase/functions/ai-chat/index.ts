@@ -2581,16 +2581,23 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               const { task_id, task_name, description, status, deadline, reminder, email_reminder, assigned_to_type, assigned_to_id, file_attachment_ids } = args;
               
               console.log(`    ✅ ${task_id ? 'Updating' : 'Creating'} task: ${task_name}`, { 
+                status,
                 assigned_to_type, 
                 assigned_to_id, 
-                file_attachment_ids 
+                file_attachment_ids,
+                deadline,
+                reminder 
               });
               
               try {
+                // Normalize status to match database values
+                const normalizedStatus = normStatus(status) || "todo";
+                console.log(`    📊 Status normalization: "${status}" → "${normalizedStatus}"`);
+                
                 const taskData = {
                   title: task_name,
                   description: description || "",
-                  status: status || "todo",
+                  status: normalizedStatus,
                   user_id: ownerId,
                   position: 0,
                   deadline_at: deadline || null,
@@ -2604,6 +2611,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   last_edited_by_name: requesterName,
                   last_edited_at: new Date().toISOString()
                 };
+                
+                console.log(`    📝 Task data prepared:`, {
+                  title: taskData.title,
+                  status: taskData.status,
+                  has_deadline: !!taskData.deadline_at,
+                  has_reminder: !!taskData.reminder_at,
+                  assigned_to: taskData.assigned_to_type ? `${taskData.assigned_to_type}:${taskData.assigned_to_id}` : 'unassigned'
+                });
 
                 if (task_id) {
                   // Update existing task
