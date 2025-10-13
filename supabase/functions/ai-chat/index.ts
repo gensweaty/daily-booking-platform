@@ -2663,6 +2663,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   status: normalizedStatus,
                   user_id: ownerId,
                   position: 0,
+                  archived: false, // CRITICAL: Must set archived to false so task appears in list!
                   deadline_at: deadline || null,
                   reminder_at: reminder || null,
                   email_reminder_enabled: email_reminder || false,
@@ -2748,17 +2749,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       }
                     }
                     
-                    // 5. Broadcast change for real-time sync (CRITICAL: Do this BEFORE setting success)
-                    try {
-                      await supabaseAdmin
-                        .from('tasks')
-                        .update({ updated_at: new Date().toISOString() })
-                        .eq('id', newTaskId);
-                      
-                      console.log(`    📢 Broadcasting task creation for real-time updates`);
-                    } catch (broadcastError) {
-                      console.error(`    ⚠️ Broadcast failed but task created:`, broadcastError);
-                    }
+                    // Real-time will automatically sync via postgres_changes subscription
+                    console.log(`    📢 Task will sync via real-time postgres_changes`);
                     
                     toolResult = { 
                       success: true, 
