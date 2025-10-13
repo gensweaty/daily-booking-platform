@@ -571,8 +571,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
-        {/* AI Channel - First and primary channel */}
-        {aiChannelId && !isPublicBoard && (
+        {/* AI Channel - First and primary channel - Available everywhere for everyone */}
+        {aiChannelId && (
           <button
             onClick={() => {
               openChannel(aiChannelId);
