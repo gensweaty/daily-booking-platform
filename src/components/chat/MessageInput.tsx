@@ -116,34 +116,40 @@ export const MessageInput = ({
           }
         }
         
-        // Get current user info
+        // Get current user info with proper name resolution
         const { data: { user } } = await supabase.auth.getUser();
         let senderName = 'User';
         let senderType = 'admin';
         
         if (user) {
-          // Try to get profile name
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('username')
-            .eq('id', user.id)
-            .single();
+          // First check if this is a sub-user
+          const { data: subUser } = await supabase
+            .from('sub_users')
+            .select('fullname, email, board_owner_id')
+            .eq('board_owner_id', boardOwnerId)
+            .ilike('email', user.email)
+            .maybeSingle();
           
-          if (profile?.username && !profile.username.startsWith('user_')) {
-            senderName = profile.username;
+          if (subUser?.fullname) {
+            // This is a sub-user
+            senderName = subUser.fullname;
+            senderType = 'sub_user';
           } else {
-            // Try to get sub-user name
-            const { data: subUser } = await supabase
-              .from('sub_users')
-              .select('fullname, email')
-              .eq('board_owner_id', boardOwnerId)
-              .eq('email', user.email)
-              .single();
+            // This is the main user (admin/board owner)
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('username')
+              .eq('id', user.id)
+              .maybeSingle();
             
-            if (subUser?.fullname) {
-              senderName = subUser.fullname;
-              senderType = 'sub_user';
+            // Use profile username if it exists and is not auto-generated
+            if (profile?.username && !profile.username.startsWith('user_')) {
+              senderName = profile.username;
+            } else {
+              // Fall back to email username part
+              senderName = user.email?.split('@')[0] || 'User';
             }
+            senderType = 'admin';
           }
         }
         

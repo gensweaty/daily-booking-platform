@@ -2202,49 +2202,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   } else {
                     console.log(`    ✅ Event updated: ${full_name}`);
                     
-                    // Handle file uploads for updated event
+                    // Link chat attachment files to event without re-uploading
                     let uploadedFiles = [];
                     if (attachments && attachments.length > 0) {
-                      console.log(`    📎 Processing ${attachments.length} file attachments for event ${event_id}`);
+                      console.log(`    📎 Linking ${attachments.length} file attachments to event ${event_id}`);
                       for (const attachment of attachments) {
                         try {
-                          console.log(`    → Downloading ${attachment.filename} from ${attachment.file_path}`);
-                          const fileName = `${Date.now()}_${attachment.filename}`;
-                          const fileStoragePath = `${ownerId}/${event_id}/${fileName}`;
+                          console.log(`    → Linking ${attachment.filename} from chat_attachments`);
                           
-                          // Download file from chat_attachments and re-upload to event-files
-                          const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-                            .from('chat_attachments')
-                            .download(attachment.file_path);
-                          
-                          if (downloadError) {
-                            console.error(`    ❌ Download error for ${attachment.filename}:`, downloadError);
-                            continue;
-                          }
-                          
-                          if (!fileData) {
-                            console.error(`    ❌ No file data for ${attachment.filename}`);
-                            continue;
-                          }
-                          
-                          console.log(`    ✓ Downloaded ${attachment.filename} (${fileData.size} bytes)`);
-                          
-                          // Upload to event-files storage
-                          const { error: uploadError } = await supabaseAdmin.storage
-                            .from('event-files')
-                            .upload(fileStoragePath, fileData, {
-                              contentType: attachment.content_type,
-                              upsert: false
-                            });
-                          
-                          if (uploadError) {
-                            console.error(`    ❌ Upload error for ${attachment.filename}:`, uploadError);
-                            continue;
-                          }
-                          
-                          console.log(`    ✓ Uploaded to ${fileStoragePath}`);
-                          
-                          // Insert file record
+                          // Create event_files record pointing to chat_attachments file
                           const { error: dbError } = await supabaseAdmin.from('event_files').insert({
                             event_id: event_id,
                             user_id: ownerId,
@@ -2303,54 +2269,20 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   } else {
                     console.log(`    ✅ Event created: ${full_name} (ID: ${newEventId})`);
                     
-                    // Handle file uploads for new event
+                    // Link chat attachment files to new event without re-uploading
                     let uploadedFiles = [];
                     if (attachments && attachments.length > 0) {
-                      console.log(`    📎 Processing ${attachments.length} file attachments for new event ${newEventId}`);
+                      console.log(`    📎 Linking ${attachments.length} file attachments to new event ${newEventId}`);
                       for (const attachment of attachments) {
                         try {
-                          console.log(`    → Downloading ${attachment.filename} from ${attachment.file_path}`);
-                          const fileName = `${Date.now()}_${attachment.filename}`;
-                          const fileStoragePath = `${ownerId}/${newEventId}/${fileName}`;
+                          console.log(`    → Linking ${attachment.filename} from chat_attachments`);
                           
-                          // Download file from chat_attachments and re-upload to event-files
-                          const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-                            .from('chat_attachments')
-                            .download(attachment.file_path);
-                          
-                          if (downloadError) {
-                            console.error(`    ❌ Download error for ${attachment.filename}:`, downloadError);
-                            continue;
-                          }
-                          
-                          if (!fileData) {
-                            console.error(`    ❌ No file data for ${attachment.filename}`);
-                            continue;
-                          }
-                          
-                          console.log(`    ✓ Downloaded ${attachment.filename} (${fileData.size} bytes)`);
-                          
-                          // Upload to event-files storage
-                          const { error: uploadError } = await supabaseAdmin.storage
-                            .from('event-files')
-                            .upload(fileStoragePath, fileData, {
-                              contentType: attachment.content_type,
-                              upsert: false
-                            });
-                          
-                          if (uploadError) {
-                            console.error(`    ❌ Upload error for ${attachment.filename}:`, uploadError);
-                            continue;
-                          }
-                          
-                          console.log(`    ✓ Uploaded to ${fileStoragePath}`);
-                          
-                          // Insert file record
+                          // Create event_files record pointing to chat_attachments file
                           const { error: dbError } = await supabaseAdmin.from('event_files').insert({
                             event_id: newEventId,
                             user_id: ownerId,
                             filename: attachment.filename,
-                            file_path: fileStoragePath,
+                            file_path: `chat_attachments/${attachment.file_path}`,
                             content_type: attachment.content_type,
                             size: attachment.size
                           });
@@ -2361,9 +2293,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                           }
                           
                           uploadedFiles.push(attachment.filename);
-                          console.log(`    ✅ File uploaded successfully: ${attachment.filename}`);
+                          console.log(`    ✅ File ${attachment.filename} linked to event`);
                         } catch (fileError) {
-                          console.error(`    ❌ File upload exception for ${attachment.filename}:`, fileError);
+                          console.error(`    ❌ Error linking file ${attachment.filename}:`, fileError);
                         }
                       }
                     }
