@@ -116,8 +116,39 @@ export const MessageInput = ({
           }
         }
         
+        // Get current user info
+        const { data: { user } } = await supabase.auth.getUser();
+        let senderName = 'User';
+        let senderType = 'admin';
+        
+        if (user) {
+          // Try to get profile name
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .single();
+          
+          if (profile?.username && !profile.username.startsWith('user_')) {
+            senderName = profile.username;
+          } else {
+            // Try to get sub-user name
+            const { data: subUser } = await supabase
+              .from('sub_users')
+              .select('fullname, email')
+              .eq('board_owner_id', boardOwnerId)
+              .eq('email', user.email)
+              .single();
+            
+            if (subUser?.fullname) {
+              senderName = subUser.fullname;
+              senderType = 'sub_user';
+            }
+          }
+        }
+        
         // Get recent conversation history (last 20 messages)
-        const { data: recentMessages, error: historyError } = await supabase
+        const { data: recentMessages } = await supabase
           .from('chat_messages')
           .select('sender_type, content')
           .eq('channel_id', currentChannelId)
@@ -157,7 +188,9 @@ export const MessageInput = ({
               userTimezone: tz,
               tzOffsetMinutes,
               currentLocalTime: localTimeISO,
-              attachments: uploadedFiles
+              attachments: uploadedFiles,
+              senderName,
+              senderType
             }
           });
           

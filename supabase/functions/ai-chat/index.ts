@@ -18,9 +18,19 @@ serve(async (req) => {
   }
 
   try {
-    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [] } = await req.json();
+    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType } = await req.json();
     
-    console.log('🤖 AI Chat request:', { channelId, ownerId, promptLength: prompt?.length, historyLength: conversationHistory.length, userTimezone, tzOffsetMinutes, attachmentsCount: attachments.length });
+    console.log('🤖 AI Chat request:', { 
+      channelId, 
+      ownerId, 
+      senderName,
+      senderType,
+      promptLength: prompt?.length, 
+      historyLength: conversationHistory.length, 
+      userTimezone, 
+      tzOffsetMinutes, 
+      attachmentsCount: attachments.length 
+    });
 
     // Timezone validation and formatting helpers
     function isValidTimeZone(tz?: string) {
@@ -1279,14 +1289,27 @@ For excel: call generate_excel_report, provide markdown download link.
 
 Remember: You're a powerful AI agent that can both READ and WRITE data. Act proactively to help users manage their business!`;
 
+    // Determine the requester name with (AI) suffix
+    const requesterName = senderName ? `${senderName} (AI)` : "Smartbookly AI";
+    const requesterType = senderType || "admin";
+    
+    console.log(`👤 Requester: ${requesterName} (type: ${requesterType})`);
+
     // Process attachments if any
     let attachmentContext = '';
     const imageAttachments: any[] = [];
     
     if (attachments && attachments.length > 0) {
       console.log(`📎 Processing ${attachments.length} attachments...`);
+      console.log(`📎 Attachment details:`, attachments.map(a => ({ 
+        filename: a.filename, 
+        file_path: a.file_path, 
+        content_type: a.content_type,
+        size: a.size 
+      })));
       
       for (const att of attachments) {
+        console.log(`  → Processing: ${att.filename} from path: ${att.file_path}`);
         const analysis = await analyzeAttachment(att);
         
         if (typeof analysis === 'object' && analysis.type === 'image') {
@@ -2167,10 +2190,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     p_additional_persons: [],
                     p_user_id: ownerId,
                     p_event_id: event_id,
-                    p_created_by_type: "admin",
-                    p_created_by_name: "Smartbookly AI",
-                    p_last_edited_by_type: "admin",
-                    p_last_edited_by_name: "Smartbookly AI"
+                    p_created_by_type: requesterType,
+                    p_created_by_name: requesterName,
+                    p_last_edited_by_type: requesterType,
+                    p_last_edited_by_name: requesterName
                   });
                   
                   if (updateError) {
@@ -2182,9 +2205,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     // Handle file uploads for updated event
                     let uploadedFiles = [];
                     if (attachments && attachments.length > 0) {
+                      console.log(`    📎 Processing ${attachments.length} file attachments for event ${event_id}`);
                       for (const attachment of attachments) {
                         try {
-                          // CRITICAL FIX: Use correct property names from frontend
+                          console.log(`    → Downloading ${attachment.filename} from ${attachment.file_path}`);
                           const fileName = `${Date.now()}_${attachment.filename}`;
                           const fileStoragePath = `${ownerId}/${event_id}/${fileName}`;
                           
@@ -2193,31 +2217,52 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                             .from('chat_attachments')
                             .download(attachment.file_path);
                           
-                          if (!downloadError && fileData) {
-                            // Upload to event-files storage
-                            const { error: uploadError } = await supabaseAdmin.storage
-                              .from('event-files')
-                              .upload(fileStoragePath, fileData, {
-                                contentType: attachment.content_type,
-                                upsert: false
-                              });
-                            
-                            if (!uploadError) {
-                              // Insert file record
-                              await supabaseAdmin.from('event_files').insert({
-                                event_id: event_id,
-                                user_id: ownerId,
-                                filename: attachment.filename,
-                                file_path: fileStoragePath,
-                                content_type: attachment.content_type,
-                                size: attachment.size
-                              });
-                              uploadedFiles.push(attachment.filename);
-                              console.log(`    📎 File uploaded: ${attachment.filename}`);
-                            }
+                          if (downloadError) {
+                            console.error(`    ❌ Download error for ${attachment.filename}:`, downloadError);
+                            continue;
                           }
+                          
+                          if (!fileData) {
+                            console.error(`    ❌ No file data for ${attachment.filename}`);
+                            continue;
+                          }
+                          
+                          console.log(`    ✓ Downloaded ${attachment.filename} (${fileData.size} bytes)`);
+                          
+                          // Upload to event-files storage
+                          const { error: uploadError } = await supabaseAdmin.storage
+                            .from('event-files')
+                            .upload(fileStoragePath, fileData, {
+                              contentType: attachment.content_type,
+                              upsert: false
+                            });
+                          
+                          if (uploadError) {
+                            console.error(`    ❌ Upload error for ${attachment.filename}:`, uploadError);
+                            continue;
+                          }
+                          
+                          console.log(`    ✓ Uploaded to ${fileStoragePath}`);
+                          
+                          // Insert file record
+                          const { error: dbError } = await supabaseAdmin.from('event_files').insert({
+                            event_id: event_id,
+                            user_id: ownerId,
+                            filename: attachment.filename,
+                            file_path: fileStoragePath,
+                            content_type: attachment.content_type,
+                            size: attachment.size
+                          });
+                          
+                          if (dbError) {
+                            console.error(`    ❌ DB insert error for ${attachment.filename}:`, dbError);
+                            continue;
+                          }
+                          
+                          uploadedFiles.push(attachment.filename);
+                          console.log(`    ✅ File uploaded successfully: ${attachment.filename}`);
                         } catch (fileError) {
-                          console.error(`    ❌ File upload failed:`, fileError);
+                          console.error(`    ❌ File upload exception for ${attachment.filename}:`, fileError);
                         }
                       }
                     }
@@ -2246,10 +2291,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     p_additional_persons: [],
                     p_user_id: ownerId,
                     p_event_id: null,
-                    p_created_by_type: "admin",
-                    p_created_by_name: "Smartbookly AI",
-                    p_last_edited_by_type: "admin",
-                    p_last_edited_by_name: "Smartbookly AI"
+                    p_created_by_type: requesterType,
+                    p_created_by_name: requesterName,
+                    p_last_edited_by_type: requesterType,
+                    p_last_edited_by_name: requesterName
                   });
                   
                   if (createError) {
@@ -2261,9 +2306,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     // Handle file uploads for new event
                     let uploadedFiles = [];
                     if (attachments && attachments.length > 0) {
+                      console.log(`    📎 Processing ${attachments.length} file attachments for new event ${newEventId}`);
                       for (const attachment of attachments) {
                         try {
-                          // CRITICAL FIX: Use correct property names from frontend
+                          console.log(`    → Downloading ${attachment.filename} from ${attachment.file_path}`);
                           const fileName = `${Date.now()}_${attachment.filename}`;
                           const fileStoragePath = `${ownerId}/${newEventId}/${fileName}`;
                           
@@ -2272,31 +2318,52 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                             .from('chat_attachments')
                             .download(attachment.file_path);
                           
-                          if (!downloadError && fileData) {
-                            // Upload to event-files storage
-                            const { error: uploadError } = await supabaseAdmin.storage
-                              .from('event-files')
-                              .upload(fileStoragePath, fileData, {
-                                contentType: attachment.content_type,
-                                upsert: false
-                              });
-                            
-                            if (!uploadError) {
-                              // Insert file record
-                              await supabaseAdmin.from('event_files').insert({
-                                event_id: newEventId,
-                                user_id: ownerId,
-                                filename: attachment.filename,
-                                file_path: fileStoragePath,
-                                content_type: attachment.content_type,
-                                size: attachment.size
-                              });
-                              uploadedFiles.push(attachment.filename);
-                              console.log(`    📎 File uploaded: ${attachment.filename}`);
-                            }
+                          if (downloadError) {
+                            console.error(`    ❌ Download error for ${attachment.filename}:`, downloadError);
+                            continue;
                           }
+                          
+                          if (!fileData) {
+                            console.error(`    ❌ No file data for ${attachment.filename}`);
+                            continue;
+                          }
+                          
+                          console.log(`    ✓ Downloaded ${attachment.filename} (${fileData.size} bytes)`);
+                          
+                          // Upload to event-files storage
+                          const { error: uploadError } = await supabaseAdmin.storage
+                            .from('event-files')
+                            .upload(fileStoragePath, fileData, {
+                              contentType: attachment.content_type,
+                              upsert: false
+                            });
+                          
+                          if (uploadError) {
+                            console.error(`    ❌ Upload error for ${attachment.filename}:`, uploadError);
+                            continue;
+                          }
+                          
+                          console.log(`    ✓ Uploaded to ${fileStoragePath}`);
+                          
+                          // Insert file record
+                          const { error: dbError } = await supabaseAdmin.from('event_files').insert({
+                            event_id: newEventId,
+                            user_id: ownerId,
+                            filename: attachment.filename,
+                            file_path: fileStoragePath,
+                            content_type: attachment.content_type,
+                            size: attachment.size
+                          });
+                          
+                          if (dbError) {
+                            console.error(`    ❌ DB insert error for ${attachment.filename}:`, dbError);
+                            continue;
+                          }
+                          
+                          uploadedFiles.push(attachment.filename);
+                          console.log(`    ✅ File uploaded successfully: ${attachment.filename}`);
                         } catch (fileError) {
-                          console.error(`    ❌ File upload failed:`, fileError);
+                          console.error(`    ❌ File upload exception for ${attachment.filename}:`, fileError);
                         }
                       }
                     }
@@ -2381,10 +2448,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   deadline_at: deadline || null,
                   reminder_at: reminder || null,
                   email_reminder_enabled: email_reminder || false,
-                  created_by_type: "admin",
-                  created_by_name: "Smartbookly AI",
-                  last_edited_by_type: "admin",
-                  last_edited_by_name: "Smartbookly AI",
+                  created_by_type: requesterType,
+                  created_by_name: requesterName,
+                  last_edited_by_type: requesterType,
+                  last_edited_by_name: requesterName,
                   last_edited_at: new Date().toISOString()
                 };
 
@@ -2461,10 +2528,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   payment_amount: payment_amount || null,
                   user_id: ownerId,
                   type: "customer",
-                  created_by_type: "admin",
-                  created_by_name: "Smartbookly AI",
-                  last_edited_by_type: "admin",
-                  last_edited_by_name: "Smartbookly AI"
+                  created_by_type: requesterType,
+                  created_by_name: requesterName,
+                  last_edited_by_type: requesterType,
+                  last_edited_by_name: requesterName
                 };
 
                 if (customer_id) {
@@ -2520,10 +2587,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                         p_additional_persons: [],
                         p_user_id: ownerId,
                         p_event_id: null,
-                        p_created_by_type: "admin",
-                        p_created_by_name: "Smartbookly AI",
-                        p_last_edited_by_type: "admin",
-                        p_last_edited_by_name: "Smartbookly AI"
+                        p_created_by_type: requesterType,
+                        p_created_by_name: requesterName,
+                        p_last_edited_by_type: requesterType,
+                        p_last_edited_by_name: requesterName
                       });
                       
                       if (!eventError) {
