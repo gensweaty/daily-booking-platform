@@ -196,9 +196,7 @@ export const MessageInput = ({
               currentLocalTime: localTimeISO,
               attachments: uploadedFiles,
               senderName: user?.email?.split('@')[0] || 'User',
-              senderType: 'admin',
-              senderName,
-              senderType
+              senderType: 'admin'
             }
           });
           

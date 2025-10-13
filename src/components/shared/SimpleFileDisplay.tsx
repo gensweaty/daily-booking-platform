@@ -35,9 +35,15 @@ export const SimpleFileDisplay = ({
   const queryClient = useQueryClient();
   const { t } = useLanguage();
 
-  // Correct bucket mapping based on parent type
-  const getBucketName = (type: string): string => {
-    switch (type) {
+  // Correct bucket mapping based on parent type and source
+  const getBucketName = (file: FileRecord): string => {
+    // CRITICAL: Files uploaded from chat are stored in chat_attachments bucket
+    if (file.source === 'chat') {
+      return 'chat_attachments';
+    }
+    
+    // Regular files based on parent type
+    switch (parentType) {
       case 'task': return 'task_attachments';
       case 'event': return 'event_attachments';
       case 'customer': return 'customer_attachments';
@@ -93,7 +99,7 @@ export const SimpleFileDisplay = ({
 
   const handleDownload = async (file: FileRecord) => {
     try {
-      const bucketName = getBucketName(parentType);
+      const bucketName = getBucketName(file);
       console.log(`Downloading file from ${bucketName}: ${file.filename}`);
       
       const signedUrl = await generateSignedUrl(bucketName, file.file_path);
@@ -139,7 +145,7 @@ export const SimpleFileDisplay = ({
 
   const handleOpenFile = async (file: FileRecord) => {
     try {
-      const bucketName = getBucketName(parentType);
+      const bucketName = getBucketName(file);
       console.log(`Opening file from ${bucketName}: ${file.filename}`);
       
       const signedUrl = await generateSignedUrl(bucketName, file.file_path);
@@ -163,7 +169,7 @@ export const SimpleFileDisplay = ({
     try {
       setDeletingFileId(file.id);
       
-      const bucketName = getBucketName(parentType);
+      const bucketName = getBucketName(file);
       console.log(`Deleting file from ${bucketName}: ${file.filename}`);
       
       // Delete from storage
@@ -267,8 +273,8 @@ export const SimpleFileDisplay = ({
     return true;
   };
 
-  const bucketName = getBucketName(parentType);
-  console.log(`SimpleFileDisplay rendering ${files.length} files for ${parentType} using bucket: ${bucketName}`);
+  // Log file sources for debugging
+  console.log(`SimpleFileDisplay rendering ${files.length} files for ${parentType}`, files.map(f => ({ name: f.filename, source: f.source })));
 
   return (
     <div className="space-y-2">
@@ -286,11 +292,11 @@ export const SimpleFileDisplay = ({
                 {isImage(file.filename) ? (
                   <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                     <img 
-                      src={`${getStorageUrl()}/object/public/${bucketName}/${normalizeFilePath(file.file_path)}`}
+                      src={`${getStorageUrl()}/object/public/${getBucketName(file)}/${normalizeFilePath(file.file_path)}`}
                       alt={file.filename}
                       className="h-full w-full object-cover"
                       onError={(e) => {
-                        console.error('Image failed to load from:', `${getStorageUrl()}/object/public/${bucketName}/${normalizeFilePath(file.file_path)}`);
+                        console.error('Image failed to load from:', `${getStorageUrl()}/object/public/${getBucketName(file)}/${normalizeFilePath(file.file_path)}`);
                         e.currentTarget.src = '/placeholder.svg';
                       }}
                     />
