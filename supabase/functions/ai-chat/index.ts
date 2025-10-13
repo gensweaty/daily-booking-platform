@@ -2289,15 +2289,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                         p_last_edited_by_type: "admin",
                         p_last_edited_by_name: "Smartbookly AI"
                       });
-                          payment_amount: payment_amount || null,
-                          user_id: ownerId,
-                          type: "event",
-                          customer_id: newCustomer.id,
-                          created_by_type: "admin",
-                          created_by_name: "Smartbookly AI"
-                        },
-                        p_additional_persons: []
-                      });
                       
                       if (!eventError) {
                         message += ` and event created for ${event_start}`;
