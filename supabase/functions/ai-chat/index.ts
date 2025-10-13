@@ -887,6 +887,40 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
    - Optional: phone, email/social, notes, payment details, event type
    - Example: "Add event for John Smith tomorrow at 2pm to 4pm" → CREATE IMMEDIATELY
    - Example: "Update John's event to 3pm" → First use get_upcoming_events or get_todays_schedule to find the event ID, then UPDATE with event_id
+   
+   **MULTI-PERSON EVENTS** (Advanced Feature):
+   - Events can include MULTIPLE participants using the additional_persons parameter
+   - First person: Use main fields (full_name, phone_number, etc.)
+   - Additional persons: Use additional_persons array (each person has: userSurname, userNumber, socialNetworkLink, eventNotes, paymentStatus, paymentAmount)
+   - Example: "Add event for John and Sarah tomorrow 2-4pm"
+     → full_name="John", additional_persons=[{userSurname:"Sarah", userNumber:"", socialNetworkLink:"", eventNotes:"", paymentStatus:"not_paid", paymentAmount:""}]
+   - Example: "Add birthday party for John, Sarah, and Mike tomorrow 6-9pm"
+     → full_name="John", additional_persons=[{userSurname:"Sarah",...}, {userSurname:"Mike",...}], event_name="Birthday Party"
+   
+   **EVENT NAMES** (for multi-person events):
+   - When event has 2+ persons, you can add event_name to describe it
+   - Event name is optional but recommended for clarity in group events
+   - Examples: "Birthday Party", "Team Meeting", "Family Gathering", "Workshop"
+   
+   **RECURRING EVENTS** (Advanced Feature):
+   - You CAN create events that repeat automatically!
+   - Required fields: is_recurring=true, repeat_pattern, repeat_until (YYYY-MM-DD)
+   - Patterns: "daily", "weekly", "biweekly", "monthly", "yearly"
+   - Examples:
+     * "Add weekly meeting with Sarah every Monday until end of year"
+       → full_name="Sarah", start_date="2025-01-06T10:00", end_date="2025-01-06T11:00", 
+          is_recurring=true, repeat_pattern="weekly", repeat_until="2025-12-31"
+     * "Daily standup at 9am for next 2 weeks"
+       → is_recurring=true, repeat_pattern="daily", repeat_until=(calculate 2 weeks from start)
+     * "Monthly review on the 15th until June"
+       → repeat_pattern="monthly", repeat_until="2025-06-30"
+     * "Biweekly check-in every other Friday"
+       → repeat_pattern="biweekly" (repeats every 2 weeks on same day)
+   - CRITICAL: When creating recurring events:
+     1. ALWAYS ask for or calculate repeat_until date
+     2. Pattern matches the day selected (e.g., "weekly" creates events on the same weekday)
+     3. System auto-generates all instances - you only create the parent event
+     4. All instances share the same additional_persons data
 
 2. **✅ CREATE/EDIT TASKS**
    - Tool: create_or_update_task
@@ -2074,9 +2108,30 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'create_or_update_event': {
-              const { event_id, full_name, start_date, end_date, phone_number, social_media, notes, payment_status, payment_amount, event_name } = args;
+              const { 
+                event_id, 
+                full_name, 
+                start_date, 
+                end_date, 
+                phone_number, 
+                social_media, 
+                notes, 
+                payment_status, 
+                payment_amount, 
+                event_name,
+                additional_persons,
+                is_recurring,
+                repeat_pattern,
+                repeat_until
+              } = args;
               
-              console.log(`    📅 ${event_id ? 'Updating' : 'Creating'} event for ${full_name}`, { start_date, end_date, userTimezone });
+              console.log(`    📅 ${event_id ? 'Updating' : 'Creating'} event for ${full_name}`, { 
+                start_date, 
+                end_date, 
+                userTimezone,
+                additional_persons_count: (additional_persons || []).length,
+                is_recurring: is_recurring || false
+              });
               
               try {
                 // CRITICAL: Convert local datetime to UTC using same logic as reminders
@@ -2169,6 +2224,16 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   }
                 }
 
+                // Format additional persons for the RPC call
+                const formattedAdditionalPersons = (additional_persons || []).map((person: any) => ({
+                  userSurname: person.userSurname || person.full_name || "",
+                  userNumber: person.userNumber || person.phone_number || "",
+                  socialNetworkLink: person.socialNetworkLink || person.social_media || "",
+                  eventNotes: person.eventNotes || person.notes || "",
+                  paymentStatus: person.paymentStatus || person.payment_status || "not_paid",
+                  paymentAmount: person.paymentAmount || person.payment_amount || ""
+                }));
+
                 const eventData = {
                   title: full_name,
                   user_surname: full_name,
@@ -2180,14 +2245,17 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   end_date: endDateUTC,
                   payment_status: payment_status || "not_paid",
                   payment_amount: payment_amount ? payment_amount.toString() : "",
-                  type: "event"
+                  type: "event",
+                  is_recurring: is_recurring || false,
+                  repeat_pattern: repeat_pattern || null,
+                  repeat_until: repeat_until || null
                 };
 
                 if (event_id) {
                   // Update existing event
                   const { data: result, error: updateError } = await supabaseAdmin.rpc('save_event_with_persons', {
                     p_event_data: eventData,
-                    p_additional_persons: [],
+                    p_additional_persons: formattedAdditionalPersons,
                     p_user_id: ownerId,
                     p_event_id: event_id,
                     p_created_by_type: requesterType,
@@ -2238,7 +2306,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       event_id: result || event_id,
                       action: 'updated',
                       message: `Event updated: ${full_name}`,
-                      uploaded_files: uploadedFiles
+                      uploaded_files: uploadedFiles,
+                      additional_persons_count: formattedAdditionalPersons.length,
+                      event_name: event_name || null,
+                      is_recurring: is_recurring || false,
+                      repeat_pattern: repeat_pattern || null
                     };
                     
                     // Broadcast change
@@ -2254,7 +2326,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   // Create new event
                   const { data: newEventId, error: createError } = await supabaseAdmin.rpc('save_event_with_persons', {
                     p_event_data: eventData,
-                    p_additional_persons: [],
+                    p_additional_persons: formattedAdditionalPersons,
                     p_user_id: ownerId,
                     p_event_id: null,
                     p_created_by_type: requesterType,
@@ -2345,7 +2417,12 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       action: 'created',
                       message: `Event created: ${full_name}`,
                       uploaded_files: uploadedFiles,
-                      email_sent: social_media && social_media.includes('@')
+                      email_sent: social_media && social_media.includes('@'),
+                      additional_persons_count: formattedAdditionalPersons.length,
+                      event_name: event_name || null,
+                      is_recurring: is_recurring || false,
+                      repeat_pattern: repeat_pattern || null,
+                      repeat_until: repeat_until || null
                     };
                     
                     // Broadcast change
