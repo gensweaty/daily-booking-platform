@@ -2053,9 +2053,72 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             case 'create_or_update_event': {
               const { event_id, full_name, start_date, end_date, phone_number, social_media, notes, payment_status, payment_amount, event_name } = args;
               
-              console.log(`    📅 ${event_id ? 'Updating' : 'Creating'} event for ${full_name}`);
+              console.log(`    📅 ${event_id ? 'Updating' : 'Creating'} event for ${full_name}`, { start_date, end_date, userTimezone });
               
               try {
+                // CRITICAL: Convert local datetime to UTC using same logic as reminders
+                const convertLocalToUTC = (localDateTimeStr: string): string => {
+                  if (!localDateTimeStr) return new Date().toISOString();
+                  
+                  // Parse the local date/time string
+                  const [datePart, timePart] = localDateTimeStr.split('T');
+                  const [Y, M, D] = datePart.split('-').map(Number);
+                  const [h, m] = timePart ? timePart.split(':').map(Number) : [0, 0];
+                  
+                  // Start from UTC guess
+                  let guess = new Date(Date.UTC(Y, M - 1, D, h, m));
+                  
+                  // If we have a valid timezone, adjust so it displays correctly in user's TZ
+                  if (effectiveTZ) {
+                    const fmt = (x: Date) =>
+                      new Intl.DateTimeFormat('en-CA', {
+                        timeZone: effectiveTZ,
+                        hour12: false,
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                        .formatToParts(x)
+                        .reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                    
+                    // Adjustment loop to handle DST
+                    for (let i = 0; i < 3; i++) {
+                      const parts = fmt(guess);
+                      const want = `${Y}-${String(M).padStart(2, '0')}-${String(D).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                      const have = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+                      if (have === want) break;
+                      
+                      const deltaMin =
+                        ((Y - +parts.year) * 525600) +
+                        ((M - +parts.month) * 43200) +
+                        ((D - +parts.day) * 1440) +
+                        ((h - +parts.hour) * 60) +
+                        (m - +parts.minute);
+                      guess = new Date(guess.getTime() + deltaMin * 60_000);
+                    }
+                  } else if (typeof tzOffsetMinutes === 'number') {
+                    // Fallback: use offset if no IANA timezone
+                    guess = new Date(guess.getTime() + tzOffsetMinutes * 60_000);
+                  }
+                  
+                  return guess.toISOString();
+                };
+                
+                // Convert start and end dates to UTC
+                const startDateUTC = convertLocalToUTC(start_date);
+                const endDateUTC = convertLocalToUTC(end_date);
+                
+                console.log('🕐 Timezone conversion:', {
+                  localStart: start_date,
+                  utcStart: startDateUTC,
+                  localEnd: end_date,
+                  utcEnd: endDateUTC,
+                  effectiveTZ,
+                  tzOffsetMinutes
+                });
+                
                 // Check for time conflicts BEFORE creating (only for new events)
                 if (!event_id) {
                   const { data: conflicts } = await supabaseAdmin
@@ -2063,7 +2126,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     .select('id, title, start_date, end_date, user_surname')
                     .eq('user_id', ownerId)
                     .is('deleted_at', null)
-                    .or(`and(start_date.lte.${end_date},end_date.gte.${start_date})`);
+                    .or(`and(start_date.lte.${endDateUTC},end_date.gte.${startDateUTC})`);
                   
                   if (conflicts && conflicts.length > 0) {
                     const conflict = conflicts[0];
@@ -2077,7 +2140,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                         start: conflict.start_date,
                         end: conflict.end_date
                       },
-                      message: `Time slot is already booked with "${conflictName}" from ${conflict.start_date} to ${conflict.end_date}. Please choose a different time.`
+                      message: `Time slot is already booked with "${conflictName}". Please choose a different time.`
                     };
                     break;
                   }
@@ -2090,8 +2153,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   social_network_link: social_media || "",
                   event_notes: notes || "",
                   event_name: event_name || "",
-                  start_date: start_date,
-                  end_date: end_date,
+                  start_date: startDateUTC,
+                  end_date: endDateUTC,
                   payment_status: payment_status || "not_paid",
                   payment_amount: payment_amount ? payment_amount.toString() : "",
                   type: "event"
@@ -2121,29 +2184,37 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     if (attachments && attachments.length > 0) {
                       for (const attachment of attachments) {
                         try {
-                          const fileName = `${Date.now()}_${attachment.name}`;
-                          const filePath = `${ownerId}/${event_id}/${fileName}`;
+                          // CRITICAL FIX: Use correct property names from frontend
+                          const fileName = `${Date.now()}_${attachment.filename}`;
+                          const fileStoragePath = `${ownerId}/${event_id}/${fileName}`;
                           
-                          // Upload to storage
-                          const { error: uploadError } = await supabaseAdmin.storage
-                            .from('event-files')
-                            .upload(filePath, attachment.data, {
-                              contentType: attachment.type,
-                              upsert: false
-                            });
+                          // Download file from chat_attachments and re-upload to event-files
+                          const { data: fileData, error: downloadError } = await supabaseAdmin.storage
+                            .from('chat_attachments')
+                            .download(attachment.file_path);
                           
-                          if (!uploadError) {
-                            // Insert file record
-                            await supabaseAdmin.from('event_files').insert({
-                              event_id: event_id,
-                              user_id: ownerId,
-                              filename: attachment.name,
-                              file_path: filePath,
-                              content_type: attachment.type,
-                              size: attachment.size
-                            });
-                            uploadedFiles.push(attachment.name);
-                            console.log(`    📎 File uploaded: ${attachment.name}`);
+                          if (!downloadError && fileData) {
+                            // Upload to event-files storage
+                            const { error: uploadError } = await supabaseAdmin.storage
+                              .from('event-files')
+                              .upload(fileStoragePath, fileData, {
+                                contentType: attachment.content_type,
+                                upsert: false
+                              });
+                            
+                            if (!uploadError) {
+                              // Insert file record
+                              await supabaseAdmin.from('event_files').insert({
+                                event_id: event_id,
+                                user_id: ownerId,
+                                filename: attachment.filename,
+                                file_path: fileStoragePath,
+                                content_type: attachment.content_type,
+                                size: attachment.size
+                              });
+                              uploadedFiles.push(attachment.filename);
+                              console.log(`    📎 File uploaded: ${attachment.filename}`);
+                            }
                           }
                         } catch (fileError) {
                           console.error(`    ❌ File upload failed:`, fileError);
@@ -2155,7 +2226,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       success: true, 
                       event_id: result || event_id,
                       action: 'updated',
-                      message: `Event updated: ${full_name} on ${start_date}`,
+                      message: `Event updated: ${full_name}`,
                       uploaded_files: uploadedFiles
                     };
                     
@@ -2192,29 +2263,37 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     if (attachments && attachments.length > 0) {
                       for (const attachment of attachments) {
                         try {
-                          const fileName = `${Date.now()}_${attachment.name}`;
-                          const filePath = `${ownerId}/${newEventId}/${fileName}`;
+                          // CRITICAL FIX: Use correct property names from frontend
+                          const fileName = `${Date.now()}_${attachment.filename}`;
+                          const fileStoragePath = `${ownerId}/${newEventId}/${fileName}`;
                           
-                          // Upload to storage
-                          const { error: uploadError } = await supabaseAdmin.storage
-                            .from('event-files')
-                            .upload(filePath, attachment.data, {
-                              contentType: attachment.type,
-                              upsert: false
-                            });
+                          // Download file from chat_attachments and re-upload to event-files
+                          const { data: fileData, error: downloadError } = await supabaseAdmin.storage
+                            .from('chat_attachments')
+                            .download(attachment.file_path);
                           
-                          if (!uploadError) {
-                            // Insert file record
-                            await supabaseAdmin.from('event_files').insert({
-                              event_id: newEventId,
-                              user_id: ownerId,
-                              filename: attachment.name,
-                              file_path: filePath,
-                              content_type: attachment.type,
-                              size: attachment.size
-                            });
-                            uploadedFiles.push(attachment.name);
-                            console.log(`    📎 File uploaded: ${attachment.name}`);
+                          if (!downloadError && fileData) {
+                            // Upload to event-files storage
+                            const { error: uploadError } = await supabaseAdmin.storage
+                              .from('event-files')
+                              .upload(fileStoragePath, fileData, {
+                                contentType: attachment.content_type,
+                                upsert: false
+                              });
+                            
+                            if (!uploadError) {
+                              // Insert file record
+                              await supabaseAdmin.from('event_files').insert({
+                                event_id: newEventId,
+                                user_id: ownerId,
+                                filename: attachment.filename,
+                                file_path: fileStoragePath,
+                                content_type: attachment.content_type,
+                                size: attachment.size
+                              });
+                              uploadedFiles.push(attachment.filename);
+                              console.log(`    📎 File uploaded: ${attachment.filename}`);
+                            }
                           }
                         } catch (fileError) {
                           console.error(`    ❌ File upload failed:`, fileError);
@@ -2222,12 +2301,52 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       }
                     }
                     
+                    // CRITICAL FIX: Send email notification (same as manual creation)
+                    try {
+                      // Get business profile for email
+                      const { data: businessProfile } = await supabaseAdmin
+                        .from('business_profiles')
+                        .select('business_name, contact_address')
+                        .eq('user_id', ownerId)
+                        .maybeSingle();
+                      
+                      // Send email if customer has valid email
+                      if (social_media && social_media.includes('@')) {
+                        console.log(`    📧 Sending approval email to ${social_media}`);
+                        
+                        const { error: emailError } = await supabaseAdmin.functions.invoke('send-booking-approval-email', {
+                          body: {
+                            recipientEmail: social_media,
+                            fullName: full_name,
+                            businessName: businessProfile?.business_name || 'Business',
+                            startDate: startDateUTC,
+                            endDate: endDateUTC,
+                            paymentStatus: payment_status || 'not_paid',
+                            paymentAmount: payment_amount || null,
+                            businessAddress: businessProfile?.contact_address || '',
+                            eventId: newEventId,
+                            language: userLanguage,
+                            eventNotes: notes || ''
+                          }
+                        });
+                        
+                        if (emailError) {
+                          console.error('    ⚠️ Email sending failed:', emailError);
+                        } else {
+                          console.log('    ✅ Approval email sent successfully');
+                        }
+                      }
+                    } catch (emailError) {
+                      console.error('    ⚠️ Email notification error:', emailError);
+                    }
+                    
                     toolResult = { 
                       success: true, 
-                      event_id: newEventId,
+                      event_id: newEventId, 
                       action: 'created',
-                      message: `Event created: ${full_name} on ${start_date}`,
-                      uploaded_files: uploadedFiles
+                      message: `Event created: ${full_name}`,
+                      uploaded_files: uploadedFiles,
+                      email_sent: social_media && social_media.includes('@')
                     };
                     
                     // Broadcast change
