@@ -913,9 +913,13 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
    - IMPORTANT: All persons with email addresses get individual approval emails
    
    **EVENT NAMES** (for multi-person events):
-   - When event has 2+ persons, you SHOULD add event_name to describe it
-   - Event name is optional but recommended for clarity in group events
-   - Examples: "Birthday Party", "Team Meeting", "Family Gathering", "Workshop"
+   - **CRITICAL RULE**: If user does NOT explicitly specify an event name, DEFAULT to the FIRST person's name (the full_name/user_surname)
+   - Only use a descriptive event name if user EXPLICITLY mentions it (e.g., "birthday party", "meeting", etc.)
+   - DO NOT invent or make up event names - if not specified by user, use the first person's name
+   - Examples: 
+     * "Birthday party for John and Sarah" → event_name="Birthday Party" (explicitly mentioned)
+     * "Add event with 2 persons, ABC and TAC" → event_name="ABC" (first person's name, no explicit event name given)
+     * "Event for Anania and Ramini tomorrow" → event_name="Anania" (first person's name, no explicit event name given)
    
    **RECURRING EVENTS** (Advanced Feature):
    - You CAN create events that repeat automatically!
