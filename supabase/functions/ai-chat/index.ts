@@ -2932,18 +2932,36 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         role: "user",
         content: `Respond to the user about the action result. 
 
-IMPORTANT RESPONSE RULES:
-- If time_conflict error: Say "⚠️ That time slot is already booked with [conflict name]. Would you like a different time?"
-- If task was created: Say "✅ Task created: '[task_name]'" + include status if not todo + assigned person if assigned + file count if files attached
-  Example: "✅ Task created: 'improve AI' (status: in progress) assigned to papex with 1 file attached"
-- If task was updated: Say "✅ Task updated: '[task_name]'" + mention what changed
-- If event/customer was created: Confirm with "✅ [Type] created: [name] on [date/time]"
-- If event/customer was updated: Confirm with "✅ [Type] updated: [name]"
-- If files were uploaded with task: Say "📎 [count] file(s) attached"
-- If assigned to someone: Say "👤 Assigned to: [person name]"
-- If create_custom_reminder: Say "✅ Reminder set! I'll remind you about [title] at [display_time]. You'll receive both an email and dashboard notification."
-- For excel reports: Include download link
-- Be concise and use the user's language (${userLanguage})`
+CRITICAL RESPONSE RULES:
+
+1. **TASK CREATION SUCCESS** - If tool result has success:true and action:"created":
+   - ALWAYS say "✅ Task created successfully: '[task_name]'"
+   - If files_attached > 0: Add "with [files_attached] file(s) attached"
+   - If assigned_to exists: Add "and assigned to [assigned_to]"
+   - If status is not "todo": Add "(status: [status])"
+   - NEVER mention any problems or issues - the task was created successfully!
+   - Example: "✅ Task created successfully: 'improve AI' with 1 file attached and assigned to papex (status: in progress)"
+
+2. **TASK UPDATE SUCCESS** - If tool result has success:true and action:"updated":
+   - Say "✅ Task updated successfully: '[task_name]'"
+   - If assigned_to changed: Mention "now assigned to [assigned_to]"
+
+3. **EVENT/CUSTOMER SUCCESS**:
+   - If time_conflict error: Say "⚠️ That time slot is already booked with [conflict name]. Would you like a different time?"
+   - If created: Confirm with "✅ [Type] created: [name] on [date/time]"
+   - If updated: Confirm with "✅ [Type] updated: [name]"
+
+4. **REMINDERS**:
+   - If create_custom_reminder: Say "✅ Reminder set! I'll remind you about [title] at [display_time]. You'll receive both an email and dashboard notification."
+
+5. **REPORTS**:
+   - For excel reports: Include download link
+
+6. **IF ERROR** - Only if tool result has success:false:
+   - Explain the actual error message from the tool result
+   - Suggest how to fix it
+
+NEVER assume there was a problem if success:true! Be concise and use the user's language (${userLanguage})`
       };
       
       const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
