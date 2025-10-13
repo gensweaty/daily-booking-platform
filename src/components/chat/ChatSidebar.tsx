@@ -52,8 +52,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   });
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   
-  // AI Channel initialization - enabled for both internal and public boards
-  const { aiChannelId } = useAIChannel(boardOwnerId);
+  // AI Channel initialization
+  const { aiChannelId } = useAIChannel(isPublicBoard ? undefined : boardOwnerId);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
@@ -571,8 +571,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">
       <div className="space-y-2">
-        {/* AI Channel - First and primary channel - Available everywhere for everyone */}
-        {aiChannelId && (
+        {/* AI Channel - First and primary channel */}
+        {aiChannelId && !isPublicBoard && (
           <button
             onClick={() => {
               openChannel(aiChannelId);

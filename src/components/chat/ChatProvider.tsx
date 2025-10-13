@@ -628,9 +628,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
   const [aiChannelId, setAiChannelId] = useState<string | null>(null);
   
-  // Load AI channel for all users (internal dashboard AND public boards)
+  // Load AI channel for authenticated users (not on public boards)
   useEffect(() => {
-    if (!boardOwnerId) {
+    if (!boardOwnerId || isOnPublicBoard) {
       setAiChannelId(null);
       return;
     }
@@ -645,7 +645,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('⚠️ [CHAT] No AI channel found');
         }
       });
-  }, [boardOwnerId]);
+  }, [boardOwnerId, isOnPublicBoard]);
 
   useEffect(() => {
     if (!boardOwnerId) return;
@@ -665,8 +665,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       });
   }, [boardOwnerId]);
 
-  // AI channel is ALWAYS the default for everyone, everywhere (internal dashboard AND public boards)
-  const effectiveDefaultChannel = aiChannelId || defaultChannelId;
+  // Prioritize AI channel as default for authenticated users
+  const effectiveDefaultChannel = (!isOnPublicBoard && aiChannelId) ? aiChannelId : defaultChannelId;
 
   // If we learn the default channel later, auto-select it when nothing is selected yet
   useEffect(() => {

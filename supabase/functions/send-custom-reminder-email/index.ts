@@ -11,15 +11,15 @@ const corsHeaders = {
 const recentlySentEmails = new Map<string, number>();
 const DUPLICATE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 
-// Clean up old entries inline (no setInterval in Edge Functions)
-function cleanupOldEntries() {
+// Clean up old entries periodically
+setInterval(() => {
   const now = Date.now();
   for (const [key, timestamp] of recentlySentEmails.entries()) {
     if (now - timestamp > DUPLICATE_WINDOW_MS) {
       recentlySentEmails.delete(key);
     }
   }
-}
+}, 5 * 60 * 1000); // Clean up every 5 minutes
 
 interface CustomReminderEmailRequest {
   reminderId: string;
@@ -184,9 +184,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Clean up old entries before checking
-    cleanupOldEntries();
-    
     // Check for duplicate email - IMMEDIATE check before processing
     const emailKey = `${reminderId}-${userEmail}`;
     const lastSent = recentlySentEmails.get(emailKey);
