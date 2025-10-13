@@ -628,9 +628,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
   const [aiChannelId, setAiChannelId] = useState<string | null>(null);
   
-  // Load AI channel for authenticated users (not on public boards)
+  // Load AI channel for all users (internal dashboard AND public boards)
   useEffect(() => {
-    if (!boardOwnerId || isOnPublicBoard) {
+    if (!boardOwnerId) {
       setAiChannelId(null);
       return;
     }
@@ -645,7 +645,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           console.log('⚠️ [CHAT] No AI channel found');
         }
       });
-  }, [boardOwnerId, isOnPublicBoard]);
+  }, [boardOwnerId]);
 
   useEffect(() => {
     if (!boardOwnerId) return;
