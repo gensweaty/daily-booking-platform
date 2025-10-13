@@ -70,28 +70,62 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
       
       {isExpanded && (
         <div className="px-2 pb-2 space-y-1.5">
-          {/* Page Guides dropdown - full width */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="w-full text-xs h-7 justify-start">
-                <BookOpen className="h-3 w-3 mr-1.5" />
-                📖 Page Guides
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuContent align="start" className="w-56 bg-background/95 backdrop-blur-sm border border-border shadow-lg z-[99999]">
-                {pageGuides.map(guide => (
+          {/* Top row: Page Guides and Add for me dropdowns */}
+          <div className="grid grid-cols-2 gap-1.5">
+            {/* Page Guides dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="text-[10px] h-7 px-2 justify-start">
+                  <BookOpen className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">📖 Page Guides</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuContent align="start" className="w-56 bg-background/95 backdrop-blur-sm border border-border shadow-lg z-[99999]">
+                  {pageGuides.map(guide => (
+                    <DropdownMenuItem 
+                      key={guide.label}
+                      onClick={() => onPromptSelect(guide.prompt)}
+                      className="cursor-pointer hover:bg-muted"
+                    >
+                      {guide.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenuPortal>
+            </DropdownMenu>
+
+            {/* Add for me dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="text-[10px] h-7 px-2 justify-start">
+                  <span className="truncate">➕ Add for me</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuContent align="start" className="w-48 bg-background/95 backdrop-blur-sm border border-border shadow-lg z-[99999]">
                   <DropdownMenuItem 
-                    key={guide.label}
-                    onClick={() => onPromptSelect(guide.prompt)}
+                    onClick={() => onPromptSelect("Add a new event for me")}
                     className="cursor-pointer hover:bg-muted"
                   >
-                    {guide.label}
+                    📅 Add event
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenuPortal>
-          </DropdownMenu>
+                  <DropdownMenuItem 
+                    onClick={() => onPromptSelect("Add a new task for me")}
+                    className="cursor-pointer hover:bg-muted"
+                  >
+                    ✅ Add Task
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => onPromptSelect("Add a new customer for me")}
+                    className="cursor-pointer hover:bg-muted"
+                  >
+                    👤 Add customer
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenuPortal>
+            </DropdownMenu>
+          </div>
 
           {/* Compact grid layout for all quick actions */}
           <div className="grid grid-cols-2 gap-1.5">
