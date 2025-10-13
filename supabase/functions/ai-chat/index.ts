@@ -890,15 +890,30 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
    
    **MULTI-PERSON EVENTS** (Advanced Feature):
    - Events can include MULTIPLE participants using the additional_persons parameter
-   - First person: Use main fields (full_name, phone_number, etc.)
-   - Additional persons: Use additional_persons array (each person has: userSurname, userNumber, socialNetworkLink, eventNotes, paymentStatus, paymentAmount)
-   - Example: "Add event for John and Sarah tomorrow 2-4pm"
-     → full_name="John", additional_persons=[{userSurname:"Sarah", userNumber:"", socialNetworkLink:"", eventNotes:"", paymentStatus:"not_paid", paymentAmount:""}]
-   - Example: "Add birthday party for John, Sarah, and Mike tomorrow 6-9pm"
-     → full_name="John", additional_persons=[{userSurname:"Sarah",...}, {userSurname:"Mike",...}], event_name="Birthday Party"
+   - CRITICAL PARSING RULES:
+     * "Add event for John and Sarah" → First person: John, additional_persons: [{userSurname:"Sarah"}]
+     * "Event for Anania, second person Ramini" → First: Anania, additional_persons: [{userSurname:"Ramini"}]
+     * "Book Mary, Mike, and Lisa" → First: Mary, additional_persons: [{userSurname:"Mike"}, {userSurname:"Lisa"}]
+     * When user says "two persons", "second person", "also", "and", etc. → ALWAYS create additional_persons array
+   - Each person structure: {userSurname: "Name", userNumber: "phone", socialNetworkLink: "email", eventNotes: "notes", paymentStatus: "not_paid", paymentAmount: ""}
+   - Example request: "Add birthday party for John (email: john@test.com) and Sarah (email: sarah@test.com) tomorrow 2-4pm"
+     → full_name="John", 
+       phone_number="", 
+       social_media="john@test.com",
+       additional_persons=[{
+         userSurname:"Sarah", 
+         userNumber:"", 
+         socialNetworkLink:"sarah@test.com", 
+         eventNotes:"", 
+         paymentStatus:"not_paid", 
+         paymentAmount:""
+       }],
+       event_name="Birthday Party"
+   - IMPORTANT: All persons are automatically added to CRM as customers
+   - IMPORTANT: All persons with email addresses get individual approval emails
    
    **EVENT NAMES** (for multi-person events):
-   - When event has 2+ persons, you can add event_name to describe it
+   - When event has 2+ persons, you SHOULD add event_name to describe it
    - Event name is optional but recommended for clarity in group events
    - Examples: "Birthday Party", "Team Meeting", "Family Gathering", "Workshop"
    
@@ -906,6 +921,7 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
    - You CAN create events that repeat automatically!
    - Required fields: is_recurring=true, repeat_pattern, repeat_until (YYYY-MM-DD)
    - Patterns: "daily", "weekly", "biweekly", "monthly", "yearly"
+   - IMPORTANT: All additional_persons are automatically included in ALL recurring instances
    - Examples:
      * "Add weekly meeting with Sarah every Monday until end of year"
        → full_name="Sarah", start_date="2025-01-06T10:00", end_date="2025-01-06T11:00", 
@@ -914,13 +930,11 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
        → is_recurring=true, repeat_pattern="daily", repeat_until=(calculate 2 weeks from start)
      * "Monthly review on the 15th until June"
        → repeat_pattern="monthly", repeat_until="2025-06-30"
-     * "Biweekly check-in every other Friday"
-       → repeat_pattern="biweekly" (repeats every 2 weeks on same day)
    - CRITICAL: When creating recurring events:
      1. ALWAYS ask for or calculate repeat_until date
      2. Pattern matches the day selected (e.g., "weekly" creates events on the same weekday)
      3. System auto-generates all instances - you only create the parent event
-     4. All instances share the same additional_persons data
+     4. All additional_persons are copied to each recurring instance automatically
 
 2. **✅ CREATE/EDIT TASKS**
    - Tool: create_or_update_task
@@ -2372,7 +2386,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       }
                     }
                     
-                    // CRITICAL FIX: Send email notification (same as manual creation)
+                    
+                    // Send email notifications to ALL persons with emails
                     try {
                       // Get business profile for email
                       const { data: businessProfile } = await supabaseAdmin
@@ -2381,9 +2396,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                         .eq('user_id', ownerId)
                         .maybeSingle();
                       
-                      // Send email if customer has valid email
+                      const emailsSent = [];
+                      
+                      // Send email to main person if they have valid email
                       if (social_media && social_media.includes('@')) {
-                        console.log(`    📧 Sending approval email to ${social_media}`);
+                        console.log(`    📧 Sending approval email to main person: ${social_media}`);
                         
                         const { error: emailError } = await supabaseAdmin.functions.invoke('send-booking-approval-email', {
                           body: {
@@ -2402,11 +2419,49 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                         });
                         
                         if (emailError) {
-                          console.error('    ⚠️ Email sending failed:', emailError);
+                          console.error(`    ⚠️ Email sending failed for ${social_media}:`, emailError);
                         } else {
-                          console.log('    ✅ Approval email sent successfully');
+                          console.log(`    ✅ Approval email sent to ${full_name}`);
+                          emailsSent.push(full_name);
                         }
                       }
+                      
+                      // Send emails to ALL additional persons who have email addresses
+                      if (formattedAdditionalPersons && formattedAdditionalPersons.length > 0) {
+                        for (const person of formattedAdditionalPersons) {
+                          const personEmail = person.socialNetworkLink;
+                          const personName = person.userSurname;
+                          
+                          if (personEmail && personEmail.includes('@')) {
+                            console.log(`    📧 Sending approval email to additional person: ${personEmail}`);
+                            
+                            const { error: emailError } = await supabaseAdmin.functions.invoke('send-booking-approval-email', {
+                              body: {
+                                recipientEmail: personEmail,
+                                fullName: personName,
+                                businessName: businessProfile?.business_name || 'Business',
+                                startDate: startDateUTC,
+                                endDate: endDateUTC,
+                                paymentStatus: person.paymentStatus || 'not_paid',
+                                paymentAmount: person.paymentAmount ? parseFloat(person.paymentAmount) : null,
+                                businessAddress: businessProfile?.contact_address || '',
+                                eventId: newEventId,
+                                language: userLanguage,
+                                eventNotes: person.eventNotes || ''
+                              }
+                            });
+                            
+                            if (emailError) {
+                              console.error(`    ⚠️ Email sending failed for ${personEmail}:`, emailError);
+                            } else {
+                              console.log(`    ✅ Approval email sent to ${personName}`);
+                              emailsSent.push(personName);
+                            }
+                          }
+                        }
+                      }
+                      
+                      console.log(`    📧 Total emails sent: ${emailsSent.length} - Recipients: ${emailsSent.join(', ')}`);
                     } catch (emailError) {
                       console.error('    ⚠️ Email notification error:', emailError);
                     }
