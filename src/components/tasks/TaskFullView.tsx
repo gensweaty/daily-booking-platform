@@ -176,7 +176,7 @@ export const TaskFullView = ({
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto p-2 sm:p-6 bg-background border-border text-foreground">
+        <DialogContent className="max-w-4xl w-[95vw] sm:w-full max-h-[80vh] sm:max-h-[90vh] overflow-y-auto p-2 sm:p-6 bg-background border-border text-foreground z-[9998]">
           <DialogHeader className="pb-0 mt-1 sm:mt-3">
             {/* Highlighted Task Title */}
             <div className="p-2 sm:p-4 rounded-lg border border-input bg-muted/50">
@@ -422,7 +422,7 @@ export const TaskFullView = ({
 
       {/* Archive Confirmation Dialog */}
       <AlertDialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
-        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
+        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10001]">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-sm sm:text-base">
               <Archive className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
