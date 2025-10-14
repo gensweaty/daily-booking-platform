@@ -1531,6 +1531,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     const requesterName = withAiSuffix(baseName);
     console.log(`👤 Resolved requester → ${requesterName} [${requesterType}]`);
+    console.log(`   Input: senderName="${senderName}", senderType="${senderType}"`);
+    console.log(`   Output: baseName="${baseName}", requesterType="${requesterType}"`);
 
     // Process attachments if any
     let attachmentContext = '';

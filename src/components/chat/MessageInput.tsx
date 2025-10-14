@@ -121,6 +121,13 @@ export const MessageInput = ({
         let senderName = 'User';
         let senderType: 'admin' | 'sub_user' = 'admin';
 
+        console.log('🔍 Auth user check:', {
+          userId: user?.id,
+          email: user?.email,
+          role: user?.user_metadata?.role,
+          fullName: user?.user_metadata?.full_name
+        });
+
         // 1) Public board visitor identity (unchanged)
         const isOnPublicBoard = window.location.pathname.startsWith('/public/');
         const publicBoardSlug = isOnPublicBoard ? window.location.pathname.split('/').pop() : null;
@@ -141,38 +148,23 @@ export const MessageInput = ({
             }
           }
         }
-        // 2) Authenticated sub-user session (NEW: trust auth metadata first)
-        else if (user?.user_metadata?.role === 'sub_user') {
-          senderType = 'sub_user';
-          
-          // Query sub_users table to get actual fullname
+        // 2) Try to find sub-user by email first (works for both admin and sub-user auth)
+        else if (user?.email) {
           const { data: subUserData } = await supabase
             .from('sub_users')
             .select('fullname, email')
             .eq('board_owner_id', boardOwnerId)
-            .ilike('email', user.email ?? '')
+            .ilike('email', user.email)
             .maybeSingle();
           
-          senderName = 
-            subUserData?.fullname ||
-            (user.user_metadata.full_name as string) ||
-            (user.user_metadata.username as string) ||
-            (user.email?.split('@')[0] ?? 'User');
-        }
-        // 3) Authenticated admin/owner (fallbacks kept as-is)
-        else if (user) {
-          // Try to match an existing sub_user by email (covers legacy setups)
-          const { data: subUser } = await supabase
-            .from('sub_users')
-            .select('fullname, email, board_owner_id')
-            .eq('board_owner_id', boardOwnerId)
-            .ilike('email', user.email ?? '')
-            .maybeSingle();
-
-          if (subUser?.fullname) {
-            senderName = subUser.fullname;
+          if (subUserData?.fullname) {
+            // This is a sub-user
             senderType = 'sub_user';
+            senderName = subUserData.fullname;
+            console.log('✅ Found sub-user:', { fullname: subUserData.fullname, email: subUserData.email });
           } else {
+            // This is the admin/owner
+            senderType = 'admin';
             const { data: profile } = await supabase
               .from('profiles')
               .select('username')
@@ -185,7 +177,7 @@ export const MessageInput = ({
             } else {
               senderName = user.email?.split('@')[0] || 'User';
             }
-            senderType = 'admin';
+            console.log('✅ Admin user:', { username: profile?.username, email: user.email });
           }
         }
         
@@ -220,6 +212,13 @@ export const MessageInput = ({
           const localTimeISO = now.toISOString();
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
           const tzOffsetMinutes = now.getTimezoneOffset();
+          
+          console.log('📤 Sending to AI edge function:', {
+            senderName,
+            senderType,
+            channelId: currentChannelId,
+            ownerId: boardOwnerId
+          });
           
           const { data, error } = await supabase.functions.invoke('ai-chat', {
             body: {
