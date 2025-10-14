@@ -52,8 +52,12 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   });
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   
-  // AI Channel initialization - available for all users including sub-users on public boards
-  const { aiChannelId } = useAIChannel(boardOwnerId);
+  // AI Channel initialization - personal for each user/sub-user
+  const { aiChannelId } = useAIChannel({
+    ownerId: boardOwnerId,
+    userType: me?.type || 'admin',
+    userId: me?.id
+  });
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
