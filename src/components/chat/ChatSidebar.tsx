@@ -52,12 +52,16 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   });
   const [generalChannelId, setGeneralChannelId] = useState<string | null>(null);
   
-  // AI Channel initialization - personal for each user/sub-user
-  const { aiChannelId } = useAIChannel({
-    ownerId: boardOwnerId,
-    userType: me?.type || 'admin',
-    userId: me?.id
-  });
+  // Build identity key for per-member AI channel
+  const aiIdentity = useMemo(() => {
+    if (!boardOwnerId || !me) return undefined;
+    if (me.type === 'sub_user') {
+      return me.id?.match(/^[0-9a-f-]{36}$/i) ? `S:${me.id}` : (me.email ? me.email : undefined);
+    }
+    return `A:${me.id}`;
+  }, [boardOwnerId, me]);
+
+  const { aiChannelId } = useAIChannel(aiIdentity);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 

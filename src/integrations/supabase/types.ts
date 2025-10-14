@@ -1876,6 +1876,10 @@ export type Database = {
         Args: { p_owner_id: string; p_user_id: string; p_user_type: string }
         Returns: string
       }
+      ensure_unique_ai_channel: {
+        Args: { p_owner_id: string; p_user_identity: string }
+        Returns: string
+      }
       find_or_create_dm: {
         Args: {
           p_a_id: string

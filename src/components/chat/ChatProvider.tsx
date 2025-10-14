@@ -13,6 +13,7 @@ import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
 import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useAIChannel } from "@/hooks/useAIChannel";
 
 type Me = { 
   id: string; 
@@ -353,14 +354,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     const poll = async () => {
       if (!alive) return;
       try {
-        // RLS should restrict this to only-visible messages for the external viewer.
+        // CRITICAL FIX: Only poll channels the user is a participant of
+        const channelIds = Array.from(userChannels);
+        if (channelIds.length === 0) return;
+
         const { data, error } = await supabase
           .from('chat_messages')
           .select('*')
           .eq('owner_id', boardOwnerId)
+          .in('channel_id', channelIds)
           .gt('created_at', lastSeenISO)
           .order('created_at', { ascending: true })
-          .limit(100);
+          .limit(200);
 
         if (error) throw error;
         if (!data || data.length === 0) return;
@@ -398,7 +403,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       document.removeEventListener('visibilitychange', kick);
       window.removeEventListener('online', kick);
     };
-  }, [isOnPublicBoard, shouldShowChat, isExternalUser, boardOwnerId, me?.id]);
+  }, [isOnPublicBoard, shouldShowChat, isExternalUser, boardOwnerId, me?.id, userChannels]);
 
   // Real-time subscription for participant changes to refresh unread data
   useEffect(() => {
@@ -626,26 +631,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Default channel with logging - prioritize AI channel for authenticated users
   const [defaultChannelId, setDefaultChannelId] = useState<string | null>(null);
-  const [aiChannelId, setAiChannelId] = useState<string | null>(null);
   
-  // Load AI channel for authenticated users (not on public boards)
-  useEffect(() => {
-    if (!boardOwnerId || isOnPublicBoard) {
-      setAiChannelId(null);
-      return;
+  // Build stable identity key for per-member AI channel
+  const aiIdentity = useMemo(() => {
+    if (!boardOwnerId || !me) return undefined;
+    // prefer UUID for sub_user; else email as fallback
+    if (me.type === 'sub_user') {
+      return me.id?.match(/^[0-9a-f-]{36}$/i) ? `S:${me.id}` : (me.email ? me.email : undefined);
     }
-    
-    console.log('🤖 [CHAT] Fetching AI channel for board owner:', boardOwnerId);
-    supabase.rpc('ensure_ai_channel', { p_owner_id: boardOwnerId })
-      .then(({ data, error }) => {
-        if (!error && data) {
-          setAiChannelId(data as string);
-          console.log('✅ [CHAT] AI channel loaded:', data);
-        } else {
-          console.log('⚠️ [CHAT] No AI channel found');
-        }
-      });
-  }, [boardOwnerId, isOnPublicBoard]);
+    return `A:${me.id}`; // admin
+  }, [boardOwnerId, me]);
+
+  const { aiChannelId, loading: aiLoading } = useAIChannel(aiIdentity);
 
   useEffect(() => {
     if (!boardOwnerId) return;
