@@ -573,6 +573,7 @@ export type Database = {
           deleted_at: string | null
           email_sent: boolean | null
           id: string
+          language: string | null
           message: string | null
           remind_at: string
           reminder_sent_at: string | null
@@ -587,6 +588,7 @@ export type Database = {
           deleted_at?: string | null
           email_sent?: boolean | null
           id?: string
+          language?: string | null
           message?: string | null
           remind_at: string
           reminder_sent_at?: string | null
@@ -601,6 +603,7 @@ export type Database = {
           deleted_at?: string | null
           email_sent?: boolean | null
           id?: string
+          language?: string | null
           message?: string | null
           remind_at?: string
           reminder_sent_at?: string | null

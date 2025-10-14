@@ -205,7 +205,9 @@ const handler = async (req: Request): Promise<Response> => {
                 message: reminder.message,
                 reminderTime: reminder.remind_at,
                 userId: reminder.user_id,
-                recipientUserId: recipientUserId // Pass the actual recipient's auth user ID
+                recipientUserId: recipientUserId, // Pass the actual recipient's auth user ID
+                createdByType: reminder.created_by_type, // Pass creator type for language lookup
+                createdBySubUserId: reminder.created_by_sub_user_id // Pass sub-user ID for language lookup
               }
             });
 
@@ -285,12 +287,6 @@ const handler = async (req: Request): Promise<Response> => {
                 // SKIP chat message - it was already sent when reminder was created
                 // This prevents duplicate messages in chat
                 console.log(`⏭️ Skipping chat message for ${reminder.id} - already sent at creation time`);
-                
-                if (chatInsertError) {
-                  console.error(`❌ Failed to send chat message:`, chatInsertError);
-                } else {
-                  console.log(`✅ Chat message sent to AI channel ${aiChannelId}`);
-                }
               } else {
                 console.log(`⚠️ No AI channel found for reminder creator`);
               }

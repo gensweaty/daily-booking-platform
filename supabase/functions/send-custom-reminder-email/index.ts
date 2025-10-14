@@ -29,6 +29,8 @@ interface CustomReminderEmailRequest {
   reminderTime: string;
   userId: string;
   recipientUserId?: string; // Optional: The actual recipient's auth user ID (for sub-users)
+  createdByType?: string; // Type of creator (admin/sub_user)
+  createdBySubUserId?: string; // Sub-user ID if creator was a sub-user
 }
 
 // Multi-language email content
@@ -174,7 +176,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
-    const { reminderId, userEmail, title, message, reminderTime, userId, recipientUserId }: CustomReminderEmailRequest = await req.json();
+    const { reminderId, userEmail, title, message, reminderTime, userId, recipientUserId, createdByType, createdBySubUserId }: CustomReminderEmailRequest = await req.json();
 
     // Validate required fields
     if (!reminderId || !userEmail || !title || !userId) {
@@ -199,19 +201,57 @@ const handler = async (req: Request): Promise<Response> => {
     // Mark as sent IMMEDIATELY to prevent race conditions
     recentlySentEmails.set(emailKey, Date.now());
 
-    // Get language preference from the actual recipient's profile (sub-user or admin)
-    const userIdForLanguage = recipientUserId || userId;
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('language')
-      .eq('id', userIdForLanguage)
-      .single();
+    // CRITICAL FIX: Use the language stored in the reminder itself (from AI chat)
+    // This preserves the language the user was speaking when they created the reminder
+    let languagePreference = 'en'; // Default to English
+    
+    try {
+      // First priority: Check if reminder has language stored (from AI chat)
+      const { data: reminderData } = await supabase
+        .from('custom_reminders')
+        .select('language')
+        .eq('id', reminderId)
+        .single();
+      
+      if (reminderData?.language) {
+        languagePreference = reminderData.language;
+        console.log(`📧 Using reminder's stored language: ${languagePreference}`);
+      } else {
+        // Fallback: Get language from user profile
+        if (createdByType === 'sub_user' && createdBySubUserId) {
+          // For sub-users, get language from sub_users table
+          const { data: subUser } = await supabase
+            .from('sub_users')
+            .select('language')
+            .eq('id', createdBySubUserId)
+            .single();
+          
+          if (subUser?.language) {
+            languagePreference = subUser.language;
+            console.log(`📧 Using sub-user language preference: ${languagePreference}`);
+          }
+        } else {
+          // For admin users, get language from profiles table
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('language')
+            .eq('id', recipientUserId || userId)
+            .single();
+          
+          if (profile?.language) {
+            languagePreference = profile.language;
+            console.log(`📧 Using admin language preference: ${languagePreference}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`⚠️ Error fetching language preference, using default 'en':`, error);
+    }
 
-    const language = profileData?.language || 'en';
-    console.log(`📧 Sending custom reminder email in ${language} for reminder ${reminderId} to ${userEmail} (recipientUserId: ${userIdForLanguage})`);
+    console.log(`📧 Sending custom reminder email in ${languagePreference} for reminder ${reminderId} to ${userEmail}`);
 
     // Get localized email content
-    const { subject, body: emailBody } = getEmailContent(language, title, message, reminderTime);
+    const { subject, body: emailBody } = getEmailContent(languagePreference, title, message, reminderTime);
 
     const emailResponse = await resend.emails.send({
       from: "SmartBookly <noreply@smartbookly.com>",
@@ -230,10 +270,10 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`✅ Custom reminder email sent successfully in ${language}:`, emailResponse);
+    console.log(`✅ Custom reminder email sent successfully in ${languagePreference}:`, emailResponse);
 
     return new Response(
-      JSON.stringify({ success: true, data: emailResponse.data, language: language }),
+      JSON.stringify({ success: true, data: emailResponse.data, language: languagePreference }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
