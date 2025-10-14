@@ -121,11 +121,20 @@ export const MessageInput = ({
         let senderName = 'User';
         let senderType: 'admin' | 'sub_user' = 'admin';
 
+        console.log('🔍 [AI SENDER RESOLUTION START]', {
+          userId: user?.id,
+          userEmail: user?.email,
+          boardOwnerId,
+          pathname: window.location.pathname,
+          userMetadata: user?.user_metadata
+        });
+
         // 1) Public board visitor identity (unchanged)
         const isOnPublicBoard = window.location.pathname.startsWith('/public/');
         const publicBoardSlug = isOnPublicBoard ? window.location.pathname.split('/').pop() : null;
 
         if (isOnPublicBoard && publicBoardSlug) {
+          console.log('🌍 Public board visitor detected', { publicBoardSlug });
           const stored = JSON.parse(localStorage.getItem(`public-board-access-${publicBoardSlug}`) || '{}');
           if (stored.email) {
             const { data: subUser } = await supabase
@@ -135,6 +144,7 @@ export const MessageInput = ({
               .eq('email', stored.email)
               .maybeSingle();
 
+            console.log('🔎 Public sub-user lookup result:', subUser);
             if (subUser) {
               senderName = subUser.fullname || stored.name || stored.email.split('@')[0];
               senderType = 'sub_user';
@@ -143,41 +153,80 @@ export const MessageInput = ({
         }
         // 2) Authenticated sub-user session (NEW: trust auth metadata first)
         else if (user?.user_metadata?.role === 'sub_user') {
+          console.log('👤 Auth metadata indicates sub_user');
           senderType = 'sub_user';
           senderName =
             (user.user_metadata.full_name as string) ||
             (user.user_metadata.username as string) ||
             (user.email?.split('@')[0] ?? 'User');
+          console.log('✅ Sub-user from auth metadata:', { senderName, senderType });
         }
         // 3) Authenticated admin/owner (fallbacks kept as-is)
         else if (user) {
-          // Try to match an existing sub_user by email (covers legacy setups)
-          const { data: subUser } = await supabase
+          console.log('🔍 Checking if authenticated user is a sub-user via database...');
+          
+          // CRITICAL FIX: Try to match sub_user by their auth user ID first (direct match)
+          const { data: subUserById, error: subUserByIdError } = await supabase
             .from('sub_users')
-            .select('fullname, email, board_owner_id')
-            .eq('board_owner_id', boardOwnerId)
-            .ilike('email', user.email ?? '')
+            .select('id, fullname, email, board_owner_id')
+            .eq('id', user.id)
             .maybeSingle();
 
-          if (subUser?.fullname) {
-            senderName = subUser.fullname;
+          console.log('🔎 Sub-user by ID lookup:', {
+            searchUserId: user.id,
+            result: subUserById,
+            error: subUserByIdError
+          });
+
+          // If found by ID, this is definitely a sub-user
+          if (subUserById?.fullname) {
+            console.log('✅ Found sub-user by auth ID:', subUserById.fullname);
+            senderName = subUserById.fullname;
             senderType = 'sub_user';
+            // Update boardOwnerId to be the actual board owner for AI function
+            boardOwnerId = subUserById.board_owner_id;
           } else {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('username')
-              .eq('id', user.id)
+            // Fallback: Try to match an existing sub_user by email (covers legacy setups)
+            const { data: subUser, error: subUserError } = await supabase
+              .from('sub_users')
+              .select('fullname, email, board_owner_id')
+              .eq('board_owner_id', boardOwnerId)
+              .ilike('email', user.email ?? '')
               .maybeSingle();
 
-            // Use profile username only if it's not an auto-generated "user_..."
-            if (profile?.username && !profile.username.startsWith('user_')) {
-              senderName = profile.username;
+            console.log('🔎 Sub-user by email lookup:', {
+              searchEmail: user.email,
+              searchBoardOwnerId: boardOwnerId,
+              result: subUser,
+              error: subUserError
+            });
+
+            if (subUser?.fullname) {
+              console.log('✅ Found sub-user by email:', subUser.fullname);
+              senderName = subUser.fullname;
+              senderType = 'sub_user';
             } else {
-              senderName = user.email?.split('@')[0] || 'User';
+              console.log('👔 Treating as admin user');
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('username')
+                .eq('id', user.id)
+                .maybeSingle();
+
+              console.log('📋 Admin profile lookup:', profile);
+
+              // Use profile username only if it's not an auto-generated "user_..."
+              if (profile?.username && !profile.username.startsWith('user_')) {
+                senderName = profile.username;
+              } else {
+                senderName = user.email?.split('@')[0] || 'User';
+              }
+              senderType = 'admin';
             }
-            senderType = 'admin';
           }
         }
+
+        console.log('✨ [AI SENDER RESOLUTION FINAL]', { senderName, senderType });
         
         // Get recent conversation history (last 20 messages)
         const { data: recentMessages } = await supabase
@@ -210,6 +259,14 @@ export const MessageInput = ({
           const localTimeISO = now.toISOString();
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
           const tzOffsetMinutes = now.getTimezoneOffset();
+          
+          console.log('📤 [SENDING TO AI FUNCTION]', {
+            channelId: currentChannelId,
+            ownerId: boardOwnerId,
+            senderName,
+            senderType,
+            attachmentsCount: uploadedFiles.length
+          });
           
           const { data, error } = await supabase.functions.invoke('ai-chat', {
             body: {
