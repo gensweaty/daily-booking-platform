@@ -200,11 +200,11 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
         })}
       </div>
 
-      {/* Image preview modal with high z-index */}
+      {/* Image preview modal */}
       <Dialog open={!!previewSrc} onOpenChange={() => setPreviewSrc(null)}>
         <DialogContent 
-          className="max-w-[96vw] w-auto max-h-[92vh] p-0 overflow-hidden border-none bg-transparent"
-          style={{ zIndex: 10060 }}
+          className="max-w-[96vw] w-auto max-h-[92vh] p-0 border-none bg-transparent shadow-none"
+          hideCloseButton={false}
         >
           {previewSrc && (
             <img
