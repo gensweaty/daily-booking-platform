@@ -1452,6 +1452,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     let requesterType: 'admin' | 'sub_user' = senderType as any || 'admin';
     let baseName = senderName || 'User';
+    let requesterIdentity: { id: string; fullname?: string; email?: string } | null = null;
 
     try {
       // Get auth context
@@ -1519,6 +1520,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         
         if (subMatch) {
           requesterType = 'sub_user';
+          requesterIdentity = subMatch; // CRITICAL FIX: Store the sub-user identity
           baseName = subMatch.fullname?.trim()
             || nameFromEmail(subMatch.email)
             || senderName
@@ -1533,6 +1535,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       } else {
         // CLIENT SAYS: This is admin/owner - get personal name (NOT business name)
         requesterType = 'admin';
+        requesterIdentity = { id: ownerId }; // Store admin identity
         
         baseName =
           (authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || '').trim()
@@ -1554,6 +1557,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       // Fallback to client-supplied values
       requesterType = (senderType as any) || 'admin';
       baseName = senderName || 'User';
+      requesterIdentity = { id: ownerId }; // Fallback identity
     }
 
     const requesterName = withAiSuffix(baseName);
