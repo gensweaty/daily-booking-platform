@@ -144,17 +144,7 @@ export const MessageInput = ({
         // 2) Authenticated sub-user session (NEW: trust auth metadata first)
         else if (user?.user_metadata?.role === 'sub_user') {
           senderType = 'sub_user';
-          
-          // Query sub_users table to get actual fullname
-          const { data: subUserData } = await supabase
-            .from('sub_users')
-            .select('fullname, email')
-            .eq('board_owner_id', boardOwnerId)
-            .ilike('email', user.email ?? '')
-            .maybeSingle();
-          
-          senderName = 
-            subUserData?.fullname ||
+          senderName =
             (user.user_metadata.full_name as string) ||
             (user.user_metadata.username as string) ||
             (user.email?.split('@')[0] ?? 'User');
