@@ -164,13 +164,13 @@ const handler = async (req: Request): Promise<Response> => {
             
             // Determine recipient email based on creator type
             let userEmail: string;
-            let recipientUserId: string;
+            const recipientUserId = reminder.user_id; // Always use board owner ID for language lookup
             
             if (reminder.created_by_type === 'sub_user' && reminder.created_by_sub_user_id) {
               // This reminder was created by a sub-user - send to sub-user's email
               const { data: subUserData, error: subUserError } = await supabase
                 .from('sub_users')
-                .select('email, auth_user_id')
+                .select('email')
                 .eq('id', reminder.created_by_sub_user_id)
                 .single();
               
@@ -181,7 +181,6 @@ const handler = async (req: Request): Promise<Response> => {
               }
               
               userEmail = subUserData.email;
-              recipientUserId = subUserData.auth_user_id || reminder.user_id;
               console.log(`📧 Sending reminder to sub-user's email: ${userEmail}`);
             } else {
               // This reminder was created by admin - send to admin's email
@@ -194,7 +193,6 @@ const handler = async (req: Request): Promise<Response> => {
               }
 
               userEmail = userData.user.email;
-              recipientUserId = reminder.user_id;
               console.log(`📧 Sending reminder to admin's email: ${userEmail}`);
             }
 
@@ -234,24 +232,24 @@ const handler = async (req: Request): Promise<Response> => {
               
               if (reminder.created_by_type === 'sub_user' && reminder.created_by_sub_user_id) {
                 // Find personal AI channel for this sub-user
-                const { data: personalChannel } = await supabase
+                const { data: personalChannels } = await supabase
                   .from('chat_channels')
-                  .select('id, owner_id')
+                  .select('id')
                   .eq('owner_id', reminder.user_id)
                   .eq('is_ai', true)
                   .eq('is_dm', true)
                   .eq('is_deleted', false);
                 
                 // Find the channel where this sub-user is a participant
-                if (personalChannel) {
-                  for (const channel of personalChannel) {
+                if (personalChannels && personalChannels.length > 0) {
+                  for (const channel of personalChannels) {
                     const { data: participant } = await supabase
                       .from('chat_participants')
                       .select('id')
                       .eq('channel_id', channel.id)
                       .eq('sub_user_id', reminder.created_by_sub_user_id)
                       .eq('user_type', 'sub_user')
-                      .single();
+                      .maybeSingle();
                     
                     if (participant) {
                       aiChannelId = channel.id;
@@ -260,25 +258,32 @@ const handler = async (req: Request): Promise<Response> => {
                     }
                   }
                 }
+                
+                if (!aiChannelId) {
+                  console.log(`⚠️ No personal AI channel found for sub-user ${reminder.created_by_sub_user_id}`);
+                }
               } else {
-                // Find admin's AI channel
-                const { data: adminChannel } = await supabase
+                // Find admin's AI channel - get the first one
+                const { data: adminChannels } = await supabase
                   .from('chat_channels')
                   .select('id')
                   .eq('owner_id', reminder.user_id)
                   .eq('is_ai', true)
+                  .eq('is_dm', true)
                   .eq('is_deleted', false)
-                  .single();
+                  .limit(1);
                 
-                if (adminChannel) {
-                  aiChannelId = adminChannel.id;
+                if (adminChannels && adminChannels.length > 0) {
+                  aiChannelId = adminChannels[0].id;
                   console.log(`✅ Found admin AI channel: ${aiChannelId}`);
+                } else {
+                  console.log(`⚠️ No AI channel found for admin ${reminder.user_id}`);
                 }
               }
 
               if (aiChannelId) {
                 // Send reminder message to AI chat
-                await supabase
+                const { error: chatInsertError } = await supabase
                   .from('chat_messages')
                   .insert({
                     channel_id: aiChannelId,
@@ -288,7 +293,12 @@ const handler = async (req: Request): Promise<Response> => {
                     content: `🔔 **Reminder Alert**\n\n**${reminder.title}**${reminder.message ? `\n\n${reminder.message}` : ''}\n\n_This is your scheduled reminder._`,
                     message_type: 'text'
                   });
-                console.log(`✅ Chat message sent to AI channel`);
+                
+                if (chatInsertError) {
+                  console.error(`❌ Failed to send chat message:`, chatInsertError);
+                } else {
+                  console.log(`✅ Chat message sent to AI channel ${aiChannelId}`);
+                }
               } else {
                 console.log(`⚠️ No AI channel found for reminder creator`);
               }
