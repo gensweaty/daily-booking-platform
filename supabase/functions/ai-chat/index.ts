@@ -791,7 +791,7 @@ For EDIT: Include event_id to update existing event`,
         type: "function",
         function: {
           name: "create_or_update_task",
-          description: `Create or update tasks with FULL capabilities - files attach automatically!
+          description: `Create or update tasks with FULL automatic capabilities!
           
 MANDATORY fields:
 - task_name: Task title/name
@@ -802,16 +802,16 @@ OPTIONAL fields:
 - deadline: ISO timestamp YYYY-MM-DDTHH:mm
 - reminder: ISO timestamp (before deadline, enables email auto)
 - email_reminder: boolean (auto-enabled with reminder)
-- assigned_to_name: Name of team member to assign (match from sub-users list)
+- assigned_to_name: ANY name or partial name - system auto-matches (e.g., "Cau", "papex", "John", "admin")
 
 FILE ATTACHMENTS:
-- Files uploaded in chat are AUTOMATICALLY attached - no IDs needed!
-- Works exactly like events - just create the task
+- Files uploaded in chat are AUTOMATICALLY attached - no IDs or confirmation needed!
 
-TEAM ASSIGNMENT:
-- Use assigned_to_name with person's name (e.g., "papex", "John", "Sarah")
-- System auto-matches to sub-users - no manual ID lookup!
-- If name is unique, assignment happens automatically
+TEAM ASSIGNMENT (FULLY AUTOMATIC):
+- Just use ANY name user mentions in assigned_to_name - no need to verify!
+- System automatically finds closest matching team member via fuzzy matching
+- Examples: "Cau" → finds "Cau", "papex" → finds "Papex Grigolia", "admin" → assigns to owner
+- NEVER ask which team member - just use the name provided and let system handle it!
 
 For EDIT: Include task_id`,
           parameters: {
@@ -1016,16 +1016,17 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
    - ✅ User uploads image.png → says "add task with this" → You call create_or_update_task → Done!
    - ❌ NEVER ask "which file?" or "do you want to attach?" - Files auto-attach ALWAYS
    
-   **TEAM ASSIGNMENT (100% AUTOMATIC - JUST USE NAMES!):**
-   - ✅ Use assigned_to_name parameter with ANY name mentioned (e.g., "papex", "John", "Sarah")
-   - ✅ System AUTOMATICALLY finds matching sub-user or admin - NO IDs needed!
-   - ✅ NEVER call get_sub_users before creating tasks - it's UNNECESSARY
-   - ✅ Name matching is fuzzy - "papex" matches "Papex Grigolia" automatically
+   **TEAM ASSIGNMENT (100% AUTOMATIC - ZERO CONFIRMATION NEEDED!):**
+   - ✅ Use assigned_to_name with ANY name/partial name user mentions (e.g., "Cau", "papex", "John", "Sarah")
+   - ✅ System AUTOMATICALLY finds closest matching team member via smart fuzzy search
+   - ✅ NEVER call get_sub_users or ask for clarification - it's COMPLETELY UNNECESSARY!
+   - ✅ Fuzzy matching works: "Cau" matches "Cau", "pap" matches "Papex Grigolia", etc.
+   - ✅ Just pass the name directly - system handles everything automatically!
    - Examples:
-     * "assign to papex" → assigned_to_name="papex" (system finds them)
-     * "task for Sarah" → assigned_to_name="Sarah" (system finds them)
-     * "assign to me" or "assign to admin" → assigned_to_name="admin"
-   - ❌ NEVER ask "which person?" - if name is mentioned, use it!
+     * User: "assign to Cau" → IMMEDIATELY use assigned_to_name="Cau" (system finds match)
+     * User: "task for papex" → IMMEDIATELY use assigned_to_name="papex" (system finds match)
+     * User: "assign to me" → IMMEDIATELY use assigned_to_name="admin" (assigns to owner)
+   - ❌ NEVER ask "which person?" or "do you mean X?" - JUST CREATE THE TASK with the name provided!
    
    **DEADLINES & REMINDERS:**
    - ✅ Set deadlines in ISO format: "2025-10-14T17:00:00Z"
@@ -1034,13 +1035,15 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
      * "deadline tomorrow 5pm" → deadline=(tomorrow at 17:00 in user timezone)
      * "remind 1 hour before" → reminder=(deadline - 1 hour)
    
-   **BE DECISIVE - CREATE IMMEDIATELY:**
+   **BE DECISIVE - CREATE IMMEDIATELY (NO QUESTIONS!):**
    - ✅ When user says "add task" → CALL create_or_update_task RIGHT NOW
    - ✅ When user uploads file + says "add task" → Files attach AUTOMATICALLY
-   - ✅ When user says "assign to [name]" → Use that name in assigned_to_name
-   - ❌ NEVER ask "should I create?" or "which file?" or "which person?"
-   - ❌ NEVER call get_sub_users first - it's a WASTE OF TIME
-   - ❌ NEVER say "I'll create" - JUST CREATE IT IN THE SAME RESPONSE
+   - ✅ When user says "assign to [name]" → Use that EXACT name in assigned_to_name parameter
+   - ✅ System handles ALL matching automatically - partial names work perfectly
+   - ❌ NEVER ask "should I create?" or "which file?" or "which person?" or "do you mean X?"
+   - ❌ NEVER call get_sub_users first - it's COMPLETELY UNNECESSARY and WASTES TIME
+   - ❌ NEVER say "I'll create" or "I need to know" - JUST CREATE IT IN THE SAME RESPONSE
+   - ❌ NEVER ask for clarification on team member names - fuzzy matching handles everything!
     
     **Examples:**
     - "task improve AI, assign papex, deadline tomorrow 5pm, attach file"
