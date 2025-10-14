@@ -119,56 +119,60 @@ export const MessageInput = ({
         // Get current user info with proper name resolution
         const { data: { user } } = await supabase.auth.getUser();
         let senderName = 'User';
-        let senderType = 'admin';
-        
-        // Check for public board context first
+        let senderType: 'admin' | 'sub_user' = 'admin';
+
+        // 1) Public board visitor identity (unchanged)
         const isOnPublicBoard = window.location.pathname.startsWith('/public/');
         const publicBoardSlug = isOnPublicBoard ? window.location.pathname.split('/').pop() : null;
-        
+
         if (isOnPublicBoard && publicBoardSlug) {
-          // Try to get stored public board identity
           const stored = JSON.parse(localStorage.getItem(`public-board-access-${publicBoardSlug}`) || '{}');
-          
           if (stored.email) {
-            // This is a public board sub-user - fetch their info
             const { data: subUser } = await supabase
               .from('sub_users')
               .select('fullname, email')
               .eq('board_owner_id', boardOwnerId)
               .eq('email', stored.email)
               .maybeSingle();
-            
+
             if (subUser) {
               senderName = subUser.fullname || stored.name || stored.email.split('@')[0];
               senderType = 'sub_user';
             }
           }
-        } else if (user) {
-          // Authenticated user - check if they're a sub-user or admin
+        }
+        // 2) Authenticated sub-user session (NEW: trust auth metadata first)
+        else if (user?.user_metadata?.role === 'sub_user') {
+          senderType = 'sub_user';
+          senderName =
+            (user.user_metadata.full_name as string) ||
+            (user.user_metadata.username as string) ||
+            (user.email?.split('@')[0] ?? 'User');
+        }
+        // 3) Authenticated admin/owner (fallbacks kept as-is)
+        else if (user) {
+          // Try to match an existing sub_user by email (covers legacy setups)
           const { data: subUser } = await supabase
             .from('sub_users')
             .select('fullname, email, board_owner_id')
             .eq('board_owner_id', boardOwnerId)
-            .ilike('email', user.email)
+            .ilike('email', user.email ?? '')
             .maybeSingle();
-          
+
           if (subUser?.fullname) {
-            // This is a sub-user
             senderName = subUser.fullname;
             senderType = 'sub_user';
           } else {
-            // This is the main user (admin/board owner)
             const { data: profile } = await supabase
               .from('profiles')
               .select('username')
               .eq('id', user.id)
               .maybeSingle();
-            
-            // Use profile username if it exists and is not auto-generated
+
+            // Use profile username only if it's not an auto-generated "user_..."
             if (profile?.username && !profile.username.startsWith('user_')) {
               senderName = profile.username;
             } else {
-              // Fall back to email username part
               senderName = user.email?.split('@')[0] || 'User';
             }
             senderType = 'admin';
