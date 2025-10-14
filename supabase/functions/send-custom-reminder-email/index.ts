@@ -28,9 +28,7 @@ interface CustomReminderEmailRequest {
   message?: string;
   reminderTime: string;
   userId: string;
-  recipientUserId?: string;
-  createdByType?: string; // 'admin' or 'sub_user'
-  createdBySubUserId?: string; // Sub-user ID if created by sub-user
+  recipientUserId?: string; // Optional: The actual recipient's auth user ID (for sub-users)
 }
 
 // Multi-language email content
@@ -176,21 +174,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
-    const { 
-      reminderId, 
-      userEmail, 
-      title, 
-      message, 
-      reminderTime, 
-      userId, 
-      recipientUserId,
-      createdByType,
-      createdBySubUserId
-    }: CustomReminderEmailRequest = await req.json();
+    const { reminderId, userEmail, title, message, reminderTime, userId, recipientUserId }: CustomReminderEmailRequest = await req.json();
 
     // Validate required fields
     if (!reminderId || !userEmail || !title || !userId) {
-      console.error("❌ Missing required fields", { reminderId, userEmail, title, userId });
+      console.error("❌ Missing required fields");
       return new Response(
         JSON.stringify({ success: false, error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -211,35 +199,16 @@ const handler = async (req: Request): Promise<Response> => {
     // Mark as sent IMMEDIATELY to prevent race conditions
     recentlySentEmails.set(emailKey, Date.now());
 
-    // CRITICAL FIX: Get language from correct table based on creator type
-    let language = 'en';
-    
-    if (createdByType === 'sub_user' && createdBySubUserId) {
-      // Sub-users have language in sub_users table
-      console.log(`📧 Looking up language for sub-user ${createdBySubUserId}`);
-      const { data: subUserData } = await supabase
-        .from('sub_users')
-        .select('language')
-        .eq('id', createdBySubUserId)
-        .single();
-      
-      language = subUserData?.language || 'en';
-      console.log(`📧 Sub-user language: ${language}`);
-    } else {
-      // Admins have language in profiles table
-      const userIdForLanguage = recipientUserId || userId;
-      console.log(`📧 Looking up language for admin ${userIdForLanguage}`);
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('language')
-        .eq('id', userIdForLanguage)
-        .single();
-      
-      language = profileData?.language || 'en';
-      console.log(`📧 Admin language: ${language}`);
-    }
+    // Get language preference from the actual recipient's profile (sub-user or admin)
+    const userIdForLanguage = recipientUserId || userId;
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('language')
+      .eq('id', userIdForLanguage)
+      .single();
 
-    console.log(`📧 Sending custom reminder email in ${language} for reminder ${reminderId} to ${userEmail} (createdByType: ${createdByType})`);
+    const language = profileData?.language || 'en';
+    console.log(`📧 Sending custom reminder email in ${language} for reminder ${reminderId} to ${userEmail} (recipientUserId: ${userIdForLanguage})`);
 
     // Get localized email content
     const { subject, body: emailBody } = getEmailContent(language, title, message, reminderTime);
