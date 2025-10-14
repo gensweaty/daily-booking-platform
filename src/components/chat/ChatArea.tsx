@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageCircle, Users } from 'lucide-react';
+import { MessageCircle, Users, Bot } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
@@ -1431,7 +1431,11 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       <div className="border-b p-4 bg-muted/30 relative">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
+            {channelInfo?.is_ai ? (
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center flex-shrink-0">
+                <Bot className="h-6 w-6 text-white" />
+              </div>
+            ) : channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
               <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
                 <img
                   src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
@@ -1463,7 +1467,9 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 data-participant-trigger
               >
                 <h2 className="font-semibold">
-                  {channelInfo?.isDM
+                  {channelInfo?.is_ai
+                    ? t('chat.smartbooklyAI')
+                    : channelInfo?.isDM
                     ? (channelInfo?.dmPartner?.name || t('chat.directMessage'))
                     : (channelInfo?.name || t('chat.general'))}
                 </h2>
