@@ -676,12 +676,24 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           } else if (payload.eventType === 'UPDATE') {
             const updatedMessage = payload.new as any;
             
+            // 🔧 CRITICAL FIX: Preserve attachments during updates
+            // The UPDATE payload from database doesn't include attachments (they're in a separate table)
+            // If we spread updatedMessage over existing message, we'll lose the attachments array
             setMessages(prev =>
-              prev.map(m =>
-                m.id === updatedMessage.id
-                  ? { ...m, ...updatedMessage, _isUpdate: true }
-                  : m
-              )
+              prev.map(m => {
+                if (m.id === updatedMessage.id) {
+                  // Preserve existing attachments array
+                  const preservedAttachments = m.attachments || [];
+                  
+                  return {
+                    ...m,
+                    ...updatedMessage,
+                    attachments: preservedAttachments, // Keep existing attachments
+                    _isUpdate: true
+                  };
+                }
+                return m;
+              })
             );
           } else if (payload.eventType === 'DELETE') {
             const deletedMessage = payload.old as any;
