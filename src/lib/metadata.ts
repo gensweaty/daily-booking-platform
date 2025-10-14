@@ -10,8 +10,6 @@ export function formatAttribution(
 ): string {
   if (!name) return '';
   
-  const isSub = type === 'sub_user';
-  
-  // Show (AI) only for sub-user AI creations
-  return (isAI && isSub) ? `${name} (AI)` : name;
+  // Show (AI) for both admin and sub-user AI creations
+  return isAI ? `${name} (AI)` : name;
 }
