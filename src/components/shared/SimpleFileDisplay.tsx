@@ -2,11 +2,84 @@
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
 import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { FileRecord } from "@/types/files";
+
+// Component for rendering image thumbnails with proper bucket detection
+const ImageThumbnail = ({ file, parentType }: { file: FileRecord; parentType: string }) => {
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const loadThumbnail = async () => {
+      const getBucketName = (type: string): string => {
+        switch (type) {
+          case 'task': return 'task_attachments';
+          case 'event': return 'event_attachments';
+          case 'customer': return 'customer_attachments';
+          case 'note': return 'event_attachments';
+          default: return 'event_attachments';
+        }
+      };
+      
+      const primaryBucket = getBucketName(parentType);
+      const fallbackBuckets = [
+        'chat_attachments',
+        'task_attachments',
+        'event_attachments',
+        'customer_attachments'
+      ].filter(b => b !== primaryBucket);
+      
+      const allBuckets = [primaryBucket, ...fallbackBuckets];
+      
+      for (const bucket of allBuckets) {
+        let pathToCheck = normalizeFilePath(file.file_path);
+        
+        const bucketPrefix = `${bucket}/`;
+        if (pathToCheck.startsWith(bucketPrefix)) {
+          pathToCheck = pathToCheck.substring(bucketPrefix.length);
+        }
+        
+        try {
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(pathToCheck, 300);
+          
+          if (!error && data?.signedUrl) {
+            setThumbnailUrl(data.signedUrl);
+            return;
+          }
+        } catch (e) {
+          // Continue to next bucket
+        }
+      }
+      
+      // Fallback to placeholder if not found
+      setThumbnailUrl('/placeholder.svg');
+    };
+    
+    loadThumbnail();
+  }, [file.file_path, parentType]);
+  
+  return (
+    <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+      {thumbnailUrl ? (
+        <img 
+          src={thumbnailUrl}
+          alt={file.filename}
+          className="h-full w-full object-cover"
+          onError={(e) => {
+            e.currentTarget.src = '/placeholder.svg';
+          }}
+        />
+      ) : (
+        <div className="h-full w-full bg-gray-200 animate-pulse" />
+      )}
+    </div>
+  );
+};
 
 interface SimpleFileDisplayProps {
   files: FileRecord[];
@@ -69,6 +142,23 @@ export const SimpleFileDisplay = ({
     return <FileIcon className="h-5 w-5" />;
   };
 
+  const checkFileExistence = async (bucketName: string, filePath: string): Promise<boolean> => {
+    try {
+      const normalizedPath = normalizeFilePath(filePath);
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(normalizedPath, 5);
+      
+      if (error || !data) {
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
   const generateSignedUrl = async (bucketName: string, filePath: string): Promise<string | null> => {
     try {
       const normalizedPath = normalizeFilePath(filePath);
@@ -91,12 +181,58 @@ export const SimpleFileDisplay = ({
     }
   };
 
+  // Enhanced function to find the correct bucket for a file
+  const findFileBucket = async (file: FileRecord): Promise<string> => {
+    const primaryBucket = getBucketName(parentType);
+    const fallbackBuckets = [
+      'chat_attachments',    // For AI-uploaded files
+      'task_attachments',
+      'event_attachments',
+      'customer_attachments'
+    ].filter(b => b !== primaryBucket); // Don't duplicate primary bucket
+    
+    const allBuckets = [primaryBucket, ...fallbackBuckets];
+    
+    for (const bucket of allBuckets) {
+      let pathToCheck = normalizeFilePath(file.file_path);
+      
+      // Strip bucket prefix if it exists in the path
+      const bucketPrefix = `${bucket}/`;
+      if (pathToCheck.startsWith(bucketPrefix)) {
+        pathToCheck = pathToCheck.substring(bucketPrefix.length);
+      }
+      
+      console.log(`Checking if file ${file.filename} exists in ${bucket} at ${pathToCheck}`);
+      const exists = await checkFileExistence(bucket, pathToCheck);
+      
+      if (exists) {
+        console.log(`File found in ${bucket}`);
+        return bucket;
+      }
+    }
+    
+    // Default to primary bucket if not found anywhere
+    console.log(`File not found in any bucket, defaulting to ${primaryBucket}`);
+    return primaryBucket;
+  };
+
   const handleDownload = async (file: FileRecord) => {
     try {
-      const bucketName = getBucketName(parentType);
-      console.log(`Downloading file from ${bucketName}: ${file.filename}`);
+      console.log(`Downloading file: ${file.filename}`);
       
-      const signedUrl = await generateSignedUrl(bucketName, file.file_path);
+      // Find the correct bucket for this file
+      const bucketName = await findFileBucket(file);
+      console.log(`Using bucket ${bucketName} for download`);
+      
+      let pathToUse = normalizeFilePath(file.file_path);
+      
+      // Strip bucket prefix if it exists
+      const bucketPrefix = `${bucketName}/`;
+      if (pathToUse.startsWith(bucketPrefix)) {
+        pathToUse = pathToUse.substring(bucketPrefix.length);
+      }
+      
+      const signedUrl = await generateSignedUrl(bucketName, pathToUse);
       
       if (!signedUrl) {
         throw new Error("Failed to generate download URL");
@@ -139,10 +275,21 @@ export const SimpleFileDisplay = ({
 
   const handleOpenFile = async (file: FileRecord) => {
     try {
-      const bucketName = getBucketName(parentType);
-      console.log(`Opening file from ${bucketName}: ${file.filename}`);
+      console.log(`Opening file: ${file.filename}`);
       
-      const signedUrl = await generateSignedUrl(bucketName, file.file_path);
+      // Find the correct bucket for this file
+      const bucketName = await findFileBucket(file);
+      console.log(`Using bucket ${bucketName} for opening`);
+      
+      let pathToUse = normalizeFilePath(file.file_path);
+      
+      // Strip bucket prefix if it exists
+      const bucketPrefix = `${bucketName}/`;
+      if (pathToUse.startsWith(bucketPrefix)) {
+        pathToUse = pathToUse.substring(bucketPrefix.length);
+      }
+      
+      const signedUrl = await generateSignedUrl(bucketName, pathToUse);
       
       if (!signedUrl) {
         throw new Error("Failed to generate file URL");
@@ -284,17 +431,7 @@ export const SimpleFileDisplay = ({
             <div className="p-3 flex items-center justify-between">
               <div className="flex items-center space-x-2 overflow-hidden">
                 {isImage(file.filename) ? (
-                  <div className="h-8 w-8 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                    <img 
-                      src={`${getStorageUrl()}/object/public/${bucketName}/${normalizeFilePath(file.file_path)}`}
-                      alt={file.filename}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        console.error('Image failed to load from:', `${getStorageUrl()}/object/public/${bucketName}/${normalizeFilePath(file.file_path)}`);
-                        e.currentTarget.src = '/placeholder.svg';
-                      }}
-                    />
-                  </div>
+                  <ImageThumbnail file={file} parentType={parentType} />
                 ) : (
                   <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
                     {getFileIcon(file.filename)}
