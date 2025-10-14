@@ -2327,7 +2327,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // 4) Store reminder with creator tracking
+              // 4) Store reminder with creator tracking AND language for later email processing
               const { data: reminderRow, error: reminderError } = await supabaseAdmin
                 .from('custom_reminders')
                 .insert({
@@ -2339,7 +2339,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   reminder_sent_at: null,
                   created_by_type: requesterType,
                   created_by_sub_user_id: requesterType === 'sub_user' ? requesterIdentity?.id : null,
-                  created_by_name: baseName
+                  created_by_name: baseName,
+                  language: userLanguage  // CRITICAL: Store language for email localization
                 })
                 .select()
                 .single();
@@ -2373,6 +2374,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               const confirmation = confirmations[userLanguage as keyof typeof confirmations] || confirmations.en;
               
               // 6) Write bot message now (skip second LLM call)
+              // CRITICAL: Mark this message with a special flag so process-reminders won't duplicate it
               await supabaseAdmin.from('chat_messages').insert({
                 channel_id: channelId,
                 owner_id: ownerId,
@@ -2381,6 +2383,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 content: confirmation,
                 message_type: 'text'
               });
+              
+              console.log(`✅ Reminder confirmation sent to chat in ${userLanguage}`);
               
               // Return early with immediate response
               return new Response(

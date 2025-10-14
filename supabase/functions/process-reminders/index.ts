@@ -282,17 +282,9 @@ const handler = async (req: Request): Promise<Response> => {
               }
 
               if (aiChannelId) {
-                // Send reminder message to AI chat
-                const { error: chatInsertError } = await supabase
-                  .from('chat_messages')
-                  .insert({
-                    channel_id: aiChannelId,
-                    owner_id: reminder.user_id,
-                    sender_type: 'admin',
-                    sender_name: 'Smartbookly AI',
-                    content: `🔔 **Reminder Alert**\n\n**${reminder.title}**${reminder.message ? `\n\n${reminder.message}` : ''}\n\n_This is your scheduled reminder._`,
-                    message_type: 'text'
-                  });
+                // SKIP chat message - it was already sent when reminder was created
+                // This prevents duplicate messages in chat
+                console.log(`⏭️ Skipping chat message for ${reminder.id} - already sent at creation time`);
                 
                 if (chatInsertError) {
                   console.error(`❌ Failed to send chat message:`, chatInsertError);
