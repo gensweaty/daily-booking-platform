@@ -121,11 +121,13 @@ export const MessageInput = ({
         let senderName = 'User';
         let senderType: 'admin' | 'sub_user' = 'admin';
 
-        console.log('🔍 Auth user check:', {
+        console.log('🔍 [MessageInput] Auth user check:', {
           userId: user?.id,
           email: user?.email,
           role: user?.user_metadata?.role,
-          fullName: user?.user_metadata?.full_name
+          fullName: user?.user_metadata?.full_name,
+          boardOwnerId,
+          currentChannelId
         });
 
         // 1) Public board visitor identity (unchanged)
@@ -150,18 +152,29 @@ export const MessageInput = ({
         }
         // 2) Try to find sub-user by email first (works for both admin and sub-user auth)
         else if (user?.email) {
-          const { data: subUserData } = await supabase
+          console.log('🔍 [MessageInput] Querying sub_users table:', { 
+            email: user.email, 
+            boardOwnerId 
+          });
+          
+          const { data: subUserData, error: subUserError } = await supabase
             .from('sub_users')
             .select('fullname, email')
             .eq('board_owner_id', boardOwnerId)
             .ilike('email', user.email)
             .maybeSingle();
           
+          console.log('🔍 [MessageInput] Sub-user query result:', { 
+            found: !!subUserData, 
+            fullname: subUserData?.fullname,
+            error: subUserError 
+          });
+          
           if (subUserData?.fullname) {
             // This is a sub-user
             senderType = 'sub_user';
             senderName = subUserData.fullname;
-            console.log('✅ Found sub-user:', { fullname: subUserData.fullname, email: subUserData.email });
+            console.log('✅ [MessageInput] Found sub-user:', { fullname: subUserData.fullname, email: subUserData.email });
           } else {
             // This is the admin/owner
             senderType = 'admin';
@@ -177,7 +190,7 @@ export const MessageInput = ({
             } else {
               senderName = user.email?.split('@')[0] || 'User';
             }
-            console.log('✅ Admin user:', { username: profile?.username, email: user.email });
+            console.log('✅ [MessageInput] Admin user:', { username: profile?.username, email: user.email });
           }
         }
         
