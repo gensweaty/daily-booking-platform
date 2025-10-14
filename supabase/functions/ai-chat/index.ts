@@ -1529,14 +1529,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       baseName = senderName || 'User';
     }
 
-    console.log('🔍 [AI BACKEND RESOLUTION]', {
-      receivedSenderName: senderName,
-      receivedSenderType: senderType,
-      resolvedBaseName: baseName,
-      resolvedRequesterType: requesterType,
-      authEmail: authEmail
-    });
-
     const requesterName = withAiSuffix(baseName);
     console.log(`👤 Resolved requester → ${requesterName} [${requesterType}]`);
 
@@ -2798,14 +2790,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   last_edited_by_ai: true,
                   last_edited_at: new Date().toISOString()
                 };
-
-                console.log('📝 [TASK DATA]', {
-                  taskName: task_name,
-                  createdByName: baseName,
-                  createdByType: requesterType,
-                  createdByAI: true,
-                  ownerId: ownerId
-                });
 
                 if (task_id) {
                   // Update existing task
