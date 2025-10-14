@@ -161,16 +161,19 @@ export const PublicAddTaskForm = ({
         external_user_email: externalUserEmail, // Store external user email for reminders
         ...assignmentData,
         ...(editingTask ? {
-          // External user editing
-          last_edited_by_type: 'external_user',
-          last_edited_by_name: `${externalUserName} (Sub User)`,
+          // Sub-user editing manually
+          last_edited_by_type: 'sub_user',
+          last_edited_by_name: externalUserName,
+          last_edited_by_ai: false,
           last_edited_at: new Date().toISOString()
         } : {
-          // External user creating
-          created_by_type: 'external_user',
-          created_by_name: `${externalUserName} (Sub User)`,
-          last_edited_by_type: 'external_user',
-          last_edited_by_name: `${externalUserName} (Sub User)`,
+          // Sub-user creating manually
+          created_by_type: 'sub_user',
+          created_by_name: externalUserName,
+          created_by_ai: false,
+          last_edited_by_type: 'sub_user',
+          last_edited_by_name: externalUserName,
+          last_edited_by_ai: false,
           last_edited_at: new Date().toISOString()
         })
       };

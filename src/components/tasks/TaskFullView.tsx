@@ -161,10 +161,6 @@ export const TaskFullView = ({
     
     // Show (AI) only for sub-user AI creations
     return (isAI && isSub) ? `${name} (AI)` : name;
-    if (name.includes('@')) {
-      return externalUserName || name.split('@')[0];
-    }
-    return name;
   };
 
   return (
