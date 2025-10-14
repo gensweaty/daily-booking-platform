@@ -154,12 +154,14 @@ export const TaskFullView = ({
   const formattedCreatedDate = formatDate(task.created_at);
   const formattedUpdatedDate = task.updated_at ? formatDate(task.updated_at) : formattedCreatedDate;
 
-  const normalizeName = (name?: string) => {
+  const normalizeName = (name?: string, isAI?: boolean) => {
     if (!name) return undefined;
+    let displayName = name;
     if (name.includes('@')) {
-      return externalUserName || name.split('@')[0];
+      displayName = externalUserName || name.split('@')[0];
     }
-    return name;
+    // Append (AI) indicator if this was created/edited by AI
+    return isAI ? `${displayName} (AI)` : displayName;
   };
 
   return (
@@ -271,8 +273,8 @@ export const TaskFullView = ({
                    {task.created_by_name && (
                       <span className="ml-1">
                         {language === 'ka' 
-                          ? `${normalizeName(task.created_by_name)}-ს ${t("common.by")}` 
-                          : `${t("common.by")} ${normalizeName(task.created_by_name)}`}
+                          ? `${normalizeName(task.created_by_name, task.created_by_ai)}-ს ${t("common.by")}` 
+                          : `${t("common.by")} ${normalizeName(task.created_by_name, task.created_by_ai)}`}
                       </span>
                     )}
                 </span>
@@ -284,8 +286,8 @@ export const TaskFullView = ({
                    {task.last_edited_by_name && task.last_edited_at && (
                       <span className="ml-1">
                         {language === 'ka' 
-                          ? `${normalizeName(task.last_edited_by_name)}-ს ${t("common.by")}` 
-                          : `${t("common.by")} ${normalizeName(task.last_edited_by_name)}`}
+                          ? `${normalizeName(task.last_edited_by_name, task.last_edited_by_ai)}-ს ${t("common.by")}` 
+                          : `${t("common.by")} ${normalizeName(task.last_edited_by_name, task.last_edited_by_ai)}`}
                       </span>
                     )}
                 </span>

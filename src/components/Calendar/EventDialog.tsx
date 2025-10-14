@@ -253,19 +253,20 @@ export const EventDialog = ({
   }, [user?.id]);
 
   // Helper function to normalize names and get current user's username
-  const normalizeName = (name?: string, isCurrentUser = false) => {
+  const normalizeName = (name?: string, isCurrentUser = false, isAI = false) => {
     if (!name) return undefined;
     
+    let displayName = name;
     // If this is the current user and we have their profile username, use it
     if (isCurrentUser && currentUserProfileName) {
-      return currentUserProfileName;
+      displayName = currentUserProfileName;
     }
-    
     // For other cases, normalize the stored name
-    if (name.includes('@')) {
-      return name.split('@')[0];
+    else if (name.includes('@')) {
+      displayName = name.split('@')[0];
     }
-    return name;
+    // Append (AI) indicator if this was created/edited by AI
+    return isAI ? `${displayName} (AI)` : displayName;
   };
 
 
@@ -1364,8 +1365,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.created_by_name && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email)}`}
+                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email, (currentEventData || initialData)?.created_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email, (currentEventData || initialData)?.created_by_ai)}`}
                         </span>
                       )}
                     </span>
@@ -1377,8 +1378,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email)}`}
+                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email, (currentEventData || initialData)?.last_edited_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email, (currentEventData || initialData)?.last_edited_by_ai)}`}
                         </span>
                       )}
                     </span>

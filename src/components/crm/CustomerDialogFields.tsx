@@ -176,14 +176,16 @@ export const CustomerDialogFields = ({
     return <User className="h-3 w-3" />;
   };
 
-  const formatMetadataName = (name: string | null, type: string | null) => {
+  const formatMetadataName = (name: string | null, type: string | null, isAI?: boolean) => {
     if (!name) return 'Unknown';
     
     // Use the same logic as EventDialog - normalize the name properly
+    let displayName = name;
     if (name.includes('@')) {
-      return name.split('@')[0];
+      displayName = name.split('@')[0];
     }
-    return name || 'Unknown';
+    // Append (AI) indicator if this was created/edited by AI
+    return isAI ? `${displayName} (AI)` : (displayName || 'Unknown');
   };
 
   const formatMetadataDate = (dateString: string | null) => {
@@ -666,8 +668,8 @@ export const CustomerDialogFields = ({
                  {initialData.created_by_name && (
                    <span className="ml-1">
                      {language === 'ka' 
-                       ? `${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}-ს ${t("common.by")}` 
-                       : `${t("common.by")} ${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}`}
+                       ? `${formatMetadataName(initialData.created_by_name, initialData.created_by_type, initialData.created_by_ai)}-ს ${t("common.by")}` 
+                       : `${t("common.by")} ${formatMetadataName(initialData.created_by_name, initialData.created_by_type, initialData.created_by_ai)}`}
                    </span>
                  )}
                </span>
@@ -679,8 +681,8 @@ export const CustomerDialogFields = ({
                  {initialData.last_edited_by_name && initialData.last_edited_at && (
                    <span className="ml-1">
                      {language === 'ka' 
-                       ? `${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}-ს ${t("common.by")}` 
-                       : `${t("common.by")} ${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}`}
+                       ? `${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type, initialData.last_edited_by_ai)}-ს ${t("common.by")}` 
+                       : `${t("common.by")} ${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type, initialData.last_edited_by_ai)}`}
                    </span>
                  )}
                </span>

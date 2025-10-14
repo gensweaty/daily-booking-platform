@@ -16,8 +16,10 @@ export interface Task {
   reminder_sent_at?: string;
   created_by_name?: string;
   created_by_type?: string;
+  created_by_ai?: boolean;
   last_edited_by_name?: string;
   last_edited_by_type?: string;
+  last_edited_by_ai?: boolean;
   last_edited_at?: string;
   assigned_to_type?: 'admin' | 'sub_user';
   assigned_to_id?: string;
