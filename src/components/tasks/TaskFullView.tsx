@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 import { Card, CardContent } from "../ui/card";
 import { Separator } from "../ui/separator";
 import { format, parseISO } from "date-fns";
+import { formatAttribution } from "@/lib/metadata";
 
 interface TaskFullViewProps {
   task: Task;
