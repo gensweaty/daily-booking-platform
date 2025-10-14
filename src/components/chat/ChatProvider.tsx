@@ -637,12 +637,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!boardOwnerId || !me) return undefined;
     // prefer UUID for sub_user; else email as fallback
     if (me.type === 'sub_user') {
-      return me.id?.match(/^[0-9a-f-]{36}$/i) ? `S:${me.id}` : (me.email ? me.email : undefined);
+      return me.id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) ? `S:${me.id}` : (me.email ? me.email : undefined);
     }
     return `A:${me.id}`; // admin
   }, [boardOwnerId, me]);
 
-  const { aiChannelId, loading: aiLoading } = useAIChannel(aiIdentity);
+  const { aiChannelId, loading: aiLoading } = useAIChannel(boardOwnerId, aiIdentity);
 
   useEffect(() => {
     if (!boardOwnerId) return;

@@ -56,12 +56,12 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   const aiIdentity = useMemo(() => {
     if (!boardOwnerId || !me) return undefined;
     if (me.type === 'sub_user') {
-      return me.id?.match(/^[0-9a-f-]{36}$/i) ? `S:${me.id}` : (me.email ? me.email : undefined);
+      return me.id?.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) ? `S:${me.id}` : (me.email ? me.email : undefined);
     }
     return `A:${me.id}`;
   }, [boardOwnerId, me]);
 
-  const { aiChannelId } = useAIChannel(aiIdentity);
+  const { aiChannelId } = useAIChannel(boardOwnerId, aiIdentity);
   const [members, setMembers] = useState<Array<{ 
     id: string; 
     name: string; 
