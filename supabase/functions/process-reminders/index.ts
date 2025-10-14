@@ -201,7 +201,7 @@ const handler = async (req: Request): Promise<Response> => {
               console.log(`📧 Sending reminder to admin's email: ${userEmail}`);
             }
 
-            // 1. Send email reminder
+            // 1. Send email reminder with creator info for correct language lookup
             const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-custom-reminder-email', {
               body: { 
                 reminderId: reminder.id,
@@ -210,7 +210,9 @@ const handler = async (req: Request): Promise<Response> => {
                 message: reminder.message,
                 reminderTime: reminder.remind_at,
                 userId: reminder.user_id,
-                recipientUserId: recipientUserId // Pass the actual recipient's auth user ID
+                recipientUserId: recipientUserId,
+                createdByType: reminder.created_by_type, // CRITICAL: Pass creator type
+                createdBySubUserId: reminder.created_by_sub_user_id // CRITICAL: Pass sub-user ID
               }
             });
 
