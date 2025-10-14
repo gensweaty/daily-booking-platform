@@ -373,6 +373,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
           task={viewingTask}
           isOpen={!!viewingTask}
           onClose={() => setViewingTask(null)}
+          // Admin can edit/delete ALL tasks (including sub-user AI-created ones)
           onDelete={handleDeleteClick}
           onEdit={handleEditFromView}
           onArchive={handleArchiveClick}

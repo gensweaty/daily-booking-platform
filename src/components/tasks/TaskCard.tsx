@@ -26,6 +26,16 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
   const isGeorgian = language === 'ka';
   const [isHovered, setIsHovered] = useState(false);
   
+  // Debug logging for permission issues
+  console.log('TaskCard render:', { 
+    taskId: task.id, 
+    title: task.title,
+    hasOnEdit: !!onEdit, 
+    hasOnDelete: !!onDelete,
+    createdByType: task.created_by_type,
+    createdByName: task.created_by_name
+  });
+  
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {

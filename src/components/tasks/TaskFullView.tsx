@@ -75,7 +75,17 @@ export const TaskFullView = ({
   
   useEffect(() => {
     console.log("TaskFullView - task received:", task);
-  }, [task]);
+    console.log("TaskFullView - permission props:", {
+      hasOnEdit: !!onEdit,
+      hasOnDelete: !!onDelete,
+      hasOnArchive: !!onArchive,
+      isArchived,
+      taskId: task.id,
+      createdByType: task.created_by_type,
+      createdByName: task.created_by_name,
+      createdByAI: task.created_by_ai
+    });
+  }, [task, onEdit, onDelete, onArchive, isArchived]);
 
   const { data: files, refetch } = useQuery({
     queryKey: ['taskFiles', task.id],
