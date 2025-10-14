@@ -2493,9 +2493,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     p_user_id: ownerId,
                     p_event_id: event_id,
                     p_created_by_type: requesterType,
-                    p_created_by_name: requesterName,
+                    p_created_by_name: baseName,  // ← Use clean name without "(AI)"
+                    p_created_by_ai: true,        // ← Boolean flag for AI creation
                     p_last_edited_by_type: requesterType,
-                    p_last_edited_by_name: requesterName
+                    p_last_edited_by_name: baseName,  // ← Use clean name without "(AI)"
+                    p_last_edited_by_ai: true         // ← Boolean flag for AI edit
                   });
                   
                   if (updateError) {
@@ -2779,9 +2781,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   assigned_to_type: assignedToType,
                   assigned_to_id: assignedToId,
                   created_by_type: requesterType,
-                  created_by_name: requesterName,
+                  created_by_name: baseName,  // ← Use clean name without "(AI)"
+                  created_by_ai: true,        // ← Boolean flag for AI creation
                   last_edited_by_type: requesterType,
-                  last_edited_by_name: requesterName,
+                  last_edited_by_name: baseName,  // ← Use clean name without "(AI)"
+                  last_edited_by_ai: true,        // ← Boolean flag for AI edit
                   last_edited_at: new Date().toISOString()
                 };
 
@@ -2939,9 +2943,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   user_id: ownerId,
                   type: "customer",
                   created_by_type: requesterType,
-                  created_by_name: requesterName,
+                  created_by_name: baseName,  // ← Use clean name without "(AI)"
+                  created_by_ai: true,        // ← Boolean flag for AI creation
                   last_edited_by_type: requesterType,
-                  last_edited_by_name: requesterName
+                  last_edited_by_name: baseName,  // ← Use clean name without "(AI)"
+                  last_edited_by_ai: true         // ← Boolean flag for AI edit
                 };
 
                 if (customer_id) {
@@ -2998,9 +3004,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                         p_user_id: ownerId,
                         p_event_id: null,
                         p_created_by_type: requesterType,
-                        p_created_by_name: requesterName,
+                        p_created_by_name: baseName,  // ← Use clean name without "(AI)"
+                        p_created_by_ai: true,         // ← Boolean flag for AI creation
                         p_last_edited_by_type: requesterType,
-                        p_last_edited_by_name: requesterName
+                        p_last_edited_by_name: baseName,  // ← Use clean name without "(AI)"
+                        p_last_edited_by_ai: true         // ← Boolean flag for AI edit
                       });
                       
                       if (!eventError) {

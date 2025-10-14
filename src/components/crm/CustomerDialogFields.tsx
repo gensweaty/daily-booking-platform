@@ -176,8 +176,13 @@ export const CustomerDialogFields = ({
     return <User className="h-3 w-3" />;
   };
 
-  const formatMetadataName = (name: string | null, type: string | null) => {
+  const formatMetadataName = (name: string | null, type: string | null, isAI?: boolean | null) => {
     if (!name) return 'Unknown';
+    
+    const isSub = type === 'sub_user';
+    
+    // Show (AI) only for sub-user AI creations
+    return (isAI && isSub) ? `${name} (AI)` : name;
     
     // Use the same logic as EventDialog - normalize the name properly
     if (name.includes('@')) {
@@ -664,11 +669,11 @@ export const CustomerDialogFields = ({
                <span className="truncate">
                  {t("common.created")} {format(new Date(initialData.created_at), 'MM/dd/yy HH:mm')}
                  {initialData.created_by_name && (
-                   <span className="ml-1">
-                     {language === 'ka' 
-                       ? `${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}-ს ${t("common.by")}` 
-                       : `${t("common.by")} ${formatMetadataName(initialData.created_by_name, initialData.created_by_type)}`}
-                   </span>
+                    <span className="ml-1">
+                      {language === 'ka' 
+                        ? `${formatMetadataName(initialData.created_by_name, initialData.created_by_type, (initialData as any).created_by_ai)}-ს ${t("common.by")}` 
+                        : `${t("common.by")} ${formatMetadataName(initialData.created_by_name, initialData.created_by_type, (initialData as any).created_by_ai)}`}
+                    </span>
                  )}
                </span>
             </div>
@@ -677,11 +682,11 @@ export const CustomerDialogFields = ({
                <span className="truncate">
                  {t("common.lastUpdated")} {format(new Date(initialData.updated_at || initialData.created_at), 'MM/dd/yy HH:mm')}
                  {initialData.last_edited_by_name && initialData.last_edited_at && (
-                   <span className="ml-1">
-                     {language === 'ka' 
-                       ? `${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}-ს ${t("common.by")}` 
-                       : `${t("common.by")} ${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type)}`}
-                   </span>
+                    <span className="ml-1">
+                      {language === 'ka' 
+                        ? `${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type, (initialData as any).last_edited_by_ai)}-ს ${t("common.by")}` 
+                        : `${t("common.by")} ${formatMetadataName(initialData.last_edited_by_name, initialData.last_edited_by_type, (initialData as any).last_edited_by_ai)}`}
+                    </span>
                  )}
                </span>
             </div>

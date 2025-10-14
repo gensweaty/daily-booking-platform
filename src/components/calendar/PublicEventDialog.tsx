@@ -160,9 +160,14 @@ export const PublicEventDialog = ({
     (initialData.created_by_type === 'sub_user' && initialData.created_by_name === externalUserName) ||
     (initialData.created_by_type !== 'sub_user' && initialData.created_by_type !== 'admin') : true;
 
-  // Helper function to normalize names and get current user's username
-  const normalizeName = (name?: string, type?: string) => {
+  // Helper function to format attribution with AI indicator
+  const formatAttribution = (name?: string, type?: string, isAI?: boolean) => {
     if (!name) return undefined;
+    
+    const isSub = type === 'sub_user';
+    
+    // Show (AI) only for sub-user AI creations
+    return (isAI && isSub) ? `${name} (AI)` : name;
     
     // If this is an admin user and we have their profile username, use it
     if (type === 'admin' && currentUserProfileName) {
@@ -986,8 +991,8 @@ export const PublicEventDialog = ({
                       {(currentEventData || initialData)?.created_by_name && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type)}`}
+                            ? `${formatAttribution((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type, (currentEventData || initialData)?.created_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${formatAttribution((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type, (currentEventData || initialData)?.created_by_ai)}`}
                         </span>
                       )}
                     </span>
@@ -999,8 +1004,8 @@ export const PublicEventDialog = ({
                       {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type)}`}
+                            ? `${formatAttribution((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type, (currentEventData || initialData)?.last_edited_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${formatAttribution((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type, (currentEventData || initialData)?.last_edited_by_ai)}`}
                         </span>
                       )}
                     </span>

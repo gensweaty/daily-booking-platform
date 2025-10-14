@@ -205,6 +205,7 @@ export const EventDialog = ({
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [currentUserProfileName, setCurrentUserProfileName] = useState<string>("");
+  const [currentSubUserFullName, setCurrentSubUserFullName] = useState<string>("");
   const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
   const [originalInstanceStartISO, setOriginalInstanceStartISO] = useState<string | null>(null);
   const [originalInstanceEndISO, setOriginalInstanceEndISO] = useState<string | null>(null);
@@ -244,28 +245,37 @@ export const EventDialog = ({
         if (data?.username) {
           setCurrentUserProfileName(data.username);
         }
+        
+        // If sub-user, also fetch their full name
+        if (isSubUser && user.email) {
+          const effectiveUserId = getEffectiveUserId();
+          const { data: subUserData } = await supabase
+            .from('sub_users')
+            .select('fullname')
+            .eq('board_owner_id', effectiveUserId)
+            .ilike('email', user.email)
+            .maybeSingle();
+            
+          if (subUserData?.fullname) {
+            setCurrentSubUserFullName(subUserData.fullname);
+          }
+        }
       } catch (err) {
         console.error('Exception fetching current user profile:', err);
       }
     };
     
     fetchCurrentUserProfile();
-  }, [user?.id]);
+  }, [user?.id, isSubUser]);
 
-  // Helper function to normalize names and get current user's username
-  const normalizeName = (name?: string, isCurrentUser = false) => {
+  // Helper function to format attribution with AI indicator
+  const formatAttribution = (name?: string, type?: string, isAI?: boolean) => {
     if (!name) return undefined;
     
-    // If this is the current user and we have their profile username, use it
-    if (isCurrentUser && currentUserProfileName) {
-      return currentUserProfileName;
-    }
+    const isSub = type === 'sub_user';
     
-    // For other cases, normalize the stored name
-    if (name.includes('@')) {
-      return name.split('@')[0];
-    }
-    return name;
+    // Show (AI) only for sub-user AI creations
+    return (isAI && isSub) ? `${name} (AI)` : name;
   };
 
 
@@ -924,11 +934,15 @@ export const EventDialog = ({
         // Add sub-user metadata
         ...(isPublicMode && externalUserName ? {
           last_edited_by_type: 'sub_user',
-          last_edited_by_name: externalUserName
+          last_edited_by_name: externalUserName,
+          last_edited_by_ai: false
         } : isSubUser ? {
           last_edited_by_type: 'sub_user',
-          last_edited_by_name: user?.email || 'sub_user'
-        } : {})
+          last_edited_by_name: currentSubUserFullName || user?.email || 'sub_user',
+          last_edited_by_ai: false
+        } : {
+          last_edited_by_ai: false
+        })
       };
 
       console.log("📤 Sending event data to backend with reminder fields:", {
@@ -971,7 +985,8 @@ export const EventDialog = ({
             p_event_data: seriesEventData,
             p_additional_persons: additionalPersons,
             p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
+            p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+            p_edited_by_ai: false
           });
           if (error) throw error;
           if (!seriesResult?.success) throw new Error(seriesResult?.error || 'Failed to update series');
@@ -1001,9 +1016,11 @@ export const EventDialog = ({
               p_user_id: effectiveUserId,
               p_event_id: childId,
               p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-              p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+              p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+              p_created_by_ai: false,
               p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-              p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+              p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+              p_last_edited_by_ai: false,
             });
             if (updErr) throw updErr;
           } else {
@@ -1023,7 +1040,8 @@ export const EventDialog = ({
               p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
               p_additional_persons: additionalPersons,
               p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-              p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
+              p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+              p_edited_by_ai: false
             });
             if (error) throw error;
             if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to update only this instance');
@@ -1055,9 +1073,11 @@ export const EventDialog = ({
         p_user_id: effectiveUserId,
         p_event_id: actualEventId,
         p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-        p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+        p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+        p_created_by_ai: false,
         p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-        p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+        p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+        p_last_edited_by_ai: false,
       });
       if (singleErr) throw singleErr;
 
@@ -1131,9 +1151,11 @@ export const EventDialog = ({
             p_user_id: effectiveUserId,
             p_event_id: null,
             p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : (user?.email || 'admin'),
+            p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+            p_created_by_ai: false,
             p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : (user?.email || 'admin'),
+            p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+            p_last_edited_by_ai: false,
           });
 
           if (result.error) throw result.error;
@@ -1364,8 +1386,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.created_by_name && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email)}`}
+                            ? `${formatAttribution((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type, (currentEventData || initialData)?.created_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${formatAttribution((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type, (currentEventData || initialData)?.created_by_ai)}`}
                         </span>
                       )}
                     </span>
@@ -1377,8 +1399,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email)}`}
+                            ? `${formatAttribution((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type, (currentEventData || initialData)?.last_edited_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${formatAttribution((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type, (currentEventData || initialData)?.last_edited_by_ai)}`}
                         </span>
                       )}
                     </span>
