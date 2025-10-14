@@ -12,6 +12,7 @@ import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recu
 import { Clock, RefreshCcw, User, Calendar, History } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { uploadEventFiles, loadEventFiles } from "@/utils/eventFileUpload";
+import { formatAttribution } from "@/lib/metadata";
 
 interface PublicEventDialogProps {
   open: boolean;
@@ -159,27 +160,6 @@ export const PublicEventDialog = ({
   const isEventCreatedByCurrentUser = initialData ? 
     (initialData.created_by_type === 'sub_user' && initialData.created_by_name === externalUserName) ||
     (initialData.created_by_type !== 'sub_user' && initialData.created_by_type !== 'admin') : true;
-
-  // Helper function to format attribution with AI indicator
-  const formatAttribution = (name?: string, type?: string, isAI?: boolean) => {
-    if (!name) return undefined;
-    
-    const isSub = type === 'sub_user';
-    
-    // Show (AI) only for sub-user AI creations
-    return (isAI && isSub) ? `${name} (AI)` : name;
-    
-    // If this is an admin user and we have their profile username, use it
-    if (type === 'admin' && currentUserProfileName) {
-      return currentUserProfileName;
-    }
-    
-    // For other cases, normalize the stored name
-    if (name.includes('@')) {
-      return name.split('@')[0];
-    }
-    return name;
-  };
 
   // Fetch current user's profile username for display
   useEffect(() => {

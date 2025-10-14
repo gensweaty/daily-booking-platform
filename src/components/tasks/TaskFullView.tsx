@@ -165,15 +165,6 @@ export const TaskFullView = ({
   const formattedCreatedDate = formatDate(task.created_at);
   const formattedUpdatedDate = task.updated_at ? formatDate(task.updated_at) : formattedCreatedDate;
 
-  const formatAttribution = (name?: string, type?: string, isAI?: boolean) => {
-    if (!name) return undefined;
-    
-    const isSub = type === 'sub_user';
-    
-    // Show (AI) only for sub-user AI creations
-    return (isAI && isSub) ? `${name} (AI)` : name;
-  };
-
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>

@@ -17,6 +17,7 @@ import { format, parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { uploadEventFiles, loadEventFiles } from "@/utils/eventFileUpload";
+import { formatAttribution } from "@/lib/metadata";
 
 interface EventDialogProps {
   open: boolean;
@@ -267,16 +268,6 @@ export const EventDialog = ({
     
     fetchCurrentUserProfile();
   }, [user?.id, isSubUser]);
-
-  // Helper function to format attribution with AI indicator
-  const formatAttribution = (name?: string, type?: string, isAI?: boolean) => {
-    if (!name) return undefined;
-    
-    const isSub = type === 'sub_user';
-    
-    // Show (AI) only for sub-user AI creations
-    return (isAI && isSub) ? `${name} (AI)` : name;
-  };
 
 
   const loadAdditionalPersons = async (targetEventId: string) => {
