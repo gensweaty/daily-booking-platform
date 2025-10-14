@@ -121,8 +121,30 @@ export const MessageInput = ({
         let senderName = 'User';
         let senderType = 'admin';
         
-        if (user) {
-          // First check if this is a sub-user
+        // Check for public board context first
+        const isOnPublicBoard = window.location.pathname.startsWith('/public/');
+        const publicBoardSlug = isOnPublicBoard ? window.location.pathname.split('/').pop() : null;
+        
+        if (isOnPublicBoard && publicBoardSlug) {
+          // Try to get stored public board identity
+          const stored = JSON.parse(localStorage.getItem(`public-board-access-${publicBoardSlug}`) || '{}');
+          
+          if (stored.email) {
+            // This is a public board sub-user - fetch their info
+            const { data: subUser } = await supabase
+              .from('sub_users')
+              .select('fullname, email')
+              .eq('board_owner_id', boardOwnerId)
+              .eq('email', stored.email)
+              .maybeSingle();
+            
+            if (subUser) {
+              senderName = subUser.fullname || stored.name || stored.email.split('@')[0];
+              senderType = 'sub_user';
+            }
+          }
+        } else if (user) {
+          // Authenticated user - check if they're a sub-user or admin
           const { data: subUser } = await supabase
             .from('sub_users')
             .select('fullname, email, board_owner_id')
