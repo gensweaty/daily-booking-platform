@@ -202,18 +202,18 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
 
       {/* Image preview modal with high z-index */}
       <Dialog open={!!previewSrc} onOpenChange={() => setPreviewSrc(null)}>
-        <DialogPortal>
-          <DialogOverlay className="fixed inset-0 z-[10050] bg-black/70" />
-          <DialogContent className="fixed left-1/2 top-1/2 z-[10060] -translate-x-1/2 -translate-y-1/2 w-[min(96vw,1100px)] max-h-[92vh] p-0 overflow-hidden rounded-xl bg-background shadow-2xl">
-            {previewSrc && (
-              <img
-                src={previewSrc}
-                alt="Preview"
-                className="w-full h-auto max-h-[92vh] object-contain"
-              />
-            )}
-          </DialogContent>
-        </DialogPortal>
+        <DialogContent 
+          className="max-w-[96vw] w-auto max-h-[92vh] p-0 overflow-hidden border-none bg-transparent"
+          style={{ zIndex: 10060 }}
+        >
+          {previewSrc && (
+            <img
+              src={previewSrc}
+              alt="Preview"
+              className="w-full h-auto max-h-[92vh] object-contain rounded-lg"
+            />
+          )}
+        </DialogContent>
       </Dialog>
     </>
   );
