@@ -666,27 +666,28 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const effectiveDefaultChannel = aiChannelId || defaultChannelId;
 
   // If we learn the default channel later, auto-select it when nothing is selected yet
+  // Wait for AI channel to finish loading before auto-selecting
   useEffect(() => {
-    if (!currentChannelId && effectiveDefaultChannel) {
+    if (!currentChannelId && effectiveDefaultChannel && !aiLoading) {
       console.log('🎯 Auto-selecting default channel:', effectiveDefaultChannel, '(AI:', aiChannelId, 'General:', defaultChannelId, ')');
       setCurrentChannelId(effectiveDefaultChannel);
     }
-  }, [effectiveDefaultChannel, currentChannelId, aiChannelId, defaultChannelId]);
+  }, [effectiveDefaultChannel, currentChannelId, aiChannelId, defaultChannelId, aiLoading]);
 
 
   // Chat control functions - Open window immediately, no pending logic
   const open = useCallback(() => {
     if (!shouldShowChat) return;
     setIsOpen(true);
-    // Ensure a channel exists as soon as the window appears (if we already know it)
-    if (!currentChannelId && effectiveDefaultChannel) {
+    // Ensure a channel exists as soon as the window appears (wait for AI to load first)
+    if (!currentChannelId && effectiveDefaultChannel && !aiLoading) {
       setCurrentChannelId(effectiveDefaultChannel);
       // Clear unread for default channel when opening chat for external users
       if (isOnPublicBoard && me?.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id)) {
         clearChannel(effectiveDefaultChannel);
       }
     }
-  }, [shouldShowChat, currentChannelId, effectiveDefaultChannel, isOnPublicBoard, me?.id, clearChannel]);
+  }, [shouldShowChat, currentChannelId, effectiveDefaultChannel, isOnPublicBoard, me?.id, clearChannel, aiLoading]);
 
   const close = useCallback(() => setIsOpen(false), []);
 
@@ -694,7 +695,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     if (!shouldShowChat) return;
     setIsOpen(prev => {
       const next = !prev;
-      if (next && !currentChannelId && effectiveDefaultChannel) {
+      if (next && !currentChannelId && effectiveDefaultChannel && !aiLoading) {
         setCurrentChannelId(effectiveDefaultChannel);
         // Clear unread for default channel when opening chat for external users
         if (isOnPublicBoard && me?.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(me.id)) {
@@ -703,7 +704,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       }
       return next;
     });
-  }, [shouldShowChat, currentChannelId, effectiveDefaultChannel, isOnPublicBoard, me?.id, clearChannel]);
+  }, [shouldShowChat, currentChannelId, effectiveDefaultChannel, isOnPublicBoard, me?.id, clearChannel, aiLoading]);
 
   const openChannel = useCallback(async (channelId: string) => {
     // BULLETPROOF FIX: Clear unread count IMMEDIATELY before any other operations
