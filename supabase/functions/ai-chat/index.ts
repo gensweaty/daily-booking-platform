@@ -333,17 +333,23 @@ serve(async (req) => {
     // ---- END FILE ANALYSIS ----
 
     // ---- TASK HELPERS (resilient to schema drift) ----
-    const STATUS_ALIASES: Record<string,string> = {
-      inprogress: "in_progress",
-      "in-progress": "in_progress",
-      todo: "todo",
-      done: "done"
-    };
-    const normStatus = (s?: string) => (s ? (STATUS_ALIASES[s] || s) : undefined);
+    // DB uses: "todo" | "inprogress" | "done" (UI expects same)
+    const TASK_DB_STATUSES = ["todo", "inprogress", "done"] as const;
+    type TaskDbStatus = typeof TASK_DB_STATUSES[number];
 
-    function unifyStatus(s?: string) {
-      if (!s) return "unknown";
-      return STATUS_ALIASES[s] || s;
+    function normalizeTaskStatus(input?: string): TaskDbStatus {
+      const s = (input || "").toLowerCase().trim();
+      if (["inprogress", "in-progress", "in_progress", "working", "active"].includes(s)) return "inprogress";
+      if (["done", "completed", "finished", "closed", "complete"].includes(s)) return "done";
+      return "todo";
+    }
+
+    // When reading/making stats, coerce legacy/wrong values back to UI values
+    function unifyStatus(s?: string): TaskDbStatus {
+      const x = (s || "").toLowerCase();
+      if (["inprogress", "in-progress", "in_progress"].includes(x)) return "inprogress";
+      if (["done", "completed", "finished", "closed"].includes(x)) return "done";
+      return "todo";
     }
 
     async function fetchTasksFlexible(client: ReturnType<typeof createClient>, ownerId: string, filters: {
@@ -366,7 +372,13 @@ serve(async (req) => {
           if (c.archivedCol) q = q.is(c.archivedCol as any, null);
           if (filters.created_after)  q = q.gte("created_at", filters.created_after);
           if (filters.created_before) q = q.lte("created_at", filters.created_before);
-          if (filters.status)         q = q.eq("status", normStatus(filters.status)!);
+          if (filters.status) {
+            // Allow both spellings but map to DB format
+            const statusForDb = normalizeTaskStatus(
+              filters.status === "in_progress" ? "inprogress" : filters.status
+            );
+            q = q.eq("status", statusForDb);
+          }
 
           q = q.order("created_at", { ascending: false });
 
@@ -1695,7 +1707,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 count: res.tasks.length,
                 status_breakdown: breakdown,
                 filters_applied: {
-                  status: normStatus(filters.status) || 'all',
+                  status: normalizeTaskStatus(filters.status) || 'all',
                   created_after: filters.created_after || 'none',
                   created_before: filters.created_before || 'none'
                 }
@@ -2422,7 +2434,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                             event_id: event_id,
                             user_id: ownerId,
                             filename: attachment.filename,
-                            file_path: fileStoragePath,
+                            file_path: `chat_attachments/${attachment.file_path}`,
                             content_type: attachment.content_type,
                             size: attachment.size
                           });
@@ -2669,7 +2681,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 }
                 
                 // Normalize status
-                const normalizedStatus = normStatus(status) || "todo";
+                const normalizedStatus = normalizeTaskStatus(status);
                 console.log(`    📊 Status: "${status}" → "${normalizedStatus}"`);
                 
                 const taskData = {

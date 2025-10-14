@@ -26,6 +26,12 @@ interface TaskListProps {
 export const TaskList = ({ username }: TaskListProps = {}) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Resolve the board owner id (works for admin or sub-user sessions)
+  const boardOwnerId =
+    (user?.user_metadata?.board_owner_id as string) ||
+    (user?.user_metadata?.owner_id as string) ||
+    user?.id;
   const { toast } = useToast();
   const { t } = useLanguage();
   const { applyFilters, filters } = useTaskFilters(); // Must be called at top before any returns
@@ -40,7 +46,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
 
       // Broadcast change to public boards for this owner
-      const ch = supabase.channel(`public_board_tasks_${user?.id}`);
+      const ch = supabase.channel(`public_board_tasks_${boardOwnerId}`);
       ch.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
@@ -62,7 +68,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
       queryClient.invalidateQueries({ queryKey: ['archivedTasks'] });
 
       // Broadcast change to public boards for this owner
-      const ch = supabase.channel(`public_board_tasks_${user?.id}`);
+      const ch = supabase.channel(`public_board_tasks_${boardOwnerId}`);
       ch.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
@@ -91,7 +97,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       
       // Broadcast change to public boards for this owner
-      const ch = supabase.channel(`public_board_tasks_${user?.id}`);
+      const ch = supabase.channel(`public_board_tasks_${boardOwnerId}`);
       ch.subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now() } });
@@ -131,12 +137,15 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
 
     console.log(`Moving task ${taskId} to status: ${dbStatus}`);
     
+    const editorType = (user?.user_metadata?.role === 'sub_user') ? 'sub_user' : 'admin';
+    const editorName = username || (user?.user_metadata?.full_name as string) || 'User';
+    
     updateTaskMutation.mutate({
       id: taskId,
       updates: { 
         status: dbStatus,
-        last_edited_by_type: 'admin',
-        last_edited_by_name: username || (user?.user_metadata?.full_name as string) || 'Admin',
+        last_edited_by_type: editorType,
+        last_edited_by_name: editorName,
         last_edited_at: new Date().toISOString()
       },
     });
@@ -165,9 +174,9 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   };
 
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['tasks'],
-    queryFn: () => getTasks(user?.id || ''),
-    enabled: !!user?.id,
+    queryKey: ['tasks', boardOwnerId],
+    queryFn: () => getTasks(boardOwnerId || ''),
+    enabled: !!boardOwnerId,
   });
 
   // Apply filters to tasks - MUST be before any early returns to follow hooks rules
@@ -200,20 +209,20 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     done: filteredTasks.filter((task: Task) => task.status === 'done'),
   }), [filteredTasks]);
 
-  // Realtime: keep task list in sync for this user (INSERT/UPDATE/DELETE)
+  // Realtime: keep task list in sync for this board (INSERT/UPDATE/DELETE)
   useEffect(() => {
-    if (!user?.id) return;
+    if (!boardOwnerId) return;
     
-    console.log('[TaskList] Setting up realtime subscriptions for user:', user.id);
+    console.log('[TaskList] Setting up realtime subscriptions for board:', boardOwnerId);
     
     // Listen for database changes - this will catch ALL task changes including AI-created ones
     const channel = supabase
-      .channel(`tasks-realtime-${user.id}`)
+      .channel(`tasks-realtime-${boardOwnerId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'tasks',
-        filter: `user_id=eq.${user.id}`,
+        filter: `user_id=eq.${boardOwnerId}`,
       }, (payload) => {
         console.log('[TaskList] Realtime task change:', payload.eventType, payload);
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -226,7 +235,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
       console.log('[TaskList] Cleaning up realtime subscriptions');
       supabase.removeChannel(channel);
     };
-  }, [user?.id, queryClient]);
+  }, [boardOwnerId, queryClient]);
 
   useEffect(() => {
     const handler = async (e: CustomEvent) => {

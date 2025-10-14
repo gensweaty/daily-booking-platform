@@ -72,20 +72,21 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
   return data;
 };
 
-export const getTasks = async (userId: string) => {
+export const getTasks = async (ownerId: string) => {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
-    .eq('user_id', userId)
-    .eq('archived', false)  // Only get non-archived tasks
-    .order('position', { ascending: true });
+    .eq('user_id', ownerId)
+    .is('archived_at', null)  // Only get non-archived tasks
+    .order('position', { ascending: true })
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error getting tasks:', error);
     throw error;
   }
 
-  return data;
+  return data || [];
 };
 
 export const deleteTask = async (id: string) => {
