@@ -204,32 +204,33 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   useEffect(() => {
     if (!user?.id) return;
     
-    // Listen for postgres changes (normal CRUD operations)
-    const dbChannel = supabase
-      .channel(`tasks-changes-user-${user.id}`)
+    console.log('[TaskList] Setting up realtime subscriptions for user:', user.id);
+    
+    // Single channel for both postgres changes AND broadcast events
+    const channel = supabase
+      .channel(`tasks-realtime-${user.id}`)
+      // Listen for database changes (normal CRUD operations)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'tasks',
         filter: `user_id=eq.${user.id}`,
       }, (payload) => {
-        console.log('[Realtime] tasks database change for user', user.id, payload.eventType);
+        console.log('[Realtime] tasks database change:', payload.eventType);
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
       })
-      .subscribe();
-    
-    // ALSO listen for broadcast events from AI and public boards
-    const broadcastChannel = supabase
-      .channel(`public_board_tasks_${user.id}`)
+      // Listen for broadcast events from AI and public boards
       .on('broadcast', { event: 'tasks-changed' }, (payload) => {
-        console.log('[Realtime] tasks broadcast received from', payload.payload?.source || 'unknown');
+        console.log('[Realtime] tasks broadcast received from:', payload.payload?.source || 'unknown');
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[TaskList] Channel subscription status:', status);
+      });
 
     return () => {
-      supabase.removeChannel(dbChannel);
-      supabase.removeChannel(broadcastChannel);
+      console.log('[TaskList] Cleaning up realtime subscriptions');
+      supabase.removeChannel(channel);
     };
   }, [user?.id, queryClient]);
 

@@ -2721,6 +2721,17 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
                       message: `Task updated: ${task_name}`
                     };
+                    
+                    // Broadcast change to frontend
+                    console.log(`    📡 Broadcasting task update to tasks-realtime-${ownerId}`);
+                    const ch = supabaseAdmin.channel(`tasks-realtime-${ownerId}`);
+                    ch.subscribe((status) => {
+                      if (status === 'SUBSCRIBED') {
+                        ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now(), source: 'ai', task_id } });
+                        console.log(`    ✅ Broadcast sent for updated task ${task_id}`);
+                        supabaseAdmin.removeChannel(ch);
+                      }
+                    });
                   }
                 } else {
                   // Create new task
@@ -2756,11 +2767,13 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       message: `Task created: ${task_name}. ${uploadedFileRecords.length > 0 ? `Files attached: ${uploadedFileRecords.map(f => f.filename).join(', ')}.` : ''} ${assignedToType ? `Assigned to ${assigned_to_name}.` : ''}`
                     };
                     
-                    // Broadcast change
-                    const ch = supabaseAdmin.channel(`public_board_tasks_${ownerId}`);
+                    // Broadcast change to frontend
+                    console.log(`    📡 Broadcasting task creation to tasks-realtime-${ownerId}`);
+                    const ch = supabaseAdmin.channel(`tasks-realtime-${ownerId}`);
                     ch.subscribe((status) => {
                       if (status === 'SUBSCRIBED') {
-                        ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now(), source: 'ai' } });
+                        ch.send({ type: 'broadcast', event: 'tasks-changed', payload: { ts: Date.now(), source: 'ai', task_id: newTask.id } });
+                        console.log(`    ✅ Broadcast sent for new task ${newTask.id}`);
                         supabaseAdmin.removeChannel(ch);
                       }
                     });
