@@ -120,24 +120,46 @@ export const MessageInput = ({
         const { data: { user } } = await supabase.auth.getUser();
         let senderName = 'User';
         let senderType: 'admin' | 'sub_user' = 'admin';
+        let effectiveBoardOwnerId = boardOwnerId;
 
-        // 1) Public board visitor identity (unchanged)
-        const isOnPublicBoard = window.location.pathname.startsWith('/public/');
+        // 1) Public board visitor identity - FIX: correct route check
+        const isOnPublicBoard = window.location.pathname.startsWith('/board/');
         const publicBoardSlug = isOnPublicBoard ? window.location.pathname.split('/').pop() : null;
 
         if (isOnPublicBoard && publicBoardSlug) {
+          // First, get the actual board owner ID from public_boards
+          const { data: publicBoard } = await supabase
+            .from('public_boards')
+            .select('user_id')
+            .eq('slug', publicBoardSlug)
+            .maybeSingle();
+          
+          if (publicBoard) {
+            effectiveBoardOwnerId = publicBoard.user_id;
+          }
+
+          // Then resolve sub-user from localStorage
           const stored = JSON.parse(localStorage.getItem(`public-board-access-${publicBoardSlug}`) || '{}');
-          if (stored.email) {
+          if (stored.email && effectiveBoardOwnerId) {
             const { data: subUser } = await supabase
               .from('sub_users')
-              .select('fullname, email')
-              .eq('board_owner_id', boardOwnerId)
-              .eq('email', stored.email)
+              .select('id, fullname, email')
+              .eq('board_owner_id', effectiveBoardOwnerId)
+              .ilike('email', stored.email)
               .maybeSingle();
 
             if (subUser) {
-              senderName = subUser.fullname || stored.name || stored.email.split('@')[0];
+              senderName = subUser.fullname || stored.fullName || stored.email.split('@')[0];
               senderType = 'sub_user';
+              
+              console.log('🔍 AI Request Context:', {
+                isOnPublicBoard,
+                publicBoardSlug,
+                effectiveBoardOwnerId,
+                senderName,
+                senderType,
+                subUserId: subUser.id
+              });
             }
           }
         }
@@ -155,7 +177,7 @@ export const MessageInput = ({
           const { data: subUser } = await supabase
             .from('sub_users')
             .select('fullname, email, board_owner_id')
-            .eq('board_owner_id', boardOwnerId)
+            .eq('board_owner_id', effectiveBoardOwnerId) // Use effective board owner ID
             .ilike('email', user.email ?? '')
             .maybeSingle();
 
@@ -184,7 +206,7 @@ export const MessageInput = ({
           .from('chat_messages')
           .select('sender_type, content')
           .eq('channel_id', currentChannelId)
-          .eq('owner_id', boardOwnerId)
+          .eq('owner_id', effectiveBoardOwnerId) // Use effective board owner ID
           .order('created_at', { ascending: false })
           .limit(20);
 
@@ -215,7 +237,7 @@ export const MessageInput = ({
             body: {
               channelId: currentChannelId,
               prompt: userMessage,
-              ownerId: boardOwnerId,
+              ownerId: effectiveBoardOwnerId, // Use the corrected board owner ID
               conversationHistory: conversationHistory,
               userTimezone: tz,
               tzOffsetMinutes,
