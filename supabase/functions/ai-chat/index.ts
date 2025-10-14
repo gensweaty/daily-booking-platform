@@ -1490,30 +1490,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
           subMatch = nameMatch;
         }
         
-        // Strategy 4: If no match yet and we have a clean name, try fuzzy name matching
-        if (!subMatch && senderName && !senderName.includes('@') && !senderName.startsWith('user_')) {
-          const { data: nameMatches } = await supabaseAdmin
-            .from('sub_users')
-            .select('id, fullname, email')
-            .eq('board_owner_id', channel?.owner_id || ownerId)
-            .ilike('fullname', `%${senderName.trim()}%`)
-            .limit(5);
-          
-          // If we get exactly one match, use it
-          if (nameMatches && nameMatches.length === 1) {
-            subMatch = nameMatches[0];
-          }
-          // If multiple matches, try exact match (case-insensitive)
-          else if (nameMatches && nameMatches.length > 1) {
-            const exactMatch = nameMatches.find(
-              su => su.fullname.toLowerCase() === senderName.trim().toLowerCase()
-            );
-            if (exactMatch) {
-              subMatch = exactMatch;
-            }
-          }
-        }
-        
         if (subMatch) {
           requesterType = 'sub_user';
           baseName = subMatch.fullname?.trim()
@@ -1554,16 +1530,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     }
 
     const requesterName = withAiSuffix(baseName);
-    console.log('👤 Requester Resolution:', {
-      inputSenderType: senderType,
-      inputSenderName: senderName,
-      ownerId,
-      resolvedType: requesterType,
-      resolvedName: baseName,
-      displayName: requesterName,
-      authUserId: authId,
-      authEmail: authEmail
-    });
+    console.log(`👤 Resolved requester → ${requesterName} [${requesterType}]`);
 
     // Process attachments if any
     let attachmentContext = '';
@@ -2823,14 +2790,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   last_edited_by_ai: true,
                   last_edited_at: new Date().toISOString()
                 };
-                
-                console.log('📝 Task data to save:', {
-                  createdByName: baseName,
-                  createdByType: requesterType,
-                  createdByAI: true,
-                  ownerId,
-                  taskName: task_name
-                });
 
                 if (task_id) {
                   // Update existing task
