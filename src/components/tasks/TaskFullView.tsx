@@ -401,7 +401,7 @@ export const TaskFullView = ({
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10001]">
+        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-sm sm:text-base">
               <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
@@ -422,7 +422,7 @@ export const TaskFullView = ({
 
       {/* Archive Confirmation Dialog */}
       <AlertDialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
-        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10001]">
+        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-sm sm:text-base">
               <Archive className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
