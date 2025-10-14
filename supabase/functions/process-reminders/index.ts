@@ -284,9 +284,31 @@ const handler = async (req: Request): Promise<Response> => {
               }
 
               if (aiChannelId) {
-                // SKIP chat message - it was already sent when reminder was created
-                // This prevents duplicate messages in chat
-                console.log(`⏭️ Skipping chat message for ${reminder.id} - already sent at creation time`);
+                // Send actual reminder message in chat (different from creation confirmation)
+                const reminderMessage = reminder.language === 'ka' 
+                  ? `🔔 შეხსენება\n\n${reminder.title}${reminder.message ? `\n\n${reminder.message}` : ''}`
+                  : reminder.language === 'es'
+                  ? `🔔 Recordatorio\n\n${reminder.title}${reminder.message ? `\n\n${reminder.message}` : ''}`
+                  : reminder.language === 'ru'
+                  ? `🔔 Напоминание\n\n${reminder.title}${reminder.message ? `\n\n${reminder.message}` : ''}`
+                  : `🔔 Reminder\n\n${reminder.title}${reminder.message ? `\n\n${reminder.message}` : ''}`;
+                
+                const { error: chatError } = await supabase
+                  .from('chat_messages')
+                  .insert({
+                    channel_id: aiChannelId,
+                    content: reminderMessage,
+                    sender_type: 'ai',
+                    sender_name: 'Smartbookly AI',
+                    owner_id: reminder.user_id,
+                    message_type: 'text'
+                  });
+                
+                if (chatError) {
+                  console.error(`❌ Error sending chat reminder for ${reminder.id}:`, chatError);
+                } else {
+                  console.log(`✅ Sent reminder chat message for ${reminder.id}`);
+                }
               } else {
                 console.log(`⚠️ No AI channel found for reminder creator`);
               }

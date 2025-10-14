@@ -53,7 +53,7 @@ const getEmailContent = (language: string, title: string, message: string | unde
             <h2 style="color: #111827; margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4;">${title}</h2>
           </div>
           
-          ${message ? `
+          ${message && message !== title ? `
             <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
               <p style="color: #4b5563; margin: 0; line-height: 1.6;">${message}</p>
             </div>
@@ -91,7 +91,7 @@ const getEmailContent = (language: string, title: string, message: string | unde
             <h2 style="color: #111827; margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4;">${title}</h2>
           </div>
           
-          ${message ? `
+          ${message && message !== title ? `
             <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
               <p style="color: #4b5563; margin: 0; line-height: 1.6;">${message}</p>
             </div>
@@ -129,7 +129,7 @@ const getEmailContent = (language: string, title: string, message: string | unde
             <h2 style="color: #111827; margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4;">${title}</h2>
           </div>
           
-          ${message ? `
+          ${message && message !== title ? `
             <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
               <p style="color: #4b5563; margin: 0; line-height: 1.6;">${message}</p>
             </div>
