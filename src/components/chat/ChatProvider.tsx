@@ -662,8 +662,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       });
   }, [boardOwnerId]);
 
-  // Prioritize AI channel as default for authenticated users
-  const effectiveDefaultChannel = (!isOnPublicBoard && aiChannelId) ? aiChannelId : defaultChannelId;
+  // Prioritize AI channel as default for all users
+  const effectiveDefaultChannel = aiChannelId || defaultChannelId;
 
   // If we learn the default channel later, auto-select it when nothing is selected yet
   useEffect(() => {
