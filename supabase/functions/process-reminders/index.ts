@@ -160,21 +160,45 @@ const handler = async (req: Request): Promise<Response> => {
         
         for (const reminder of dueCustomReminders || []) {
           try {
-            console.log(`🔍 Processing custom reminder: ${reminder.title} (ID: ${reminder.id}, remind_at: ${reminder.remind_at})`);
+            console.log(`🔍 Processing custom reminder: ${reminder.title} (ID: ${reminder.id}, created_by: ${reminder.created_by_type}, remind_at: ${reminder.remind_at})`);
             
-            // Get user's own email from auth (this is the verified email)
-            const { data: userData, error: userError } = await supabase.auth.admin.getUserById(reminder.user_id);
+            // Determine recipient email based on creator type
+            let userEmail: string;
+            let recipientUserId: string;
             
-            if (userError || !userData?.user?.email) {
-              console.error(`❌ Could not get user email for reminder ${reminder.id}:`, userError);
-              result.errors.push(`Custom reminder ${reminder.id}: User email not found`);
-              continue;
+            if (reminder.created_by_type === 'sub_user' && reminder.created_by_sub_user_id) {
+              // This reminder was created by a sub-user - send to sub-user's email
+              const { data: subUserData, error: subUserError } = await supabase
+                .from('sub_users')
+                .select('email, auth_user_id')
+                .eq('id', reminder.created_by_sub_user_id)
+                .single();
+              
+              if (subUserError || !subUserData?.email) {
+                console.error(`❌ Could not get sub-user email for reminder ${reminder.id}:`, subUserError);
+                result.errors.push(`Custom reminder ${reminder.id}: Sub-user email not found`);
+                continue;
+              }
+              
+              userEmail = subUserData.email;
+              recipientUserId = subUserData.auth_user_id || reminder.user_id;
+              console.log(`📧 Sending reminder to sub-user's email: ${userEmail}`);
+            } else {
+              // This reminder was created by admin - send to admin's email
+              const { data: userData, error: userError } = await supabase.auth.admin.getUserById(reminder.user_id);
+              
+              if (userError || !userData?.user?.email) {
+                console.error(`❌ Could not get user email for reminder ${reminder.id}:`, userError);
+                result.errors.push(`Custom reminder ${reminder.id}: User email not found`);
+                continue;
+              }
+
+              userEmail = userData.user.email;
+              recipientUserId = reminder.user_id;
+              console.log(`📧 Sending reminder to admin's email: ${userEmail}`);
             }
 
-            const userEmail = userData.user.email;
-            console.log(`📧 Sending reminder to user's own email: ${userEmail}`);
-
-            // 1. Send email reminder (to user's own verified email)
+            // 1. Send email reminder
             const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-custom-reminder-email', {
               body: { 
                 reminderId: reminder.id,
@@ -182,7 +206,8 @@ const handler = async (req: Request): Promise<Response> => {
                 title: reminder.title,
                 message: reminder.message,
                 reminderTime: reminder.remind_at,
-                userId: reminder.user_id
+                userId: reminder.user_id,
+                recipientUserId: recipientUserId // Pass the actual recipient's auth user ID
               }
             });
 
@@ -204,21 +229,59 @@ const handler = async (req: Request): Promise<Response> => {
 
             // 3. Send chat message in AI channel (if exists)
             try {
-              // Find AI channel for this user
-              const { data: aiChannel } = await supabase
-                .from('chat_channels')
-                .select('id')
-                .eq('owner_id', reminder.user_id)
-                .eq('is_ai', true)
-                .eq('is_deleted', false)
-                .single();
+              // Find the correct AI channel based on who created the reminder
+              let aiChannelId = null;
+              
+              if (reminder.created_by_type === 'sub_user' && reminder.created_by_sub_user_id) {
+                // Find personal AI channel for this sub-user
+                const { data: personalChannel } = await supabase
+                  .from('chat_channels')
+                  .select('id, owner_id')
+                  .eq('owner_id', reminder.user_id)
+                  .eq('is_ai', true)
+                  .eq('is_dm', true)
+                  .eq('is_deleted', false);
+                
+                // Find the channel where this sub-user is a participant
+                if (personalChannel) {
+                  for (const channel of personalChannel) {
+                    const { data: participant } = await supabase
+                      .from('chat_participants')
+                      .select('id')
+                      .eq('channel_id', channel.id)
+                      .eq('sub_user_id', reminder.created_by_sub_user_id)
+                      .eq('user_type', 'sub_user')
+                      .single();
+                    
+                    if (participant) {
+                      aiChannelId = channel.id;
+                      console.log(`✅ Found personal AI channel for sub-user: ${channel.id}`);
+                      break;
+                    }
+                  }
+                }
+              } else {
+                // Find admin's AI channel
+                const { data: adminChannel } = await supabase
+                  .from('chat_channels')
+                  .select('id')
+                  .eq('owner_id', reminder.user_id)
+                  .eq('is_ai', true)
+                  .eq('is_deleted', false)
+                  .single();
+                
+                if (adminChannel) {
+                  aiChannelId = adminChannel.id;
+                  console.log(`✅ Found admin AI channel: ${aiChannelId}`);
+                }
+              }
 
-              if (aiChannel) {
+              if (aiChannelId) {
                 // Send reminder message to AI chat
                 await supabase
                   .from('chat_messages')
                   .insert({
-                    channel_id: aiChannel.id,
+                    channel_id: aiChannelId,
                     owner_id: reminder.user_id,
                     sender_type: 'admin',
                     sender_name: 'Smartbookly AI',
@@ -226,6 +289,8 @@ const handler = async (req: Request): Promise<Response> => {
                     message_type: 'text'
                   });
                 console.log(`✅ Chat message sent to AI channel`);
+              } else {
+                console.log(`⚠️ No AI channel found for reminder creator`);
               }
             } catch (chatError) {
               console.error(`⚠️ Could not send chat message (non-critical):`, chatError);

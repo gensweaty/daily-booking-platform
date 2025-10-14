@@ -27,7 +27,8 @@ interface CustomReminderEmailRequest {
   title: string;
   message?: string;
   reminderTime: string;
-  userId: string; // Added to fetch language preference
+  userId: string;
+  recipientUserId?: string; // Optional: The actual recipient's auth user ID (for sub-users)
 }
 
 // Multi-language email content
@@ -173,7 +174,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
-    const { reminderId, userEmail, title, message, reminderTime, userId }: CustomReminderEmailRequest = await req.json();
+    const { reminderId, userEmail, title, message, reminderTime, userId, recipientUserId }: CustomReminderEmailRequest = await req.json();
 
     // Validate required fields
     if (!reminderId || !userEmail || !title || !userId) {
@@ -198,15 +199,16 @@ const handler = async (req: Request): Promise<Response> => {
     // Mark as sent IMMEDIATELY to prevent race conditions
     recentlySentEmails.set(emailKey, Date.now());
 
-    // Get user's language preference
+    // Get language preference from the actual recipient's profile (sub-user or admin)
+    const userIdForLanguage = recipientUserId || userId;
     const { data: profileData } = await supabase
       .from('profiles')
       .select('language')
-      .eq('id', userId)
+      .eq('id', userIdForLanguage)
       .single();
 
     const language = profileData?.language || 'en';
-    console.log(`📧 Sending custom reminder email in ${language} for reminder ${reminderId} to ${userEmail}`);
+    console.log(`📧 Sending custom reminder email in ${language} for reminder ${reminderId} to ${userEmail} (recipientUserId: ${userIdForLanguage})`);
 
     // Get localized email content
     const { subject, body: emailBody } = getEmailContent(language, title, message, reminderTime);

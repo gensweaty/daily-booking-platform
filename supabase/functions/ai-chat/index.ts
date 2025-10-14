@@ -2327,7 +2327,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // 4) Store reminder (same as existing system)
+              // 4) Store reminder with creator tracking
               const { data: reminderRow, error: reminderError } = await supabaseAdmin
                 .from('custom_reminders')
                 .insert({
@@ -2336,7 +2336,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   message: message || '',
                   remind_at: remindAtUtc.toISOString(),
                   email_sent: false,
-                  reminder_sent_at: null
+                  reminder_sent_at: null,
+                  created_by_type: requesterType,
+                  created_by_sub_user_id: requesterType === 'sub_user' ? requesterIdentity?.id : null,
+                  created_by_name: baseName
                 })
                 .select()
                 .single();
