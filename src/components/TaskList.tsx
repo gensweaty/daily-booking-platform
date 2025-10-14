@@ -206,26 +206,20 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     
     console.log('[TaskList] Setting up realtime subscriptions for user:', user.id);
     
-    // Single channel for both postgres changes AND broadcast events
+    // Listen for database changes - this will catch ALL task changes including AI-created ones
     const channel = supabase
       .channel(`tasks-realtime-${user.id}`)
-      // Listen for database changes (normal CRUD operations)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'tasks',
         filter: `user_id=eq.${user.id}`,
       }, (payload) => {
-        console.log('[Realtime] tasks database change:', payload.eventType);
-        queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      })
-      // Listen for broadcast events from AI and public boards
-      .on('broadcast', { event: 'tasks-changed' }, (payload) => {
-        console.log('[Realtime] tasks broadcast received from:', payload.payload?.source || 'unknown');
+        console.log('[TaskList] Realtime task change:', payload.eventType, payload);
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
       })
       .subscribe((status) => {
-        console.log('[TaskList] Channel subscription status:', status);
+        console.log('[TaskList] Subscription status:', status);
       });
 
     return () => {
