@@ -6,8 +6,6 @@ export interface Task {
   order: number;
   created_at: string;
   user_id: string;
-  created_by_ai?: boolean;
-  last_edited_by_ai?: boolean;
 }
 
 export interface Reminder {

@@ -686,7 +686,6 @@ export type Database = {
         Row: {
           create_event: boolean | null
           created_at: string | null
-          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deleted_at: string | null
@@ -696,7 +695,6 @@ export type Database = {
           id: string
           is_group_member: boolean | null
           last_edited_at: string | null
-          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           paid_at: string | null
@@ -714,7 +712,6 @@ export type Database = {
         Insert: {
           create_event?: boolean | null
           created_at?: string | null
-          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deleted_at?: string | null
@@ -724,7 +721,6 @@ export type Database = {
           id?: string
           is_group_member?: boolean | null
           last_edited_at?: string | null
-          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           paid_at?: string | null
@@ -742,7 +738,6 @@ export type Database = {
         Update: {
           create_event?: boolean | null
           created_at?: string | null
-          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deleted_at?: string | null
@@ -752,7 +747,6 @@ export type Database = {
           id?: string
           is_group_member?: boolean | null
           last_edited_at?: string | null
-          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           paid_at?: string | null
@@ -877,7 +871,6 @@ export type Database = {
           booking_request_id: string | null
           content_type: string | null
           created_at: string | null
-          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deleted_at: string | null
@@ -896,7 +889,6 @@ export type Database = {
           is_recurring: boolean | null
           language: string | null
           last_edited_at: string | null
-          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           original_booking_id: string | null
@@ -924,7 +916,6 @@ export type Database = {
           booking_request_id?: string | null
           content_type?: string | null
           created_at?: string | null
-          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deleted_at?: string | null
@@ -943,7 +934,6 @@ export type Database = {
           is_recurring?: boolean | null
           language?: string | null
           last_edited_at?: string | null
-          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           original_booking_id?: string | null
@@ -971,7 +961,6 @@ export type Database = {
           booking_request_id?: string | null
           content_type?: string | null
           created_at?: string | null
-          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deleted_at?: string | null
@@ -990,7 +979,6 @@ export type Database = {
           is_recurring?: boolean | null
           language?: string | null
           last_edited_at?: string | null
-          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           original_booking_id?: string | null
@@ -1592,7 +1580,6 @@ export type Database = {
           assigned_to_name: string | null
           assigned_to_type: string | null
           created_at: string | null
-          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deadline_at: string | null
@@ -1602,7 +1589,6 @@ export type Database = {
           external_user_email: string | null
           id: string
           last_edited_at: string | null
-          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           position: number | null
@@ -1626,7 +1612,6 @@ export type Database = {
           assigned_to_name?: string | null
           assigned_to_type?: string | null
           created_at?: string | null
-          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deadline_at?: string | null
@@ -1636,7 +1621,6 @@ export type Database = {
           external_user_email?: string | null
           id?: string
           last_edited_at?: string | null
-          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           position?: number | null
@@ -1660,7 +1644,6 @@ export type Database = {
           assigned_to_name?: string | null
           assigned_to_type?: string | null
           created_at?: string | null
-          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deadline_at?: string | null
@@ -1670,7 +1653,6 @@ export type Database = {
           external_user_email?: string | null
           id?: string
           last_edited_at?: string | null
-          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           position?: number | null
@@ -2105,7 +2087,6 @@ export type Database = {
           assigned_to_name: string | null
           assigned_to_type: string | null
           created_at: string | null
-          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deadline_at: string | null
@@ -2115,7 +2096,6 @@ export type Database = {
           external_user_email: string | null
           id: string
           last_edited_at: string | null
-          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           position: number | null
@@ -2135,7 +2115,6 @@ export type Database = {
           booking_request_id: string | null
           content_type: string | null
           created_at: string | null
-          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deleted_at: string | null
@@ -2154,7 +2133,6 @@ export type Database = {
           is_recurring: boolean | null
           language: string | null
           last_edited_at: string | null
-          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           original_booking_id: string | null
