@@ -203,7 +203,9 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   // Realtime: keep task list in sync for this user (INSERT/UPDATE/DELETE)
   useEffect(() => {
     if (!user?.id) return;
-    const channel = supabase
+    
+    // Listen for postgres changes (normal CRUD operations)
+    const dbChannel = supabase
       .channel(`tasks-changes-user-${user.id}`)
       .on('postgres_changes', {
         event: '*',
@@ -211,13 +213,23 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
         table: 'tasks',
         filter: `user_id=eq.${user.id}`,
       }, (payload) => {
-        console.log('[Realtime] tasks change for user', user.id, payload.eventType);
+        console.log('[Realtime] tasks database change for user', user.id, payload.eventType);
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      })
+      .subscribe();
+    
+    // ALSO listen for broadcast events from AI and public boards
+    const broadcastChannel = supabase
+      .channel(`public_board_tasks_${user.id}`)
+      .on('broadcast', { event: 'tasks-changed' }, (payload) => {
+        console.log('[Realtime] tasks broadcast received from', payload.payload?.source || 'unknown');
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(dbChannel);
+      supabase.removeChannel(broadcastChannel);
     };
   }, [user?.id, queryClient]);
 
