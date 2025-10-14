@@ -424,8 +424,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const ids = normalized.map(m => m.id);
       let byMsg: Record<string, any[]> = {};
       
-      if (ids.length && !isSlowNet.current) {
-        // Only load attachments on faster networks to avoid delays
+      // 🔧 FIX: Always load attachments - user data must be visible regardless of network speed
+      if (ids.length) {
         if (onPublicBoard && me?.type === 'sub_user') {
           const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
             p_message_ids: ids
