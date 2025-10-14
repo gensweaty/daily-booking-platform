@@ -154,13 +154,12 @@ export const TaskFullView = ({
   const formattedCreatedDate = formatDate(task.created_at);
   const formattedUpdatedDate = task.updated_at ? formatDate(task.updated_at) : formattedCreatedDate;
 
-  const normalizeName = (name?: string, fromAI: boolean = false) => {
+  const normalizeName = (name?: string) => {
     if (!name) return undefined;
     if (name.includes('@')) {
-      const displayName = externalUserName || name.split('@')[0];
-      return fromAI ? `${displayName} (AI)` : displayName;
+      return externalUserName || name.split('@')[0];
     }
-    return fromAI ? `${name} (AI)` : name;
+    return name;
   };
 
   return (
@@ -269,24 +268,24 @@ export const TaskFullView = ({
                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="truncate">
                    {t("common.created")} {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}
-                   {task.created_by_name && (
-                      <span className="ml-1">
-                        {language === 'ka' 
-                          ? `${normalizeName(task.created_by_name, true)}-ს ${t("common.by")}` 
-                          : `${t("common.by")} ${normalizeName(task.created_by_name, true)}`}
-                      </span>
-                    )}
+                {task.created_by_name && (
+                  <span className="ml-1">
+                    {language === 'ka' 
+                      ? `${normalizeName(task.created_by_name)}${task.created_by_ai ? ' (AI)' : ''}-ს ${t("common.by")}` 
+                      : `${t("common.by")} ${normalizeName(task.created_by_name)}${task.created_by_ai ? ' (AI)' : ''}`}
+                  </span>
+                )}
                 </span>
               </div>
-              <div className="flex items-center">
+               <div className="flex items-center">
                 <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="truncate">
                    {t("common.lastUpdated")} {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}
                    {task.last_edited_by_name && task.last_edited_at && (
                       <span className="ml-1">
                         {language === 'ka' 
-                          ? `${normalizeName(task.last_edited_by_name, true)}-ს ${t("common.by")}` 
-                          : `${t("common.by")} ${normalizeName(task.last_edited_by_name, true)}`}
+                          ? `${normalizeName(task.last_edited_by_name)}${task.last_edited_by_ai ? ' (AI)' : ''}-ს ${t("common.by")}` 
+                          : `${t("common.by")} ${normalizeName(task.last_edited_by_name)}${task.last_edited_by_ai ? ' (AI)' : ''}`}
                       </span>
                     )}
                 </span>
