@@ -150,47 +150,56 @@ export const MessageInput = ({
             }
           }
         }
-        // 2) Try to find sub-user by email first (works for both admin and sub-user auth)
-        else if (user?.email) {
-          console.log('🔍 [MessageInput] Querying sub_users table:', { 
-            email: user.email, 
-            boardOwnerId 
-          });
-          
-          const { data: subUserData, error: subUserError } = await supabase
-            .from('sub_users')
-            .select('fullname, email')
-            .eq('board_owner_id', boardOwnerId)
-            .ilike('email', user.email)
-            .maybeSingle();
-          
-          console.log('🔍 [MessageInput] Sub-user query result:', { 
-            found: !!subUserData, 
-            fullname: subUserData?.fullname,
-            error: subUserError 
-          });
-          
-          if (subUserData?.fullname) {
-            // This is a sub-user
-            senderType = 'sub_user';
-            senderName = subUserData.fullname;
-            console.log('✅ [MessageInput] Found sub-user:', { fullname: subUserData.fullname, email: subUserData.email });
-          } else {
-            // This is the admin/owner
+        // 2) Authenticated user - determine if admin or sub-user by checking user ID
+        else if (user?.id) {
+          // CRITICAL FIX: Check if this user IS the board owner (admin)
+          if (user.id === boardOwnerId) {
+            // This is the admin/board owner
             senderType = 'admin';
             const { data: profile } = await supabase
               .from('profiles')
               .select('username')
               .eq('id', user.id)
               .maybeSingle();
-
-            // Use profile username only if it's not an auto-generated "user_..."
+            
             if (profile?.username && !profile.username.startsWith('user_')) {
               senderName = profile.username;
             } else {
-              senderName = user.email?.split('@')[0] || 'User';
+              senderName = user.email?.split('@')[0] || 'Admin';
             }
-            console.log('✅ [MessageInput] Admin user:', { username: profile?.username, email: user.email });
+            console.log('✅ [MessageInput] Admin user (board owner):', { userId: user.id, username: senderName });
+          } else {
+            // Not the board owner - must be a sub-user, query by auth_user_id
+            const { data: subUserData } = await supabase
+              .from('sub_users')
+              .select('fullname, email')
+              .eq('board_owner_id', boardOwnerId)
+              .eq('auth_user_id', user.id)
+              .maybeSingle();
+            
+            if (subUserData?.fullname) {
+              senderType = 'sub_user';
+              senderName = subUserData.fullname;
+              console.log('✅ [MessageInput] Sub-user found by auth_user_id:', { fullname: subUserData.fullname, userId: user.id });
+            } else {
+              // Fallback: try email match if auth_user_id didn't work
+              const { data: emailMatch } = await supabase
+                .from('sub_users')
+                .select('fullname, email')
+                .eq('board_owner_id', boardOwnerId)
+                .ilike('email', user.email || '')
+                .maybeSingle();
+              
+              if (emailMatch?.fullname) {
+                senderType = 'sub_user';
+                senderName = emailMatch.fullname;
+                console.log('✅ [MessageInput] Sub-user found by email:', { fullname: emailMatch.fullname });
+              } else {
+                senderType = 'sub_user';
+                senderName = user.email?.split('@')[0] || 'User';
+                console.log('⚠️ [MessageInput] Sub-user not found in database, using email as fallback');
+              }
+            }
           }
         }
         

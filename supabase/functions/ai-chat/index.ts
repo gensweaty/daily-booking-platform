@@ -1529,11 +1529,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       baseName = senderName || 'User';
     }
 
-    const requesterName = withAiSuffix(baseName);
-    console.log(`👤 Resolved requester → ${requesterName} [${requesterType}]`);
+    console.log(`👤 Resolved requester → ${baseName} (AI) [${requesterType}]`);
     console.log(`   Input: senderName="${senderName}", senderType="${senderType}"`);
     console.log(`   Output: baseName="${baseName}", requesterType="${requesterType}"`);
-
+    
+    // CRITICAL: Ensure baseName is set correctly - this is what gets stored in DB
+    if (!baseName || baseName === 'User') {
+      console.warn(`⚠️ baseName is not properly set! Falling back to senderName or email`);
+      baseName = senderName || nameFromEmail(authUser?.email) || 'User';
+    }
     // Process attachments if any
     let attachmentContext = '';
     const imageAttachments: any[] = [];
