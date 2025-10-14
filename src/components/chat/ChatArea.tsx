@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MessageCircle, Users, Bot } from 'lucide-react';
+import { MessageCircle, Users } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
@@ -1432,8 +1432,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {channelInfo?.is_ai ? (
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center flex-shrink-0">
-                <Bot className="h-6 w-6 text-white" />
+              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
+                <span className="text-white text-xl">🤖</span>
               </div>
             ) : channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
               <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
