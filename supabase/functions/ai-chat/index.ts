@@ -2963,16 +2963,28 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       
       const responsePrompt = {
         role: "user",
-        content: `Respond to the user about the action result. 
+        content: `Generate a concise confirmation message about the action result. Use the user's language (${userLanguage}).
 
-IMPORTANT RESPONSE RULES:
-- If time_conflict error: Say "⚠️ That time slot is already booked with [conflict name]. Would you like a different time?"
-- If event/task/customer was created: Confirm with "✅ [Type] created: [name] on [date/time]"
-- If event/task/customer was updated: Confirm with "✅ [Type] updated: [name]"
-- If files were uploaded: Add "📎 Files attached: [list file names]"
-- If create_custom_reminder: Say "✅ Reminder set! I'll remind you about [title] at [display_time]. You'll receive both an email and dashboard notification."
-- For excel reports: Include download link
-- Be concise and use the user's language (${userLanguage})`
+CRITICAL RULES - YOU MUST FOLLOW THESE:
+1. DO NOT add "how else can I help?" or "Is there anything else?" - NEVER ask this
+2. DO NOT add extra pleasantries or filler text
+3. ONLY use the response provided by the function
+4. Do not add file names if there are no files attached
+5. Do not mention assignee names if there are no assignees
+6. NEVER generate new text yourself - ONLY use what the function returned
+
+RESPONSE FORMAT (choose ONE based on result):
+- If time_conflict: "⚠️ That time slot is already booked with [conflict name]. Would you like a different time?"
+- If task created: "✅ Task created: [name]. Assigned to [person]." (only mention assignee if exists)
+- If event created: "✅ Event created: [name] on [date/time]."
+- If customer created: "✅ Customer created: [name]."
+- If updated: "✅ [Type] updated: [name]."
+- If files attached: Add "📎 Files attached: [list names]" (ONLY if files exist)
+- If reminder: "✅ Reminder set! I'll remind you about [title] at [display_time]. You'll receive both email and dashboard notification."
+- If excel: Include download link
+- If error: State the error clearly
+
+Be direct. Be concise. No extra text.`
       };
       
       const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
