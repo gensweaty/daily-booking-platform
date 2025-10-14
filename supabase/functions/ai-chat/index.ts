@@ -1443,55 +1443,90 @@ For excel: call generate_excel_report, provide markdown download link.
 
 Remember: You're a powerful AI agent that can both READ and WRITE data. Act proactively to help users manage their business!`;
 
-    // --- SAFEST: resolve actor from auth + DB, ignore client-supplied names ---
+    // --- HYBRID: Use client hints + server validation for accurate attribution ---
     const withAiSuffix = (n: string) => (n?.trim().endsWith('(AI)') ? n.trim() : `${n?.trim()} (AI)`);
     const nameFromEmail = (e?: string | null) => (e ? e.split('@')[0] : 'User');
 
-    let requesterType: 'admin' | 'sub_user' = 'admin';
-    let baseName = 'User';
+    let requesterType: 'admin' | 'sub_user' = senderType as any || 'admin';
+    let baseName = senderName || 'User';
 
     try {
-      // Auth user from the caller's JWT (we set Authorization header above)
+      // Get auth context
       const { data: authRes } = await supabaseClient.auth.getUser();
       const authUser = authRes?.user || null;
       const authEmail = (authUser?.email || '').toLowerCase();
       const authId = authUser?.id || '';
 
-      // 1) Try to match a sub-user in this workspace
-      //    (use service role to bypass any RLS/read issues safely)
-      const { data: subMatch } = await supabaseAdmin
-        .from('sub_users')
-        .select('id, fullname, email, auth_user_id')
-        .eq('board_owner_id', channel?.owner_id || ownerId)
-        .or(`auth_user_id.eq.${authId},email.eq.${authEmail}`)
-        .maybeSingle();
-
-      if (subMatch) {
-        requesterType = 'sub_user';
-        baseName = subMatch.fullname?.trim()
-          || nameFromEmail(subMatch.email)
-          || nameFromEmail(authEmail);
+      if (senderType === 'sub_user') {
+        // CLIENT SAYS: This is a sub-user - try multiple matching strategies
+        
+        // Strategy 1: Match by auth_user_id
+        let { data: subMatch } = await supabaseAdmin
+          .from('sub_users')
+          .select('id, fullname, email')
+          .eq('board_owner_id', channel?.owner_id || ownerId)
+          .eq('auth_user_id', authId)
+          .maybeSingle();
+        
+        // Strategy 2: If no match, try by email
+        if (!subMatch && authEmail) {
+          const { data: emailMatch } = await supabaseAdmin
+            .from('sub_users')
+            .select('id, fullname, email')
+            .eq('board_owner_id', channel?.owner_id || ownerId)
+            .ilike('email', authEmail)
+            .maybeSingle();
+          subMatch = emailMatch;
+        }
+        
+        // Strategy 3: If client sent a name that looks like an email, try that
+        if (!subMatch && senderName && senderName.includes('@')) {
+          const { data: nameMatch } = await supabaseAdmin
+            .from('sub_users')
+            .select('id, fullname, email')
+            .eq('board_owner_id', channel?.owner_id || ownerId)
+            .ilike('email', senderName.trim().toLowerCase())
+            .maybeSingle();
+          subMatch = nameMatch;
+        }
+        
+        if (subMatch) {
+          requesterType = 'sub_user';
+          baseName = subMatch.fullname?.trim()
+            || nameFromEmail(subMatch.email)
+            || senderName
+            || 'Sub User';
+        } else {
+          // No match found, but client says sub-user - trust client but validate name
+          requesterType = 'sub_user';
+          baseName = (senderName && !senderName.includes('@'))
+            ? senderName
+            : nameFromEmail(senderName || authEmail);
+        }
       } else {
-        // 2) Treat as board owner/admin
+        // CLIENT SAYS: This is admin/owner - get personal name (NOT business name)
         requesterType = 'admin';
+        
         baseName =
           (authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || '').trim()
           || (await (async () => {
-               const { data: biz } = await supabaseAdmin
-                 .from('business_profiles')
-                 .select('business_name')
-                 .eq('user_id', ownerId)
+               // Get profile username only
+               const { data: profile } = await supabaseAdmin
+                 .from('profiles')
+                 .select('username')
+                 .eq('id', ownerId)
                  .maybeSingle();
-               return biz?.business_name?.trim();
+               return profile?.username?.trim();
              })())
           || nameFromEmail(authEmail)
           || senderName
           || 'Owner';
       }
-    } catch (_) {
-      // Final fallbacks if anything above fails
+    } catch (err) {
+      console.error('⚠️ Error resolving requester, using client hints:', err);
+      // Fallback to client-supplied values
       requesterType = (senderType as any) || 'admin';
-      baseName = senderName || 'Owner';
+      baseName = senderName || 'User';
     }
 
     const requesterName = withAiSuffix(baseName);
