@@ -303,6 +303,18 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         return;
       }
 
+      // CRITICAL: Check if this is an AI DM channel (per-member AI)
+      if (ch?.is_ai && ch?.is_dm) {
+        const info = { 
+          name: ch?.name || 'AI Assistant', 
+          isDM: true,
+          is_ai: true
+        } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
+
       // DM: Use different paths for public vs internal boards
       if (isPublic) {
         const { data: pub } = await supabase.rpc('get_channel_header_public', {
