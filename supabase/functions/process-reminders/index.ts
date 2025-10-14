@@ -273,7 +273,8 @@ const handler = async (req: Request): Promise<Response> => {
                   .insert({
                     channel_id: aiChannelId,
                     content: reminderMessage,
-                    sender_type: 'ai',
+                    sender_type: 'admin', // Use 'admin' since 'ai' is not allowed by check constraint
+                    sender_user_id: reminder.user_id, // Set board owner as sender
                     sender_name: 'Smartbookly AI',
                     owner_id: reminder.user_id,
                     message_type: 'text'
