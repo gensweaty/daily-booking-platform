@@ -2778,6 +2778,69 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               });
               
               try {
+                // CRITICAL: Convert local datetime to UTC (same as events)
+                const convertLocalToUTC = (localDateTimeStr: string): string => {
+                  if (!localDateTimeStr) return null;
+                  
+                  // Parse the local date/time string
+                  const [datePart, timePart] = localDateTimeStr.split('T');
+                  const [Y, M, D] = datePart.split('-').map(Number);
+                  const [h, m] = timePart ? timePart.split(':').map(Number) : [0, 0];
+                  
+                  // Start from UTC guess
+                  let guess = new Date(Date.UTC(Y, M - 1, D, h, m));
+                  
+                  // If we have a valid timezone, adjust so it displays correctly in user's TZ
+                  if (effectiveTZ) {
+                    const fmt = (x: Date) =>
+                      new Intl.DateTimeFormat('en-CA', {
+                        timeZone: effectiveTZ,
+                        hour12: false,
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                        .formatToParts(x)
+                        .reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                    
+                    // Adjustment loop to handle DST
+                    for (let i = 0; i < 3; i++) {
+                      const parts = fmt(guess);
+                      const want = `${Y}-${String(M).padStart(2, '0')}-${String(D).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                      const have = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+                      if (have === want) break;
+                      
+                      const deltaMin =
+                        ((Y - +parts.year) * 525600) +
+                        ((M - +parts.month) * 43200) +
+                        ((D - +parts.day) * 1440) +
+                        ((h - +parts.hour) * 60) +
+                        (m - +parts.minute);
+                      guess = new Date(guess.getTime() + deltaMin * 60_000);
+                    }
+                  } else if (typeof tzOffsetMinutes === 'number') {
+                    // Fallback: use offset if no IANA timezone
+                    guess = new Date(guess.getTime() + tzOffsetMinutes * 60_000);
+                  }
+                  
+                  return guess.toISOString();
+                };
+                
+                // Convert deadline and reminder to UTC
+                const deadlineUTC = deadline ? convertLocalToUTC(deadline) : null;
+                const reminderUTC = reminder ? convertLocalToUTC(reminder) : null;
+                
+                console.log('🕐 Task timezone conversion:', {
+                  localDeadline: deadline,
+                  utcDeadline: deadlineUTC,
+                  localReminder: reminder,
+                  utcReminder: reminderUTC,
+                  effectiveTZ,
+                  tzOffsetMinutes
+                });
+                
                 // Auto-resolve assignment by name (like events auto-handle files!)
                 let assignedToType = null;
                 let assignedToId = null;
@@ -2836,8 +2899,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   status: normalizedStatus,
                   user_id: ownerId,
                   position: 0,
-                  deadline_at: deadline || null,
-                  reminder_at: reminder || null,
+                  deadline_at: deadlineUTC,
+                  reminder_at: reminderUTC,
                   email_reminder_enabled: reminder ? true : (email_reminder || false),
                   assigned_to_type: assignedToType,
                   assigned_to_id: assignedToId,
