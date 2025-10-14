@@ -33,8 +33,10 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Request body:', body);
 
     const now = new Date();
-    // Use 1-minute buffer BEFORE scheduled time for much earlier delivery
-    const reminderCheckTime = new Date(now.getTime() + 60 * 1000); // 1 minute ahead for earlier checking
+    // CRITICAL: Use 2-minute buffer to catch reminders that might have just passed
+    // This ensures sub-user reminders created moments ago are caught in the next cron run
+    const reminderCheckTime = new Date(now.getTime() + 120 * 1000); // 2 minutes ahead
+    const reminderCheckPast = new Date(now.getTime() - 60 * 1000); // Also check 1 minute in the past
     
     const result: ReminderProcessingResult = {
       taskReminders: 0,
@@ -148,7 +150,8 @@ const handler = async (req: Request): Promise<Response> => {
       const { data: dueCustomReminders, error: customError } = await supabase
         .from('custom_reminders')
         .select('*')
-        .lte('remind_at', reminderCheckTime.toISOString())
+        .gte('remind_at', reminderCheckPast.toISOString())  // Check from 1 minute ago
+        .lte('remind_at', reminderCheckTime.toISOString())   // Up to 2 minutes ahead
         .is('reminder_sent_at', null)
         .is('deleted_at', null);
 
