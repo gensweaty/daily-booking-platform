@@ -2758,6 +2758,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 // Auto-resolve assignment by name (like events auto-handle files!)
                 let assignedToType = null;
                 let assignedToId = null;
+                let assignedToName = null;
+                let assignedToAvatar = null;
                 
                 if (assigned_to_name) {
                   const nameLower = assigned_to_name.toLowerCase().trim();
@@ -2766,12 +2768,22 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   if (nameLower === 'admin' || nameLower === 'me') {
                     assignedToType = 'admin';
                     assignedToId = ownerId;
+                    assignedToName = 'Admin';
+                    
+                    // Fetch admin avatar
+                    const { data: profile } = await supabaseAdmin
+                      .from('profiles')
+                      .select('avatar_url')
+                      .eq('id', ownerId)
+                      .single();
+                    assignedToAvatar = profile?.avatar_url || null;
+                    
                     console.log(`    ✓ Assigned to admin (board owner)`);
                   } else {
                     // Check sub-users by name match
                     const { data: subUsers } = await supabaseAdmin
                       .from('sub_users')
-                      .select('id, fullname, email')
+                      .select('id, fullname, email, avatar_url')
                       .eq('board_owner_id', ownerId);
                     
                     const match = subUsers?.find(su => 
@@ -2782,6 +2794,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     if (match) {
                       assignedToType = 'sub_user';
                       assignedToId = match.id;
+                      assignedToName = match.fullname || match.email;
+                      assignedToAvatar = match.avatar_url || null;
                       console.log(`    ✓ Assigned to sub-user: ${match.fullname} (${match.id})`);
                     } else {
                       console.log(`    ⚠️ No match found for "${assigned_to_name}" - creating unassigned task`);
@@ -2804,6 +2818,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   email_reminder_enabled: reminder ? true : (email_reminder || false),
                   assigned_to_type: assignedToType,
                   assigned_to_id: assignedToId,
+                  assigned_to_name: assignedToName,
+                  assigned_to_avatar_url: assignedToAvatar,
+                  assigned_at: assignedToId ? new Date().toISOString() : null,
+                  assigned_by_type: assignedToId ? requesterType : null,
+                  assigned_by_id: assignedToId ? (requesterType === 'admin' ? ownerId : requesterIdentity?.id) : null,
                   created_by_type: requesterType,
                   created_by_name: baseName,  // ← Use clean name without "(AI)"
                   created_by_ai: true,        // ← Boolean flag for AI creation
