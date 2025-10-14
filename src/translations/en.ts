@@ -764,6 +764,7 @@ export const translations: TranslationType = {
     owner: "Owner",
     teamMember: "Team Member",
     directMessage: "Direct Message",
+    smartbooklyAI: "Smartbookly AI",
     typeMessage: "Type a message...",
     noTeamMembers: "No team members found",
     loading: "Loading...",

@@ -764,6 +764,7 @@ export interface TranslationType {
     owner: string;
     teamMember: string;
     directMessage: string;
+    smartbooklyAI: string;
     typeMessage: string;
     noTeamMembers: string;
     loading: string;

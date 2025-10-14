@@ -764,6 +764,7 @@ export const translations: TranslationType = {
     owner: "მფლობელი",
     teamMember: "გუნდის წევრი",
     directMessage: "პირადი მესიჯი",
+    smartbooklyAI: "Smartbookly AI",
     typeMessage: "დაწერეთ მესიჯი...",
     noTeamMembers: "გუნდის წევრები ვერ მოიძებნა",
     loading: "იტვირთება...",

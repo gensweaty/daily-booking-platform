@@ -306,7 +306,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       // CRITICAL: Check if this is an AI DM channel (per-member AI)
       if (ch?.is_ai && ch?.is_dm) {
         const info = { 
-          name: ch?.name || 'AI Assistant', 
+          name: t('chat.smartbooklyAI'), 
           isDM: true,
           is_ai: true
         } as const;
