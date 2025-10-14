@@ -229,69 +229,44 @@ const handler = async (req: Request): Promise<Response> => {
 
             // 3. Send chat message in AI channel (if exists)
             try {
-              // Find the correct AI channel based on who created the reminder
-              let aiChannelId = null;
+              // Determine user identity for AI channel lookup
+              let userIdentity: string;
               
               if (reminder.created_by_type === 'sub_user' && reminder.created_by_sub_user_id) {
-                // Find personal AI channel for this sub-user
-                const { data: personalChannels } = await supabase
-                  .from('chat_channels')
-                  .select('id')
-                  .eq('owner_id', reminder.user_id)
-                  .eq('is_ai', true)
-                  .eq('is_dm', true)
-                  .eq('is_deleted', false);
-                
-                // Find the channel where this sub-user is a participant
-                if (personalChannels && personalChannels.length > 0) {
-                  for (const channel of personalChannels) {
-                    const { data: participant } = await supabase
-                      .from('chat_participants')
-                      .select('id')
-                      .eq('channel_id', channel.id)
-                      .eq('sub_user_id', reminder.created_by_sub_user_id)
-                      .eq('user_type', 'sub_user')
-                      .maybeSingle();
-                    
-                    if (participant) {
-                      aiChannelId = channel.id;
-                      console.log(`✅ Found personal AI channel for sub-user: ${channel.id}`);
-                      break;
-                    }
-                  }
-                }
-                
-                if (!aiChannelId) {
-                  console.log(`⚠️ No personal AI channel found for sub-user ${reminder.created_by_sub_user_id}`);
-                }
+                // Sub-user created the reminder - use their ID
+                userIdentity = `S:${reminder.created_by_sub_user_id}`;
               } else {
-                // Find admin's AI channel - get the first one
-                const { data: adminChannels } = await supabase
-                  .from('chat_channels')
-                  .select('id')
-                  .eq('owner_id', reminder.user_id)
-                  .eq('is_ai', true)
-                  .eq('is_dm', true)
-                  .eq('is_deleted', false)
-                  .limit(1);
-                
-                if (adminChannels && adminChannels.length > 0) {
-                  aiChannelId = adminChannels[0].id;
-                  console.log(`✅ Found admin AI channel: ${aiChannelId}`);
-                } else {
-                  console.log(`⚠️ No AI channel found for admin ${reminder.user_id}`);
+                // Admin created the reminder - use admin ID
+                userIdentity = `A:${reminder.user_id}`;
+              }
+              
+              console.log(`🔍 Looking up AI channel for: ${userIdentity}`);
+              
+              // Use the same RPC function that frontend uses to get/create AI channel
+              const { data: aiChannelId, error: channelError } = await supabase.rpc(
+                'ensure_unique_ai_channel',
+                {
+                  p_owner_id: reminder.user_id,
+                  p_user_identity: userIdentity
                 }
+              );
+              
+              if (channelError) {
+                console.error(`❌ Error getting AI channel:`, channelError);
+                throw channelError;
               }
 
               if (aiChannelId) {
-                // Send actual reminder message in chat (different from creation confirmation)
+                console.log(`✅ Found AI channel: ${aiChannelId}`);
+                
+                // Send actual reminder message in chat
                 const reminderMessage = reminder.language === 'ka' 
-                  ? `🔔 შეხსენება\n\n${reminder.title}${reminder.message ? `\n\n${reminder.message}` : ''}`
+                  ? `🔔 შეხსენება\n\n${reminder.title}${reminder.message && reminder.message !== reminder.title ? `\n\n${reminder.message}` : ''}`
                   : reminder.language === 'es'
-                  ? `🔔 Recordatorio\n\n${reminder.title}${reminder.message ? `\n\n${reminder.message}` : ''}`
+                  ? `🔔 Recordatorio\n\n${reminder.title}${reminder.message && reminder.message !== reminder.title ? `\n\n${reminder.message}` : ''}`
                   : reminder.language === 'ru'
-                  ? `🔔 Напоминание\n\n${reminder.title}${reminder.message ? `\n\n${reminder.message}` : ''}`
-                  : `🔔 Reminder\n\n${reminder.title}${reminder.message ? `\n\n${reminder.message}` : ''}`;
+                  ? `🔔 Напоминание\n\n${reminder.title}${reminder.message && reminder.message !== reminder.title ? `\n\n${reminder.message}` : ''}`
+                  : `🔔 Reminder Alert\n\n${reminder.title}${reminder.message && reminder.message !== reminder.title ? `\n\n${reminder.message}` : ''}`;
                 
                 const { error: chatError } = await supabase
                   .from('chat_messages')
@@ -310,7 +285,7 @@ const handler = async (req: Request): Promise<Response> => {
                   console.log(`✅ Sent reminder chat message for ${reminder.id}`);
                 }
               } else {
-                console.log(`⚠️ No AI channel found for reminder creator`);
+                console.log(`⚠️ No AI channel found for ${userIdentity}`);
               }
             } catch (chatError) {
               console.error(`⚠️ Could not send chat message (non-critical):`, chatError);
