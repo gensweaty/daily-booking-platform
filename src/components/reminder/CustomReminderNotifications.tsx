@@ -51,47 +51,8 @@ export function CustomReminderNotifications() {
     });
   };
 
-  // Send email reminder
-  const sendEmailReminder = async (reminder: any) => {
-    try {
-      console.log('📧 Sending email for custom reminder:', reminder.id, 'to:', user?.email);
-
-      const { data, error } = await supabase.functions.invoke('send-custom-reminder-email', {
-        body: {
-          reminderId: reminder.id,
-          userEmail: user?.email,
-          title: reminder.title,
-          message: reminder.message,
-          reminderTime: reminder.remind_at,
-        },
-      });
-
-      if (error) {
-        console.error('❌ Email send error:', error);
-        throw error;
-      }
-
-      // Mark email as sent
-      await supabase
-        .from('custom_reminders')
-        .update({ email_sent: true })
-        .eq('id', reminder.id);
-
-      console.log('✅ Email sent for custom reminder:', reminder.id);
-      
-      // Show success toast
-      toast.success('Reminder email sent!', {
-        description: `Email sent for: ${reminder.title}`,
-        duration: 3000,
-      });
-    } catch (error) {
-      console.error('❌ Error sending custom reminder email:', error);
-      toast.error('Failed to send reminder email', {
-        description: 'The notification will still appear in your dashboard',
-        duration: 5000,
-      });
-    }
-  };
+  // Email sending is handled by backend process-reminders edge function
+  // This prevents duplicate emails for admin users
 
   // Process due reminders - EXACT SAME LOGIC AS TASKS
   const processDueReminders = async (remindersToCheck: any[]) => {
@@ -147,16 +108,9 @@ export function CustomReminderNotifications() {
           console.log('🔔 System notification sent');
         }
         
-        // Send email reminder if not already sent (failure won't prevent dashboard notification)
-        if (!reminder.email_sent) {
-          sendEmailReminder(reminder).catch(err => {
-            console.error('❌ Email failed but continuing:', err);
-          });
-        }
-        
         console.log('📊 Dashboard notification: ✅ Sent');
         console.log('🔔 System notification: ✅ Sent');
-        console.log('📧 Email reminder:', !reminder.email_sent ? '✅ Attempted' : '⏭️ Already sent');
+        console.log('📧 Email reminder: ✅ Handled by backend');
         
         notificationsTriggered++;
       }
