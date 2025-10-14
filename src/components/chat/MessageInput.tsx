@@ -116,23 +116,40 @@ export const MessageInput = ({
           }
         }
         
-        // Get current user info with proper name resolution
+        // STEP 1: Determine effectiveBoardOwnerId FIRST
+        const isOnPublicBoard = window.location.pathname.startsWith('/public/');
+        const publicBoardSlug = isOnPublicBoard ? window.location.pathname.split('/').pop() : null;
+        
+        let effectiveBoardOwnerId = boardOwnerId;
+        
+        if (isOnPublicBoard && publicBoardSlug) {
+          // For public boards, get the actual board owner ID from the public_boards table
+          const { data: publicBoard } = await supabase
+            .from('public_boards')
+            .select('user_id')
+            .eq('slug', publicBoardSlug)
+            .eq('is_active', true)
+            .maybeSingle();
+          
+          if (publicBoard) {
+            effectiveBoardOwnerId = publicBoard.user_id;
+          }
+        }
+        
+        // STEP 2: NOW resolve sender with correct effectiveBoardOwnerId
         const { data: { user } } = await supabase.auth.getUser();
         let senderName = 'User';
         let senderType: 'admin' | 'sub_user' = 'admin';
 
-        // 1) Public board visitor identity (unchanged)
-        const isOnPublicBoard = window.location.pathname.startsWith('/public/');
-        const publicBoardSlug = isOnPublicBoard ? window.location.pathname.split('/').pop() : null;
-
         if (isOnPublicBoard && publicBoardSlug) {
+          // Public board visitor - get from localStorage
           const stored = JSON.parse(localStorage.getItem(`public-board-access-${publicBoardSlug}`) || '{}');
           if (stored.email) {
             const { data: subUser } = await supabase
               .from('sub_users')
-              .select('fullname, email')
-              .eq('board_owner_id', boardOwnerId)
-              .eq('email', stored.email)
+              .select('id, fullname, email')
+              .eq('board_owner_id', effectiveBoardOwnerId) // Use correct owner ID
+              .ilike('email', stored.email)
               .maybeSingle();
 
             if (subUser) {
@@ -141,7 +158,7 @@ export const MessageInput = ({
             }
           }
         }
-        // 2) Authenticated sub-user session (NEW: trust auth metadata first)
+        // Authenticated sub-user session (trust auth metadata first)
         else if (user?.user_metadata?.role === 'sub_user') {
           senderType = 'sub_user';
           senderName =
@@ -149,13 +166,13 @@ export const MessageInput = ({
             (user.user_metadata.username as string) ||
             (user.email?.split('@')[0] ?? 'User');
         }
-        // 3) Authenticated admin/owner (fallbacks kept as-is)
+        // Authenticated admin/owner fallback
         else if (user) {
           // Try to match an existing sub_user by email (covers legacy setups)
           const { data: subUser } = await supabase
             .from('sub_users')
             .select('fullname, email, board_owner_id')
-            .eq('board_owner_id', boardOwnerId)
+            .eq('board_owner_id', effectiveBoardOwnerId)
             .ilike('email', user.email ?? '')
             .maybeSingle();
 
@@ -178,6 +195,16 @@ export const MessageInput = ({
             senderType = 'admin';
           }
         }
+        
+        // STEP 3: Log for debugging
+        console.log('🔍 AI Request Context:', {
+          isOnPublicBoard,
+          publicBoardSlug,
+          effectiveBoardOwnerId,
+          senderName,
+          senderType,
+          userAuthId: user?.id
+        });
         
         // Get recent conversation history (last 20 messages)
         const { data: recentMessages } = await supabase
@@ -215,7 +242,7 @@ export const MessageInput = ({
             body: {
               channelId: currentChannelId,
               prompt: userMessage,
-              ownerId: boardOwnerId,
+              ownerId: effectiveBoardOwnerId, // Use the corrected board owner ID
               conversationHistory: conversationHistory,
               userTimezone: tz,
               tzOffsetMinutes,
