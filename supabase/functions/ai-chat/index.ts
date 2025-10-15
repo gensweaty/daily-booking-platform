@@ -134,11 +134,32 @@ serve(async (req) => {
       }
       // If nothing matches and user just says "generate excel", default to tasks
 
-      // Infer window
-      let months = 12;
-      if (/\blast\s*6\s*months|\bhalf\s*year\b/i.test(prompt)) months = 6;
-      if (/\b(last|past)\s*year\b/i.test(prompt)) months = 12;
-      if (/\b(last\s*3\s*months|quarter)\b/i.test(prompt)) months = 3;
+      // Infer time window with intelligent pattern matching
+      let months = 12; // Default fallback
+      
+      // Most specific patterns first
+      if (/\b(this\s*month|current\s*month)\b/i.test(prompt)) {
+        months = 1;
+      } else if (/\b(last\s*month|past\s*month|previous\s*month)\b/i.test(prompt)) {
+        months = 1;
+      } else if (/\b(this\s*week|current\s*week|past\s*week)\b/i.test(prompt)) {
+        months = 1;
+      } else if (/\b(today|this\s*day)\b/i.test(prompt)) {
+        months = 1;
+      } else if (/\blast\s*2\s*months|\bpast\s*2\s*months\b/i.test(prompt)) {
+        months = 2;
+      } else if (/\b(last\s*3\s*months|past\s*3\s*months|quarter)\b/i.test(prompt)) {
+        months = 3;
+      } else if (/\blast\s*6\s*months|\bpast\s*6\s*months|\bhalf\s*year\b/i.test(prompt)) {
+        months = 6;
+      } else if (/\b(last|past)\s*year\b/i.test(prompt)) {
+        months = 12;
+      }
+      // Extract explicit number: "last 4 months", "past 5 months", etc.
+      const explicitMatch = prompt.match(/\b(?:last|past)\s*(\d+)\s*months?\b/i);
+      if (explicitMatch) {
+        months = parseInt(explicitMatch[1], 10);
+      }
 
       console.log(`  → Report type: ${reportType}, months: ${months}`);
 
