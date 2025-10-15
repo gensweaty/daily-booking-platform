@@ -117,12 +117,22 @@ serve(async (req) => {
     if (wantsExcel) {
       console.log('📊 Excel fast-path triggered');
       
-      // Infer report type from prompt (default: tasks)
+      // Infer report type from prompt with improved pattern matching
       let reportType: "tasks" | "events" | "customers" | "payments" | "bookings" = "tasks";
-      if (/\b(payment|revenue|income)\b/.test(lower)) reportType = "payments";
-      else if (/\b(event|schedule|calendar|appointment)\b/.test(lower)) reportType = "events";
-      else if (/\bcustomer|crm|client|contact\b/.test(lower)) reportType = "customers";
-      else if (/\bbooking(s)?\b/.test(lower)) reportType = "bookings";
+      
+      // Check in priority order (most specific first)
+      if (/\b(payment|revenue|income|financial|earning|money)\b/.test(lower)) {
+        reportType = "payments";
+      } else if (/\b(event|events|schedule|calendar|appointment|appointments)\b/.test(lower)) {
+        reportType = "events";
+      } else if (/\b(customer|customers|crm|client|clients|contact|contacts)\b/.test(lower)) {
+        reportType = "customers";
+      } else if (/\bbooking(s)?\b/.test(lower)) {
+        reportType = "bookings";
+      } else if (/\b(task|tasks|todo|to-do)\b/.test(lower)) {
+        reportType = "tasks";
+      }
+      // If nothing matches and user just says "generate excel", default to tasks
 
       // Infer window
       let months = 12;
