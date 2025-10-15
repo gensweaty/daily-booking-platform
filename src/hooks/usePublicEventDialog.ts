@@ -2,6 +2,8 @@ import { useState } from "react";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { supabase } from "@/integrations/supabase/client";
+import { isVirtualInstance, getParentEventId } from "@/lib/recurringEvents";
 
 interface UsePublicEventDialogProps {
   createEvent?: (data: Partial<CalendarEventType>) => Promise<CalendarEventType>;
@@ -53,32 +55,105 @@ export const usePublicEventDialog = ({
     }
   };
 
-  const handleUpdateEvent = async (data: Partial<CalendarEventType>) => {
+  const handleUpdateEvent = async (
+    data: Partial<CalendarEventType>,
+    editChoice?: "this" | "series",
+    publicBoardUserId?: string,
+    externalUserName?: string
+  ) => {
     try {
-      if (!updateEvent || !selectedEvent) {
-        throw new Error("Update event function not provided or no event selected");
+      if (!selectedEvent) {
+        throw new Error("No event selected");
       }
-      
-      const eventData = {
-        ...data,
-        id: selectedEvent.id, // Ensure ID is included
-        type: selectedEvent.type || 'event',
-        title: data.user_surname || data.title || selectedEvent.title,
-        user_surname: data.user_surname || data.title || selectedEvent.user_surname,
-        payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
-        language: data.language || selectedEvent.language || language || 'en'
-      };
-      
-      console.log("[PublicEventDialog] Updating event with data:", eventData);
-      
-      const updatedEvent = await updateEvent(eventData as Partial<CalendarEventType> & { id: string });
-      
-      setSelectedEvent(null);
-      console.log("[PublicEventDialog] Event updated successfully:", updatedEvent);
-      
-      return updatedEvent;
+
+      const eventId = selectedEvent.id;
+      const isVirtual = isVirtualInstance(eventId);
+      const targetId = isVirtual ? getParentEventId(eventId) : eventId;
+
+      // If it's a series update, use the legacy updateEvent for backward compatibility
+      if (editChoice === "series" && updateEvent) {
+        const eventData = {
+          ...data,
+          id: targetId,
+          type: selectedEvent.type || 'event',
+          title: data.user_surname || data.title || selectedEvent.title,
+          user_surname: data.user_surname || data.title || selectedEvent.user_surname,
+          payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
+          language: data.language || selectedEvent.language || language || 'en'
+        };
+        
+        console.log("[usePublicEventDialog] Updating entire series with legacy method:", eventData);
+        
+        const updatedEvent = await updateEvent(eventData as Partial<CalendarEventType> & { id: string });
+        
+        setSelectedEvent(null);
+        return updatedEvent;
+      }
+
+      // For "this event" updates, use the v2 RPC to properly split instances
+      if (editChoice === "this" && publicBoardUserId && externalUserName) {
+        console.log("[usePublicEventDialog] Splitting single instance using v2 RPC");
+
+        // Compute original instance window from selectedEvent
+        const originalStartISO = selectedEvent.start_date || new Date().toISOString();
+        const originalEndISO = selectedEvent.end_date || new Date().toISOString();
+
+        const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
+          p_event_id: targetId,
+          p_user_id: publicBoardUserId,
+          p_event_data: {
+            title: data.user_surname || data.title || selectedEvent.title || 'Untitled Event',
+            user_surname: data.user_surname || data.title || selectedEvent.user_surname,
+            user_number: data.user_number || selectedEvent.user_number,
+            social_network_link: data.social_network_link || selectedEvent.social_network_link,
+            event_notes: data.event_notes || selectedEvent.event_notes,
+            event_name: data.event_name || selectedEvent.event_name,
+            start_date: data.start_date || selectedEvent.start_date,
+            end_date: data.end_date || selectedEvent.end_date,
+            payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
+            payment_amount: data.payment_amount || selectedEvent.payment_amount,
+            reminder_at: data.reminder_at || selectedEvent.reminder_at,
+            email_reminder_enabled: data.email_reminder_enabled ?? selectedEvent.email_reminder_enabled ?? false,
+            language: data.language || selectedEvent.language || language || 'en'
+          },
+          p_additional_persons: (data as any).additional_persons || [],
+          p_instance_start: originalStartISO,
+          p_instance_end: originalEndISO,
+          p_edited_by_type: 'sub_user',
+          p_edited_by_name: externalUserName,
+          p_edited_by_ai: false
+        });
+
+        if (editError) {
+          console.error("[usePublicEventDialog] RPC error:", editError);
+          throw editError;
+        }
+
+        console.log("[usePublicEventDialog] Single instance split successfully:", editResult);
+        setSelectedEvent(null);
+        return editResult;
+      }
+
+      // Fallback: use legacy update if no choice specified
+      if (updateEvent) {
+        const eventData = {
+          ...data,
+          id: targetId,
+          type: selectedEvent.type || 'event',
+          title: data.user_surname || data.title || selectedEvent.title,
+          user_surname: data.user_surname || data.title || selectedEvent.user_surname,
+          payment_status: normalizePaymentStatus(data.payment_status) || normalizePaymentStatus(selectedEvent.payment_status) || 'not_paid',
+          language: data.language || selectedEvent.language || language || 'en'
+        };
+        
+        const updatedEvent = await updateEvent(eventData as Partial<CalendarEventType> & { id: string });
+        setSelectedEvent(null);
+        return updatedEvent;
+      }
+
+      throw new Error("No update method available");
     } catch (error: any) {
-      console.error("[PublicEventDialog] Failed to update event:", error);
+      console.error("[usePublicEventDialog] Failed to update event:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to update event",
