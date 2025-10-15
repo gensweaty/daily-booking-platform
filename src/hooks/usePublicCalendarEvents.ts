@@ -37,7 +37,7 @@ export const usePublicCalendarEvents = (
       return filtered as CalendarEventType[];
     },
     enabled: !!boardUserId,
-    refetchInterval: 1500,
+    refetchInterval: false, // CRITICAL: Disable polling to prevent form resets in dialogs
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: true,

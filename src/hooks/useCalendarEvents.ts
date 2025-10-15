@@ -89,8 +89,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     enabled: !!(businessUserId || user?.id),
     staleTime: 0, // Always consider data stale for immediate updates
     gcTime: 1000, // Keep in cache for 1 second only
-    refetchInterval: 1500, // Moderate polling every 1.5 seconds
-    refetchIntervalInBackground: false, // Disable background refetch to avoid visible loading
+    refetchInterval: false, // CRITICAL: Disable polling to prevent form resets in dialogs
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
