@@ -30,7 +30,24 @@ serve(async (req) => {
 
     const today = new Date();
     const startDate = new Date(today);
-    startDate.setMonth(today.getMonth() - months);
+    
+    // CRITICAL FIX: Handle "this month" and "last month" as calendar months, not rolling periods
+    // "this month" = first day of current month to today
+    // "last month" = first day of previous month to last day of previous month
+    // Everything else = rolling period (e.g., "last 3 months" = 3 months ago from today)
+    if (months === 1) {
+      // For 1 month, assume "this month" - start from first day of current month
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+    } else if (months > 1 && months < 2) {
+      // For values like 1.5, treat as "last month" - previous calendar month
+      startDate.setMonth(today.getMonth() - 1);
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+    } else {
+      // For other values, use rolling period (e.g., last 3 months from today)
+      startDate.setMonth(today.getMonth() - months);
+    }
 
     let data: any[] = [];
     let columns: string[] = [];
