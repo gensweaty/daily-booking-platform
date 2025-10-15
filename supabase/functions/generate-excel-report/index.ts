@@ -183,8 +183,18 @@ serve(async (req) => {
         // CRITICAL FIX: Replicate exact CRM page logic
         // CRM combines: customers (by created_at), events (by start_date), booking requests (by start_date)
         // Then deduplicates based on signatures and IDs
+        
+        // For "this month" (months === 1), use END OF MONTH not today
+        // This matches CRM behavior which shows entire current month
         const endDate = new Date(today);
-        endDate.setHours(23, 59, 59, 999);
+        if (months === 1) {
+          // Set to last day of current month
+          endDate.setMonth(endDate.getMonth() + 1);
+          endDate.setDate(0); // Last day of previous month (which is current month)
+          endDate.setHours(23, 59, 59, 999);
+        } else {
+          endDate.setHours(23, 59, 59, 999);
+        }
         const startDateStr = startDate.toISOString();
         const endDateStr = endDate.toISOString();
         
@@ -225,24 +235,20 @@ serve(async (req) => {
           return status;
         };
 
-        // Combine and deduplicate (matching CRM logic)
+        // Combine all data sources (matching CRM logic)
         const combined: any[] = [];
-        const seenSignatures = new Set<string>();
         const customerIdSet = new Set((allCustomers || []).map(c => c.id));
 
-        // Add all customers first
+        // Add ALL customers (no signature deduplication to match CRM behavior)
         for (const customer of (allCustomers || [])) {
-          const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
-          if (!seenSignatures.has(signature)) {
-            combined.push({
-              ...customer,
-              payment_status: normalizePaymentStatus(customer.payment_status)
-            });
-            seenSignatures.add(signature);
-          }
+          combined.push({
+            ...customer,
+            payment_status: normalizePaymentStatus(customer.payment_status)
+          });
         }
 
-        // Add events that aren't duplicates
+        // Add events that aren't duplicates (using signature to avoid event/customer conflicts)
+        const seenEventSignatures = new Set<string>();
         for (const event of (events || [])) {
           // Skip if event's booking_request_id matches a customer
           if (event.booking_request_id && customerIdSet.has(event.booking_request_id)) {
@@ -250,12 +256,12 @@ serve(async (req) => {
           }
           
           const signature = `${event.title}:::${event.start_date}`;
-          if (!seenSignatures.has(signature)) {
+          if (!seenEventSignatures.has(signature)) {
             combined.push({
               ...event,
               payment_status: normalizePaymentStatus(event.payment_status)
             });
-            seenSignatures.add(signature);
+            seenEventSignatures.add(signature);
           }
         }
 
@@ -275,13 +281,12 @@ serve(async (req) => {
           });
         }
 
-        // Remove duplicates using Map (matching CRM logic)
+        // ID-based deduplication (matching CRM final deduplication step)
         const uniqueData = new Map();
         combined.forEach(item => {
-          const key = item.source === 'booking_request' ? `booking-${item.id}` : 
-                     item.id?.toString().startsWith('event-') ? item.id : 
-                     `customer-${item.id}`;
+          const key = `customer-${item.id}`;
           
+          // Keep the most recent version if duplicate found
           if (!uniqueData.has(key) || new Date(item.created_at) > new Date(uniqueData.get(key).created_at)) {
             uniqueData.set(key, item);
           }
