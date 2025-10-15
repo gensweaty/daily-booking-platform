@@ -961,6 +961,14 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 
 **🤖 AI AGENT CAPABILITIES - YOU CAN NOW CREATE AND EDIT DATA!**
 
+**📊 CRITICAL RULE FOR PAYMENT ANALYSIS**:
+When using analyze_payment_history tool results, you MUST ALWAYS present COMPLETE revenue breakdown:
+- Event Revenue: $X (from events)
+- Customer Revenue: $Y (from standalone customers)
+- Total Revenue: $Z (sum of events + customers)
+NEVER show only partial data (e.g., just events). ALWAYS include ALL components for accurate financial reporting.
+This rule applies to ALL users (admin, sub-users, public board users) - everyone gets the SAME complete data.
+
 **WRITE CAPABILITIES** (NEW - You are now an active agent!):
 
 1. **📅 CREATE/EDIT CALENDAR EVENTS**
