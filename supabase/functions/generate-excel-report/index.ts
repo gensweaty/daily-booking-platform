@@ -180,22 +180,121 @@ serve(async (req) => {
       }
 
       case 'customers': {
-        // CRITICAL FIX: Filter by created_at to match CRM page behavior
-        // This ensures we get customers created in the selected period (when they were added to the system)
-        // Add upper bound filter to capture all records up to end of day
+        // CRITICAL FIX: Replicate exact CRM page logic
+        // CRM combines: customers (by created_at), events (by start_date), booking requests (by start_date)
+        // Then deduplicates based on signatures and IDs
         const endDate = new Date(today);
         endDate.setHours(23, 59, 59, 999);
+        const startDateStr = startDate.toISOString();
+        const endDateStr = endDate.toISOString();
         
-        const { data: customers } = await supabase
+        // 1. Get all customers (standalone + event-linked) by created_at
+        const { data: allCustomers } = await supabase
           .from('customers')
-          .select('title, user_surname, user_number, social_network_link, payment_amount, payment_status, event_notes, created_at, start_date')
+          .select('id, title, user_surname, user_number, social_network_link, payment_amount, payment_status, event_notes, created_at, start_date, type')
           .eq('user_id', userId)
-          .gte('created_at', startDate.toISOString())
-          .lte('created_at', endDate.toISOString())
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false });
+          .gte('created_at', startDateStr)
+          .lte('created_at', endDateStr)
+          .is('deleted_at', null);
 
-        data = (customers || []).map(c => ({
+        // 2. Get events (parent only) by start_date
+        const { data: events } = await supabase
+          .from('events')
+          .select('id, booking_request_id, title, user_surname, user_number, social_network_link, payment_amount, payment_status, event_notes, created_at, start_date')
+          .eq('user_id', userId)
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
+          .is('deleted_at', null)
+          .is('parent_event_id', null);
+
+        // 3. Get approved booking requests by start_date
+        const { data: bookingRequests } = await supabase
+          .from('booking_requests')
+          .select('id, title, requester_name, requester_phone, requester_email, user_surname, user_number, payment_amount, payment_status, description, created_at, start_date')
+          .eq('user_id', userId)
+          .eq('status', 'approved')
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
+          .is('deleted_at', null);
+
+        // Helper: normalize payment status
+        const normalizePaymentStatus = (status: string | undefined): string => {
+          if (!status) return 'not_paid';
+          if (status === 'partly') return 'partly_paid';
+          if (status === 'fully') return 'fully_paid';
+          return status;
+        };
+
+        // Combine and deduplicate (matching CRM logic)
+        const combined: any[] = [];
+        const seenSignatures = new Set<string>();
+        const customerIdSet = new Set((allCustomers || []).map(c => c.id));
+
+        // Add all customers first
+        for (const customer of (allCustomers || [])) {
+          const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
+          if (!seenSignatures.has(signature)) {
+            combined.push({
+              ...customer,
+              payment_status: normalizePaymentStatus(customer.payment_status)
+            });
+            seenSignatures.add(signature);
+          }
+        }
+
+        // Add events that aren't duplicates
+        for (const event of (events || [])) {
+          // Skip if event's booking_request_id matches a customer
+          if (event.booking_request_id && customerIdSet.has(event.booking_request_id)) {
+            continue;
+          }
+          
+          const signature = `${event.title}:::${event.start_date}`;
+          if (!seenSignatures.has(signature)) {
+            combined.push({
+              ...event,
+              payment_status: normalizePaymentStatus(event.payment_status)
+            });
+            seenSignatures.add(signature);
+          }
+        }
+
+        // Add booking requests
+        for (const booking of (bookingRequests || [])) {
+          combined.push({
+            id: booking.id,
+            title: booking.title || booking.user_surname || booking.requester_name,
+            user_surname: booking.user_surname || booking.requester_name,
+            user_number: booking.user_number || booking.requester_phone,
+            social_network_link: booking.requester_email,
+            payment_amount: booking.payment_amount,
+            payment_status: normalizePaymentStatus(booking.payment_status),
+            event_notes: booking.description,
+            created_at: booking.created_at,
+            start_date: booking.start_date
+          });
+        }
+
+        // Remove duplicates using Map (matching CRM logic)
+        const uniqueData = new Map();
+        combined.forEach(item => {
+          const key = item.source === 'booking_request' ? `booking-${item.id}` : 
+                     item.id?.toString().startsWith('event-') ? item.id : 
+                     `customer-${item.id}`;
+          
+          if (!uniqueData.has(key) || new Date(item.created_at) > new Date(uniqueData.get(key).created_at)) {
+            uniqueData.set(key, item);
+          }
+        });
+
+        // Convert to array and sort by created_at descending
+        const finalData = Array.from(uniqueData.values()).sort((a, b) => {
+          const dateA = new Date(a.created_at || 0).getTime();
+          const dateB = new Date(b.created_at || 0).getTime();
+          return dateB - dateA;
+        });
+
+        data = finalData.map(c => ({
           'Title': c.title,
           'Name': c.user_surname || '',
           'Phone': c.user_number || '',
@@ -205,6 +304,9 @@ serve(async (req) => {
           'Notes': c.event_notes || '',
           'Created': new Date(c.created_at).toLocaleDateString()
         }));
+
+        console.log(`📊 Customer Excel: ${finalData.length} total records (customers: ${allCustomers?.length || 0}, events: ${events?.length || 0}, bookings: ${bookingRequests?.length || 0})`);
+        
         filename = `customers-${months}months-${Date.now()}.xlsx`;
         break;
       }
