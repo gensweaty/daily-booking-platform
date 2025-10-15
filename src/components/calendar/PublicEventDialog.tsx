@@ -535,7 +535,8 @@ export const PublicEventDialog = ({
               p_event_data: safeSeriesData,
               p_additional_persons: additionalPersonsData,
               p_edited_by_type: 'sub_user',
-              p_edited_by_name: externalUserName
+              p_edited_by_name: externalUserName,
+              p_edited_by_ai: false
             });
 
             if (updateSeriesError) throw updateSeriesError;
@@ -582,8 +583,10 @@ export const PublicEventDialog = ({
                 p_event_id: childId,
                 p_created_by_type: 'sub_user',
                 p_created_by_name: externalUserName,
+                p_created_by_ai: false,
                 p_last_edited_by_type: 'sub_user',
                 p_last_edited_by_name: externalUserName,
+                p_last_edited_by_ai: false
               });
               if (updErr) throw updErr;
             } else {
@@ -614,7 +617,8 @@ export const PublicEventDialog = ({
                 p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
                 p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
                 p_edited_by_type: 'sub_user',
-                p_edited_by_name: externalUserName
+                p_edited_by_name: externalUserName,
+                p_edited_by_ai: false
               });
 
               if (editError) throw editError;
@@ -658,8 +662,10 @@ export const PublicEventDialog = ({
             p_event_id: targetEventId,
             p_created_by_type: 'sub_user',
             p_created_by_name: externalUserName,
+            p_created_by_ai: false,
             p_last_edited_by_type: 'sub_user',
-            p_last_edited_by_name: externalUserName
+            p_last_edited_by_name: externalUserName,
+            p_last_edited_by_ai: false
           });
 
           if (rpcError) throw rpcError;
