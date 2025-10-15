@@ -387,11 +387,14 @@ export const EventDialog = ({
   const loadedEventRef = React.useRef<string | null>(null);
   
   useEffect(() => {
-    // Reset dialog states when opening
-    setEditChoice(null);
-    setShowEditDialog(false);
-    setShowDeleteDialog(false);
-    setIsLoading(false);
+    // CRITICAL: Don't reset dialog states if they're currently open
+    // This prevents the dialogs from closing when real-time updates occur
+    if (!showEditDialog && !showDeleteDialog) {
+      setEditChoice(null);
+      setShowEditDialog(false);
+      setShowDeleteDialog(false);
+      setIsLoading(false);
+    }
     
     const loadAndSetEventData = async () => {
       if (open) {
