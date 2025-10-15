@@ -2102,63 +2102,136 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               const startDate = new Date(today);
               startDate.setMonth(today.getMonth() - months);
               
-              // Fetch all events with payments in the time period
+              console.log(`    📊 Analyzing payment history for ${months} months from ${startDate.toISOString()} to ${today.toISOString()}`);
+              
+              // CRITICAL: Match the exact logic from Statistics page (useStatistics.ts and useOptimizedStatistics.ts)
+              
+              // Helper to normalize payment status (matches Statistics page)
+              const normalizePaymentStatus = (raw: string | null | undefined): string => {
+                if (!raw) return 'not_paid';
+                const s = String(raw).toLowerCase().trim();
+                if (s.includes('fully') || s === 'paid' || s.includes('full')) return 'fully_paid';
+                if (s.includes('partial') || s.includes('partly') || s.includes('half')) return 'partly_paid';
+                if (s.includes('not') || s.includes('unpaid') || s === 'none') return 'not_paid';
+                if (s.includes('paid')) return 'partly_paid';
+                return s;
+              };
+              
+              // 1. Fetch events by START_DATE (when they happen, not when created)
               const { data: events } = await supabaseClient
                 .from('events')
-                .select('payment_amount, payment_status, created_at, start_date')
+                .select('payment_amount, payment_status, start_date, created_at')
                 .eq('user_id', ownerId)
-                .gte('created_at', startDate.toISOString())
+                .gte('start_date', startDate.toISOString())
                 .is('deleted_at', null)
-                .order('created_at', { ascending: true });
+                .order('start_date', { ascending: true });
               
-              // Fetch all customers in the time period
-              const { data: customers } = await supabaseClient
+              console.log(`    📅 Found ${events?.length || 0} events in date range`);
+              
+              // 2. Fetch ONLY standalone customers (no event_id) by CREATED_AT
+              //    These are customers that were added directly, NOT as additional persons for events
+              const { data: standaloneCustomers } = await supabaseClient
                 .from('customers')
-                .select('payment_amount, payment_status, created_at')
+                .select('payment_amount, payment_status, created_at, event_id, create_event, type')
                 .eq('user_id', ownerId)
+                .is('event_id', null)  // CRITICAL: Only standalone customers
                 .gte('created_at', startDate.toISOString())
                 .is('deleted_at', null)
                 .order('created_at', { ascending: true });
               
-              // Group by month
-              const monthlyData: Record<string, any> = {};
-              const allPayments = [
-                ...(events || []).map(e => ({ ...e, source: 'event' })),
-                ...(customers || []).map(c => ({ ...c, source: 'customer' }))
-              ];
+              console.log(`    👥 Found ${standaloneCustomers?.length || 0} standalone customers`);
               
-              allPayments.forEach(item => {
-                const date = new Date(item.created_at);
-                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+              // Filter to truly standalone customers (no event, not creating event)
+              const trueStandaloneCustomers = (standaloneCustomers || []).filter(c => 
+                c.event_id == null && 
+                (c.create_event === false || c.create_event == null) &&
+                (c.type == null || c.type === 'customer')
+              );
+              
+              console.log(`    ✅ ${trueStandaloneCustomers.length} are truly standalone (after filtering)`);
+              
+              // Group by month and calculate revenue
+              const monthlyData: Record<string, any> = {};
+              
+              // Process events - ONLY count paid/partly paid ones
+              (events || []).forEach(event => {
+                const status = normalizePaymentStatus(event.payment_status);
+                const amount = Number(event.payment_amount) || 0;
                 
-                if (!monthlyData[monthKey]) {
-                  monthlyData[monthKey] = {
-                    month: monthKey,
-                    total_revenue: 0,
-                    paid_count: 0,
-                    not_paid_count: 0,
-                    partial_count: 0,
-                    total_transactions: 0
-                  };
+                // CRITICAL: Only count if actually paid (partly or fully) AND has amount
+                if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0) {
+                  const date = new Date(event.start_date);
+                  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                  
+                  if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = {
+                      month: monthKey,
+                      event_revenue: 0,
+                      customer_revenue: 0,
+                      total_revenue: 0,
+                      fully_paid_count: 0,
+                      partly_paid_count: 0,
+                      not_paid_count: 0,
+                      total_transactions: 0
+                    };
+                  }
+                  
+                  monthlyData[monthKey].event_revenue += amount;
+                  monthlyData[monthKey].total_revenue += amount;
+                  monthlyData[monthKey].total_transactions += 1;
+                  
+                  if (status === 'fully_paid') monthlyData[monthKey].fully_paid_count += 1;
+                  else if (status === 'partly_paid') monthlyData[monthKey].partly_paid_count += 1;
                 }
+              });
+              
+              // Process standalone customers - ONLY count paid/partly paid ones
+              trueStandaloneCustomers.forEach(customer => {
+                const status = normalizePaymentStatus(customer.payment_status);
+                const amount = Number(customer.payment_amount) || 0;
                 
-                const amount = Number(item.payment_amount) || 0;
-                monthlyData[monthKey].total_revenue += amount;
-                monthlyData[monthKey].total_transactions += 1;
-                
-                if (item.payment_status === 'paid') monthlyData[monthKey].paid_count += 1;
-                else if (item.payment_status === 'not_paid') monthlyData[monthKey].not_paid_count += 1;
-                else if (item.payment_status === 'partial') monthlyData[monthKey].partial_count += 1;
+                // CRITICAL: Only count if actually paid (partly or fully) AND has amount
+                if ((status === 'partly_paid' || status === 'fully_paid') && amount > 0) {
+                  const date = new Date(customer.created_at);
+                  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                  
+                  if (!monthlyData[monthKey]) {
+                    monthlyData[monthKey] = {
+                      month: monthKey,
+                      event_revenue: 0,
+                      customer_revenue: 0,
+                      total_revenue: 0,
+                      fully_paid_count: 0,
+                      partly_paid_count: 0,
+                      not_paid_count: 0,
+                      total_transactions: 0
+                    };
+                  }
+                  
+                  monthlyData[monthKey].customer_revenue += amount;
+                  monthlyData[monthKey].total_revenue += amount;
+                  monthlyData[monthKey].total_transactions += 1;
+                  
+                  if (status === 'fully_paid') monthlyData[monthKey].fully_paid_count += 1;
+                  else if (status === 'partly_paid') monthlyData[monthKey].partly_paid_count += 1;
+                }
               });
               
               const monthlyArray = Object.values(monthlyData).sort((a: any, b: any) => 
                 a.month.localeCompare(b.month)
               );
               
-              const totalRevenue = allPayments.reduce((sum, item) => sum + (Number(item.payment_amount) || 0), 0);
-              const paidCount = allPayments.filter(p => p.payment_status === 'paid').length;
-              const notPaidCount = allPayments.filter(p => p.payment_status === 'not_paid').length;
+              // Calculate totals (only from paid items)
+              const totalRevenue = monthlyArray.reduce((sum, m: any) => sum + m.total_revenue, 0);
+              const eventRevenue = monthlyArray.reduce((sum, m: any) => sum + m.event_revenue, 0);
+              const customerRevenue = monthlyArray.reduce((sum, m: any) => sum + m.customer_revenue, 0);
+              const totalTransactions = monthlyArray.reduce((sum, m: any) => sum + m.total_transactions, 0);
+              const fullyPaidCount = monthlyArray.reduce((sum, m: any) => sum + m.fully_paid_count, 0);
+              const partlyPaidCount = monthlyArray.reduce((sum, m: any) => sum + m.partly_paid_count, 0);
               const avgMonthlyRevenue = monthlyArray.length > 0 ? totalRevenue / monthlyArray.length : 0;
+              
+              console.log(`    💰 Total revenue: ${totalRevenue} (${eventRevenue} from events, ${customerRevenue} from customers)`);
+              console.log(`    📊 ${totalTransactions} paid transactions (${fullyPaidCount} fully paid, ${partlyPaidCount} partly paid)`);
               
               toolResult = {
                 period: `${months} months`,
@@ -2166,11 +2239,13 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 end_date: today.toISOString().split('T')[0],
                 summary: {
                   total_revenue: totalRevenue,
-                  total_transactions: allPayments.length,
-                  paid_transactions: paidCount,
-                  not_paid_transactions: notPaidCount,
+                  event_revenue: eventRevenue,
+                  customer_revenue: customerRevenue,
+                  total_transactions: totalTransactions,
+                  fully_paid_transactions: fullyPaidCount,
+                  partly_paid_transactions: partlyPaidCount,
                   average_monthly_revenue: Math.round(avgMonthlyRevenue),
-                  payment_completion_rate: allPayments.length > 0 ? Math.round((paidCount / allPayments.length) * 100) : 0
+                  payment_completion_rate: totalTransactions > 0 ? Math.round((fullyPaidCount / totalTransactions) * 100) : 0
                 },
                 monthly_breakdown: monthlyArray,
                 insights: {
@@ -2178,7 +2253,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   worst_month: monthlyArray.length > 0 ? monthlyArray.reduce((min: any, m: any) => m.total_revenue < min.total_revenue ? m : min) : null
                 }
               };
-              console.log(`    ✓ Analyzed ${months} months of payment history: ${totalRevenue} total revenue`);
+              console.log(`    ✅ Analysis complete - matches Statistics page logic`);
               break;
             }
 
