@@ -233,9 +233,13 @@ serve(async (req) => {
     const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
     // Upload to Supabase storage using service role (full access)
+    const filePath = `${userId}/${filename}`;
+    
+    console.log(`📤 Uploading file to: ${filePath}`);
+    
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('excel-reports')
-      .upload(`${userId}/${filename}`, excelBuffer, {
+      .upload(filePath, excelBuffer, {
         contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         upsert: true,
         cacheControl: '3600'
@@ -246,16 +250,36 @@ serve(async (req) => {
       throw uploadError;
     }
 
-    console.log(`✅ File uploaded successfully: ${userId}/${filename}`);
+    console.log(`✅ File uploaded successfully: ${filePath}`);
 
-    // Generate signed URL with 1-hour expiry
+    // CRITICAL FIX: Wait 500ms for storage to sync and file to be fully available
+    // This prevents "signature verification failed" errors on rapid consecutive requests
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Verify file exists before creating signed URL
+    const { data: fileCheck, error: checkError } = await supabase.storage
+      .from('excel-reports')
+      .list(userId, {
+        search: filename
+      });
+
+    if (checkError || !fileCheck || fileCheck.length === 0) {
+      console.error('❌ File verification failed:', checkError);
+      throw new Error('File upload verification failed - file not found in storage');
+    }
+
+    console.log(`✅ File verified in storage: ${filename}`);
+
+    // Generate signed URL with 1-hour expiry using absolute path
     const { data: signed, error: signErr } = await supabase.storage
       .from('excel-reports')
-      .createSignedUrl(`${userId}/${filename}`, 3600, { download: filename });
+      .createSignedUrl(filePath, 3600, { 
+        download: filename
+      });
 
     if (signErr || !signed?.signedUrl) {
       console.error('❌ Signed URL error:', signErr);
-      throw new Error('Failed to generate signed download URL');
+      throw new Error('Failed to generate signed download URL: ' + (signErr?.message || 'Unknown error'));
     }
 
     console.log(`✅ Signed URL created (expires in 1h): ${signed.signedUrl.substring(0, 100)}...`);
