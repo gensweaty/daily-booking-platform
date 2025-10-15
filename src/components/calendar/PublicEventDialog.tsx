@@ -431,11 +431,13 @@ export const PublicEventDialog = ({
       hasParentId: !!initialData?.parent_event_id
     });
     
-    // Check if this is a recurring event being edited and we need to show the choice dialog
-    if ((eventId || initialData) && isRecurringEvent && editChoice === null) {
-      console.log('[PublicEventDialog] Showing RecurringEditDialog for event edit choice');
-      setShowEditDialog(true);
-      return;
+    // CRITICAL: Force edit choice dialog for ANY recurring event edit (no matter if virtual or real)
+    if ((eventId || initialData) && isRecurringEvent) {
+      if (editChoice === null) {
+        console.log('[PublicEventDialog] Showing RecurringEditDialog for event edit choice');
+        setShowEditDialog(true);
+        return;
+      }
     }
     
     // Continue with the actual submission
