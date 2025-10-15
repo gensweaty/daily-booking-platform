@@ -1865,6 +1865,7 @@ export type Database = {
       edit_single_event_instance_v2: {
         Args: {
           p_additional_persons: Json
+          p_edited_by_ai?: boolean
           p_edited_by_name: string
           p_edited_by_type: string
           p_event_data: Json
