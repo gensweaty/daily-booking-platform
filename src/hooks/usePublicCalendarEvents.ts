@@ -105,8 +105,10 @@ export const usePublicCalendarEvents = (
         p_event_id: null,
         p_created_by_type: 'sub_user',
         p_created_by_name: externalUserName,
+        p_created_by_ai: false,
         p_last_edited_by_type: 'sub_user',
-        p_last_edited_by_name: externalUserName
+        p_last_edited_by_name: externalUserName,
+        p_last_edited_by_ai: false
       });
 
       if (error) {
@@ -215,8 +217,10 @@ export const usePublicCalendarEvents = (
         p_event_id: eventData.id,
         p_created_by_type: 'sub_user',
         p_created_by_name: externalUserName,
+        p_created_by_ai: false,
         p_last_edited_by_type: 'sub_user',
-        p_last_edited_by_name: externalUserName
+        p_last_edited_by_name: externalUserName,
+        p_last_edited_by_ai: false
       });
 
       if (error) {
