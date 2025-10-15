@@ -556,13 +556,15 @@ export const PublicEventDialog = ({
 
             toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
           } else {
-            // edit only this instance -> split + exclude
-            console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
+            // CRITICAL FIX: Edit only this instance
+            // If we're editing an ACTUAL event (not a virtual instance), UPDATE it directly
+            // Only create a new standalone event if we're editing a VIRTUAL instance
             
-            // 1) If this dialog is already editing a split child (not a virtual ID), just UPDATE it.
-            //    (Avoid creating a second standalone + exclusion)
-            if (!isVirtualEvent && initialData?.parent_event_id && !initialData?.excluded_from_series) {
-              const childId = initialData.id || targetEventId;
+            if (!isVirtualEvent) {
+              // This is an actual database event - UPDATE it directly
+              const actualEventId = initialData?.id || targetEventId;
+              console.log('[PublicEventDialog] 🔄 Updating actual event directly:', actualEventId);
+              
               const { error: updErr } = await supabase.rpc('save_event_with_persons', {
                 p_event_data: {
                   title: userSurname || title || 'Untitled Event',
@@ -578,11 +580,11 @@ export const PublicEventDialog = ({
                   reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
                   email_reminder_enabled: emailReminderEnabled,
                   language: language || 'en',
-                  id: childId
+                  id: actualEventId
                 },
                 p_additional_persons: additionalPersonsData,
                 p_user_id: publicBoardUserId,
-                p_event_id: childId,
+                p_event_id: actualEventId,
                 p_created_by_type: 'sub_user',
                 p_created_by_name: externalUserName,
                 p_created_by_ai: false,
@@ -592,15 +594,22 @@ export const PublicEventDialog = ({
               });
               if (updErr) throw updErr;
               
+              // Handle file uploads for the updated event
+              if (files.length && actualEventId) {
+                await uploadFiles(actualEventId);
+                setFiles([]);
+                await loadExistingFiles(actualEventId);
+              }
+              
               toast({ title: t("common.success"), description: t("events.eventUpdated") });
             } else {
-              // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
+              // This is a VIRTUAL instance -> split it off by creating a standalone event
+              console.log('[PublicEventDialog] 🔄 Splitting virtual instance into standalone event');
               const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
 
               const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
                 p_event_id: rpcTargetId,
                 p_user_id: publicBoardUserId,
-                // NEW: include the NEW desired times on the standalone
                 p_event_data: {
                   title: userSurname || title || 'Untitled Event',
                   user_surname: userSurname,
@@ -617,7 +626,7 @@ export const PublicEventDialog = ({
                   language: language || 'en'
                 },
                 p_additional_persons: additionalPersonsData,
-                // NEW: exclude the ORIGINAL occurrence (captured at open)
+                // Mark the ORIGINAL occurrence for exclusion
                 p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
                 p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
                 p_edited_by_type: 'sub_user',
