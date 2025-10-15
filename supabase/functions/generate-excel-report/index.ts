@@ -220,7 +220,7 @@ serve(async (req) => {
         // 3. Get approved booking requests by start_date
         const { data: bookingRequests } = await supabase
           .from('booking_requests')
-          .select('id, title, requester_name, requester_phone, requester_email, user_surname, user_number, payment_amount, payment_status, description, created_at, start_date')
+          .select('id, title, requester_name, requester_phone, requester_email, payment_amount, payment_status, description, created_at, start_date')
           .eq('user_id', userId)
           .eq('status', 'approved')
           .gte('start_date', startDateStr)
@@ -235,20 +235,24 @@ serve(async (req) => {
           return status;
         };
 
-        // Combine all data sources (matching CRM logic)
+        // Combine all data sources (matching CRM exact logic with signature-based deduplication)
         const combined: any[] = [];
+        const seenSignatures = new Set<string>();
         const customerIdSet = new Set((allCustomers || []).map(c => c.id));
 
-        // Add ALL customers (no signature deduplication to match CRM behavior)
+        // Add customers with signature-based deduplication (matching CRM lines 254-266)
         for (const customer of (allCustomers || [])) {
-          combined.push({
-            ...customer,
-            payment_status: normalizePaymentStatus(customer.payment_status)
-          });
+          const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
+          if (!seenSignatures.has(signature)) {
+            combined.push({
+              ...customer,
+              payment_status: normalizePaymentStatus(customer.payment_status)
+            });
+            seenSignatures.add(signature);
+          }
         }
 
-        // Add events that aren't duplicates (using signature to avoid event/customer conflicts)
-        const seenEventSignatures = new Set<string>();
+        // Add events that aren't duplicates (matching CRM lines 269-286)
         for (const event of (events || [])) {
           // Skip if event's booking_request_id matches a customer
           if (event.booking_request_id && customerIdSet.has(event.booking_request_id)) {
@@ -256,38 +260,46 @@ serve(async (req) => {
           }
           
           const signature = `${event.title}:::${event.start_date}`;
-          if (!seenEventSignatures.has(signature)) {
+          if (!seenSignatures.has(signature)) {
             combined.push({
               ...event,
               payment_status: normalizePaymentStatus(event.payment_status)
             });
-            seenEventSignatures.add(signature);
+            seenSignatures.add(signature);
           }
         }
 
-        // Add booking requests
+        // Add booking requests (matching CRM lines 289-294)
         for (const booking of (bookingRequests || [])) {
           combined.push({
             id: booking.id,
-            title: booking.title || booking.user_surname || booking.requester_name,
-            user_surname: booking.user_surname || booking.requester_name,
-            user_number: booking.user_number || booking.requester_phone,
+            title: booking.title || booking.requester_name,
+            user_surname: booking.requester_name,
+            user_number: booking.requester_phone,
             social_network_link: booking.requester_email,
             payment_amount: booking.payment_amount,
             payment_status: normalizePaymentStatus(booking.payment_status),
             event_notes: booking.description,
             created_at: booking.created_at,
-            start_date: booking.start_date
+            start_date: booking.start_date,
+            source: 'booking_request'
           });
         }
 
-        // ID-based deduplication (matching CRM final deduplication step)
+        // ID-based deduplication (matching CRM lines 297-313)
         const uniqueData = new Map();
         combined.forEach(item => {
-          const key = `customer-${item.id}`;
+          let key;
+          if (item.source === 'booking_request') {
+            key = `booking-${item.id}`;
+          } else if (item.id?.toString().startsWith('event-')) {
+            key = item.id;
+          } else {
+            key = `customer-${item.id}`;
+          }
           
           // Keep the most recent version if duplicate found
-          if (!uniqueData.has(key) || new Date(item.created_at) > new Date(uniqueData.get(key).created_at)) {
+          if (!uniqueData.has(key) || new Date(item.created_at || 0) > new Date(uniqueData.get(key).created_at || 0)) {
             uniqueData.set(key, item);
           }
         });
