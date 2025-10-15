@@ -24,8 +24,17 @@ export const usePublicCalendarEvents = (
         throw error;
       }
       
-      console.log('[usePublicCalendarEvents] Fetched events:', data?.length || 0);
-      return (data || []) as CalendarEventType[];
+      // CRITICAL: Filter out exclusion markers (excluded_from_series = true)
+      // These are NOT events — they're directives marking excluded instances
+      const filtered = (data || []).filter((e: any) => !e.excluded_from_series);
+      
+      console.log('[usePublicCalendarEvents] Fetched events:', {
+        total: data?.length || 0,
+        afterFiltering: filtered.length,
+        excluded: (data?.length || 0) - filtered.length
+      });
+      
+      return filtered as CalendarEventType[];
     },
     enabled: !!boardUserId,
     refetchInterval: 1500,

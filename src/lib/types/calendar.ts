@@ -48,6 +48,7 @@ export interface CalendarEventType {
   last_edited_by_type?: string;
   last_edited_by_name?: string;
   last_edited_by_ai?: boolean;
+  recurrence_instance_date?: string;
   files?: Array<{
     id: string;
     event_id: string;
