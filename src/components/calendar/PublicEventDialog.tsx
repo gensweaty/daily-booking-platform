@@ -144,16 +144,7 @@ export const PublicEventDialog = ({
   const isNewEvent = !initialData && !eventId;
   // CRITICAL: Detect virtual instance from either source
   const eventKey = eventId || initialData?.id || "";
-  
-  // Enhanced virtual detection: check for synthetic ID format OR recurrence_instance_date field
-  const virtualInstanceDate = 
-    initialData?.recurrence_instance_date ||
-    (isVirtualInstance(eventKey) ? getInstanceDate(eventKey) : null);
-  
-  // Treat as virtual if we have a derived date but no materialized child
-  const isVirtualEvent = 
-    (!!virtualInstanceDate && !initialData?.parent_event_id) || isVirtualInstance(eventKey);
-  
+  const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
   const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
 
   // Resolve the real series root (parent) id regardless of what was clicked
@@ -329,28 +320,33 @@ export const PublicEventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            // CRITICAL: Enhanced virtual instance date handling for recurrence_instance_date OR synthetic IDs
-            const currentVirtualDate = 
-              initialData?.recurrence_instance_date ||
-              (isVirtualInstance(eventKey) ? getInstanceDate(eventKey) : null);
-            
-            if (currentVirtualDate && (initialData || eventId)) {
-              // Calculate the instance dates using parent's base time but instance's date
-              const baseStart = new Date(eventData.start_date);
-              const baseEnd = new Date(eventData.end_date);
-              const [year, month, day] = currentVirtualDate.split('-').map(Number);
-              const newStart = new Date(baseStart);
-              newStart.setFullYear(year, month - 1, day);
-              const newEnd = new Date(baseEnd);  
-              newEnd.setFullYear(year, month - 1, day);
+            // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
+            const isCurrentlyVirtual = !!eventKey && isVirtualInstance(eventKey);
+            if (isCurrentlyVirtual && (initialData || eventId)) {
+              const instanceDate = getInstanceDate(eventKey);
+              if (instanceDate) {
+                // Calculate the instance dates using parent's base time but instance's date
+                const baseStart = new Date(eventData.start_date);
+                const baseEnd = new Date(eventData.end_date);
+                const [year, month, day] = instanceDate.split('-').map(n => +n);
+                const newStart = new Date(baseStart);
+                newStart.setFullYear(year, month - 1, day);
+                const newEnd = new Date(baseEnd);  
+                newEnd.setFullYear(year, month - 1, day);
 
-              setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
-              setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+                setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
+                setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
 
-              // ⭐ capture the original occurrence (the one to exclude)
-              setOriginalInstanceStartISO(newStart.toISOString());
-              setOriginalInstanceEndISO(newEnd.toISOString());
-              console.log('[PublicEventDialog] 🗓️ Set virtual instance dates:', currentVirtualDate, 'Start:', newStart.toISOString());
+                // ⭐ capture the original occurrence (the one to exclude)
+                setOriginalInstanceStartISO(newStart.toISOString());
+                setOriginalInstanceEndISO(newEnd.toISOString());
+                console.log('[PublicEventDialog] 🗓️ Set virtual instance dates:', instanceDate, 'Start:', newStart.toISOString());
+              } else {
+                setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+                setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+                setOriginalInstanceStartISO(null);
+                setOriginalInstanceEndISO(null);
+              }
             } else {
               setStartDate(isoToLocalDateTimeInput(eventData.start_date));
               setEndDate(isoToLocalDateTimeInput(eventData.end_date));
@@ -539,8 +535,7 @@ export const PublicEventDialog = ({
               p_event_data: safeSeriesData,
               p_additional_persons: additionalPersonsData,
               p_edited_by_type: 'sub_user',
-              p_edited_by_name: externalUserName,
-              p_edited_by_ai: false
+              p_edited_by_name: externalUserName
             });
 
             if (updateSeriesError) throw updateSeriesError;
@@ -557,63 +552,81 @@ export const PublicEventDialog = ({
                 toast({ title: t("common.warning"), description: "Series updated, but some files failed to upload", variant: "destructive" });
               }
             }
-
-            toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
           } else {
-            // UNIFIED FIX: Route all "Edit this occurrence" through edit_single_event_instance_v3
-            console.log('[PublicEventDialog] 🔄 Editing single occurrence (virtual or materialized)');
+            // edit only this instance -> split + exclude
+            console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
             
-            // Build instance-safe payload (no recurrence fields)
-            const singlePayload = {
-              title: userSurname || title || 'Untitled Event',
-              user_surname: userSurname,
-              user_number: userNumber,
-              social_network_link: socialNetworkLink,
-              event_notes: eventNotes,
-              event_name: eventName,
-              start_date: localDateTimeInputToISOString(startDate),
-              end_date: localDateTimeInputToISOString(endDate),
-              payment_status: paymentStatus || 'not_paid',
-              payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-              reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
-              email_reminder_enabled: emailReminderEnabled,
-              language: language || 'en',
-            };
+            // 1) If this dialog is already editing a split child (not a virtual ID), just UPDATE it.
+            //    (Avoid creating a second standalone + exclusion)
+            if (!isVirtualEvent && initialData?.parent_event_id && !initialData?.excluded_from_series) {
+              const childId = initialData.id || targetEventId;
+              const { error: updErr } = await supabase.rpc('save_event_with_persons', {
+                p_event_data: {
+                  title: userSurname || title || 'Untitled Event',
+                  user_surname: userSurname,
+                  user_number: userNumber,
+                  social_network_link: socialNetworkLink,
+                  event_notes: eventNotes,
+                  event_name: eventName,
+                  start_date: localDateTimeInputToISOString(startDate),
+                  end_date: localDateTimeInputToISOString(endDate),
+                  payment_status: paymentStatus || 'not_paid',
+                  payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+                  reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+                  email_reminder_enabled: emailReminderEnabled,
+                  language: language || 'en',
+                  id: childId
+                },
+                p_additional_persons: additionalPersonsData,
+                p_user_id: publicBoardUserId,
+                p_event_id: childId,
+                p_created_by_type: 'sub_user',
+                p_created_by_name: externalUserName,
+                p_last_edited_by_type: 'sub_user',
+                p_last_edited_by_name: externalUserName,
+              });
+              if (updErr) throw updErr;
+            } else {
+              // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
+              const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
 
-            // Decide which ID we pass to RPC:
-            // - virtual occurrence -> parent ID (so RPC can split + exclude)
-            // - materialized child -> the child's own ID (update only that row)
-            const seriesRootId = resolveSeriesRootId();
-            const actualEventId = initialData?.id || eventId!;
-            const rpcEventId = isVirtualEvent ? seriesRootId : actualEventId;
+              const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
+                p_event_id: rpcTargetId,
+                p_user_id: publicBoardUserId,
+                // NEW: include the NEW desired times on the standalone
+                p_event_data: {
+                  title: userSurname || title || 'Untitled Event',
+                  user_surname: userSurname,
+                  user_number: userNumber,
+                  social_network_link: socialNetworkLink,
+                  event_notes: eventNotes,
+                  event_name: eventName,
+                  start_date: localDateTimeInputToISOString(startDate),
+                  end_date: localDateTimeInputToISOString(endDate),
+                  payment_status: paymentStatus || 'not_paid',
+                  payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+                  reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+                  email_reminder_enabled: emailReminderEnabled,
+                  language: language || 'en'
+                },
+                p_additional_persons: additionalPersonsData,
+                // NEW: exclude the ORIGINAL occurrence (captured at open)
+                p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
+                p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
+                p_edited_by_type: 'sub_user',
+                p_edited_by_name: externalUserName
+              });
 
-            const rpcArgs: any = {
-              p_event_id: rpcEventId,
-              p_user_id: publicBoardUserId,
-              p_event_data: singlePayload,
-              p_additional_persons: additionalPersonsData,
-              p_edited_by_type: 'sub_user',
-              p_edited_by_name: externalUserName,
-            };
+              if (editError) throw editError;
+              if (!editResult?.success) throw new Error(editResult?.error || 'Failed to edit single instance');
 
-            // Only for virtual occurrences provide the instance window to split & exclude
-            if (isVirtualEvent) {
-              rpcArgs.p_instance_start = originalInstanceStartISO || localDateTimeInputToISOString(startDate);
-              rpcArgs.p_instance_end = originalInstanceEndISO || localDateTimeInputToISOString(endDate);
+              const newEventId = editResult.new_event_id;
+              if (files.length && newEventId) {
+                await uploadFiles(newEventId);
+                setFiles([]);
+                await loadExistingFiles(newEventId);
+              }
             }
-
-            const { data: editResult, error: editErr } = await supabase.rpc('edit_single_event_instance_v3', rpcArgs);
-            if (editErr) throw editErr;
-
-            // File uploads: new ID for virtual split, otherwise the same event id
-            const newEventId = editResult?.new_event_id || (!isVirtualEvent ? actualEventId : undefined);
-            if (files.length && newEventId) {
-              await uploadFiles(newEventId);
-              setFiles([]);
-              await loadExistingFiles(newEventId);
-            }
-
-            toast({ title: t("common.success"), description: t("events.eventUpdated") });
           }
 
           resetForm();
@@ -645,10 +658,8 @@ export const PublicEventDialog = ({
             p_event_id: targetEventId,
             p_created_by_type: 'sub_user',
             p_created_by_name: externalUserName,
-            p_created_by_ai: false,
             p_last_edited_by_type: 'sub_user',
-            p_last_edited_by_name: externalUserName,
-            p_last_edited_by_ai: false
+            p_last_edited_by_name: externalUserName
           });
 
           if (rpcError) throw rpcError;
