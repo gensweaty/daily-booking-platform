@@ -3119,7 +3119,43 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     toolResult = { success: false, error: createError.message };
                   } else {
                     console.log(`    ✅ Customer created: ${full_name} (ID: ${newCustomer.id})`);
+                    
+                    // Link chat attachment files to new customer (same pattern as events)
+                    let uploadedFiles = [];
+                    if (attachments && attachments.length > 0) {
+                      console.log(`    📎 Linking ${attachments.length} file attachments to new customer ${newCustomer.id}`);
+                      for (const attachment of attachments) {
+                        try {
+                          console.log(`    → Linking ${attachment.filename} from chat_attachments`);
+                          
+                          // Create customer_files_new record pointing to chat_attachments file
+                          // Use same format as events: include bucket prefix in file_path
+                          const { error: dbError } = await supabaseAdmin.from('customer_files_new').insert({
+                            customer_id: newCustomer.id,
+                            user_id: ownerId,
+                            filename: attachment.filename,
+                            file_path: `chat_attachments/${attachment.file_path}`,
+                            content_type: attachment.content_type,
+                            size: attachment.size
+                          });
+                          
+                          if (dbError) {
+                            console.error(`    ❌ DB insert error for ${attachment.filename}:`, dbError);
+                            continue;
+                          }
+                          
+                          uploadedFiles.push(attachment.filename);
+                          console.log(`    ✅ File ${attachment.filename} linked to customer`);
+                        } catch (fileError) {
+                          console.error(`    ❌ Error linking file ${attachment.filename}:`, fileError);
+                        }
+                      }
+                    }
+                    
                     let message = `Customer created: ${full_name}`;
+                    if (uploadedFiles.length > 0) {
+                      message += ` with ${uploadedFiles.length} file(s)`;
+                    }
                     
                     // If create_event is true, also create the event
                     if (create_event && event_start && event_end) {
@@ -3157,7 +3193,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       success: true, 
                       customer_id: newCustomer.id,
                       action: 'created',
-                      message
+                      message,
+                      uploaded_files: uploadedFiles
                     };
                     
                     // Broadcast change for real-time sync
