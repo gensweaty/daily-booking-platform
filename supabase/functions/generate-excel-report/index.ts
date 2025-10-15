@@ -55,24 +55,126 @@ serve(async (req) => {
 
     switch (reportType) {
       case 'payments': {
+        // CRITICAL FIX: Match statistics page logic exactly
+        // Filter events by start_date (when they occur), handle recurring properly
+        
+        const endDate = new Date(today);
+        if (months === 1) {
+          endDate.setMonth(endDate.getMonth() + 1);
+          endDate.setDate(0);
+          endDate.setHours(23, 59, 59, 999);
+        } else {
+          endDate.setHours(23, 59, 59, 999);
+        }
+        const startDateStr = startDate.toISOString();
+        const endDateStr = endDate.toISOString();
+
+        // Get events by start_date (when they occur)
         const { data: events } = await supabase
           .from('events')
-          .select('title, user_surname, user_number, start_date, payment_amount, payment_status, created_at')
+          .select('id, title, user_surname, user_number, start_date, payment_amount, payment_status, is_recurring, parent_event_id, created_at')
           .eq('user_id', userId)
-          .gte('created_at', startDate.toISOString())
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
           .is('deleted_at', null)
-          .order('created_at', { ascending: false });
+          .order('start_date', { ascending: false });
 
-        const { data: customers } = await supabase
+        // Get approved booking requests by start_date
+        const { data: bookingRequests } = await supabase
+          .from('booking_requests')
+          .select('id, title, requester_name, requester_phone, start_date, payment_amount, payment_status, created_at')
+          .eq('user_id', userId)
+          .eq('status', 'approved')
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
+          .is('deleted_at', null);
+
+        // Process recurring series - only count payment once per series
+        const recurringSeriesMap = new Map();
+        const processedEvents = [];
+        const seenSeriesPayments = new Set();
+
+        for (const event of (events || [])) {
+          if (event.is_recurring && event.parent_event_id) {
+            // Child instance - track by parent ID
+            const parentId = event.parent_event_id;
+            if (!seenSeriesPayments.has(parentId)) {
+              processedEvents.push(event);
+              seenSeriesPayments.add(parentId);
+            }
+          } else if (event.is_recurring && !event.parent_event_id) {
+            // Parent event - track by own ID
+            if (!seenSeriesPayments.has(event.id)) {
+              processedEvents.push(event);
+              seenSeriesPayments.add(event.id);
+            }
+          } else {
+            // Non-recurring event - always include
+            processedEvents.push(event);
+          }
+        }
+
+        // Get additional persons for parent events only
+        const parentEventIds = (events || [])
+          .filter(e => !e.parent_event_id)
+          .map(e => e.id);
+
+        let additionalPersons = [];
+        if (parentEventIds.length > 0) {
+          const { data: customers } = await supabase
+            .from('customers')
+            .select('event_id, title, user_surname, user_number, start_date, payment_amount, payment_status, created_at')
+            .in('event_id', parentEventIds)
+            .eq('type', 'customer')
+            .is('deleted_at', null);
+          additionalPersons = customers || [];
+        }
+
+        // Get standalone customers (without events)
+        const { data: standaloneCustomers } = await supabase
           .from('customers')
           .select('title, user_surname, user_number, start_date, payment_amount, payment_status, created_at')
           .eq('user_id', userId)
-          .gte('created_at', startDate.toISOString())
-          .is('deleted_at', null)
-          .order('created_at', { ascending: false });
+          .is('event_id', null)
+          .gte('created_at', startDateStr)
+          .lte('created_at', endDateStr)
+          .is('deleted_at', null);
+
+        // Calculate total income correctly
+        let totalIncome = 0;
+
+        // Add event payments (deduplicated)
+        processedEvents.forEach(e => {
+          if ((e.payment_status?.includes('partly') || e.payment_status?.includes('fully')) && e.payment_amount) {
+            totalIncome += Number(e.payment_amount) || 0;
+          }
+        });
+
+        // Add additional persons payments
+        additionalPersons.forEach(p => {
+          if ((p.payment_status?.includes('partly') || p.payment_status?.includes('fully')) && p.payment_amount) {
+            totalIncome += Number(p.payment_amount) || 0;
+          }
+        });
+
+        // Add standalone customers payments
+        (standaloneCustomers || []).forEach(c => {
+          if ((c.payment_status?.includes('partly') || c.payment_status?.includes('fully')) && c.payment_amount) {
+            totalIncome += Number(c.payment_amount) || 0;
+          }
+        });
+
+        // Add booking requests payments
+        (bookingRequests || []).forEach(b => {
+          if ((b.payment_status?.includes('partly') || b.payment_status?.includes('fully')) && b.payment_amount) {
+            totalIncome += Number(b.payment_amount) || 0;
+          }
+        });
+
+        console.log(`📊 Payments Excel: Total income ${totalIncome}, Events: ${processedEvents.length}, Customers: ${additionalPersons.length}, Standalone: ${standaloneCustomers?.length || 0}, Bookings: ${bookingRequests?.length || 0}`);
 
         data = [
-          ...(events || []).map(e => ({
+          ...processedEvents.map(e => ({
             'Title': e.title,
             'Customer Name': e.user_surname || '',
             'Phone': e.user_number || '',
@@ -81,15 +183,43 @@ serve(async (req) => {
             'Status': e.payment_status || 'not_paid',
             'Source': 'Event'
           })),
-          ...(customers || []).map(c => ({
+          ...additionalPersons.map(c => ({
             'Title': c.title,
             'Customer Name': c.user_surname || '',
             'Phone': c.user_number || '',
             'Date': new Date(c.start_date || c.created_at).toLocaleDateString(),
             'Amount': c.payment_amount || 0,
             'Status': c.payment_status || 'not_paid',
-            'Source': 'Customer'
-          }))
+            'Source': 'Additional Person'
+          })),
+          ...(standaloneCustomers || []).map(c => ({
+            'Title': c.title,
+            'Customer Name': c.user_surname || '',
+            'Phone': c.user_number || '',
+            'Date': new Date(c.start_date || c.created_at).toLocaleDateString(),
+            'Amount': c.payment_amount || 0,
+            'Status': c.payment_status || 'not_paid',
+            'Source': 'Standalone Customer'
+          })),
+          ...(bookingRequests || []).map(b => ({
+            'Title': b.title,
+            'Customer Name': b.requester_name || '',
+            'Phone': b.requester_phone || '',
+            'Date': new Date(b.start_date || b.created_at).toLocaleDateString(),
+            'Amount': b.payment_amount || 0,
+            'Status': b.payment_status || 'not_paid',
+            'Source': 'Booking Request'
+          })),
+          // Add total row
+          {
+            'Title': '--- TOTAL ---',
+            'Customer Name': '',
+            'Phone': '',
+            'Date': '',
+            'Amount': totalIncome,
+            'Status': '',
+            'Source': 'TOTAL INCOME'
+          }
         ];
         filename = `payment-history-${months}months-${Date.now()}.xlsx`;
         break;
