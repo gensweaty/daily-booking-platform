@@ -111,10 +111,13 @@ serve(async (req) => {
     }
 
     // ---- FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
+    // ONLY trigger fast-path when user EXPLICITLY requests Excel generation
     const lower = (prompt || "").toLowerCase();
-    const wantsExcel = /\b(excel|xlsx|spreadsheet|export)\b/.test(lower);
+    const explicitExcelRequest = /\b(generate|create|make|download|export)\s+(an?\s+)?(excel|xlsx|spreadsheet)\b/.test(lower) ||
+                                  /\b(excel|xlsx|spreadsheet)\s+(report|file|export)\b/.test(lower) ||
+                                  /\bexport\s+to\s+(excel|xlsx|spreadsheet)\b/.test(lower);
 
-    if (wantsExcel) {
+    if (explicitExcelRequest) {
       console.log('📊 Excel fast-path triggered');
       
       // Infer report type from prompt with improved pattern matching
@@ -491,22 +494,28 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_all_tasks",
-          description: `**MANDATORY - CALL THIS FIRST FOR ANY TASK QUESTION**
+          description: `**MANDATORY - USE THIS FOR CONVERSATIONAL DATA QUESTIONS ABOUT TASKS**
 
-          Use this IMMEDIATELY when user mentions:
-          - "tasks", "task data", "my tasks", "show tasks"
-          - "task report", "task excel", "task statistics"  
-          - "last year tasks", "tasks for [period]"
-          - ANY question about tasks
+          Use this IMMEDIATELY when user asks data questions (NOT Excel export):
+          - "how many tasks this month?", "what tasks did we add?"
+          - "show me tasks", "list tasks created last week"
+          - "tasks for this month", "tasks added today"
+          - ANY question asking about task DATA, COUNTS, LISTS, or STATISTICS
           
-          **CRITICAL**: NEVER say "no task data" without calling this tool first!
+          **CRITICAL**: This is for ANSWERING QUESTIONS, not Excel generation!
+          
+          Time Range Examples:
+          - "tasks this month" → created_after: first day of current month, created_before: last day of current month
+          - "tasks last week" → created_after: last Monday, created_before: last Sunday
+          - "tasks added today" → created_after: today at 00:00, created_before: today at 23:59
+          - "tasks this year" → created_after: Jan 1 of current year, created_before: today
           
           Retrieves ALL tasks with optional filters:
           - Status filter (todo/inprogress/done)
           - Date range filter (created_after, created_before)
-          - Returns complete task details
+          - Returns complete task details including created_by info (shows who created each task: admin or sub-user name)
           
-          If this returns empty array, THEN you can say no data for that period.`,
+          After calling this tool, provide a conversational answer with the data (counts, lists, insights).`,
           parameters: {
             type: "object",
             properties: {
@@ -683,14 +692,18 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "generate_excel_report",
-          description: `**MANDATORY - CALL THIS DIRECTLY FOR EXCEL REQUESTS**
+          description: `**ONLY USE FOR EXPLICIT EXCEL/EXPORT REQUESTS - NOT FOR DATA QUESTIONS**
 
-          Use this IMMEDIATELY when user asks for:
-          - "generate excel", "create excel", "excel report"
-          - "export to excel", "download excel spreadsheet"
-          - "excel about tasks/events/customers/payments/bookings"
+          Use this ONLY when user EXPLICITLY requests Excel generation with keywords:
+          - "generate excel", "create excel", "make excel", "excel report"
+          - "export to excel", "download excel/spreadsheet"
+          - "I need an excel file", "give me a spreadsheet"
           
-          **CRITICAL**: DO NOT pre-check if data exists! Call this tool directly - it will check and return appropriate response.
+          **CRITICAL DISTINCTION**:
+          ❌ "how many tasks this month?" → DO NOT USE THIS TOOL → Use get_all_tasks instead
+          ❌ "show me customers" → DO NOT USE THIS TOOL → Use get_all_customers instead
+          ✅ "generate excel for tasks this month" → USE THIS TOOL
+          ✅ "export customers to excel" → USE THIS TOOL
           
           Available report types:
           - "tasks": Task list with status, priority, deadlines
@@ -699,15 +712,13 @@ serve(async (req) => {
           - "payments": Payment history from events and customers
           - "bookings": Booking requests with status
           
-          The tool will:
-          1. Query data for the specified period (months parameter)
-          2. Generate Excel file if data exists
-          3. Return download link OR error if no data
-          
-          If user mentions "last year", "last X months", "past year":
-          - Use months: 12 for "last year" or "past year"
-          - Use months: 6 for "last 6 months"
-          - Use months: 3 for "last quarter"`,
+          Time range mapping (ACCURATE):
+          - "this month" → months: 1 (current month only)
+          - "last month" → months: 1 (previous month only)
+          - "this week" → months: 1 (current week only)
+          - "last 3 months" → months: 3
+          - "last 6 months" → months: 6
+          - "last year" or "past year" → months: 12`,
           parameters: {
             type: "object",
             properties: {
@@ -1555,16 +1566,40 @@ For excel: call generate_excel_report, provide markdown download link.
 - Keep responses concise but complete
 - Format lists and data clearly with bullets/numbers
 
-**EXCEL GENERATION RULES** 🔴:
-**CRITICAL**: When user asks for Excel/spreadsheet generation:
-1. Call generate_excel_report tool IMMEDIATELY - don't pre-check data
-2. DO NOT call get_all_tasks/get_all_events first to verify data exists
-3. The generate_excel_report tool checks for data and returns appropriate response
-4. If tool returns success=false with "No data found", THEN tell user no data exists
-5. If tool returns success=true, provide download link immediately
+**DATA QUESTIONS VS EXCEL GENERATION - CRITICAL DISTINCTION** 🔴:
 
-✅ CORRECT: User asks "excel tasks last year" → Call generate_excel_report(report_type="tasks", months=12) → Show download link or "no data" message
-❌ WRONG: User asks "excel tasks last year" → Call get_all_tasks first → Say "no task data" without trying generate_excel_report
+**RULE 1: DEFAULT TO CONVERSATIONAL DATA RESPONSES**
+When users ask questions about their data (counts, statistics, summaries), ALWAYS respond conversationally with the actual data:
+- ✅ "how many tasks this month?" → Call get_all_tasks with filters → Answer: "You added 15 tasks this month"
+- ✅ "what customers did we add?" → Call get_all_customers → Answer: "You added 8 customers: [list names]"
+- ✅ "show me events this week" → Call get_all_events → Answer: "You have 5 events: [list details]"
+- ❌ NEVER generate Excel unless user explicitly asks for it
+
+**RULE 2: ONLY GENERATE EXCEL WHEN EXPLICITLY REQUESTED**
+Excel generation is ONLY for explicit export requests with keywords:
+- "generate excel", "create excel", "excel report", "export to excel", "download excel/spreadsheet"
+- "make me an excel file", "I need a spreadsheet"
+
+**RULE 3: TIME RANGE UNDERSTANDING**
+Be precise about time periods:
+- "this month" = current month only (e.g., Oct 1 to Oct 31 if today is Oct 15)
+- "last month" = previous month only (e.g., September if today is in October)
+- "this week" = current week (Mon-Sun or start of week to today)
+- "today" = today only
+- "this year" = current year (Jan 1 to today)
+- "last year" = previous full year (12 months)
+
+**EXAMPLES OF CORRECT BEHAVIOR:**
+✅ Q: "how many tasks we added this month?" → Call get_all_tasks(created_after=2025-10-01, created_before=2025-10-31) → A: "Your team added 26 tasks this month"
+✅ Q: "show me customers from last week" → Call get_all_customers(created_after=last_monday, created_before=today) → A: "You added 5 customers last week: [names]"
+✅ Q: "what events do we have tomorrow?" → Call get_all_events(start_date=tomorrow, end_date=tomorrow) → A: "You have 3 events tomorrow: [list details]"
+✅ Q: "generate excel for tasks this month" → Call generate_excel_report(report_type="tasks", months=1) → A: "📥 Your tasks report is ready [download link]"
+
+**EXAMPLES OF WRONG BEHAVIOR:**
+❌ Q: "how many tasks this month?" → Generate Excel with 12 months of data (WRONG: should answer conversationally with correct time range)
+❌ Q: "show me customers" → Say "no data" without calling get_all_customers first (WRONG: must call tool to check)
+❌ Q: "tasks this week" → Generate Excel (WRONG: user wants data, not Excel)
+❌ Q: "this month statistics" → Use 12 months instead of current month (WRONG: wrong time range)
 
 **YOUR FULL CAPABILITIES**:
 ✅ You CAN create and edit events, tasks, and customers
