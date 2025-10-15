@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CalendarEventType } from "@/lib/types/calendar";
@@ -140,6 +140,9 @@ export const PublicEventDialog = ({
   const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
   const [originalInstanceStartISO, setOriginalInstanceStartISO] = useState<string | null>(null);
   const [originalInstanceEndISO, setOriginalInstanceEndISO] = useState<string | null>(null);
+  
+  // CRITICAL FIX: Track loaded event to prevent redundant useEffect executions
+  const loadedEventRef = useRef<string | null>(null);
 
   const isNewEvent = !initialData && !eventId;
   // CRITICAL: Detect virtual instance from either source
@@ -297,9 +300,24 @@ export const PublicEventDialog = ({
     setIsLoading(false);
     
     const loadAndSetEventData = async () => {
+      // CRITICAL: Only run when dialog opens or when a NEW event needs to be loaded
+      if (!open) {
+        return;
+      }
+      
       if (open) {
         if (initialData || eventId) {
           const targetEventId = eventId || initialData?.id;
+          
+          // CRITICAL FIX: Prevent loading the same event multiple times
+          if (targetEventId && loadedEventRef.current === targetEventId) {
+            console.log('[PublicEventDialog] Event already loaded, skipping:', targetEventId);
+            return;
+          }
+
+          console.log('[PublicEventDialog] 🔄 Loading event data for:', targetEventId);
+          loadedEventRef.current = targetEventId || null;
+          
           const eventData = initialData;
           
           // Load existing files and additional persons if we have an event ID
@@ -382,6 +400,13 @@ export const PublicEventDialog = ({
 
     loadAndSetEventData();
   }, [open, selectedDate, eventId, initialData?.id]); // CRITICAL FIX: Watch eventId and initialData.id, not full initialData object
+  
+  // Reset the loaded event ref when dialog closes
+  useEffect(() => {
+    if (!open) {
+      loadedEventRef.current = null;
+    }
+  }, [open]);
 
   const resetFormFields = () => {
     setAdditionalPersons([]);
