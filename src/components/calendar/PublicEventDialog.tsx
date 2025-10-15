@@ -140,6 +140,14 @@ export const PublicEventDialog = ({
   const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
   const [originalInstanceStartISO, setOriginalInstanceStartISO] = useState<string | null>(null);
   const [originalInstanceEndISO, setOriginalInstanceEndISO] = useState<string | null>(null);
+  const [fetchedMeta, setFetchedMeta] = useState<null | {
+    id: string;
+    is_recurring: boolean | null;
+    repeat_pattern: string | null;
+    parent_event_id: string | null;
+    start_date: string;
+    end_date: string;
+  }>(null);
 
   const isNewEvent = !initialData && !eventId;
   // CRITICAL: Detect virtual instance from either source (id@YYYY-MM-DD OR recurrence_instance_date)
@@ -150,7 +158,17 @@ export const PublicEventDialog = ({
   const isVirtualEvent =
     (!!eventKey && isVirtualInstance(eventKey)) ||
     !!instanceDateFromData;
-  const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
+  
+  // Robust series detection (works even when only eventId is provided)
+  const isSeriesFlag =
+    Boolean(initialData?.is_recurring ?? fetchedMeta?.is_recurring) ||
+    Boolean(initialData?.repeat_pattern ?? fetchedMeta?.repeat_pattern);
+  
+  const hasParentOrVirtual =
+    Boolean(initialData?.parent_event_id ?? fetchedMeta?.parent_event_id) ||
+    isVirtualEvent;
+  
+  const isRecurringEvent = (!isNewEvent) && (isSeriesFlag || hasParentOrVirtual);
 
   // Resolve the real series root (parent) id regardless of what was clicked
   const resolveSeriesRootId = React.useCallback(() => {
@@ -305,6 +323,29 @@ export const PublicEventDialog = ({
       if (open) {
         if (initialData || eventId) {
           const targetEventId = eventId || initialData?.id;
+          
+          // Fetch minimal metadata if initialData is missing
+          if (!initialData && targetEventId) {
+            const { data, error } = await supabase
+              .from('events')
+              .select('id,is_recurring,repeat_pattern,parent_event_id,start_date,end_date')
+              .eq('id', targetEventId)
+              .maybeSingle();
+            
+            if (!error && data) {
+              setFetchedMeta(data as any);
+            }
+          } else if (initialData) {
+            setFetchedMeta({
+              id: initialData.id!,
+              is_recurring: initialData.is_recurring ?? null,
+              repeat_pattern: initialData.repeat_pattern ?? null,
+              parent_event_id: initialData.parent_event_id ?? null,
+              start_date: initialData.start_date!,
+              end_date: initialData.end_date!,
+            });
+          }
+          
           const eventData = initialData;
           
           // Load existing files and additional persons if we have an event ID
@@ -325,28 +366,41 @@ export const PublicEventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            // CRITICAL: map UI occurrence to an exact original window
-            const instDate = instanceDateFromData; // e.g. '2025-10-20'
-            if (instDate) {
-              const baseStart = new Date(eventData.start_date);
-              const baseEnd = new Date(eventData.end_date);
-
+            // CRITICAL: Always capture original occurrence window (including first occurrence/series root)
+            const instDate = instanceDateFromData;
+            const baseStartISO = (eventData?.start_date || fetchedMeta?.start_date) as string | undefined;
+            const baseEndISO = (eventData?.end_date || fetchedMeta?.end_date) as string | undefined;
+            
+            if (instDate && baseStartISO && baseEndISO) {
+              // Non-root occurrences (virtual or explicit instance date)
+              const baseStart = new Date(baseStartISO);
+              const baseEnd = new Date(baseEndISO);
               const [y, m, d] = instDate.split('-').map(Number);
-              const newStart = new Date(baseStart);
-              newStart.setFullYear(y, m - 1, d);
-              const newEnd = new Date(baseEnd);
-              newEnd.setFullYear(y, m - 1, d);
-
-              setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
-              setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
-
-              // capture ORIGINAL occurrence to exclude when splitting
-              setOriginalInstanceStartISO(newStart.toISOString());
-              setOriginalInstanceEndISO(newEnd.toISOString());
+              const origStart = new Date(baseStart);
+              origStart.setFullYear(y, m - 1, d);
+              const origEnd = new Date(baseEnd);
+              origEnd.setFullYear(y, m - 1, d);
+              
+              setStartDate(isoToLocalDateTimeInput(origStart.toISOString()));
+              setEndDate(isoToLocalDateTimeInput(origEnd.toISOString()));
+              setOriginalInstanceStartISO(origStart.toISOString());
+              setOriginalInstanceEndISO(origEnd.toISOString());
               console.log('[PublicEventDialog] 🗓️ Set occurrence dates from recurrence_instance_date:', instDate);
+            } else if (isSeriesFlag && baseStartISO && baseEndISO) {
+              // **First occurrence** (the series root row) - CRITICAL for "this event" to work
+              setStartDate(isoToLocalDateTimeInput(baseStartISO));
+              setEndDate(isoToLocalDateTimeInput(baseEndISO));
+              setOriginalInstanceStartISO(baseStartISO);
+              setOriginalInstanceEndISO(baseEndISO);
+              console.log('[PublicEventDialog] 🗓️ Set FIRST occurrence dates (series root)');
             } else {
-              setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-              setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+              // Non-recurring or missing meta
+              const fallbackStart = (eventData || fetchedMeta)?.start_date || '';
+              const fallbackEnd = (eventData || fetchedMeta)?.end_date || '';
+              if (fallbackStart && fallbackEnd) {
+                setStartDate(isoToLocalDateTimeInput(fallbackStart));
+                setEndDate(isoToLocalDateTimeInput(fallbackEnd));
+              }
               setOriginalInstanceStartISO(null);
               setOriginalInstanceEndISO(null);
             }
