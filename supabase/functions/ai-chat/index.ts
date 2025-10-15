@@ -959,6 +959,49 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 - When assigning tasks, you can assign to admin OR sub-users by name
 - You MUST call get_sub_users before assigning tasks by name to team members
 
+**📊 STATISTICS & FINANCIAL DATA RULES - CRITICAL FOR ACCURACY**:
+
+**MANDATORY: When presenting statistics, you MUST follow these rules EXACTLY:**
+
+1. **ALWAYS show the EXACT numbers from tool results - NEVER recalculate, round, or modify**
+2. **Use this MANDATORY format for financial comparisons:**
+
+   [Month Name] [Year]:
+   - Events: [exact count from tool]
+   - Customers: [exact count from tool]
+   - Event Revenue: $[exact amount from tool - do not round]
+   - Customer Revenue: $[exact amount from tool - do not round]
+   - Total Revenue: $[exact amount from tool - do not round]
+
+3. **CRITICAL RULES:**
+   - The numbers you show MUST match tool_result.monthly_breakdown EXACTLY
+   - DO NOT do your own math - trust the tool results completely
+   - Present data IDENTICALLY for ALL users (admin and sub-users see same numbers)
+   - If asked to compare months, show each month in the EXACT same format
+   - When tool returns $22.00, show "$22.00" or "$22" - NEVER "$22.5" or any other number
+
+**CORRECT Statistics Response Examples:**
+✅ "Here's October compared to September:
+
+September 2025:
+- Events: 9 events
+- Customers: 79 new customers  
+- Total Revenue: $22.00
+
+October 2025 (so far):
+- Events: 13 events
+- Customers: 19 new customers
+- Total Revenue: $273.00
+
+October's income ($273.00) is significantly higher than September ($22.00)."
+
+**INCORRECT Statistics Response Examples (NEVER DO THIS):**
+❌ "September had $22 and October has $590" (wrong numbers - not from tool)
+❌ "October revenue is about $560" (rounding or hallucinating)
+❌ Showing different numbers to admin vs sub-user
+❌ Adding/subtracting from tool results
+❌ Using approximate language like "around", "about", "roughly" for exact data
+
 **🤖 AI AGENT CAPABILITIES - YOU CAN NOW CREATE AND EDIT DATA!**
 
 **WRITE CAPABILITIES** (NEW - You are now an active agent!):
@@ -2313,7 +2356,12 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               const fullyPaidCount = monthlyArray.reduce((sum, m: any) => sum + m.fully_paid_count, 0);
               const partlyPaidCount = monthlyArray.reduce((sum, m: any) => sum + m.partly_paid_count, 0);
               
-              console.log(`    ✅ FINAL: Total=$${totalRevenue} (Events=$${eventRevenue}, Customers=$${customerRevenue}), Transactions=${totalTransactions}`);
+              console.log(`    ✅ FINAL STATISTICS (AI MUST present these EXACT numbers):`);
+              console.log(`    💰 Total Revenue: $${totalRevenue} (Events: $${eventRevenue}, Customers: $${customerRevenue})`);
+              console.log(`    📊 Monthly Breakdown (show these EXACT numbers to user):`);
+              monthlyArray.forEach((m: any) => {
+                console.log(`       📅 ${m.month}: Total=$${m.total_revenue} (Events=$${m.event_revenue}, Customers=$${m.customer_revenue}), Transactions=${m.total_transactions}`);
+              });
               
               toolResult = {
                 period: `${months} months`,
@@ -2333,7 +2381,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 insights: {
                   best_month: monthlyArray.length > 0 ? monthlyArray.reduce((max: any, m: any) => m.total_revenue > max.total_revenue ? m : max) : null,
                   worst_month: monthlyArray.length > 0 ? monthlyArray.reduce((min: any, m: any) => m.total_revenue < min.total_revenue ? m : min) : null
-                }
+                },
+                _ai_instruction: "🚨 CRITICAL: Present these EXACT numbers to the user. Do NOT recalculate, round, or modify ANY values. All users (admin and sub-users) must see IDENTICAL numbers. Match the monthly_breakdown array exactly."
               };
               break;
             }
