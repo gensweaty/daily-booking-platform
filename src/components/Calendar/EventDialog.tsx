@@ -992,20 +992,20 @@ export const EventDialog = ({
           toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
           onEventUpdated?.();
         } else {
-          // edit only this instance -> split + exclude
+          // CRITICAL FIX: Edit only this instance
+          // If we're editing an ACTUAL event (not a virtual instance), UPDATE it directly
+          // Only create a new standalone event if we're editing a VIRTUAL instance
           
-          // 1) If this dialog is already editing a split child (not a virtual ID), just UPDATE it.
-          //    (Avoid creating a second standalone + exclusion)
-          if (!isVirtualEvent && initialData?.parent_event_id && !initialData?.excluded_from_series) {
-            const childId = initialData.id || eventId;
+          if (!isVirtualEvent) {
+            // This is an actual database event - UPDATE it directly
+            const actualEventId = initialData?.id || eventId;
+            console.log('🔄 Updating actual event directly:', actualEventId);
+            
             const { error: updErr } = await supabase.rpc('save_event_with_persons', {
-              p_event_data: {
-                ...eventData,        // includes new start/end from inputs
-                id: childId
-              },
+              p_event_data: eventData, // includes new start/end from inputs
               p_additional_persons: additionalPersons,
               p_user_id: effectiveUserId,
-              p_event_id: childId,
+              p_event_id: actualEventId,
               p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
               p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
               p_created_by_ai: false,
@@ -1014,28 +1014,35 @@ export const EventDialog = ({
               p_last_edited_by_ai: false,
             });
             if (updErr) throw updErr;
+            
+            // Handle file uploads for the updated event
+            if (files.length && actualEventId) {
+              await uploadFiles(actualEventId);
+              setFiles([]);
+              await loadExistingFiles(actualEventId);
+            }
           } else {
-            // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
-            const parentIdForRpc = isVirtualEvent ? getParentEventId(eventKey) : (initialData?.parent_event_id || eventId || initialData?.id);
+            // This is a VIRTUAL instance -> split it off by creating a standalone event
+            console.log('🔄 Splitting virtual instance into standalone event');
+            const parentIdForRpc = getParentEventId(eventKey);
 
             const { data: standaloneResult, error } = await supabase.rpc('edit_single_event_instance_v2', {
               p_event_id: parentIdForRpc,
               p_user_id: effectiveUserId,
-              // NEW: include the NEW desired times on the standalone
               p_event_data: {
-                ...eventData, // must include start_date & end_date from inputs
+                ...eventData, // includes new start_date & end_date from inputs
                 language
               },
-              // NEW: exclude the ORIGINAL occurrence (captured at open)
+              // Mark the ORIGINAL occurrence for exclusion
               p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
-              p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
+              p_instance_end: originalInstanceEndISO || localDateTimeInputToISOString(endDate),
               p_additional_persons: additionalPersons,
               p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
               p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
               p_edited_by_ai: false
             });
             if (error) throw error;
-            if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to update only this instance');
+            if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to split instance');
 
             const newEventId = standaloneResult.new_event_id;
             if (files.length && newEventId) {
