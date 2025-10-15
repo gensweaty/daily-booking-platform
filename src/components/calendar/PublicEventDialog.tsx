@@ -553,6 +553,8 @@ export const PublicEventDialog = ({
                 toast({ title: t("common.warning"), description: "Series updated, but some files failed to upload", variant: "destructive" });
               }
             }
+
+            toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
           } else {
             // edit only this instance -> split + exclude
             console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
@@ -589,6 +591,8 @@ export const PublicEventDialog = ({
                 p_last_edited_by_ai: false
               });
               if (updErr) throw updErr;
+              
+              toast({ title: t("common.success"), description: t("events.eventUpdated") });
             } else {
               // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
               const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
@@ -630,6 +634,8 @@ export const PublicEventDialog = ({
                 setFiles([]);
                 await loadExistingFiles(newEventId);
               }
+              
+              toast({ title: t("common.success"), description: t("events.eventUpdated") });
             }
           }
 
