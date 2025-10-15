@@ -142,9 +142,14 @@ export const PublicEventDialog = ({
   const [originalInstanceEndISO, setOriginalInstanceEndISO] = useState<string | null>(null);
 
   const isNewEvent = !initialData && !eventId;
-  // CRITICAL: Detect virtual instance from either source
+  // CRITICAL: Detect virtual instance from either source (id@YYYY-MM-DD OR recurrence_instance_date)
   const eventKey = eventId || initialData?.id || "";
-  const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
+  const instanceDateFromData =
+    (initialData as any)?.recurrence_instance_date ||
+    (eventKey ? (isVirtualInstance(eventKey) ? getInstanceDate(eventKey) : null) : null);
+  const isVirtualEvent =
+    (!!eventKey && isVirtualInstance(eventKey)) ||
+    !!instanceDateFromData;
   const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
 
   // Resolve the real series root (parent) id regardless of what was clicked
@@ -320,33 +325,25 @@ export const PublicEventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
-            const isCurrentlyVirtual = !!eventKey && isVirtualInstance(eventKey);
-            if (isCurrentlyVirtual && (initialData || eventId)) {
-              const instanceDate = getInstanceDate(eventKey);
-              if (instanceDate) {
-                // Calculate the instance dates using parent's base time but instance's date
-                const baseStart = new Date(eventData.start_date);
-                const baseEnd = new Date(eventData.end_date);
-                const [year, month, day] = instanceDate.split('-').map(n => +n);
-                const newStart = new Date(baseStart);
-                newStart.setFullYear(year, month - 1, day);
-                const newEnd = new Date(baseEnd);  
-                newEnd.setFullYear(year, month - 1, day);
+            // CRITICAL: map UI occurrence to an exact original window
+            const instDate = instanceDateFromData; // e.g. '2025-10-20'
+            if (instDate) {
+              const baseStart = new Date(eventData.start_date);
+              const baseEnd = new Date(eventData.end_date);
 
-                setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
-                setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+              const [y, m, d] = instDate.split('-').map(Number);
+              const newStart = new Date(baseStart);
+              newStart.setFullYear(y, m - 1, d);
+              const newEnd = new Date(baseEnd);
+              newEnd.setFullYear(y, m - 1, d);
 
-                // ⭐ capture the original occurrence (the one to exclude)
-                setOriginalInstanceStartISO(newStart.toISOString());
-                setOriginalInstanceEndISO(newEnd.toISOString());
-                console.log('[PublicEventDialog] 🗓️ Set virtual instance dates:', instanceDate, 'Start:', newStart.toISOString());
-              } else {
-                setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-                setEndDate(isoToLocalDateTimeInput(eventData.end_date));
-                setOriginalInstanceStartISO(null);
-                setOriginalInstanceEndISO(null);
-              }
+              setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
+              setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+
+              // capture ORIGINAL occurrence to exclude when splitting
+              setOriginalInstanceStartISO(newStart.toISOString());
+              setOriginalInstanceEndISO(newEnd.toISOString());
+              console.log('[PublicEventDialog] 🗓️ Set occurrence dates from recurrence_instance_date:', instDate);
             } else {
               setStartDate(isoToLocalDateTimeInput(eventData.start_date));
               setEndDate(isoToLocalDateTimeInput(eventData.end_date));
@@ -553,6 +550,9 @@ export const PublicEventDialog = ({
                 toast({ title: t("common.warning"), description: "Series updated, but some files failed to upload", variant: "destructive" });
               }
             }
+
+            toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
+            onEventUpdated?.();
           } else {
             // edit only this instance -> split + exclude
             console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
@@ -589,6 +589,9 @@ export const PublicEventDialog = ({
                 p_last_edited_by_ai: false
               });
               if (updErr) throw updErr;
+
+              toast({ title: t("common.success"), description: t("events.eventUpdated") });
+              onEventUpdated?.();
             } else {
               // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
               const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
@@ -630,6 +633,9 @@ export const PublicEventDialog = ({
                 setFiles([]);
                 await loadExistingFiles(newEventId);
               }
+
+              toast({ title: t("common.success"), description: t("events.eventUpdated") });
+              onEventUpdated?.();
             }
           }
 
