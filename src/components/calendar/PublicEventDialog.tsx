@@ -148,6 +148,7 @@ export const PublicEventDialog = ({
     start_date: string;
     end_date: string;
   }>(null);
+  const [metaLoading, setMetaLoading] = useState(false);
 
   const isNewEvent = !initialData && !eventId;
   // CRITICAL: Detect virtual instance from either source (id@YYYY-MM-DD OR recurrence_instance_date)
@@ -170,14 +171,32 @@ export const PublicEventDialog = ({
   
   const isRecurringEvent = (!isNewEvent) && (isSeriesFlag || hasParentOrVirtual);
 
+  // Helper to fetch metadata if needed
+  const fetchMetaIfNeeded = async (id: string) => {
+    if (initialData || fetchedMeta || !id) return fetchedMeta;
+    setMetaLoading(true);
+    try {
+      const { data } = await supabase
+        .from('events')
+        .select('id,is_recurring,repeat_pattern,parent_event_id,start_date,end_date')
+        .eq('id', id)
+        .maybeSingle();
+      if (data) setFetchedMeta(data as any);
+      return data as any;
+    } finally {
+      setMetaLoading(false);
+    }
+  };
+
   // Resolve the real series root (parent) id regardless of what was clicked
   const resolveSeriesRootId = React.useCallback(() => {
-    const key = eventId || initialData?.id || "";
+    const key = eventId || initialData?.id || fetchedMeta?.id || "";
     if (!key) return "";
+    const parentId = initialData?.parent_event_id ?? fetchedMeta?.parent_event_id;
     if (isVirtualInstance(key)) return getParentEventId(key);
-    if (initialData?.parent_event_id) return initialData.parent_event_id;
+    if (parentId) return parentId;
     return key;
-  }, [eventId, initialData]);
+  }, [eventId, initialData, fetchedMeta]);
   
   // Check if current user is the creator of this event
   const isEventCreatedByCurrentUser = initialData ? 
@@ -475,23 +494,36 @@ export const PublicEventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Ensure we KNOW if it's recurring before deciding the path
+    const id = eventId || initialData?.id || '';
+    let meta = fetchedMeta;
+    if (!initialData && id && !meta) {
+      meta = await fetchMetaIfNeeded(id);
+    }
+
+    // Recompute with freshest info (no reliance on possibly-stale state)
+    const seriesFlag = Boolean(initialData?.is_recurring ?? meta?.is_recurring) ||
+                       Boolean(initialData?.repeat_pattern ?? meta?.repeat_pattern);
+    const parentOrVirtual = Boolean(initialData?.parent_event_id ?? meta?.parent_event_id) || isVirtualEvent;
+    const recurringNow = (!isNewEvent) && (seriesFlag || parentOrVirtual);
+
     console.log('[PublicEventDialog] submit - debugging recurring event logic:', {
       eventId,
       hasInitialData: !!initialData,
       isRecurringEvent,
+      recurringNow,
       editChoice,
       isRecurring: initialData?.is_recurring,
       isVirtualEvent,
-      hasParentId: !!initialData?.parent_event_id
+      hasParentId: !!initialData?.parent_event_id,
+      metaFetched: !!meta
     });
     
     // CRITICAL: Force edit choice dialog for ANY recurring event edit (no matter if virtual or real)
-    if ((eventId || initialData) && isRecurringEvent) {
-      if (editChoice === null) {
-        console.log('[PublicEventDialog] Showing RecurringEditDialog for event edit choice');
-        setShowEditDialog(true);
-        return;
-      }
+    if ((eventId || initialData) && recurringNow && editChoice === null) {
+      console.log('[PublicEventDialog] Showing RecurringEditDialog for event edit choice');
+      setShowEditDialog(true);
+      return;
     }
     
     // Continue with the actual submission
@@ -652,6 +684,18 @@ export const PublicEventDialog = ({
               // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
               const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
 
+              // Compute the original instance window with fresh metadata fallback
+              const baseStartISO = initialData?.start_date || fetchedMeta?.start_date || null;
+              const baseEndISO   = initialData?.end_date   || fetchedMeta?.end_date   || null;
+
+              const instanceStartForSplit =
+                originalInstanceStartISO ??
+                (isSeriesFlag && baseStartISO ? baseStartISO : localDateTimeInputToISOString(startDate));
+
+              const instanceEndForSplit =
+                originalInstanceEndISO ??
+                (isSeriesFlag && baseEndISO ? baseEndISO : localDateTimeInputToISOString(endDate));
+
               const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
                 p_event_id: rpcTargetId,
                 p_user_id: publicBoardUserId,
@@ -672,9 +716,9 @@ export const PublicEventDialog = ({
                   language: language || 'en'
                 },
                 p_additional_persons: additionalPersonsData,
-                // NEW: exclude the ORIGINAL occurrence (captured at open)
-                p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
-                p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
+                // CRITICAL: Use the computed original instance window for exclusion
+                p_instance_start: instanceStartForSplit,
+                p_instance_end: instanceEndForSplit,
                 p_edited_by_type: 'sub_user',
                 p_edited_by_name: externalUserName,
                 p_edited_by_ai: false
@@ -1064,8 +1108,12 @@ export const PublicEventDialog = ({
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
               {isEventCreatedByCurrentUser && (
-                <Button type="submit" disabled={isLoading} className="flex-1">
-                  {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
+                <Button 
+                  type="submit" 
+                  disabled={isLoading || metaLoading || (!!(eventId && !initialData) && !fetchedMeta)} 
+                  className="flex-1"
+                >
+                  {isLoading || metaLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
                 </Button>
               )}
               
