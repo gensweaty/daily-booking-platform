@@ -153,13 +153,13 @@ export const PublicStatisticsList = ({
     refetchInterval: false,
   });
 
-  // Fetch 3-month income comparison (always last 3 months, independent of date filter)
+  // Fetch 3-month income comparison with standalone customers (matching internal dashboard logic)
   const { data: threeMonthIncome } = useQuery({
     queryKey: ['publicThreeMonthIncome', boardUserId],
     queryFn: async () => {
       console.log('Fetching 3-month income comparison for user:', boardUserId);
       const today = new Date();
-      const threeMonthData: Array<{ month: string; income: number }> = [];
+      const threeMonthData: Array<{ month: string; income: number; eventIncome: number; customerIncome: number }> = [];
 
       // Calculate for each of the last 3 months
       for (let i = 0; i < 3; i++) {
@@ -167,6 +167,9 @@ export const PublicStatisticsList = ({
         const monthStart = startOfMonth(monthDate);
         const monthEnd = endOfMonth(monthDate);
         const monthShort = format(monthDate, 'MMM');
+
+        let monthEventIncome = 0;
+        let monthCustomerIncome = 0;
 
         // Query events for this specific month
         const { data: monthEvents } = await supabase
@@ -186,8 +189,6 @@ export const PublicStatisticsList = ({
           .lte('start_date', monthEnd.toISOString())
           .eq('status', 'approved')
           .is('deleted_at', null);
-
-        let monthIncome = 0;
 
         if (monthEvents) {
           // Transform booking requests to look like events
@@ -228,7 +229,7 @@ export const PublicStatisticsList = ({
                 ? event.payment_amount 
                 : parseFloat(String(event.payment_amount));
               if (!isNaN(amount) && amount > 0) {
-                monthIncome += amount;
+                monthEventIncome += amount;
               }
             }
           });
@@ -241,7 +242,7 @@ export const PublicStatisticsList = ({
                 ? firstInstance.payment_amount 
                 : parseFloat(String(firstInstance.payment_amount));
               if (!isNaN(amount) && amount > 0) {
-                monthIncome += amount;
+                monthEventIncome += amount;
               }
             }
           }
@@ -273,7 +274,7 @@ export const PublicStatisticsList = ({
                       ? person.payment_amount 
                       : parseFloat(String(person.payment_amount));
                     if (!isNaN(amount) && amount > 0) {
-                      monthIncome += amount;
+                      monthEventIncome += amount;
                     }
                   }
                 });
@@ -291,7 +292,7 @@ export const PublicStatisticsList = ({
                     ? person.payment_amount 
                     : parseFloat(String(person.payment_amount));
                   if (!isNaN(amount) && amount > 0) {
-                    monthIncome += amount;
+                    monthEventIncome += amount;
                   }
                 }
               });
@@ -299,40 +300,117 @@ export const PublicStatisticsList = ({
           }
         }
 
+        // CRITICAL FIX: Add standalone customer income (customers without event_id)
+        const { data: monthStandaloneCustomers } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('user_id', boardUserId)
+          .is('event_id', null)
+          .gte('created_at', monthStart.toISOString())
+          .lte('created_at', monthEnd.toISOString())
+          .is('deleted_at', null);
+
+        if (monthStandaloneCustomers) {
+          monthStandaloneCustomers.forEach(customer => {
+            const paymentStatus = customer.payment_status || '';
+            if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && customer.payment_amount) {
+              const amount = typeof customer.payment_amount === 'number' 
+                ? customer.payment_amount 
+                : parseFloat(String(customer.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                monthCustomerIncome += amount;
+              }
+            }
+          });
+        }
+
+        const totalMonthIncome = monthEventIncome + monthCustomerIncome;
+
         threeMonthData.push({
           month: monthShort,
-          income: monthIncome
+          income: totalMonthIncome,
+          eventIncome: monthEventIncome,
+          customerIncome: monthCustomerIncome
         });
+
+        console.log(`Month ${monthShort} income: ${totalMonthIncome} (events: ${monthEventIncome}, customers: ${monthCustomerIncome})`);
       }
 
-      console.log('3-month income comparison:', threeMonthData);
+      console.log('3-month income comparison with standalone customers:', threeMonthData);
       return threeMonthData;
     },
     enabled: !!boardUserId,
     refetchInterval: false,
   });
 
-  // Fetch customer statistics
+  // Fetch customer statistics with date range filtering (matching internal dashboard logic)
   const { data: customerStats, isLoading: isLoadingCustomers } = useQuery({
-    queryKey: ['publicCustomerStats', boardUserId],
+    queryKey: ['publicCustomerStats', boardUserId, dateRange],
     queryFn: async () => {
-      console.log('Fetching public customer stats for user:', boardUserId);
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
+      console.log('Fetching public customer stats for user:', boardUserId, 'date range:', dateRange);
+      
+      const startDateStr = dateRange.start.toISOString();
+      const endDateStr = dateRange.end.toISOString();
+
+      // Track unique customers with Set to avoid duplicates
+      const customersWithBookingSet = new Set<string>();
+      const customersWithoutBookingSet = new Set<string>();
+
+      // Get events in the date range to find customers with bookings
+      const { data: eventsInRange, error: eventsError } = await supabase
+        .from('events')
+        .select('id')
         .eq('user_id', boardUserId)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('deleted_at', null);
-      
-      if (error) {
-        console.error('Error fetching public customer stats:', error);
-        throw error;
+
+      if (eventsError) {
+        console.error('Error fetching events for customer stats:', eventsError);
+        throw eventsError;
       }
+
+      const eventIdsInRange = eventsInRange?.map(e => e.id) || [];
+
+      // Get customers associated with events in the date range
+      if (eventIdsInRange.length > 0) {
+        const { data: eventCustomers, error: eventCustomersError } = await supabase
+          .from('customers')
+          .select('id, title, user_surname')
+          .eq('user_id', boardUserId)
+          .in('event_id', eventIdsInRange)
+          .is('deleted_at', null);
+
+        if (!eventCustomersError && eventCustomers) {
+          eventCustomers.forEach(customer => {
+            const key = `${customer.title || ''}_${customer.user_surname || ''}`.trim();
+            if (key) customersWithBookingSet.add(key);
+          });
+        }
+      }
+
+      // Get standalone customers (without event_id) created in the date range
+      const { data: standaloneCustomers, error: standaloneError } = await supabase
+        .from('customers')
+        .select('id, title, user_surname')
+        .eq('user_id', boardUserId)
+        .is('event_id', null)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
+        .is('deleted_at', null);
+
+      if (!standaloneError && standaloneCustomers) {
+        standaloneCustomers.forEach(customer => {
+          const key = `${customer.title || ''}_${customer.user_surname || ''}`.trim();
+          if (key) customersWithoutBookingSet.add(key);
+        });
+      }
+
+      const withBooking = customersWithBookingSet.size;
+      const withoutBooking = customersWithoutBookingSet.size;
+      const total = withBooking + withoutBooking;
       
-      const total = data?.length || 0;
-      const withBooking = data?.filter(c => c.event_id).length || 0;
-      const withoutBooking = total - withBooking;
-      
-      console.log('Processed customer stats:', { total, withBooking, withoutBooking });
+      console.log('Processed customer stats with date filter:', { total, withBooking, withoutBooking });
       return {
         total,
         withBooking,
