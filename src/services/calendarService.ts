@@ -145,6 +145,7 @@ export const getUnifiedCalendarEvents = async (
       repeat_pattern: event.repeat_pattern,
       repeat_until: event.repeat_until,
       parent_event_id: event.parent_event_id,
+      excluded_from_series: event.excluded_from_series,
       language: event.language,
       created_at: event.created_at || new Date().toISOString(),
       updated_at: event.updated_at || event.created_at || new Date().toISOString(),
@@ -171,8 +172,8 @@ export const getUnifiedCalendarEvents = async (
       deleted_at: booking.deleted_at
     }));
 
-    // Final validation to ensure no deleted events slip through
-    const validEvents = formattedEvents.filter(event => !event.deleted_at);
+    // Final validation to ensure no deleted events slip through AND filter out exclusion markers
+    const validEvents = formattedEvents.filter(event => !event.deleted_at && !event.excluded_from_series);
     const validBookings = formattedBookings.filter(booking => !booking.deleted_at);
 
     console.log(`[CalendarService] Returning ${validEvents.length} events and ${validBookings.length} approved bookings`);
