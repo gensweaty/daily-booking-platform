@@ -1074,7 +1074,10 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
    - Optional: phone, email/social, notes, payment details
    - Can optionally create linked event
    - Example: "Add customer Mike Jones, phone 555-1234" → CREATE IMMEDIATELY
-   - Example: "Update customer payment status to paid" → First use search tools to find customer ID, then UPDATE with customer_id
+   - Example: "Update customer payment status to paid" → NEVER provide customer_id, just use full_name and system will automatically find and update the customer
+   - CRITICAL: When updating customers, NEVER EVER provide customer_id parameter - ALWAYS leave it empty/null
+   - CRITICAL: System automatically searches by name when updating - providing customer_id causes database errors
+   - If user says "update that customer" - just provide the full_name, system handles the rest automatically
 
 4. **📎 FILE UPLOADS** (NEW!)
    - You CAN process file attachments sent with messages
@@ -3087,24 +3090,122 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 };
 
                 if (customer_id) {
-                  // Update existing customer
-                  const { error: updateError } = await supabaseAdmin
-                    .from('customers')
-                    .update(customerData)
-                    .eq('id', customer_id)
-                    .eq('user_id', ownerId);
+                  // UUID validation helper
+                  const isValidUUID = (str: string): boolean => {
+                    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                    return uuidRegex.test(str);
+                  };
                   
-                  if (updateError) {
-                    console.error('    ❌ Failed to update customer:', updateError);
-                    toolResult = { success: false, error: updateError.message };
+                  // Validate UUID format first
+                  if (!isValidUUID(customer_id)) {
+                    console.error(`    ❌ Invalid customer_id format: ${customer_id}`);
+                    console.log(`    🔍 Searching for customer by name instead: ${full_name}`);
+                    
+                    // Try to find customer by name
+                    const { data: foundCustomers, error: searchError } = await supabaseAdmin
+                      .from('customers')
+                      .select('id')
+                      .eq('user_id', ownerId)
+                      .ilike('user_surname', `%${full_name}%`)
+                      .is('deleted_at', null)
+                      .order('created_at', { ascending: false })
+                      .limit(1);
+                    
+                    if (searchError || !foundCustomers || foundCustomers.length === 0) {
+                      console.error('    ❌ Customer not found by name, creating new customer instead');
+                      // Fall through to create new customer
+                      const { data: newCustomer, error: createError } = await supabaseAdmin
+                        .from('customers')
+                        .insert(customerData)
+                        .select()
+                        .single();
+                      
+                      if (createError) {
+                        console.error('    ❌ Failed to create customer:', createError);
+                        toolResult = { 
+                          success: false, 
+                          error: `Could not find customer to update. Created new customer instead.`
+                        };
+                      } else {
+                        console.log(`    ✅ Customer created (from failed update): ${full_name} (ID: ${newCustomer.id})`);
+                        toolResult = { 
+                          success: true, 
+                          customer_id: newCustomer.id,
+                          action: 'created',
+                          message: `Customer created: ${full_name}`
+                        };
+                        
+                        // Broadcast change for real-time sync
+                        const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
+                        ch.subscribe((status) => {
+                          if (status === 'SUBSCRIBED') {
+                            ch.send({ type: 'broadcast', event: 'customers-changed', payload: { ts: Date.now(), source: 'ai' } });
+                            supabaseAdmin.removeChannel(ch);
+                          }
+                        });
+                      }
+                    } else {
+                      // Found customer by name, update it
+                      const actualCustomerId = foundCustomers[0].id;
+                      console.log(`    ✅ Found customer by name: ${actualCustomerId}`);
+                      
+                      const { error: updateError } = await supabaseAdmin
+                        .from('customers')
+                        .update(customerData)
+                        .eq('id', actualCustomerId)
+                        .eq('user_id', ownerId);
+                      
+                      if (updateError) {
+                        console.error('    ❌ Failed to update customer:', updateError);
+                        toolResult = { success: false, error: updateError.message };
+                      } else {
+                        console.log(`    ✅ Customer updated: ${full_name}`);
+                        toolResult = { 
+                          success: true, 
+                          customer_id: actualCustomerId,
+                          action: 'updated',
+                          message: `Customer updated: ${full_name}`
+                        };
+                        
+                        // Broadcast change for real-time sync
+                        const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
+                        ch.subscribe((status) => {
+                          if (status === 'SUBSCRIBED') {
+                            ch.send({ type: 'broadcast', event: 'customers-changed', payload: { ts: Date.now(), source: 'ai' } });
+                            supabaseAdmin.removeChannel(ch);
+                          }
+                        });
+                      }
+                    }
                   } else {
-                    console.log(`    ✅ Customer updated: ${full_name}`);
-                    toolResult = { 
-                      success: true, 
-                      customer_id: customer_id,
-                      action: 'updated',
-                      message: `Customer updated: ${full_name}`
-                    };
+                    // Valid UUID, proceed with normal update
+                    const { error: updateError } = await supabaseAdmin
+                      .from('customers')
+                      .update(customerData)
+                      .eq('id', customer_id)
+                      .eq('user_id', ownerId);
+                    
+                    if (updateError) {
+                      console.error('    ❌ Failed to update customer:', updateError);
+                      toolResult = { success: false, error: updateError.message };
+                    } else {
+                      console.log(`    ✅ Customer updated: ${full_name}`);
+                      toolResult = { 
+                        success: true, 
+                        customer_id: customer_id,
+                        action: 'updated',
+                        message: `Customer updated: ${full_name}`
+                      };
+                      
+                      // Broadcast change for real-time sync
+                      const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
+                      ch.subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                          ch.send({ type: 'broadcast', event: 'customers-changed', payload: { ts: Date.now(), source: 'ai' } });
+                          supabaseAdmin.removeChannel(ch);
+                        }
+                      });
+                    }
                   }
                 } else {
                   // Create new customer

@@ -260,6 +260,13 @@ export const MessageInput = ({
           
           if (data?.success) {
             console.log('✅ AI response received and saved');
+          } else if (data?.error) {
+            console.error('❌ AI returned error:', data.error);
+            toast({ 
+              title: "AI Error", 
+              description: data.error, 
+              variant: "destructive" 
+            });
           }
         } catch (aiError) {
           console.error('❌ AI call failed:', aiError);
