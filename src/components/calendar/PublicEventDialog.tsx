@@ -171,7 +171,8 @@ export const PublicEventDialog = ({
   // CRITICAL: Detect virtual instance from either source
   const eventKey = eventId || initialData?.id || "";
   const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
-  const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
+  // CRITICAL: Excluded events are standalone, not part of a recurring series
+  const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent && !initialData?.excluded_from_series;
 
   // Resolve the real series root (parent) id regardless of what was clicked
   const resolveSeriesRootId = React.useCallback(() => {
