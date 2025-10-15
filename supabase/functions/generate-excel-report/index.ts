@@ -163,13 +163,16 @@ serve(async (req) => {
       }
 
       case 'customers': {
+        // CRITICAL FIX: Filter by start_date (event date) to match CRM page behavior
+        // This ensures we get customers for events happening in the selected period,
+        // not just customers created in that period
         const { data: customers } = await supabase
           .from('customers')
-          .select('title, user_surname, user_number, social_network_link, payment_amount, payment_status, event_notes, created_at')
+          .select('title, user_surname, user_number, social_network_link, payment_amount, payment_status, event_notes, created_at, start_date')
           .eq('user_id', userId)
-          .gte('created_at', startDate.toISOString())
+          .gte('start_date', startDate.toISOString())
           .is('deleted_at', null)
-          .order('created_at', { ascending: false });
+          .order('start_date', { ascending: false });
 
         data = (customers || []).map(c => ({
           'Title': c.title,
