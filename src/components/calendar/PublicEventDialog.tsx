@@ -315,6 +315,9 @@ export const PublicEventDialog = ({
     }
   };
 
+  // CRITICAL FIX: Use a ref to track if we've already loaded data for this event
+  const loadedEventRef = React.useRef<string | null>(null);
+  
   // Initialize form data
   useEffect(() => {
     // CRITICAL: Don't reset dialog states if they're currently open
@@ -330,6 +333,14 @@ export const PublicEventDialog = ({
       if (open) {
         if (initialData || eventId) {
           const targetEventId = eventId || initialData?.id;
+          
+          // CRITICAL FIX: Only load if we haven't loaded this event yet or if event ID changed
+          if (loadedEventRef.current === targetEventId) {
+            console.log('[PublicEventDialog] 🔒 Skipping reload - event already loaded:', targetEventId);
+            return;
+          }
+          
+          loadedEventRef.current = targetEventId;
           const eventData = initialData;
           
           // Load existing files and additional persons if we have an event ID
@@ -390,6 +401,9 @@ export const PublicEventDialog = ({
           // Reset all fields for new event
           resetFormFields();
         }
+      } else {
+        // CRITICAL: Clear the loaded event ref when dialog closes
+        loadedEventRef.current = null;
       }
     };
 
