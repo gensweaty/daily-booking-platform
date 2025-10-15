@@ -2215,22 +2215,17 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 console.log(`    👥 Found ${additionalPersons.length} additional persons for events`);
               }
               
-              // 4. Fetch standalone customers (same as before)
+              // 4. Fetch standalone customers - MATCH STATISTICS PAGE EXACTLY
               const { data: standaloneCustomers } = await supabaseClient
                 .from('customers')
-                .select('payment_amount, payment_status, created_at, event_id, create_event, type')
+                .select('payment_amount, payment_status, created_at')
                 .eq('user_id', ownerId)
-                .is('event_id', null)
+                .is('event_id', null)  // Only check event_id is null - match Stats page
                 .gte('created_at', startDate.toISOString())
+                .lte('created_at', today.toISOString())  // Add upper date boundary
                 .is('deleted_at', null);
               
-              const trueStandaloneCustomers = (standaloneCustomers || []).filter(c => 
-                c.event_id == null && 
-                (c.create_event === false || c.create_event == null) &&
-                (c.type == null || c.type === 'customer')
-              );
-              
-              console.log(`    💰 ${trueStandaloneCustomers.length} standalone customers`);
+              console.log(`    💰 Found ${standaloneCustomers?.length || 0} standalone customers (matching Statistics page logic)`);
               
               // 5. Calculate revenue by month
               const monthlyData: Record<string, any> = {};
@@ -2326,8 +2321,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 }
               });
               
-              // Process standalone customers
-              trueStandaloneCustomers.forEach(customer => {
+              // Process standalone customers - use ALL customers (no extra filtering, match Stats page)
+              (standaloneCustomers || []).forEach(customer => {
                 const status = normalizePaymentStatus(customer.payment_status);
                 const amount = Number(customer.payment_amount) || 0;
                 
