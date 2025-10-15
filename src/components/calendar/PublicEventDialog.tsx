@@ -381,7 +381,7 @@ export const PublicEventDialog = ({
     };
 
     loadAndSetEventData();
-  }, [open, selectedDate, initialData, eventId]); // FIXED: Removed isVirtualEvent from dependencies
+  }, [open, selectedDate, eventId, initialData?.id]); // CRITICAL FIX: Watch eventId and initialData.id, not full initialData object
 
   const resetFormFields = () => {
     setAdditionalPersons([]);
