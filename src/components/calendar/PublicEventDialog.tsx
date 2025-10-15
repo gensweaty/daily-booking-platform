@@ -471,12 +471,12 @@ export const PublicEventDialog = ({
         start_date: localDateTimeInputToISOString(startDate),
         end_date: localDateTimeInputToISOString(endDate),
         payment_status: paymentStatus || 'not_paid',
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
         type: 'event' as const,
         is_recurring: isRecurring,
-        repeat_pattern: isRecurring ? repeatPattern : undefined,
-        repeat_until: isRecurring ? repeatUntil : undefined,
-        reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : undefined,
+        repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
+        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
+        reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
         email_reminder_enabled: emailReminderEnabled,
         language: language || 'en',
         user_id: publicBoardUserId
@@ -674,6 +674,7 @@ export const PublicEventDialog = ({
           onOpenChange(false);
           setEditChoice(null);
           setIsLoading(false);
+          onEventUpdated?.();
           return;
         }
 
