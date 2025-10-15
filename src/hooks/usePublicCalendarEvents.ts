@@ -3,7 +3,6 @@ import { supabase } from "@/lib/supabase";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
-import { generateRecurringInstances, filterDeletedInstances } from "@/lib/recurringEvents";
 
 export const usePublicCalendarEvents = (
   boardUserId: string,
@@ -25,30 +24,8 @@ export const usePublicCalendarEvents = (
         throw error;
       }
       
-      const rawEvents = (data || []) as CalendarEventType[];
-      console.log('[usePublicCalendarEvents] Fetched raw events:', rawEvents.length);
-      
-      // Process recurring instances and filter exclusions
-      const allInstances: CalendarEventType[] = [];
-      const exclusionMarkers: CalendarEventType[] = [];
-      
-      rawEvents.forEach(event => {
-        if (event.excluded_from_series) {
-          exclusionMarkers.push(event);
-        } else if (event.is_recurring && !event.parent_event_id) {
-          // Generate instances for recurring parent
-          const instances = generateRecurringInstances(event);
-          allInstances.push(...instances);
-        } else {
-          allInstances.push(event);
-        }
-      });
-      
-      // Filter out excluded instances
-      const filteredEvents = filterDeletedInstances(allInstances, exclusionMarkers);
-      console.log('[usePublicCalendarEvents] Processed events:', filteredEvents.length);
-      
-      return filteredEvents;
+      console.log('[usePublicCalendarEvents] Fetched events:', data?.length || 0);
+      return (data || []) as CalendarEventType[];
     },
     enabled: !!boardUserId,
     refetchInterval: 1500,

@@ -140,63 +140,21 @@ export const PublicEventDialog = ({
   const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
   const [originalInstanceStartISO, setOriginalInstanceStartISO] = useState<string | null>(null);
   const [originalInstanceEndISO, setOriginalInstanceEndISO] = useState<string | null>(null);
-  const [fetchedMeta, setFetchedMeta] = useState<null | {
-    id: string;
-    is_recurring: boolean | null;
-    repeat_pattern: string | null;
-    parent_event_id: string | null;
-    start_date: string;
-    end_date: string;
-  }>(null);
-  const [metaLoading, setMetaLoading] = useState(false);
 
   const isNewEvent = !initialData && !eventId;
-  // CRITICAL: Detect virtual instance from either source (id@YYYY-MM-DD OR recurrence_instance_date)
+  // CRITICAL: Detect virtual instance from either source
   const eventKey = eventId || initialData?.id || "";
-  const instanceDateFromData =
-    (initialData as any)?.recurrence_instance_date ||
-    (eventKey ? (isVirtualInstance(eventKey) ? getInstanceDate(eventKey) : null) : null);
-  const isVirtualEvent =
-    (!!eventKey && isVirtualInstance(eventKey)) ||
-    !!instanceDateFromData;
-  
-  // Robust series detection (works even when only eventId is provided)
-  const isSeriesFlag =
-    Boolean(initialData?.is_recurring ?? fetchedMeta?.is_recurring) ||
-    Boolean(initialData?.repeat_pattern ?? fetchedMeta?.repeat_pattern);
-  
-  const hasParentOrVirtual =
-    Boolean(initialData?.parent_event_id ?? fetchedMeta?.parent_event_id) ||
-    isVirtualEvent;
-  
-  const isRecurringEvent = (!isNewEvent) && (isSeriesFlag || hasParentOrVirtual);
-
-  // Helper to fetch metadata if needed
-  const fetchMetaIfNeeded = async (id: string) => {
-    if (initialData || fetchedMeta || !id) return fetchedMeta;
-    setMetaLoading(true);
-    try {
-      const { data } = await supabase
-        .from('events')
-        .select('id,is_recurring,repeat_pattern,parent_event_id,start_date,end_date')
-        .eq('id', id)
-        .maybeSingle();
-      if (data) setFetchedMeta(data as any);
-      return data as any;
-    } finally {
-      setMetaLoading(false);
-    }
-  };
+  const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
+  const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
 
   // Resolve the real series root (parent) id regardless of what was clicked
   const resolveSeriesRootId = React.useCallback(() => {
-    const key = eventId || initialData?.id || fetchedMeta?.id || "";
+    const key = eventId || initialData?.id || "";
     if (!key) return "";
-    const parentId = initialData?.parent_event_id ?? fetchedMeta?.parent_event_id;
     if (isVirtualInstance(key)) return getParentEventId(key);
-    if (parentId) return parentId;
+    if (initialData?.parent_event_id) return initialData.parent_event_id;
     return key;
-  }, [eventId, initialData, fetchedMeta]);
+  }, [eventId, initialData]);
   
   // Check if current user is the creator of this event
   const isEventCreatedByCurrentUser = initialData ? 
@@ -342,29 +300,6 @@ export const PublicEventDialog = ({
       if (open) {
         if (initialData || eventId) {
           const targetEventId = eventId || initialData?.id;
-          
-          // Fetch minimal metadata if initialData is missing
-          if (!initialData && targetEventId) {
-            const { data, error } = await supabase
-              .from('events')
-              .select('id,is_recurring,repeat_pattern,parent_event_id,start_date,end_date')
-              .eq('id', targetEventId)
-              .maybeSingle();
-            
-            if (!error && data) {
-              setFetchedMeta(data as any);
-            }
-          } else if (initialData) {
-            setFetchedMeta({
-              id: initialData.id!,
-              is_recurring: initialData.is_recurring ?? null,
-              repeat_pattern: initialData.repeat_pattern ?? null,
-              parent_event_id: initialData.parent_event_id ?? null,
-              start_date: initialData.start_date!,
-              end_date: initialData.end_date!,
-            });
-          }
-          
           const eventData = initialData;
           
           // Load existing files and additional persons if we have an event ID
@@ -385,41 +320,36 @@ export const PublicEventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            // CRITICAL: Always capture original occurrence window (including first occurrence/series root)
-            const instDate = instanceDateFromData;
-            const baseStartISO = (eventData?.start_date || fetchedMeta?.start_date) as string | undefined;
-            const baseEndISO = (eventData?.end_date || fetchedMeta?.end_date) as string | undefined;
-            
-            if (instDate && baseStartISO && baseEndISO) {
-              // Non-root occurrences (virtual or explicit instance date)
-              const baseStart = new Date(baseStartISO);
-              const baseEnd = new Date(baseEndISO);
-              const [y, m, d] = instDate.split('-').map(Number);
-              const origStart = new Date(baseStart);
-              origStart.setFullYear(y, m - 1, d);
-              const origEnd = new Date(baseEnd);
-              origEnd.setFullYear(y, m - 1, d);
-              
-              setStartDate(isoToLocalDateTimeInput(origStart.toISOString()));
-              setEndDate(isoToLocalDateTimeInput(origEnd.toISOString()));
-              setOriginalInstanceStartISO(origStart.toISOString());
-              setOriginalInstanceEndISO(origEnd.toISOString());
-              console.log('[PublicEventDialog] 🗓️ Set occurrence dates from recurrence_instance_date:', instDate);
-            } else if (isSeriesFlag && baseStartISO && baseEndISO) {
-              // **First occurrence** (the series root row) - CRITICAL for "this event" to work
-              setStartDate(isoToLocalDateTimeInput(baseStartISO));
-              setEndDate(isoToLocalDateTimeInput(baseEndISO));
-              setOriginalInstanceStartISO(baseStartISO);
-              setOriginalInstanceEndISO(baseEndISO);
-              console.log('[PublicEventDialog] 🗓️ Set FIRST occurrence dates (series root)');
-            } else {
-              // Non-recurring or missing meta
-              const fallbackStart = (eventData || fetchedMeta)?.start_date || '';
-              const fallbackEnd = (eventData || fetchedMeta)?.end_date || '';
-              if (fallbackStart && fallbackEnd) {
-                setStartDate(isoToLocalDateTimeInput(fallbackStart));
-                setEndDate(isoToLocalDateTimeInput(fallbackEnd));
+            // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
+            const isCurrentlyVirtual = !!eventKey && isVirtualInstance(eventKey);
+            if (isCurrentlyVirtual && (initialData || eventId)) {
+              const instanceDate = getInstanceDate(eventKey);
+              if (instanceDate) {
+                // Calculate the instance dates using parent's base time but instance's date
+                const baseStart = new Date(eventData.start_date);
+                const baseEnd = new Date(eventData.end_date);
+                const [year, month, day] = instanceDate.split('-').map(n => +n);
+                const newStart = new Date(baseStart);
+                newStart.setFullYear(year, month - 1, day);
+                const newEnd = new Date(baseEnd);  
+                newEnd.setFullYear(year, month - 1, day);
+
+                setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
+                setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
+
+                // ⭐ capture the original occurrence (the one to exclude)
+                setOriginalInstanceStartISO(newStart.toISOString());
+                setOriginalInstanceEndISO(newEnd.toISOString());
+                console.log('[PublicEventDialog] 🗓️ Set virtual instance dates:', instanceDate, 'Start:', newStart.toISOString());
+              } else {
+                setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+                setEndDate(isoToLocalDateTimeInput(eventData.end_date));
+                setOriginalInstanceStartISO(null);
+                setOriginalInstanceEndISO(null);
               }
+            } else {
+              setStartDate(isoToLocalDateTimeInput(eventData.start_date));
+              setEndDate(isoToLocalDateTimeInput(eventData.end_date));
               setOriginalInstanceStartISO(null);
               setOriginalInstanceEndISO(null);
             }
@@ -494,33 +424,18 @@ export const PublicEventDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Ensure we KNOW if it's recurring before deciding the path
-    const id = eventId || initialData?.id || '';
-    let meta = fetchedMeta;
-    if (!initialData && id && !meta) {
-      meta = await fetchMetaIfNeeded(id);
-    }
-
-    // Recompute with freshest info (no reliance on possibly-stale state)
-    const seriesFlag = Boolean(initialData?.is_recurring ?? meta?.is_recurring) ||
-                       Boolean(initialData?.repeat_pattern ?? meta?.repeat_pattern);
-    const parentOrVirtual = Boolean(initialData?.parent_event_id ?? meta?.parent_event_id) || isVirtualEvent;
-    const recurringNow = (!isNewEvent) && (seriesFlag || parentOrVirtual);
-
     console.log('[PublicEventDialog] submit - debugging recurring event logic:', {
       eventId,
       hasInitialData: !!initialData,
       isRecurringEvent,
-      recurringNow,
       editChoice,
       isRecurring: initialData?.is_recurring,
       isVirtualEvent,
-      hasParentId: !!initialData?.parent_event_id,
-      metaFetched: !!meta
+      hasParentId: !!initialData?.parent_event_id
     });
     
-    // CRITICAL: Force edit choice dialog for ANY recurring event edit (no matter if virtual or real)
-    if ((eventId || initialData) && recurringNow && editChoice === null) {
+    // Check if this is a recurring event being edited and we need to show the choice dialog
+    if ((eventId || initialData) && isRecurringEvent && editChoice === null) {
       console.log('[PublicEventDialog] Showing RecurringEditDialog for event edit choice');
       setShowEditDialog(true);
       return;
@@ -620,8 +535,7 @@ export const PublicEventDialog = ({
               p_event_data: safeSeriesData,
               p_additional_persons: additionalPersonsData,
               p_edited_by_type: 'sub_user',
-              p_edited_by_name: externalUserName,
-              p_edited_by_ai: false
+              p_edited_by_name: externalUserName
             });
 
             if (updateSeriesError) throw updateSeriesError;
@@ -638,9 +552,6 @@ export const PublicEventDialog = ({
                 toast({ title: t("common.warning"), description: "Series updated, but some files failed to upload", variant: "destructive" });
               }
             }
-
-            toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
-            onEventUpdated?.();
           } else {
             // edit only this instance -> split + exclude
             console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
@@ -671,30 +582,13 @@ export const PublicEventDialog = ({
                 p_event_id: childId,
                 p_created_by_type: 'sub_user',
                 p_created_by_name: externalUserName,
-                p_created_by_ai: false,
                 p_last_edited_by_type: 'sub_user',
                 p_last_edited_by_name: externalUserName,
-                p_last_edited_by_ai: false
               });
               if (updErr) throw updErr;
-
-              toast({ title: t("common.success"), description: t("events.eventUpdated") });
-              onEventUpdated?.();
             } else {
               // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
               const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
-
-              // Compute the original instance window with fresh metadata fallback
-              const baseStartISO = initialData?.start_date || fetchedMeta?.start_date || null;
-              const baseEndISO   = initialData?.end_date   || fetchedMeta?.end_date   || null;
-
-              const instanceStartForSplit = originalInstanceStartISO ?? baseStartISO;
-              const instanceEndForSplit = originalInstanceEndISO ?? baseEndISO;
-
-              // CRITICAL: If we don't have the original window, FAIL rather than use wrong dates
-              if (!instanceStartForSplit || !instanceEndForSplit) {
-                throw new Error('Cannot split instance: original occurrence window not available');
-              }
 
               const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
                 p_event_id: rpcTargetId,
@@ -716,12 +610,11 @@ export const PublicEventDialog = ({
                   language: language || 'en'
                 },
                 p_additional_persons: additionalPersonsData,
-                // CRITICAL: Use the computed original instance window for exclusion
-                p_instance_start: instanceStartForSplit,
-                p_instance_end: instanceEndForSplit,
+                // NEW: exclude the ORIGINAL occurrence (captured at open)
+                p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
+                p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
                 p_edited_by_type: 'sub_user',
-                p_edited_by_name: externalUserName,
-                p_edited_by_ai: false
+                p_edited_by_name: externalUserName
               });
 
               if (editError) throw editError;
@@ -733,9 +626,6 @@ export const PublicEventDialog = ({
                 setFiles([]);
                 await loadExistingFiles(newEventId);
               }
-
-              toast({ title: t("common.success"), description: t("events.eventUpdated") });
-              onEventUpdated?.();
             }
           }
 
@@ -768,10 +658,8 @@ export const PublicEventDialog = ({
             p_event_id: targetEventId,
             p_created_by_type: 'sub_user',
             p_created_by_name: externalUserName,
-            p_created_by_ai: false,
             p_last_edited_by_type: 'sub_user',
-            p_last_edited_by_name: externalUserName,
-            p_last_edited_by_ai: false
+            p_last_edited_by_name: externalUserName
           });
 
           if (rpcError) throw rpcError;
@@ -915,13 +803,8 @@ export const PublicEventDialog = ({
       if (isRecurringEvent) {
         // Single-instance delete for recurring series -> insert exclusion marker
         const parentId = resolveSeriesRootId();
-        // Use ORIGINAL instance dates, not current edited values
-        const instanceIsoStart = originalInstanceStartISO || localDateTimeInputToISOString(startDate);
-        const instanceIsoEnd = originalInstanceEndISO || localDateTimeInputToISOString(endDate);
-        
-        if (!originalInstanceStartISO || !originalInstanceEndISO) {
-          console.warn('[PublicEventDialog] Deleting without original instance dates - may delete wrong occurrence');
-        }
+        const instanceIsoStart = localDateTimeInputToISOString(startDate);
+        const instanceIsoEnd = localDateTimeInputToISOString(endDate);
 
         const { error: exErr } = await supabase
           .from('events')
@@ -1113,12 +996,8 @@ export const PublicEventDialog = ({
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
               {isEventCreatedByCurrentUser && (
-                <Button 
-                  type="submit" 
-                  disabled={isLoading || metaLoading || (!!(eventId && !initialData) && !fetchedMeta)} 
-                  className="flex-1"
-                >
-                  {isLoading || metaLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
+                <Button type="submit" disabled={isLoading} className="flex-1">
+                  {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
                 </Button>
               )}
               
