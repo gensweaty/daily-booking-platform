@@ -300,9 +300,6 @@ export const PublicEventDialog = ({
       if (open) {
         if (initialData || eventId) {
           const targetEventId = eventId || initialData?.id;
-          
-          console.log('[PublicEventDialog] 🔄 Loading event data for:', targetEventId);
-          
           const eventData = initialData;
           
           // Load existing files and additional persons if we have an event ID
@@ -384,7 +381,7 @@ export const PublicEventDialog = ({
     };
 
     loadAndSetEventData();
-  }, [open, selectedDate, eventId, initialData?.id]);
+  }, [open, selectedDate, initialData, eventId]); // FIXED: Removed isVirtualEvent from dependencies
 
   const resetFormFields = () => {
     setAdditionalPersons([]);
@@ -474,12 +471,12 @@ export const PublicEventDialog = ({
         start_date: localDateTimeInputToISOString(startDate),
         end_date: localDateTimeInputToISOString(endDate),
         payment_status: paymentStatus || 'not_paid',
-        payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+        payment_amount: paymentAmount ? parseFloat(paymentAmount) : undefined,
         type: 'event' as const,
         is_recurring: isRecurring,
-        repeat_pattern: isRecurring && repeatPattern ? repeatPattern : null,
-        repeat_until: isRecurring && repeatUntil ? repeatUntil : null,
-        reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+        repeat_pattern: isRecurring ? repeatPattern : undefined,
+        repeat_until: isRecurring ? repeatUntil : undefined,
+        reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : undefined,
         email_reminder_enabled: emailReminderEnabled,
         language: language || 'en',
         user_id: publicBoardUserId
@@ -538,8 +535,7 @@ export const PublicEventDialog = ({
               p_event_data: safeSeriesData,
               p_additional_persons: additionalPersonsData,
               p_edited_by_type: 'sub_user',
-              p_edited_by_name: externalUserName,
-              p_edited_by_ai: false
+              p_edited_by_name: externalUserName
             });
 
             if (updateSeriesError) throw updateSeriesError;
@@ -556,29 +552,48 @@ export const PublicEventDialog = ({
                 toast({ title: t("common.warning"), description: "Series updated, but some files failed to upload", variant: "destructive" });
               }
             }
-
-            // Show success and trigger refresh
-            toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
-            if (onUpdate) {
-              // Trigger calendar refresh by calling onUpdate with updated data
-              await onUpdate({ id: seriesTargetId });
-            }
           } else {
-            // CRITICAL FIX: Edit only this instance
-            // Check if this event is part of a recurring series
-            const belongsToRecurringSeries = currentEventData?.is_recurring || currentEventData?.parent_event_id;
+            // edit only this instance -> split + exclude
+            console.log('[PublicEventDialog] Creating standalone event from series instance (surgical v2)');
             
-            console.log('[PublicEventDialog] 🔄 Edit single instance - belongsToSeries:', belongsToRecurringSeries, 'isVirtual:', isVirtualEvent);
-            
-            // If event is part of a recurring series OR is virtual, always use the split function
-            if (belongsToRecurringSeries || isVirtualEvent) {
-              // Split this instance from the series by creating a new standalone event
-              console.log('[PublicEventDialog] 🔄 Splitting instance from recurring series');
-              const parentIdForRpc = currentEventData?.parent_event_id || currentEventData?.id || getParentEventId(eventKey);
+            // 1) If this dialog is already editing a split child (not a virtual ID), just UPDATE it.
+            //    (Avoid creating a second standalone + exclusion)
+            if (!isVirtualEvent && initialData?.parent_event_id && !initialData?.excluded_from_series) {
+              const childId = initialData.id || targetEventId;
+              const { error: updErr } = await supabase.rpc('save_event_with_persons', {
+                p_event_data: {
+                  title: userSurname || title || 'Untitled Event',
+                  user_surname: userSurname,
+                  user_number: userNumber,
+                  social_network_link: socialNetworkLink,
+                  event_notes: eventNotes,
+                  event_name: eventName,
+                  start_date: localDateTimeInputToISOString(startDate),
+                  end_date: localDateTimeInputToISOString(endDate),
+                  payment_status: paymentStatus || 'not_paid',
+                  payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
+                  reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
+                  email_reminder_enabled: emailReminderEnabled,
+                  language: language || 'en',
+                  id: childId
+                },
+                p_additional_persons: additionalPersonsData,
+                p_user_id: publicBoardUserId,
+                p_event_id: childId,
+                p_created_by_type: 'sub_user',
+                p_created_by_name: externalUserName,
+                p_last_edited_by_type: 'sub_user',
+                p_last_edited_by_name: externalUserName,
+              });
+              if (updErr) throw updErr;
+            } else {
+              // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
+              const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
 
               const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
-                p_event_id: parentIdForRpc,
+                p_event_id: rpcTargetId,
                 p_user_id: publicBoardUserId,
+                // NEW: include the NEW desired times on the standalone
                 p_event_data: {
                   title: userSurname || title || 'Untitled Event',
                   user_surname: userSurname,
@@ -595,104 +610,21 @@ export const PublicEventDialog = ({
                   language: language || 'en'
                 },
                 p_additional_persons: additionalPersonsData,
-                // Mark the ORIGINAL occurrence for exclusion
+                // NEW: exclude the ORIGINAL occurrence (captured at open)
                 p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
-                p_instance_end: originalInstanceEndISO || localDateTimeInputToISOString(endDate),
+                p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
                 p_edited_by_type: 'sub_user',
-                p_edited_by_name: externalUserName,
-                p_edited_by_ai: false
+                p_edited_by_name: externalUserName
               });
 
-              if (editError) {
-                console.error('[PublicEventDialog] ❌ Error splitting instance:', editError);
-                throw editError;
-              }
-              if (!editResult?.success) {
-                const errorMsg = editResult?.error || 'Failed to split instance';
-                console.error('[PublicEventDialog] ❌ Split failed:', errorMsg);
-                throw new Error(errorMsg);
-              }
+              if (editError) throw editError;
+              if (!editResult?.success) throw new Error(editResult?.error || 'Failed to edit single instance');
 
               const newEventId = editResult.new_event_id;
-              console.log('[PublicEventDialog] ✅ Instance split successfully, new event ID:', newEventId);
-              
               if (files.length && newEventId) {
-                try {
-                  await uploadFiles(newEventId);
-                  setFiles([]);
-                  await loadExistingFiles(newEventId);
-                } catch (fileError) {
-                  console.error('[PublicEventDialog] ❌ File upload error after split:', fileError);
-                  toast({ 
-                    title: t("common.warning"), 
-                    description: "Event updated, but some files failed to upload", 
-                    variant: "destructive" 
-                  });
-                }
-              }
-
-              // Show success and trigger refresh
-              toast({ title: t("common.success"), description: t("events.eventUpdated") });
-              if (onUpdate) {
-                await onUpdate({ id: newEventId });
-              }
-            } else {
-              // This is a truly standalone event - safe to update directly
-              const actualEventId = initialData?.id || targetEventId;
-              console.log('[PublicEventDialog] 🔄 Updating standalone event directly:', actualEventId);
-              
-              const { error: updErr } = await supabase.rpc('save_event_with_persons', {
-                p_event_data: {
-                  title: userSurname || title || 'Untitled Event',
-                  user_surname: userSurname,
-                  user_number: userNumber,
-                  social_network_link: socialNetworkLink,
-                  event_notes: eventNotes,
-                  event_name: eventName,
-                  start_date: localDateTimeInputToISOString(startDate) || null,
-                  end_date: localDateTimeInputToISOString(endDate) || null,
-                  payment_status: paymentStatus || 'not_paid',
-                  payment_amount: paymentAmount ? parseFloat(paymentAmount) : null,
-                  reminder_at: reminderAt ? localDateTimeInputToISOString(reminderAt) : null,
-                  email_reminder_enabled: emailReminderEnabled,
-                  language: language || 'en',
-                  id: actualEventId
-                },
-                p_additional_persons: additionalPersonsData,
-                p_user_id: publicBoardUserId,
-                p_event_id: actualEventId,
-                p_created_by_type: 'sub_user',
-                p_created_by_name: externalUserName,
-                p_created_by_ai: false,
-                p_last_edited_by_type: 'sub_user',
-                p_last_edited_by_name: externalUserName,
-                p_last_edited_by_ai: false
-              });
-              
-              if (updErr) {
-                console.error('[PublicEventDialog] ❌ Error updating standalone event:', updErr);
-                throw updErr;
-              }
-              
-              // Handle file uploads
-              if (files.length > 0 && actualEventId) {
-                try {
-                  await uploadFiles(actualEventId);
-                  setFiles([]);
-                  await loadExistingFiles(actualEventId);
-                } catch (fileError) {
-                  console.error('[PublicEventDialog] ❌ File upload error:', fileError);
-                  toast({ 
-                    title: t("common.warning"), 
-                    description: "Event updated, but some files failed to upload", 
-                    variant: "destructive" 
-                  });
-                }
-              }
-
-              toast({ title: t("common.success"), description: t("events.eventUpdated") });
-              if (onUpdate) {
-                await onUpdate({ id: actualEventId });
+                await uploadFiles(newEventId);
+                setFiles([]);
+                await loadExistingFiles(newEventId);
               }
             }
           }
@@ -701,7 +633,6 @@ export const PublicEventDialog = ({
           onOpenChange(false);
           setEditChoice(null);
           setIsLoading(false);
-          onEventUpdated?.();
           return;
         }
 
@@ -727,10 +658,8 @@ export const PublicEventDialog = ({
             p_event_id: targetEventId,
             p_created_by_type: 'sub_user',
             p_created_by_name: externalUserName,
-            p_created_by_ai: false,
             p_last_edited_by_type: 'sub_user',
-            p_last_edited_by_name: externalUserName,
-            p_last_edited_by_ai: false
+            p_last_edited_by_name: externalUserName
           });
 
           if (rpcError) throw rpcError;
@@ -788,10 +717,8 @@ export const PublicEventDialog = ({
             p_user_id: publicBoardUserId,
             p_created_by_type: 'sub_user',
             p_created_by_name: externalUserName,
-            p_created_by_ai: false,
             p_last_edited_by_type: 'sub_user',
-            p_last_edited_by_name: externalUserName,
-            p_last_edited_by_ai: false
+            p_last_edited_by_name: externalUserName
           });
 
           if (rpcError) {
