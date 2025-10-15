@@ -688,13 +688,13 @@ export const PublicEventDialog = ({
               const baseStartISO = initialData?.start_date || fetchedMeta?.start_date || null;
               const baseEndISO   = initialData?.end_date   || fetchedMeta?.end_date   || null;
 
-              const instanceStartForSplit =
-                originalInstanceStartISO ??
-                (isSeriesFlag && baseStartISO ? baseStartISO : localDateTimeInputToISOString(startDate));
+              const instanceStartForSplit = originalInstanceStartISO ?? baseStartISO;
+              const instanceEndForSplit = originalInstanceEndISO ?? baseEndISO;
 
-              const instanceEndForSplit =
-                originalInstanceEndISO ??
-                (isSeriesFlag && baseEndISO ? baseEndISO : localDateTimeInputToISOString(endDate));
+              // CRITICAL: If we don't have the original window, FAIL rather than use wrong dates
+              if (!instanceStartForSplit || !instanceEndForSplit) {
+                throw new Error('Cannot split instance: original occurrence window not available');
+              }
 
               const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
                 p_event_id: rpcTargetId,
@@ -915,8 +915,13 @@ export const PublicEventDialog = ({
       if (isRecurringEvent) {
         // Single-instance delete for recurring series -> insert exclusion marker
         const parentId = resolveSeriesRootId();
-        const instanceIsoStart = localDateTimeInputToISOString(startDate);
-        const instanceIsoEnd = localDateTimeInputToISOString(endDate);
+        // Use ORIGINAL instance dates, not current edited values
+        const instanceIsoStart = originalInstanceStartISO || localDateTimeInputToISOString(startDate);
+        const instanceIsoEnd = originalInstanceEndISO || localDateTimeInputToISOString(endDate);
+        
+        if (!originalInstanceStartISO || !originalInstanceEndISO) {
+          console.warn('[PublicEventDialog] Deleting without original instance dates - may delete wrong occurrence');
+        }
 
         const { error: exErr } = await supabase
           .from('events')

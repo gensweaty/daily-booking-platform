@@ -19,8 +19,25 @@ export const usePublicEventDialog = ({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventType | null>(null);
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [originalInstanceWindow, setOriginalInstanceWindow] = useState<{
+    start: string;
+    end: string;
+  } | null>(null);
   const { toast } = useToast();
   const { language } = useLanguage();
+
+  // When setting selectedEvent, capture the ORIGINAL window
+  const setSelectedEventWithWindow = (event: CalendarEventType | null) => {
+    if (event) {
+      setOriginalInstanceWindow({
+        start: event.start_date!,
+        end: event.end_date!
+      });
+    } else {
+      setOriginalInstanceWindow(null);
+    }
+    setSelectedEvent(event);
+  };
 
   const handleCreateEvent = async (data: Partial<CalendarEventType>) => {
     try {
@@ -94,9 +111,9 @@ export const usePublicEventDialog = ({
       if (editChoice === "this" && publicBoardUserId && externalUserName) {
         console.log("[usePublicEventDialog] Splitting single instance using v2 RPC");
 
-        // Compute original instance window from selectedEvent
-        const originalStartISO = selectedEvent.start_date || new Date().toISOString();
-        const originalEndISO = selectedEvent.end_date || new Date().toISOString();
+        // Use ORIGINAL instance window captured when event was selected
+        const originalStartISO = originalInstanceWindow?.start || selectedEvent.start_date || new Date().toISOString();
+        const originalEndISO = originalInstanceWindow?.end || selectedEvent.end_date || new Date().toISOString();
 
         const { data: editResult, error: editError } = await supabase.rpc('edit_single_event_instance_v2', {
           p_event_id: targetId,
@@ -201,7 +218,7 @@ export const usePublicEventDialog = ({
 
   return {
     selectedEvent,
-    setSelectedEvent,
+    setSelectedEvent: setSelectedEventWithWindow,
     isNewEventDialogOpen,
     setIsNewEventDialogOpen,
     selectedDate,
