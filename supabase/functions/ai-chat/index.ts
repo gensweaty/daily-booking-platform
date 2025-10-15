@@ -2273,10 +2273,19 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               
               console.log(`    🔄 ${recurringSeriesMap.size} recurring series, ${nonRecurringEvents.length} non-recurring events`);
               
-              // 3. Get additional persons (customers) for ALL parent events
-              const parentEventIds = (allEvents || [])
-                .filter(e => !e.parent_event_id)
-                .map(e => e.id);
+              // 3. Get additional persons (customers) for ALL parent events (including parents of child instances)
+              const parentEventIdsSet = new Set<string>();
+              (allEvents || []).forEach(e => {
+                if (!e.parent_event_id) {
+                  // This is a parent event
+                  parentEventIdsSet.add(e.id);
+                } else {
+                  // This is a child instance - include its parent
+                  parentEventIdsSet.add(e.parent_event_id);
+                }
+              });
+              
+              const parentEventIds = Array.from(parentEventIdsSet);
               
               let additionalPersons: any[] = [];
               if (parentEventIds.length > 0) {
@@ -2289,7 +2298,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   .is('deleted_at', null);
                 
                 additionalPersons = customers || [];
-                console.log(`    👥 Found ${additionalPersons.length} additional persons for events`);
+                console.log(`    👥 Found ${additionalPersons.length} additional persons for ${parentEventIds.length} parent events`);
               }
               
               // 4. Fetch standalone customers - MATCH STATISTICS PAGE EXACTLY

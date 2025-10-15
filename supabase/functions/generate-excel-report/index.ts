@@ -114,10 +114,17 @@ serve(async (req) => {
           }
         }
 
-        // Get additional persons for parent events only
-        const parentEventIds = (events || [])
-          .filter(e => !e.parent_event_id)
-          .map(e => e.id);
+        // Get additional persons for ALL parent events (including parents of child instances)
+        const parentEventIdsSet = new Set();
+        (events || []).forEach(e => {
+          if (!e.parent_event_id) {
+            parentEventIdsSet.add(e.id);
+          } else {
+            parentEventIdsSet.add(e.parent_event_id);
+          }
+        });
+        
+        const parentEventIds = Array.from(parentEventIdsSet);
 
         let additionalPersons = [];
         if (parentEventIds.length > 0) {

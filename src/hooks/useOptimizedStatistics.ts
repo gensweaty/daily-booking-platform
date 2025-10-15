@@ -192,22 +192,32 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
 
       console.log(`Found ${regularEvents?.length || 0} regular events and ${bookingRequests?.length || 0} approved booking requests in date range`);
 
-      // Get additional persons only for parent events (not child instances) that have events in the date range
-      const parentEventIds = regularEvents
-        ?.filter(event => !event.parent_event_id) // Only parent events
-        .map(event => event.id) || [];
+      // Get additional persons for ALL parent events that have instances in the date range
+      // This includes both parent events directly in range AND parents of child instances in range
+      const parentEventIds = new Set<string>();
+      
+      regularEvents?.forEach(event => {
+        if (!event.parent_event_id) {
+          // This is a parent event
+          parentEventIds.add(event.id);
+        } else {
+          // This is a child instance - include its parent
+          parentEventIds.add(event.parent_event_id);
+        }
+      });
 
       let additionalPersons: any[] = [];
-      if (parentEventIds.length > 0) {
+      if (parentEventIds.size > 0) {
         const { data: customers, error: customersError } = await supabase
           .from('customers')
           .select('*')
-          .in('event_id', parentEventIds)
+          .in('event_id', Array.from(parentEventIds))
           .eq('type', 'customer')
           .is('deleted_at', null);
 
         if (!customersError && customers) {
           additionalPersons = customers;
+          console.log(`Fetched ${customers.length} additional persons for ${parentEventIds.size} parent events`);
         }
       }
 
