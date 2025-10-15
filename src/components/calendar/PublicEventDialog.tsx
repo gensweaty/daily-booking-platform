@@ -553,6 +553,13 @@ export const PublicEventDialog = ({
                 toast({ title: t("common.warning"), description: "Series updated, but some files failed to upload", variant: "destructive" });
               }
             }
+
+            // Show success and trigger refresh
+            toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
+            if (onUpdate) {
+              // Trigger calendar refresh by calling onUpdate with updated data
+              await onUpdate({ id: seriesTargetId });
+            }
           } else {
             // CRITICAL FIX: Edit only this instance
             // If we're editing an ACTUAL event (not a virtual instance), UPDATE it directly
@@ -607,6 +614,12 @@ export const PublicEventDialog = ({
                   });
                 }
               }
+
+              // Show success and trigger refresh
+              toast({ title: t("common.success"), description: t("events.eventUpdated") });
+              if (onUpdate) {
+                await onUpdate({ id: actualEventId });
+              }
             } else {
               // This is a VIRTUAL instance -> split it off by creating a standalone event
               console.log('[PublicEventDialog] 🔄 Splitting virtual instance into standalone event');
@@ -647,6 +660,12 @@ export const PublicEventDialog = ({
                 await uploadFiles(newEventId);
                 setFiles([]);
                 await loadExistingFiles(newEventId);
+              }
+
+              // Show success and trigger refresh
+              toast({ title: t("common.success"), description: t("events.eventUpdated") });
+              if (onUpdate) {
+                await onUpdate({ id: newEventId });
               }
             }
           }
