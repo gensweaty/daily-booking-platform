@@ -2444,17 +2444,29 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
               const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59).toISOString();
               
-              // CRITICAL FIX: Filter by start_date for events, and by created_at for customers to match Statistics page
+              // CRITICAL FIX: Filter by created_at for both events and customers to match Statistics/CRM page logic
               const [eventsResult, bookingsResult, customersResult] = await Promise.all([
-                // Only fetch parent events and non-recurring events to prevent double-counting
-                supabaseClient.from('events').select('payment_amount, payment_status').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).or('is_recurring.is.null,is_recurring.eq.false,and(is_recurring.eq.true,parent_event_id.is.null)'),
-                supabaseClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
+                // Fetch events created this month (not by start_date) - only parent events
+                supabaseClient.from('events').select('id, payment_amount, payment_status, booking_request_id').eq('user_id', ownerId).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null).or('is_recurring.is.null,is_recurring.eq.false,and(is_recurring.eq.true,parent_event_id.is.null)'),
+                // Fetch booking requests created this month
+                supabaseClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null),
                 // Filter customers by created_at (customers CREATED this month) to match Statistics/CRM page
                 supabaseClient.from('customers').select('id').eq('user_id', ownerId).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null)
               ]);
               
-              // Combine events and bookings
-              const allEventsThisMonth = [...(eventsResult.data || []), ...(bookingsResult.data || [])];
+              // CRITICAL: Exclude booking requests that were already converted to events (avoid double-counting)
+              const bookingRequestIdsInEvents = new Set(
+                (eventsResult.data || [])
+                  .filter(event => event.booking_request_id)
+                  .map(event => event.booking_request_id)
+              );
+              
+              const unconvertedBookings = (bookingsResult.data || []).filter(
+                booking => !bookingRequestIdsInEvents.has(booking.id)
+              );
+              
+              // Combine events and unconverted bookings (no double counting)
+              const allEventsThisMonth = [...(eventsResult.data || []), ...unconvertedBookings];
               
               toolResult = {
                 this_month: {
@@ -2463,7 +2475,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 },
                 total_customers: customersResult.data?.length || 0
               };
-              console.log(`    ✓ AI Business stats: ${allEventsThisMonth.length} events, ${customersResult.data?.length || 0} customers (created this month)`);
+              console.log(`    ✓ AI Business stats: ${allEventsThisMonth.length} events (${eventsResult.data?.length || 0} regular + ${unconvertedBookings.length} unconverted bookings), ${customersResult.data?.length || 0} customers (created this month)`);
               break;
             }
 

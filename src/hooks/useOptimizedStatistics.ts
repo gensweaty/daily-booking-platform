@@ -176,8 +176,21 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       }
 
-      // Transform booking requests to match event structure for statistics
-      const transformedBookingRequests = (bookingRequests || []).map(booking => ({
+      // CRITICAL FIX: Exclude booking requests that were already converted to events
+      // Check which booking requests have been converted to events by matching booking_request_id
+      const bookingRequestIdsInEvents = new Set(
+        (regularEvents || [])
+          .filter(event => event.booking_request_id)
+          .map(event => event.booking_request_id)
+      );
+
+      // Filter out booking requests that were already converted to events
+      const unconvertedBookingRequests = (bookingRequests || []).filter(
+        booking => !bookingRequestIdsInEvents.has(booking.id)
+      );
+
+      // Transform remaining booking requests to match event structure for statistics
+      const transformedBookingRequests = unconvertedBookingRequests.map(booking => ({
         ...booking,
         type: 'booking_request',
         title: booking.title,
@@ -187,11 +200,13 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         event_notes: booking.description
       }));
 
-      // Combine both types of events
+      // Combine both types of events (no double counting now)
       const allEvents = [
         ...(regularEvents || []),
         ...transformedBookingRequests
       ];
+
+      console.log(`🔍 EVENT COUNT DEBUG: ${regularEvents?.length || 0} regular events, ${bookingRequests?.length || 0} total booking requests, ${unconvertedBookingRequests.length} unconverted booking requests, ${bookingRequestIdsInEvents.size} already converted to events`);
 
       console.log(`Found ${regularEvents?.length || 0} regular events and ${bookingRequests?.length || 0} approved booking requests in date range`);
 
@@ -698,13 +713,14 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const withBookingSet = new Set<string>();
       const withoutBookingSet = new Set<string>();
 
-      // Get regular events in the date range (main persons) - filter by start_date for events happening in this period
+      // Get regular events in the date range (main persons) - filter by CREATED_AT to match CRM logic
+      // This ensures we count customers who were added in this month, not by when their event is scheduled
       const { data: regularEvents, error: regularEventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('parent_event_id', null)
         .is('deleted_at', null);
 
@@ -720,14 +736,14 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // Get approved booking requests in the date range (main persons) - filter by start_date for events happening in this period
+      // Get approved booking requests in the date range (main persons) - filter by CREATED_AT to match CRM logic
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null);
 
       if (bookingRequestsError) {
