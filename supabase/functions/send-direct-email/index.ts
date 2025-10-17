@@ -125,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     const emailResult = await resend.emails.send({
-      from: 'SmartBookly <onboarding@resend.dev>',
+      from: 'SmartBookly <noreply@smartbookly.com>',
       to: [emailRequest.recipient_email],
       subject: emailRequest.subject || subject,
       html: html,
