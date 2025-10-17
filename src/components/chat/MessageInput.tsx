@@ -429,10 +429,22 @@ export const MessageInput = ({
 
       if (error) {
         console.error('❌ Transcription error:', error);
+        
+        // Provide specific error messages
+        let errorMessage = 'Please try again';
+        if (error.message?.includes('FunctionsRelayError') || error.message?.includes('Not Found')) {
+          errorMessage = 'Voice feature is initializing. Please try again in a moment.';
+        } else if (error.message?.includes('Rate limit')) {
+          errorMessage = 'Too many requests. Please wait a moment.';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
         toast({
           title: t('voice.transcriptionFailed'),
-          description: error.message || 'Please try again',
-          variant: 'destructive'
+          description: errorMessage,
+          variant: 'destructive',
+          duration: 4000
         });
         return;
       }
@@ -440,10 +452,19 @@ export const MessageInput = ({
       // Check for error in response data
       if (data?.error) {
         console.error('❌ Transcription failed:', data.error);
+        
+        let errorMessage = data.error;
+        if (data.error.includes('Rate limit')) {
+          errorMessage = 'Rate limit exceeded. Please try again later.';
+        } else if (data.error.includes('quota')) {
+          errorMessage = 'Transcription quota exceeded. Please contact support.';
+        }
+        
         toast({
           title: t('voice.transcriptionFailed'),
-          description: data.error,
-          variant: 'destructive'
+          description: errorMessage,
+          variant: 'destructive',
+          duration: 4000
         });
         return;
       }
@@ -452,29 +473,32 @@ export const MessageInput = ({
         const transcribedText = `🎤 ${data.text}`;
         console.log('✅ Transcription successful:', data.text);
         
-        // Show success feedback
+        // Show sending feedback
         toast({
-          title: "Voice transcribed",
-          description: data.text,
-          duration: 2000
+          title: "📤 Sending voice message...",
+          duration: 1500
         });
         
-        // Set the message and send it
+        // Set the message and send immediately
         setMessage(transcribedText);
+        await uploadAndSend();
         
-        // Auto-send after a brief delay
-        setTimeout(async () => {
-          await uploadAndSend();
-        }, 300);
+        // Clear and show success
+        setMessage('');
+        toast({
+          title: "✓ Voice message sent",
+          duration: 2000
+        });
       } else {
-        throw new Error('No transcription text received');
+        throw new Error('Recording was too short or unclear. Please try again.');
       }
     } catch (error) {
       console.error('❌ Voice message error:', error);
       toast({
         title: t('voice.transcriptionFailed'),
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive'
+        description: error instanceof Error ? error.message : 'Could not process voice message',
+        variant: 'destructive',
+        duration: 4000
       });
     } finally {
       setIsTranscribing(false);
