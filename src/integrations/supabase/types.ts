@@ -1385,6 +1385,54 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_emails: {
+        Row: {
+          created_at: string
+          created_by_name: string | null
+          created_by_type: string | null
+          deleted_at: string | null
+          id: string
+          language: string | null
+          message: string
+          recipient_email: string
+          send_at: string
+          sender_name: string | null
+          sent_at: string | null
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_name?: string | null
+          created_by_type?: string | null
+          deleted_at?: string | null
+          id?: string
+          language?: string | null
+          message: string
+          recipient_email: string
+          send_at: string
+          sender_name?: string | null
+          sent_at?: string | null
+          subject: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by_name?: string | null
+          created_by_type?: string | null
+          deleted_at?: string | null
+          id?: string
+          language?: string | null
+          message?: string
+          recipient_email?: string
+          send_at?: string
+          sender_name?: string | null
+          sent_at?: string | null
+          subject?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       "Stripe cusotmers": {
         Row: {
           created_at: string

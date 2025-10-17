@@ -778,7 +778,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "send_direct_email",
-          description: "Send a direct email or message to a specific email address with custom text. Use this when user explicitly asks to send an email or message to someone (not a reminder). Works across all languages.",
+          description: "Send a direct email or message to a specific email address with custom text. Use this when user explicitly asks to send an email or message to someone (not a reminder). Works across all languages. Can be sent immediately or scheduled for a specific time.",
           parameters: {
             type: "object",
             properties: {
@@ -793,6 +793,10 @@ serve(async (req) => {
               subject: { 
                 type: "string", 
                 description: "Optional custom email subject" 
+              },
+              send_at: {
+                type: "string",
+                description: "ISO 8601 timestamp for scheduled sending (e.g., '2025-10-17T15:30:00Z'). If not provided or empty, email sends immediately."
               }
             },
             required: ["recipient_email", "message"]
@@ -2605,9 +2609,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'send_direct_email': {
-              const { recipient_email, message, subject } = args;
+              const { recipient_email, message, subject, send_at } = args;
               
-              console.log('📧 Sending direct email:', { recipient_email, has_message: !!message });
+              console.log('📧 Processing email request:', { recipient_email, has_message: !!message, send_at });
               
               if (!recipient_email || !message) {
                 toolResult = { 
@@ -2627,45 +2631,93 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // Send email via edge function
-              const { data: emailData, error: emailError } = await supabaseAdmin.functions.invoke(
-                'send-direct-email',
-                {
-                  body: {
-                    recipient_email,
-                    message,
-                    subject: subject || undefined,
-                    language: userLanguage,
-                    sender_name: baseName
-                  }
-                }
-              );
-              
-              // Check for invocation error or response error
-              if (emailError || (emailData && !emailData.success)) {
-                const errorMsg = emailError?.message || emailData?.error || emailData?.message || 'Failed to send email';
-                console.error('❌ Failed to send direct email:', errorMsg);
+              // If send_at is provided, schedule the email; otherwise send immediately
+              if (send_at && send_at.trim()) {
+                console.log('📅 Scheduling email for:', send_at);
                 
-                // Check if it's a domain verification error
-                if (errorMsg.includes('verify a domain') || errorMsg.includes('Domain verification')) {
+                // Store scheduled email in database
+                const { error: scheduleError } = await supabaseAdmin
+                  .from('scheduled_emails')
+                  .insert({
+                    user_id: ownerId,
+                    recipient_email: recipient_email,
+                    subject: subject || (userLanguage === 'ka' ? 'შეტყობინება SmartBookly-დან' : userLanguage === 'es' ? 'Mensaje de SmartBookly' : userLanguage === 'ru' ? 'Сообщение от SmartBookly' : 'Message from SmartBookly'),
+                    message: message,
+                    language: userLanguage,
+                    sender_name: baseName,
+                    send_at: send_at,
+                    created_by_type: isAdmin ? 'admin' : 'sub_user',
+                    created_by_name: isAdmin ? (userName || 'Admin') : subUserName
+                  });
+                
+                if (scheduleError) {
+                  console.error('❌ Failed to schedule email:', scheduleError);
                   toolResult = { 
                     success: false, 
-                    error: 'domain_verification_required',
-                    message: 'To send emails to external recipients, you need to verify a domain at resend.com/domains. Currently, emails can only be sent to your verified email address.'
+                    error: userLanguage === 'ka' 
+                      ? 'ელფოსტის დაგეგმვა ვერ მოხერხდა'
+                      : userLanguage === 'es'
+                      ? 'No se pudo programar el correo electrónico'
+                      : userLanguage === 'ru'
+                      ? 'Не удалось запланировать отправку письма'
+                      : 'Failed to schedule email'
                   };
                 } else {
+                  console.log('✅ Email scheduled successfully');
                   toolResult = { 
-                    success: false, 
-                    error: errorMsg
+                    success: true, 
+                    message: userLanguage === 'ka' 
+                      ? `ელფოსტა დაიგეგმა ${send_at}-ზე`
+                      : userLanguage === 'es'
+                      ? `Correo electrónico programado para ${send_at}`
+                      : userLanguage === 'ru'
+                      ? `Письмо запланировано на ${send_at}`
+                      : `Email scheduled for ${send_at}`
                   };
                 }
               } else {
-                console.log('✅ Direct email sent successfully');
-                toolResult = { 
-                  success: true, 
-                  recipient: recipient_email,
-                  message: 'Email sent successfully'
-                };
+                // Send immediately via edge function
+                console.log('📧 Sending email immediately');
+                
+                const { data: emailData, error: emailError } = await supabaseAdmin.functions.invoke(
+                  'send-direct-email',
+                  {
+                    body: {
+                      recipient_email,
+                      message,
+                      subject: subject || undefined,
+                      language: userLanguage,
+                      sender_name: baseName
+                    }
+                  }
+                );
+                
+                // Check for invocation error or response error
+                if (emailError || (emailData && !emailData.success)) {
+                  const errorMsg = emailError?.message || emailData?.error || emailData?.message || 'Failed to send email';
+                  console.error('❌ Failed to send direct email:', errorMsg);
+                  
+                  // Check if it's a domain verification error
+                  if (errorMsg.includes('verify a domain') || errorMsg.includes('Domain verification')) {
+                    toolResult = { 
+                      success: false, 
+                      error: 'domain_verification_required',
+                      message: 'To send emails to external recipients, you need to verify a domain at resend.com/domains. Currently, emails can only be sent to your verified email address.'
+                    };
+                  } else {
+                    toolResult = { 
+                      success: false, 
+                      error: errorMsg
+                    };
+                  }
+                } else {
+                  console.log('✅ Direct email sent successfully');
+                  toolResult = { 
+                    success: true, 
+                    recipient: recipient_email,
+                    message: 'Email sent successfully'
+                  };
+                }
               }
               break;
             }

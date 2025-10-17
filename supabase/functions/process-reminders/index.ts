@@ -43,7 +43,7 @@ const handler = async (req: Request): Promise<Response> => {
       errors: []
     };
 
-    console.log('⏰ Processing reminders at:', now.toISOString());
+    console.log('⏰ Processing reminders and scheduled emails at:', now.toISOString());
     console.log('📅 Checking reminders up to:', reminderCheckTime.toISOString());
 
     // Process Task Reminders - CRITICAL: Check for ALL tasks with due reminders regardless of status
@@ -348,6 +348,63 @@ const handler = async (req: Request): Promise<Response> => {
     } catch (error) {
       console.error('❌ Custom reminder processing exception:', error);
       result.errors.push(`Custom reminder processing exception: ${(error as Error).message}`);
+    }
+
+    // 4. Process Scheduled Emails
+    try {
+      console.log('📧 Checking for scheduled emails...');
+      const { data: scheduledEmails, error: emailsError } = await supabase
+        .from('scheduled_emails')
+        .select('*')
+        .lte('send_at', reminderCheckTime.toISOString())
+        .is('sent_at', null)
+        .is('deleted_at', null);
+      
+      if (emailsError) {
+        console.error('❌ Error fetching scheduled emails:', emailsError);
+        result.errors.push(`Scheduled email fetch error: ${emailsError.message}`);
+      } else {
+        console.log(`📧 Found ${scheduledEmails?.length || 0} scheduled emails to send`);
+        
+        for (const email of scheduledEmails || []) {
+          try {
+            console.log(`📧 Sending scheduled email ${email.id} to ${email.recipient_email}`);
+            
+            const { data: emailData, error: sendError } = await supabase.functions.invoke(
+              'send-direct-email',
+              {
+                body: {
+                  recipient_email: email.recipient_email,
+                  subject: email.subject,
+                  message: email.message,
+                  language: email.language || 'en',
+                  sender_name: email.sender_name
+                }
+              }
+            );
+            
+            if (sendError || (emailData && !emailData.success)) {
+              const errorMsg = sendError?.message || emailData?.error || 'Failed to send email';
+              console.error(`❌ Error sending scheduled email ${email.id}:`, errorMsg);
+              result.errors.push(`Scheduled email ${email.id}: ${errorMsg}`);
+            } else {
+              // Mark email as sent
+              await supabase
+                .from('scheduled_emails')
+                .update({ sent_at: now.toISOString() })
+                .eq('id', email.id);
+              
+              console.log(`✅ Scheduled email ${email.id} sent successfully`);
+            }
+          } catch (error) {
+            console.error(`❌ Exception processing scheduled email ${email.id}:`, error);
+            result.errors.push(`Scheduled email ${email.id} exception: ${(error as Error).message}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Scheduled email processing exception:', error);
+      result.errors.push(`Scheduled email processing exception: ${(error as Error).message}`);
     }
 
     // Log final results
