@@ -22,29 +22,35 @@ export function useASR() {
       });
       
       // Try best audio format for Whisper compatibility
+      // Mobile Safari prefers different codecs
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       let mime = 'audio/webm;codecs=opus';
       if (!MediaRecorder.isTypeSupported(mime)) {
         mime = 'audio/webm';
         if (!MediaRecorder.isTypeSupported(mime)) {
           mime = 'audio/mp4';
+          if (!MediaRecorder.isTypeSupported(mime)) {
+            mime = ''; // Let browser choose
+          }
         }
       }
       
-      console.log('🎤 Using MIME type:', mime);
-      const mr = new MediaRecorder(stream, { mimeType: mime });
+      console.log('🎤 Using MIME type:', mime, 'Mobile:', isMobile);
+      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
       mediaRecorderRef.current = mr;
       chunksRef.current = [];
       
       mr.ondataavailable = e => {
         if (e.data.size > 0) {
-          console.log('🎤 Received audio chunk:', e.data.size, 'bytes');
+          console.log('🎤 Received audio chunk:', e.data.size, 'bytes, total chunks:', chunksRef.current.length + 1);
           chunksRef.current.push(e.data);
         }
       };
 
       setSeconds(0);
       setStatus('recording');
-      mr.start(100); // Collect data every 100ms for better reliability
+      // Mobile needs larger timeslice for better reliability with longer recordings
+      mr.start(isMobile ? 500 : 100);
 
       // 60s maximum duration - auto-stop at limit
       timerRef.current = window.setInterval(() => {
@@ -78,18 +84,21 @@ export function useASR() {
         return;
       }
       
-      // Set up one-time stop handler with longer delay
+      // Set up one-time stop handler with longer delay for mobile
       const handleStop = () => {
         console.log('🎤 Recording stopped, chunks collected:', chunksRef.current.length);
         mr.stream.getTracks().forEach(t => t.stop());
         setStatus('idle');
         
-        // Longer delay to ensure all chunks are fully captured (especially on mobile)
+        // Mobile devices need more time to flush audio buffers
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const delay = isMobile ? 600 : 300;
+        
         setTimeout(() => {
           const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
           console.log('🎤 Final chunk count:', chunksRef.current.length, 'Total size:', totalSize, 'bytes');
           resolve();
-        }, 300);
+        }, delay);
       };
       
       mr.addEventListener('stop', handleStop, { once: true });
@@ -199,12 +208,16 @@ async function blobToMono16kFloat32(blob: Blob): Promise<Float32Array> {
   }
   
   // Create AudioContext with default sample rate
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  // Mobile Safari requires proper context handling
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  const ctx = new AudioContextClass();
   console.log('🎤 AudioContext sample rate:', ctx.sampleRate);
   
   let audio: AudioBuffer;
   try {
-    audio = await ctx.decodeAudioData(arrayBuffer);
+    // Mobile devices may need a copy of the buffer
+    const bufferCopy = arrayBuffer.slice(0);
+    audio = await ctx.decodeAudioData(bufferCopy);
   } catch (decodeErr) {
     await ctx.close();
     console.error('🎤 Audio decode error:', decodeErr);
