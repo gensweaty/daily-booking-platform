@@ -84,12 +84,13 @@ export const MessageInput = ({
   const isRecording = asrStatus === 'recording';
   const isTranscribing = asrStatus === 'transcribing';
   
-  // Notify parent about transcription status
+  // Notify parent about transcription status (only for non-AI channels)
+  // AI channels handle typing state in handleStopAndSend
   useEffect(() => {
-    if (onTranscribing) {
+    if (onTranscribing && !isAIChannel) {
       onTranscribing(isTranscribing);
     }
-  }, [isTranscribing, onTranscribing]);
+  }, [isTranscribing, onTranscribing, isAIChannel]);
   
   const defaultPlaceholder = placeholder || t('chat.typeMessage');
 
@@ -245,8 +246,12 @@ export const MessageInput = ({
         messageRef.current = '';
         setAttachments([]);
         setShowQuickPrompts(false); // Close quick suggestions
-        setIsSendingAI(true);
-        if (onAISending) onAISending(true);
+        
+        // Only set sending state if not already set (voice already set it)
+        if (!isSendingAI) {
+          setIsSendingAI(true);
+          if (onAISending) onAISending(true);
+        }
         
         // Call AI edge function (it will insert the AI response)
         try {
@@ -438,6 +443,14 @@ export const MessageInput = ({
   // Voice recording handler
   const handleStopAndSend = async () => {
     console.log('🎤 Stop button clicked, stopping recording...');
+    
+    // For AI channels, start showing typing indicator immediately
+    if (isAIChannel) {
+      setIsSendingAI(true);
+      if (onAISending) onAISending(true);
+      setShowQuickPrompts(false);
+    }
+    
     try {
       // Wait for recording to fully stop
       await stopRecording();
@@ -450,6 +463,12 @@ export const MessageInput = ({
       
       if (!text || text.trim().length === 0) {
         console.warn('🎤 No text transcribed');
+        // Reset typing state on error
+        if (isAIChannel) {
+          setIsSendingAI(false);
+          if (onAISending) onAISending(false);
+          setShowQuickPrompts(true);
+        }
         toast({ 
           title: "No speech detected", 
           description: "Try speaking closer to the microphone.", 
@@ -468,13 +487,22 @@ export const MessageInput = ({
         textareaRef.current.value = text;
       }
       
-      // Send immediately - no artificial delay
+      // Send immediately - uploadAndSend will handle AI response
       await uploadAndSend();
       
-      toast({ title: "✓ Voice message sent", duration: 2000 });
+      // Don't show success toast for AI channels (typing indicator shows progress)
+      if (!isAIChannel) {
+        toast({ title: "✓ Voice message sent", duration: 2000 });
+      }
       
     } catch (e: any) {
       console.error('Voice transcription error:', e);
+      // Reset typing state on error
+      if (isAIChannel) {
+        setIsSendingAI(false);
+        if (onAISending) onAISending(false);
+        setShowQuickPrompts(true);
+      }
       toast({ 
         title: "Voice to text failed", 
         description: e?.message || "Please try recording again.", 
