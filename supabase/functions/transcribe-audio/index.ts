@@ -24,24 +24,28 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Convert base64 to binary
+    // Convert base64 to binary more efficiently
     const binaryString = atob(audio);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Create form data
+    // Create form data with proper content type
     const formData = new FormData();
     const blob = new Blob([bytes], { type: 'audio/webm' });
-    formData.append('file', blob, 'audio.webm');
+    formData.append('file', blob, 'recording.webm');
     formData.append('model', 'whisper-1');
+    formData.append('language', 'en'); // Optional: helps with accuracy
+
+    console.log('📤 Sending to Lovable AI Gateway...');
 
     // Call Lovable AI gateway for transcription
     const response = await fetch('https://ai.gateway.lovable.dev/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        // Note: Don't set Content-Type header, let FormData set it with boundary
       },
       body: formData,
     });

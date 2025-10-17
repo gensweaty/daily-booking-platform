@@ -633,7 +633,7 @@ export const MessageInput = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 disabled={isUploading}
                 aria-label="Attach files"
               >
@@ -648,7 +648,7 @@ export const MessageInput = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                     disabled={isUploading}
                     onClick={() => setShowEmojiPicker(v => !v)}
                     aria-label="Insert emoji"

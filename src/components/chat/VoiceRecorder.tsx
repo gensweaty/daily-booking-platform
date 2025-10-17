@@ -90,8 +90,8 @@ export const VoiceRecorder = ({ onRecordingComplete, onError, disabled }: VoiceR
 
   if (isProcessing) {
     return (
-      <Button variant="ghost" size="sm" disabled className="h-9 w-9 p-0">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      <Button variant="ghost" size="sm" disabled className="h-8 w-8 p-0">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
       </Button>
     );
   }
@@ -150,9 +150,9 @@ export const VoiceRecorder = ({ onRecordingComplete, onError, disabled }: VoiceR
       onClick={handleStartRecording}
       disabled={disabled}
       title={t('voice.startRecording')}
-      className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground transition-colors"
+      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground transition-colors"
     >
-      <Mic className="h-5 w-5" />
+      <Mic className="h-4 w-4" />
     </Button>
   );
 };
