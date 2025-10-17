@@ -78,17 +78,18 @@ export function useASR() {
         return;
       }
       
-      // Set up one-time stop handler
+      // Set up one-time stop handler with longer delay
       const handleStop = () => {
         console.log('🎤 Recording stopped, chunks collected:', chunksRef.current.length);
         mr.stream.getTracks().forEach(t => t.stop());
         setStatus('idle');
         
-        // Small delay to ensure all chunks are fully captured
+        // Longer delay to ensure all chunks are fully captured (especially on mobile)
         setTimeout(() => {
-          console.log('🎤 Final chunk count:', chunksRef.current.length, 'Total size:', chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0), 'bytes');
+          const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+          console.log('🎤 Final chunk count:', chunksRef.current.length, 'Total size:', totalSize, 'bytes');
           resolve();
-        }, 100);
+        }, 300);
       };
       
       mr.addEventListener('stop', handleStop, { once: true });
@@ -98,80 +99,87 @@ export function useASR() {
 
   async function transcribe(): Promise<ASRResult> {
     console.log('🎤 Starting transcription, chunks available:', chunksRef.current.length);
+    
+    if (chunksRef.current.length === 0) {
+      throw new Error('No audio data recorded. Please try again.');
+    }
+    
     const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'audio/webm' });
     console.log('🎤 Blob created, size:', blob.size, 'bytes, type:', blob.type);
     
-    // Only reject if completely empty
     if (blob.size === 0) {
       throw new Error('No audio data recorded. Please try again.');
     }
     
-    // Warn if audio is suspiciously small
-    if (blob.size < 1000) {
-      console.warn('⚠️ Audio blob is very small, may not contain valid audio:', blob.size, 'bytes');
+    if (blob.size < 5000) {
+      console.warn('⚠️ Audio blob is very small:', blob.size, 'bytes - audio might be too short');
     }
     
     setStatus('transcribing');
     console.log('🎤 Loading Whisper model...');
+    
     try {
-      // Lazy-load transformers to avoid initial bundle impact
+      // Lazy-load transformers
       const { pipeline } = await import('@huggingface/transformers');
 
       // Convert to 16k mono Float32
       console.log('🎤 Converting audio to 16kHz mono...');
-      const floatData = await blobToMono16kFloat32(blob);
-      console.log('🎤 Audio converted, samples:', floatData.length, 'duration:', (floatData.length / 16000).toFixed(2), 'seconds');
+      let floatData: Float32Array;
       
-      // Check audio quality
-      const maxAmplitude = Math.max(...Array.from(floatData).map(Math.abs));
-      const avgAmplitude = Array.from(floatData).reduce((sum, val) => sum + Math.abs(val), 0) / floatData.length;
+      try {
+        floatData = await blobToMono16kFloat32(blob);
+        console.log('🎤 Audio converted successfully, samples:', floatData.length, 'duration:', (floatData.length / 16000).toFixed(2), 'seconds');
+      } catch (convErr) {
+        console.error('❌ Audio conversion error:', convErr);
+        throw new Error('Failed to process audio format. Please try recording again.');
+      }
+      
+      // Validate audio content
+      const maxAmplitude = Math.max(...Array.from(floatData.slice(0, Math.min(floatData.length, 10000))).map(Math.abs));
+      const avgAmplitude = Array.from(floatData.slice(0, Math.min(floatData.length, 10000))).reduce((sum, val) => sum + Math.abs(val), 0) / Math.min(floatData.length, 10000);
       console.log('🎤 Audio quality - Max amplitude:', maxAmplitude.toFixed(4), 'Avg amplitude:', avgAmplitude.toFixed(6));
       
-      if (maxAmplitude < 0.001) {
-        throw new Error('Audio is too quiet. Please speak louder or check your microphone.');
+      if (maxAmplitude < 0.0005) {
+        throw new Error('Audio is too quiet. Please speak louder.');
       }
 
-      // Build ASR pipeline with small model for better accuracy (multilingual)
-      console.log('🎤 Loading Whisper model pipeline (this may take a moment on first use)...');
-      const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small');
+      // Build ASR pipeline with base model for better balance
+      console.log('🎤 Loading Whisper model (first time may take 30-60 seconds)...');
+      const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-base');
 
-      console.log('🎤 Running transcription with optimized settings...');
+      console.log('🎤 Running transcription...');
       const out = await asr(floatData, {
         chunk_length_s: 30,
         stride_length_s: 5,
         task: 'transcribe',
         return_timestamps: false,
-        language: null, // Auto-detect language
-        // Force better decoding
-        num_beams: 1,
-        temperature: 0.0,
+        language: null, // Auto-detect
       }) as any;
 
-      console.log('🎤 Transcription complete:', JSON.stringify(out));
+      console.log('🎤 Transcription result:', JSON.stringify(out));
       
-      // Check if we got actual text back
       const transcribedText = out.text?.trim() || '';
-      console.log('🎤 Final transcribed text:', JSON.stringify(transcribedText), 'length:', transcribedText.length);
+      console.log('🎤 Final text:', JSON.stringify(transcribedText), 'length:', transcribedText.length);
       
-      if (transcribedText.length === 0 || transcribedText.length < 2) {
-        setStatus('idle');
-        throw new Error('Could not transcribe audio. Please speak clearly and try again.');
+      if (transcribedText.length === 0) {
+        throw new Error('No speech detected. Please speak clearly and try again.');
       }
       
       setStatus('idle');
       return { text: transcribedText, language: out.language };
+      
     } catch (err) {
-      console.error('❌ Whisper transcription failed:', err);
+      console.error('❌ Transcription error:', err);
       setStatus('error');
       
-      // Provide user-friendly error messages
       if (err instanceof Error) {
-        if (err.message.includes('audio') || err.message.includes('quiet') || err.message.includes('transcribe')) {
-          throw err; // Re-throw our custom errors
+        // Pass through our custom error messages
+        if (err.message.includes('audio') || err.message.includes('quiet') || err.message.includes('speech') || err.message.includes('format')) {
+          throw err;
         }
-        throw new Error('Transcription failed. Please try speaking more clearly or check your microphone.');
       }
-      throw new Error('Transcription failed. Please try again.');
+      
+      throw new Error('Voice transcription failed. Please try recording again.');
     } finally {
       chunksRef.current = [];
     }
@@ -183,73 +191,73 @@ export function useASR() {
 // --- helpers ---
 
 async function blobToMono16kFloat32(blob: Blob): Promise<Float32Array> {
-  try {
-    const arrayBuffer = await blob.arrayBuffer();
-    console.log('🎤 ArrayBuffer size:', arrayBuffer.byteLength);
-    
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 48000 });
-    console.log('🎤 AudioContext sample rate:', ctx.sampleRate);
-    
-    const audio = await ctx.decodeAudioData(arrayBuffer);
-    console.log('🎤 Decoded audio:', {
-      duration: audio.duration.toFixed(2) + 's',
-      channels: audio.numberOfChannels,
-      sampleRate: audio.sampleRate,
-      length: audio.length
-    });
-    
-    if (audio.duration < 0.1) {
-      throw new Error('Audio too short (less than 0.1s)');
-    }
-    
-    // First, mixdown to mono if stereo
-    const monoData = new Float32Array(audio.length);
-    if (audio.numberOfChannels === 1) {
-      const channel = audio.getChannelData(0);
-      for (let i = 0; i < audio.length; i++) {
-        monoData[i] = channel[i];
-      }
-    } else {
-      // Mix all channels to mono
-      const left = audio.getChannelData(0);
-      const right = audio.numberOfChannels > 1 ? audio.getChannelData(1) : left;
-      for (let i = 0; i < audio.length; i++) {
-        monoData[i] = (left[i] + right[i]) / 2;
-      }
-    }
-    
-    // Resample to 16kHz using OfflineAudioContext
-    const targetSampleRate = 16000;
-    const targetLength = Math.ceil(audio.duration * targetSampleRate);
-    
-    console.log('🎤 Resampling to 16kHz, target length:', targetLength);
-    
-    const offlineCtx = new OfflineAudioContext(1, targetLength, targetSampleRate);
-    const buffer = offlineCtx.createBuffer(1, monoData.length, audio.sampleRate);
-    buffer.copyToChannel(monoData, 0);
-    
-    const source = offlineCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(offlineCtx.destination);
-    source.start(0);
-    
-    const resampled = await offlineCtx.startRendering();
-    const resampledData = resampled.getChannelData(0);
-    
-    console.log('🎤 Resampled audio:', resampledData.length, 'samples at 16kHz');
-    
-    // Validate resampled data
-    const hasNonZero = Array.from(resampledData).some(v => Math.abs(v) > 0.0001);
-    if (!hasNonZero) {
-      throw new Error('Audio contains only silence');
-    }
-    
-    await ctx.close();
-    
-    return resampledData;
-  } catch (err) {
-    console.error('❌ Audio conversion failed:', err);
-    throw new Error('Failed to process audio. Please try again.');
+  const arrayBuffer = await blob.arrayBuffer();
+  console.log('🎤 ArrayBuffer size:', arrayBuffer.byteLength);
+  
+  if (arrayBuffer.byteLength === 0) {
+    throw new Error('Empty audio buffer');
   }
+  
+  // Create AudioContext with default sample rate
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  console.log('🎤 AudioContext sample rate:', ctx.sampleRate);
+  
+  let audio: AudioBuffer;
+  try {
+    audio = await ctx.decodeAudioData(arrayBuffer);
+  } catch (decodeErr) {
+    await ctx.close();
+    console.error('🎤 Audio decode error:', decodeErr);
+    throw new Error('Audio decode failed');
+  }
+  
+  console.log('🎤 Decoded audio:', {
+    duration: audio.duration.toFixed(2) + 's',
+    channels: audio.numberOfChannels,
+    sampleRate: audio.sampleRate,
+    length: audio.length
+  });
+  
+  if (audio.duration < 0.3) {
+    await ctx.close();
+    throw new Error('Audio too short - please speak for at least 0.5 seconds');
+  }
+  
+  // Mix down to mono
+  const monoData = new Float32Array(audio.length);
+  if (audio.numberOfChannels === 1) {
+    const channel = audio.getChannelData(0);
+    monoData.set(channel);
+  } else {
+    const left = audio.getChannelData(0);
+    const right = audio.getChannelData(1);
+    for (let i = 0; i < audio.length; i++) {
+      monoData[i] = (left[i] + right[i]) / 2;
+    }
+  }
+  
+  // Resample to 16kHz
+  const targetSampleRate = 16000;
+  const targetLength = Math.ceil(audio.duration * targetSampleRate);
+  
+  console.log('🎤 Resampling from', audio.sampleRate, 'Hz to 16kHz, target length:', targetLength);
+  
+  const offlineCtx = new OfflineAudioContext(1, targetLength, targetSampleRate);
+  const buffer = offlineCtx.createBuffer(1, monoData.length, audio.sampleRate);
+  buffer.copyToChannel(monoData, 0);
+  
+  const source = offlineCtx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(offlineCtx.destination);
+  source.start(0);
+  
+  const resampled = await offlineCtx.startRendering();
+  const resampledData = resampled.getChannelData(0);
+  
+  console.log('🎤 Resampled to', resampledData.length, 'samples');
+  
+  await ctx.close();
+  
+  return resampledData;
 }
 
