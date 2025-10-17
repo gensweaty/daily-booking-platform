@@ -415,7 +415,7 @@ export const MessageInput = ({
 
     setIsTranscribing(true);
     try {
-      console.log('🎤 Sending audio for transcription...');
+      console.log('🎤 Sending audio for transcription...', { audioLength: audioBase64.length });
       
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
         body: { audio: audioBase64 }
@@ -425,6 +425,18 @@ export const MessageInput = ({
         console.error('❌ Transcription error:', error);
         toast({
           title: t('voice.transcriptionFailed'),
+          description: error.message || 'Please try again',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Check for error in response data
+      if (data?.error) {
+        console.error('❌ Transcription failed:', data.error);
+        toast({
+          title: t('voice.transcriptionFailed'),
+          description: data.error,
           variant: 'destructive'
         });
         return;
@@ -432,27 +444,30 @@ export const MessageInput = ({
 
       if (data?.text) {
         const transcribedText = `🎤 ${data.text}`;
-        console.log('✅ Transcription:', data.text);
+        console.log('✅ Transcription successful:', data.text);
         
+        // Show success feedback
+        toast({
+          title: t('voice.transcribing'),
+          description: data.text,
+          duration: 2000
+        });
+        
+        // Set the message and send it
         setMessage(transcribedText);
         
-        // Auto-send the transcribed message
-        setTimeout(() => {
-          if (transcribedText.trim()) {
-            setMessage(transcribedText);
-            // Trigger send by simulating form submission
-            const form = document.querySelector('form');
-            if (form) {
-              const event = new Event('submit', { bubbles: true, cancelable: true });
-              form.dispatchEvent(event);
-            }
-          }
-        }, 100);
+        // Auto-send after a brief delay
+        setTimeout(async () => {
+          await uploadAndSend();
+        }, 300);
+      } else {
+        throw new Error('No transcription text received');
       }
     } catch (error) {
       console.error('❌ Voice message error:', error);
       toast({
         title: t('voice.transcriptionFailed'),
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: 'destructive'
       });
     } finally {
