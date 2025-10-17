@@ -2394,16 +2394,81 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'get_recent_customers': {
-              const limit = args.limit || 10;
-              const { data: customers } = await supabaseClient
-                .from('customers')
-                .select('id, title, user_surname, user_number, payment_status, payment_amount, created_at')
-                .eq('user_id', ownerId)
-                .is('deleted_at', null)
-                .order('created_at', { ascending: false })
-                .limit(limit);
-              toolResult = customers || [];
-              console.log(`    ✓ Found ${toolResult.length} recent customers`);
+              const limit = args.limit || 200; // Fetch more to account for duplicates
+              
+              // Fetch all customers including those attached to events
+              const [standaloneCustomers, eventCustomers, eventMainPersons] = await Promise.all([
+                // Standalone CRM customers
+                supabaseClient
+                  .from('customers')
+                  .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, created_at, event_id')
+                  .eq('user_id', ownerId)
+                  .is('deleted_at', null)
+                  .is('event_id', null)
+                  .order('created_at', { ascending: false }),
+                // Event-linked customers (additional persons)
+                supabaseClient
+                  .from('customers')
+                  .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, created_at, event_id')
+                  .eq('user_id', ownerId)
+                  .eq('type', 'customer')
+                  .is('deleted_at', null)
+                  .not('event_id', 'is', null)
+                  .order('created_at', { ascending: false }),
+                // Main event persons (from events table)
+                supabaseClient
+                  .from('events')
+                  .select('id, user_surname, user_number, social_network_link, payment_status, payment_amount, created_at')
+                  .eq('user_id', ownerId)
+                  .is('deleted_at', null)
+                  .is('parent_event_id', null) // Only parent events, not recurring instances
+                  .order('created_at', { ascending: false })
+              ]);
+              
+              // Combine all sources
+              const allCustomers = [
+                ...(standaloneCustomers.data || []).map(c => ({ ...c, source: 'standalone' })),
+                ...(eventCustomers.data || []).map(c => ({ ...c, source: 'event_customer' })),
+                ...(eventMainPersons.data || []).map(e => ({
+                  id: e.id,
+                  title: e.user_surname,
+                  user_surname: e.user_surname,
+                  user_number: e.user_number,
+                  social_network_link: e.social_network_link,
+                  payment_status: e.payment_status,
+                  payment_amount: e.payment_amount,
+                  created_at: e.created_at,
+                  source: 'event_main'
+                }))
+              ];
+              
+              // CRITICAL: Deduplicate customers using the same logic as CRM page
+              // Create unique key based on email, phone, and name (case-insensitive, trimmed)
+              const uniqueCustomersMap = new Map();
+              
+              allCustomers.forEach(customer => {
+                const email = (customer.social_network_link || '').toLowerCase().trim();
+                const phone = (customer.user_number || '').toLowerCase().trim();
+                const name = (customer.user_surname || customer.title || '').toLowerCase().trim();
+                const createdDate = customer.created_at ? new Date(customer.created_at).toISOString().split('T')[0] : '';
+                
+                // Create unique signature: email_phone_name_date
+                // This ensures same person on different days is counted separately
+                const signature = `${email || 'no-email'}_${phone || 'no-phone'}_${name || 'no-name'}_${createdDate}`;
+                
+                // Keep first occurrence (most recent due to ordering)
+                if (!uniqueCustomersMap.has(signature)) {
+                  uniqueCustomersMap.set(signature, customer);
+                }
+              });
+              
+              // Convert back to array and sort by created_at descending
+              const uniqueCustomers = Array.from(uniqueCustomersMap.values())
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .slice(0, limit); // Apply limit after deduplication
+              
+              toolResult = uniqueCustomers;
+              console.log(`    ✓ Found ${allCustomers.length} total customers, ${uniqueCustomers.length} unique after deduplication`);
               break;
             }
 
