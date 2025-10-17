@@ -49,8 +49,8 @@ export function useASR() {
 
       setSeconds(0);
       setStatus('recording');
-      // Mobile needs larger timeslice for better reliability with longer recordings
-      mr.start(isMobile ? 500 : 100);
+      // Mobile: smaller timeslice for better chunk collection and immediate feedback
+      mr.start(isMobile ? 250 : 100);
 
       // 60s maximum duration - auto-stop at limit
       timerRef.current = window.setInterval(() => {
@@ -84,21 +84,18 @@ export function useASR() {
         return;
       }
       
-      // Set up one-time stop handler with longer delay for mobile
+      // Set up one-time stop handler with minimal delay for instant feedback
       const handleStop = () => {
         console.log('🎤 Recording stopped, chunks collected:', chunksRef.current.length);
         mr.stream.getTracks().forEach(t => t.stop());
         setStatus('idle');
         
-        // Mobile devices need more time to flush audio buffers
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        const delay = isMobile ? 600 : 300;
-        
+        // Minimal delay just for buffer flush - mobile needs instant feedback
         setTimeout(() => {
           const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
           console.log('🎤 Final chunk count:', chunksRef.current.length, 'Total size:', totalSize, 'bytes');
           resolve();
-        }, delay);
+        }, 150);
       };
       
       mr.addEventListener('stop', handleStop, { once: true });
@@ -120,13 +117,13 @@ export function useASR() {
       throw new Error('No audio recorded. Please try again.');
     }
     
-    // Mobile-specific size threshold (accounts for different codec compression)
+    // Relaxed size check - only catch truly empty recordings
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const minSize = isMobile ? 3000 : 5000;
+    const minSize = isMobile ? 1000 : 2000;
     
     if (blob.size < minSize) {
-      console.warn('⚠️ Audio blob is very small:', blob.size, 'bytes - audio might be too short');
-      throw new Error('Recording too short. Please speak for at least 1 second.');
+      console.warn('⚠️ Audio blob is very small:', blob.size, 'bytes');
+      throw new Error('Recording too short. Please try again.');
     }
     
     setStatus('transcribing');
@@ -152,18 +149,17 @@ export function useASR() {
         throw new Error('Failed to process audio. Please try recording again.');
       }
       
-      // Validate audio content with mobile-adjusted thresholds
+      // Audio quality check - only log for debugging, don't block on mobile
       const sampleSize = Math.min(floatData.length, 10000);
       const samples = Array.from(floatData.slice(0, sampleSize));
       const maxAmplitude = Math.max(...samples.map(Math.abs));
       const avgAmplitude = samples.reduce((sum, val) => sum + Math.abs(val), 0) / sampleSize;
       console.log('🎤 Audio quality - Max amplitude:', maxAmplitude.toFixed(4), 'Avg amplitude:', avgAmplitude.toFixed(6));
       
-      // Mobile devices often have different recording sensitivity
-      const minAmplitude = isMobile ? 0.0003 : 0.0005;
-      
-      if (maxAmplitude < minAmplitude) {
-        throw new Error('Audio too quiet. Please speak louder and closer to the microphone.');
+      // Skip amplitude validation on mobile - too many false positives due to codec/hardware variance
+      // Let Whisper handle audio quality detection instead
+      if (!isMobile && maxAmplitude < 0.001) {
+        console.warn('⚠️ Very quiet audio detected, but proceeding anyway');
       }
 
       // Build ASR pipeline with base model for better balance
@@ -254,13 +250,13 @@ async function blobToMono16kFloat32(blob: Blob): Promise<Float32Array> {
     length: audio.length
   });
   
-  // Mobile-adjusted minimum duration (some codecs have initialization overhead)
+  // Relaxed duration check - only catch truly invalid recordings
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-  const minDuration = isMobile ? 0.2 : 0.3;
+  const minDuration = isMobile ? 0.1 : 0.2;
   
   if (audio.duration < minDuration) {
     await ctx.close();
-    throw new Error(`Recording too short (${audio.duration.toFixed(1)}s) - please speak for at least 1 second`);
+    throw new Error('Recording too short. Please try again.');
   }
   
   // Mix down to mono with proper handling for silent channels
