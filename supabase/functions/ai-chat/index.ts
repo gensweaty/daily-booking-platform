@@ -2646,8 +2646,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     language: userLanguage,
                     sender_name: baseName,
                     send_at: send_at,
-                    created_by_type: isAdmin ? 'admin' : 'sub_user',
-                    created_by_name: isAdmin ? (userName || 'Admin') : subUserName
+                    created_by_type: requesterType,
+                    created_by_name: baseName
                   });
                 
                 if (scheduleError) {
