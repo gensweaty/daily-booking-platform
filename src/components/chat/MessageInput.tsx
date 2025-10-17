@@ -68,6 +68,7 @@ export const MessageInput = ({
   const { t } = useLanguage();
   const { toast } = useToast();
   const [message, setMessage] = useState('');
+  const messageRef = useRef('');
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSendingAI, setIsSendingAI] = useState(false);
@@ -82,9 +83,10 @@ export const MessageInput = ({
   
   const defaultPlaceholder = placeholder || t('chat.typeMessage');
 
-  const uploadAndSend = async (textOverride?: string) => {
+  const uploadAndSend = async () => {
     setIsUploading(true);
-    const messageToSend = textOverride !== undefined ? textOverride : message;
+    // Use messageRef for immediate value, fallback to state
+    const messageToSend = messageRef.current || message;
     
     try {
       if (editingMessage) {
@@ -92,6 +94,7 @@ export const MessageInput = ({
         if (onEditMessage && messageToSend.trim()) {
           await onEditMessage(editingMessage.id, messageToSend.trim());
           setMessage('');
+          messageRef.current = '';
           if (onCancelEdit) onCancelEdit();
         }
       } else if (isAIChannel && currentChannelId && boardOwnerId) {
@@ -229,6 +232,7 @@ export const MessageInput = ({
         onSendMessage(messageToSend.trim(), uploadedFiles);
         const userMessage = messageToSend.trim();
         setMessage('');
+        messageRef.current = '';
         setAttachments([]);
         setIsSendingAI(true);
         if (onAISending) onAISending(true);
@@ -316,6 +320,7 @@ export const MessageInput = ({
         }
         onSendMessage(messageToSend.trim(), uploadedFiles);
         setMessage('');
+        messageRef.current = '';
         setAttachments([]);
       }
       
@@ -436,8 +441,17 @@ export const MessageInput = ({
       
       console.log('🎤 Transcribed text:', text);
       
-      // Directly send the transcribed text to AI without using state
-      await uploadAndSend(text);
+      // Set both state and ref immediately
+      setMessage(text);
+      messageRef.current = text;
+      
+      // Update textarea value as well
+      if (textareaRef.current) {
+        textareaRef.current.value = text;
+      }
+      
+      // Call uploadAndSend immediately - ref ensures text is available
+      await uploadAndSend();
       
       toast({ title: "✓ Voice message sent", duration: 2000 });
       
@@ -553,7 +567,10 @@ export const MessageInput = ({
           <Textarea
             ref={textareaRef}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              messageRef.current = e.target.value;
+            }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             placeholder={defaultPlaceholder}
