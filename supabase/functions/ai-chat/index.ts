@@ -2213,7 +2213,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 end_date: args.end_date || 'none'
               });
               
-              let query = supabaseClient
+              // Fetch regular events from events table
+              let eventsQuery = supabaseClient
                 .from('events')
                 .select('id, title, start_date, end_date, payment_status, payment_amount, event_notes, user_surname, user_number, created_at, type')
                 .eq('user_id', ownerId)
@@ -2221,24 +2222,67 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               
               // Apply date filters
               if (args.start_date) {
-                query = query.gte('start_date', args.start_date);
+                eventsQuery = eventsQuery.gte('start_date', args.start_date);
                 console.log(`       📅 Date filter: start_date >= ${args.start_date}`);
               }
               if (args.end_date) {
-                query = query.lte('end_date', args.end_date);
-                console.log(`       📅 Date filter: end_date <= ${args.end_date}`);
+                eventsQuery = eventsQuery.lte('start_date', args.end_date);
+                console.log(`       📅 Date filter: start_date <= ${args.end_date}`);
               }
               
-              query = query.order('start_date', { ascending: false });
+              eventsQuery = eventsQuery.order('start_date', { ascending: false });
               
-              const { data: events, error: eventsError } = await query;
+              const { data: regularEvents, error: eventsError } = await eventsQuery;
               
-              if (eventsError) {
-                console.error('    ❌ Error fetching events:', eventsError);
+              // Fetch approved booking requests from booking_requests table
+              let bookingsQuery = supabaseClient
+                .from('booking_requests')
+                .select('id, title, start_date, end_date, payment_status, payment_amount, description, requester_name, requester_phone, requester_email, created_at')
+                .eq('user_id', ownerId)
+                .eq('status', 'approved')
+                .is('deleted_at', null);
+              
+              // Apply same date filters to booking requests
+              if (args.start_date) {
+                bookingsQuery = bookingsQuery.gte('start_date', args.start_date);
+              }
+              if (args.end_date) {
+                bookingsQuery = bookingsQuery.lte('start_date', args.end_date);
+              }
+              
+              bookingsQuery = bookingsQuery.order('start_date', { ascending: false });
+              
+              const { data: bookingRequests, error: bookingsError } = await bookingsQuery;
+              
+              // Transform booking requests to match event structure
+              const transformedBookings = (bookingRequests || []).map(booking => ({
+                id: booking.id,
+                title: booking.title,
+                start_date: booking.start_date,
+                end_date: booking.end_date,
+                payment_status: booking.payment_status,
+                payment_amount: booking.payment_amount,
+                event_notes: booking.description,
+                user_surname: booking.requester_name,
+                user_number: booking.requester_phone,
+                created_at: booking.created_at,
+                type: 'booking_request'
+              }));
+              
+              // Combine both event sources (just like Statistics page)
+              const events = [
+                ...(regularEvents || []),
+                ...transformedBookings
+              ];
+              
+              console.log(`       ✓ Found ${regularEvents?.length || 0} regular events + ${bookingRequests?.length || 0} approved bookings = ${events.length} total`);
+              
+              if (eventsError || bookingsError) {
+                console.error('    ❌ Error fetching events or bookings:', eventsError || bookingsError);
                 toolResult = {
                   events: [],
                   count: 0,
-                  error: eventsError.message,
+                  error: (eventsError || bookingsError)?.message || 'Unknown error',
                   filters_applied: { start_date: args.start_date, end_date: args.end_date }
                 };
               } else {
@@ -2264,7 +2308,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     end_date: args.end_date || 'none'
                   }
                 };
-                console.log(`    ✅ Found ${events?.length || 0} events`);
+                console.log(`    ✅ Found ${events?.length || 0} total events`);
                 console.log(`       Payment breakdown:`, paymentBreakdown);
                 console.log(`       Total revenue:`, totalRevenue);
               }
@@ -2364,44 +2408,60 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'get_payment_summary': {
+              // Fetch regular events
               const { data: events } = await supabaseClient
                 .from('events')
                 .select('payment_status, payment_amount')
                 .eq('user_id', ownerId)
                 .is('deleted_at', null);
               
+              // Fetch approved booking requests
+              const { data: bookings } = await supabaseClient
+                .from('booking_requests')
+                .select('payment_status, payment_amount')
+                .eq('user_id', ownerId)
+                .eq('status', 'approved')
+                .is('deleted_at', null);
+              
+              // Combine both sources
+              const allEvents = [...(events || []), ...(bookings || [])];
+              
               const summary = {
-                total_events: events?.length || 0,
-                paid: events?.filter(e => e.payment_status === 'paid').length || 0,
-                not_paid: events?.filter(e => e.payment_status === 'not_paid').length || 0,
-                partial: events?.filter(e => e.payment_status === 'partial').length || 0,
-                total_amount: events?.reduce((sum, e) => sum + (Number(e.payment_amount) || 0), 0) || 0
+                total_events: allEvents.length,
+                paid: allEvents.filter(e => e.payment_status === 'paid').length,
+                not_paid: allEvents.filter(e => e.payment_status === 'not_paid').length,
+                partial: allEvents.filter(e => e.payment_status === 'partial' || e.payment_status === 'partly_paid').length,
+                total_amount: allEvents.reduce((sum, e) => sum + (Number(e.payment_amount) || 0), 0)
               };
               
               toolResult = summary;
-              console.log(`    ✓ Payment summary: ${summary.total_amount} total`);
+              console.log(`    ✓ Payment summary: ${summary.total_events} events, $${summary.total_amount} total`);
               break;
             }
 
             case 'get_business_stats': {
               const today = new Date();
               const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+              const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59).toISOString();
               
+              // Filter by start_date (events happening this month) not created_at
               const [eventsResult, bookingsResult, customersResult] = await Promise.all([
-                supabaseClient.from('events').select('payment_amount').eq('user_id', ownerId).gte('created_at', monthStart).is('deleted_at', null),
-                supabaseClient.from('booking_requests').select('id').eq('status', 'approved').gte('created_at', monthStart),
+                supabaseClient.from('events').select('payment_amount, payment_status').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
+                supabaseClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
                 supabaseClient.from('customers').select('id').eq('user_id', ownerId).is('deleted_at', null)
               ]);
               
+              // Combine events and bookings
+              const allEventsThisMonth = [...(eventsResult.data || []), ...(bookingsResult.data || [])];
+              
               toolResult = {
                 this_month: {
-                  events: eventsResult.data?.length || 0,
-                  bookings: bookingsResult.data?.length || 0,
-                  revenue: eventsResult.data?.reduce((sum, e) => sum + (Number(e.payment_amount) || 0), 0) || 0
+                  events: allEventsThisMonth.length,
+                  revenue: allEventsThisMonth.reduce((sum, e) => sum + (Number(e.payment_amount) || 0), 0)
                 },
                 total_customers: customersResult.data?.length || 0
               };
-              console.log(`    ✓ Business stats generated`);
+              console.log(`    ✓ Business stats generated: ${allEventsThisMonth.length} events this month`);
               break;
             }
 
@@ -2426,7 +2486,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 return s;
               };
               
-              // 1. Fetch ALL events (including recurring) by START_DATE
+              // 1. Fetch regular events by START_DATE
               const { data: allEvents } = await supabaseClient
                 .from('events')
                 .select('id, payment_amount, payment_status, start_date, is_recurring, parent_event_id')
@@ -2435,13 +2495,36 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
               
-              console.log(`    📅 Found ${allEvents?.length || 0} events in date range`);
+              // 2. Fetch approved booking requests by START_DATE
+              const { data: bookingRequests } = await supabaseClient
+                .from('booking_requests')
+                .select('id, payment_amount, payment_status, start_date')
+                .eq('user_id', ownerId)
+                .eq('status', 'approved')
+                .gte('start_date', startDate.toISOString())
+                .is('deleted_at', null)
+                .order('start_date', { ascending: true });
               
-              // 2. Separate recurring events by series (same as Statistics page)
+              // Transform booking requests to match event structure
+              const transformedBookings = (bookingRequests || []).map(booking => ({
+                id: booking.id,
+                payment_amount: booking.payment_amount,
+                payment_status: booking.payment_status,
+                start_date: booking.start_date,
+                is_recurring: false,
+                parent_event_id: null
+              }));
+              
+              // Combine events and bookings
+              const combinedEvents = [...(allEvents || []), ...transformedBookings];
+              
+              console.log(`    📅 Found ${allEvents?.length || 0} regular events + ${bookingRequests?.length || 0} approved bookings = ${combinedEvents.length} total`);
+              
+              // 3. Separate recurring events by series (same as Statistics page)
               const recurringSeriesMap = new Map<string, any[]>();
               const nonRecurringEvents: any[] = [];
               
-              (allEvents || []).forEach(event => {
+              (combinedEvents || []).forEach(event => {
                 if (event.is_recurring && event.parent_event_id) {
                   // Child of recurring series
                   if (!recurringSeriesMap.has(event.parent_event_id)) {
@@ -2460,11 +2543,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 }
               });
               
-              console.log(`    🔄 ${recurringSeriesMap.size} recurring series, ${nonRecurringEvents.length} non-recurring events`);
+              console.log(`    🔄 ${recurringSeriesMap.size} recurring series, ${nonRecurringEvents.length} non-recurring events (including bookings)`);
               
-              // 3. Get additional persons (customers) for ALL parent events (including parents of child instances)
+              // 4. Get additional persons (customers) for ALL parent events (including parents of child instances)
               const parentEventIdsSet = new Set<string>();
-              (allEvents || []).forEach(e => {
+              (combinedEvents || []).forEach(e => {
                 if (!e.parent_event_id) {
                   // This is a parent event
                   parentEventIdsSet.add(e.id);
@@ -2490,7 +2573,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 console.log(`    👥 Found ${additionalPersons.length} additional persons for ${parentEventIds.length} parent events`);
               }
               
-              // 4. Fetch standalone customers - MATCH STATISTICS PAGE EXACTLY
+              // 5. Fetch standalone customers - MATCH STATISTICS PAGE EXACTLY
               const { data: standaloneCustomers } = await supabaseClient
                 .from('customers')
                 .select('payment_amount, payment_status, created_at')
@@ -2502,7 +2585,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               
               console.log(`    💰 Found ${standaloneCustomers?.length || 0} standalone customers (matching Statistics page logic)`);
               
-              // 5. Calculate revenue by month
+              // 6. Calculate revenue by month
               const monthlyData: Record<string, any> = {};
               
               // Process non-recurring events
