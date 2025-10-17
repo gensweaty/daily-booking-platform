@@ -110,91 +110,146 @@ serve(async (req) => {
       );
     }
 
-    // ---- FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
-    // ONLY trigger fast-path when user EXPLICITLY requests Excel generation
+    // ---- ENHANCED FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
+    // Uses confidence-based pattern matching to avoid misunderstandings
     const lower = (prompt || "").toLowerCase();
+    const words = lower.split(/\s+/);
+    
+    // Check if user explicitly requests Excel generation
     const explicitExcelRequest = /\b(generate|create|make|download|export)\s+(an?\s+)?(excel|xlsx|spreadsheet)\b/.test(lower) ||
                                   /\b(excel|xlsx|spreadsheet)\s+(report|file|export)\b/.test(lower) ||
                                   /\bexport\s+to\s+(excel|xlsx|spreadsheet)\b/.test(lower);
 
     if (explicitExcelRequest) {
-      console.log('📊 Excel fast-path triggered');
+      console.log('📊 Excel fast-path triggered - analyzing intent...');
       
-      // Infer report type from prompt with improved pattern matching
+      // ===== SMART REPORT TYPE DETECTION WITH CONFIDENCE SCORING =====
       let reportType: "tasks" | "events" | "customers" | "payments" | "bookings" = "tasks";
+      let reportTypeConfidence = 0;
       
-      // Check in priority order (most specific first)
-      if (/\b(payment|revenue|income|financial|earning|money)\b/.test(lower)) {
-        reportType = "payments";
-      } else if (/\b(event|events|schedule|calendar|appointment|appointments)\b/.test(lower)) {
-        reportType = "events";
-      } else if (/\b(customer|customers|crm|client|clients|contact|contacts)\b/.test(lower)) {
-        reportType = "customers";
-      } else if (/\bbooking(s)?\b/.test(lower)) {
-        reportType = "bookings";
-      } else if (/\b(task|tasks|todo|to-do)\b/.test(lower)) {
-        reportType = "tasks";
-      }
-      // If nothing matches and user just says "generate excel", default to tasks
-
-      // Infer time window with intelligent pattern matching
-      let months = 12; // Default fallback
+      // Count keyword occurrences for each report type (weighted by specificity)
+      const keywordScores = {
+        payments: 0,
+        events: 0,
+        customers: 0,
+        bookings: 0,
+        tasks: 0
+      };
       
-      // Most specific patterns first
-      if (/\b(this\s*month|current\s*month)\b/i.test(prompt)) {
-        months = 1;
-      } else if (/\b(last\s*month|past\s*month|previous\s*month)\b/i.test(prompt)) {
-        months = 1;
-      } else if (/\b(this\s*week|current\s*week|past\s*week)\b/i.test(prompt)) {
-        months = 1;
-      } else if (/\b(today|this\s*day)\b/i.test(prompt)) {
-        months = 1;
-      } else if (/\blast\s*2\s*months|\bpast\s*2\s*months\b/i.test(prompt)) {
-        months = 2;
-      } else if (/\b(last\s*3\s*months|past\s*3\s*months|quarter)\b/i.test(prompt)) {
-        months = 3;
-      } else if (/\blast\s*6\s*months|\bpast\s*6\s*months|\bhalf\s*year\b/i.test(prompt)) {
-        months = 6;
-      } else if (/\b(last|past)\s*year\b/i.test(prompt)) {
-        months = 12;
+      // PAYMENT keywords (highest priority - most specific)
+      const paymentKeywords = ['payment', 'payments', 'revenue', 'income', 'financial', 'earning', 'earnings', 'money', 'paid'];
+      paymentKeywords.forEach(kw => {
+        if (lower.includes(kw)) keywordScores.payments += 3;
+      });
+      
+      // EVENT keywords
+      const eventKeywords = ['event', 'events', 'schedule', 'calendar', 'appointment', 'appointments', 'booking'];
+      eventKeywords.forEach(kw => {
+        if (lower.includes(kw)) keywordScores.events += 2;
+      });
+      
+      // CUSTOMER keywords
+      const customerKeywords = ['customer', 'customers', 'crm', 'client', 'clients', 'contact', 'contacts'];
+      customerKeywords.forEach(kw => {
+        if (lower.includes(kw)) keywordScores.customers += 2;
+      });
+      
+      // BOOKING keywords
+      if (/\bbooking(s)?\b/.test(lower)) keywordScores.bookings += 2;
+      
+      // TASK keywords (lowest priority - least specific)
+      const taskKeywords = ['task', 'tasks', 'todo', 'to-do'];
+      taskKeywords.forEach(kw => {
+        if (lower.includes(kw)) keywordScores.tasks += 1;
+      });
+      
+      // Find highest scoring type
+      const maxScore = Math.max(...Object.values(keywordScores));
+      if (maxScore > 0) {
+        const topType = Object.entries(keywordScores).find(([_, score]) => score === maxScore)?.[0] as typeof reportType;
+        if (topType) {
+          reportType = topType;
+          reportTypeConfidence = maxScore;
+        }
       }
+      
+      // ===== SMART TIME PERIOD DETECTION WITH FUZZY MATCHING =====
+      let months = 1; // Default to "this month" instead of 12 (user usually wants recent data)
+      let timeConfidence = 0;
+      
+      // Map patterns to months (most specific first)
+      const timePatterns = [
+        { pattern: /\b(this\s*month|current\s*month|these?\s*months?)\b/i, months: 1, confidence: 3 },
+        { pattern: /\b(last\s*month|past\s*month|previous\s*month)\b/i, months: 1, confidence: 3 },
+        { pattern: /\b(this\s*week|current\s*week|past\s*week)\b/i, months: 1, confidence: 2 },
+        { pattern: /\b(today|this\s*day)\b/i, months: 1, confidence: 2 },
+        { pattern: /\blast\s*2\s*months|\bpast\s*2\s*months\b/i, months: 2, confidence: 3 },
+        { pattern: /\b(last\s*3\s*months|past\s*3\s*months|quarter)\b/i, months: 3, confidence: 3 },
+        { pattern: /\blast\s*6\s*months|\bpast\s*6\s*months|\bhalf\s*year\b/i, months: 6, confidence: 3 },
+        { pattern: /\b(last|past)\s*year\b/i, months: 12, confidence: 3 },
+        { pattern: /\byear\b/i, months: 12, confidence: 1 }
+      ];
+      
+      // Check patterns
+      for (const { pattern, months: m, confidence } of timePatterns) {
+        if (pattern.test(prompt)) {
+          months = m;
+          timeConfidence = confidence;
+          break;
+        }
+      }
+      
       // Extract explicit number: "last 4 months", "past 5 months", etc.
       const explicitMatch = prompt.match(/\b(?:last|past)\s*(\d+)\s*months?\b/i);
       if (explicitMatch) {
         months = parseInt(explicitMatch[1], 10);
+        timeConfidence = 3;
       }
+      
+      // ===== CONFIDENCE ASSESSMENT =====
+      const totalConfidence = reportTypeConfidence + timeConfidence;
+      console.log(`  → Detected: ${reportType} (type confidence: ${reportTypeConfidence}), ${months} month(s) (time confidence: ${timeConfidence})`);
+      console.log(`  → Total confidence: ${totalConfidence}/6`);
+      
+      // If confidence is too low (ambiguous request), skip fast-path and let LLM handle it
+      if (totalConfidence < 3) {
+        console.log('  ⚠️ Low confidence - falling back to LLM for better understanding');
+        // Continue to LLM processing instead of using fast-path
+      } else {
 
-      console.log(`  → Report type: ${reportType}, months: ${months}`);
+        const { data: excelData, error: excelError } = await supabaseAdmin.functions.invoke(
+          "generate-excel-report",
+          { body: { reportType, months, userId: ownerId } }
+        );
 
-      const { data: excelData, error: excelError } = await supabaseAdmin.functions.invoke(
-        "generate-excel-report",
-        { body: { reportType, months, userId: ownerId } }
-      );
+        if (excelError) {
+          console.error("❌ Excel generation error:", excelError);
+          const msg = "Sorry, I couldn't generate the Excel file due to a server error.";
+          await supabaseAdmin.from("chat_messages").insert({
+            channel_id: channelId, owner_id: ownerId, sender_type: "admin",
+            sender_name: "Smartbookly AI", content: msg, message_type: "text"
+          });
+          return new Response(JSON.stringify({ success: false, error: msg }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
 
-      if (excelError) {
-        console.error("❌ Excel generation error:", excelError);
-        const msg = "Sorry, I couldn't generate the Excel file due to a server error.";
+        // Transparent messaging - show user what was detected
+        const timePeriodLabel = months === 1 ? "this month" : months === 3 ? "last 3 months" : months === 6 ? "last 6 months" : months === 12 ? "this year" : `last ${months} months`;
+        
+        const content = excelData?.success
+          ? `📊 Generated **${reportType}** report for **${timePeriodLabel}**\n\n📥 [Download Excel](${excelData.downloadUrl})\n\n**Records:** ${excelData.recordCount}\n\n*Link expires in 1 hour*`
+          : `ℹ️ No ${reportType} data found for ${timePeriodLabel}.`;
+
         await supabaseAdmin.from("chat_messages").insert({
           channel_id: channelId, owner_id: ownerId, sender_type: "admin",
-          sender_name: "Smartbookly AI", content: msg, message_type: "text"
+          sender_name: "Smartbookly AI", content, message_type: "text"
         });
-        return new Response(JSON.stringify({ success: false, error: msg }),
+
+        console.log(`✅ Excel fast-path completed: ${reportType} (${months} months)`);
+
+        return new Response(JSON.stringify({ success: true, content }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-
-      const content = excelData?.success
-        ? `📥 Your **${reportType}** report is ready.\n\n[Download Excel](${excelData.downloadUrl})\n\nRecords: **${excelData.recordCount}**\n\n*Link expires in 1 hour*`
-        : `ℹ️ No ${reportType} data found for the selected period.`;
-
-      await supabaseAdmin.from("chat_messages").insert({
-        channel_id: channelId, owner_id: ownerId, sender_type: "admin",
-        sender_name: "Smartbookly AI", content, message_type: "text"
-      });
-
-      console.log(`✅ Excel fast-path completed: ${reportType}`);
-
-      return new Response(JSON.stringify({ success: true, content }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     // ---- END FAST-PATH ----
 
@@ -815,6 +870,50 @@ serve(async (req) => {
       {
         type: "function",
         function: {
+          name: "generate_excel_report",
+          description: `Generate Excel reports for business data. Use this when user requests Excel, reports, or exports.
+
+REPORT TYPES:
+- "payments": Financial data, revenue, income (use for payment-related requests)
+- "events": Calendar events, appointments, schedule data
+- "customers": CRM data, clients, contacts
+- "tasks": Task board data, to-dos
+- "bookings": Booking requests
+
+TIME PERIODS:
+- 1 month: "this month", "current month", "last month"
+- 3 months: "last 3 months", "quarter"
+- 6 months: "last 6 months", "half year"
+- 12 months: "this year", "last year"
+- Custom: any number of months (e.g., 2, 4, 5)
+
+CRITICAL RULES:
+- ALWAYS use "payments" type for payment/revenue/income requests
+- Default to 1 month (this month) for time period if not specified
+- When user says "these months" or "current month", use 1 month
+- Be precise with report type - match user's actual request`,
+          parameters: {
+            type: "object",
+            properties: {
+              report_type: {
+                type: "string",
+                enum: ["payments", "events", "customers", "tasks", "bookings"],
+                description: "Type of report to generate"
+              },
+              months: {
+                type: "number",
+                description: "Number of months to include (default: 1 for this month)",
+                minimum: 1,
+                maximum: 24
+              }
+            },
+            required: ["report_type"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "create_custom_reminder",
           description: "Creates a reminder with BOTH dashboard and email notifications. Use offset_minutes for relative times (e.g., 'in 2 minutes').",
           parameters: {
@@ -1065,7 +1164,29 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 - When assigning tasks, you can assign to admin OR sub-users by name
 - You MUST call get_sub_users before assigning tasks by name to team members
 
-**📊 STATISTICS & FINANCIAL DATA RULES - CRITICAL FOR ACCURACY**:
+**📊 STATISTICS & EXCEL REPORTS - CRITICAL CONTEXT UNDERSTANDING**:
+
+**WHEN USER ASKS FOR EXCEL REPORTS:**
+1. **ANALYZE THE FULL REQUEST CONTEXT** - don't just match keywords
+2. **PRIORITIZE USER INTENT** - what are they actually asking for?
+3. **COMMON REQUEST PATTERNS:**
+   - "Generate Excel about payments this month" → report_type: "payments", months: 1
+   - "Export customer data for last 3 months" → report_type: "customers", months: 3
+   - "Create Excel for these months payments" → report_type: "payments", months: 1 (not 12!)
+   - "Download task report" → report_type: "tasks", months: 1
+
+4. **TIME PERIOD UNDERSTANDING:**
+   - "this month" / "current month" / "these months" = 1 month
+   - "last month" / "previous month" = 1 month
+   - "last 3 months" / "quarter" = 3 months
+   - "this year" / "last year" = 12 months
+   - If NOT specified, default to 1 month (current month)
+
+5. **REPORT TYPE PRIORITY** (when multiple keywords present):
+   - FIRST: Check for "payment/revenue/income" → use "payments"
+   - SECOND: Check for "event/calendar/appointment" → use "events"
+   - THIRD: Check for "customer/client/crm" → use "customers"
+   - LAST: Check for "task/todo" → use "tasks"
 
 **MANDATORY: When presenting statistics, you MUST follow these rules EXACTLY:**
 
@@ -3210,6 +3331,89 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 }
               );
+            }
+
+            case 'generate_excel_report': {
+              const { report_type, months } = args;
+              const finalMonths = months || 1; // Default to 1 month (this month) if not specified
+              
+              console.log(`📊 Generating Excel report: type=${report_type}, months=${finalMonths}`);
+              
+              // Call the generate-excel-report edge function
+              const { data: excelData, error: excelError } = await supabaseAdmin.functions.invoke(
+                "generate-excel-report",
+                { body: { reportType: report_type, months: finalMonths, userId: ownerId } }
+              );
+
+              if (excelError) {
+                console.error("❌ Excel generation error:", excelError);
+                toolResult = { 
+                  success: false, 
+                  error: "Sorry, I couldn't generate the Excel file due to a server error."
+                };
+                break;
+              }
+
+              // Create transparent, user-friendly message
+              const timePeriodLabels = {
+                en: finalMonths === 1 ? "this month" : finalMonths === 3 ? "last 3 months" : finalMonths === 6 ? "last 6 months" : finalMonths === 12 ? "this year" : `last ${finalMonths} months`,
+                ru: finalMonths === 1 ? "этот месяц" : finalMonths === 3 ? "последние 3 месяца" : finalMonths === 6 ? "последние 6 месяцев" : finalMonths === 12 ? "этот год" : `последние ${finalMonths} месяцев`,
+                ka: finalMonths === 1 ? "ამ თვეში" : finalMonths === 3 ? "ბოლო 3 თვე" : finalMonths === 6 ? "ბოლო 6 თვე" : finalMonths === 12 ? "ამ წელს" : `ბოლო ${finalMonths} თვე`,
+                es: finalMonths === 1 ? "este mes" : finalMonths === 3 ? "últimos 3 meses" : finalMonths === 6 ? "últimos 6 meses" : finalMonths === 12 ? "este año" : `últimos ${finalMonths} meses`
+              };
+              
+              const timePeriodLabel = timePeriodLabels[userLanguage as keyof typeof timePeriodLabels] || timePeriodLabels.en;
+              
+              if (excelData?.success) {
+                const reportTypeLabels = {
+                  en: { payments: "payments", events: "events", customers: "customers", tasks: "tasks", bookings: "bookings" },
+                  ru: { payments: "платежи", events: "события", customers: "клиенты", tasks: "задачи", bookings: "бронирования" },
+                  ka: { payments: "გადახდები", events: "მოვლენები", customers: "კლიენტები", tasks: "ამოცანები", bookings: "ჯავშნები" },
+                  es: { payments: "pagos", events: "eventos", customers: "clientes", tasks: "tareas", bookings: "reservas" }
+                };
+                
+                const reportLabel = reportTypeLabels[userLanguage as keyof typeof reportTypeLabels]?.[report_type as keyof typeof reportTypeLabels.en] || report_type;
+                
+                const confirmations = {
+                  en: `📊 Generated **${reportLabel}** report for **${timePeriodLabel}**\n\n📥 [Download Excel](${excelData.downloadUrl})\n\n**Records:** ${excelData.recordCount}\n\n*Link expires in 1 hour*`,
+                  ru: `📊 Создан отчет **${reportLabel}** за **${timePeriodLabel}**\n\n📥 [Скачать Excel](${excelData.downloadUrl})\n\n**Записей:** ${excelData.recordCount}\n\n*Ссылка действительна 1 час*`,
+                  ka: `📊 შეიქმნა **${reportLabel}** ანგარიში **${timePeriodLabel}**\n\n📥 [ჩამოტვირთეთ Excel](${excelData.downloadUrl})\n\n**ჩანაწერები:** ${excelData.recordCount}\n\n*ბმული მოქმედებს 1 საათი*`,
+                  es: `📊 Informe de **${reportLabel}** generado para **${timePeriodLabel}**\n\n📥 [Descargar Excel](${excelData.downloadUrl})\n\n**Registros:** ${excelData.recordCount}\n\n*El enlace caduca en 1 hora*`
+                };
+                
+                const confirmation = confirmations[userLanguage as keyof typeof confirmations] || confirmations.en;
+                
+                // Write confirmation message directly to chat
+                await supabaseAdmin.from('chat_messages').insert({
+                  channel_id: channelId,
+                  owner_id: ownerId,
+                  sender_type: 'admin',
+                  sender_name: 'Smartbookly AI',
+                  content: confirmation,
+                  message_type: 'text'
+                });
+                
+                console.log(`✅ Excel report confirmation sent to chat: ${report_type} (${finalMonths} months)`);
+                
+                // Return early with immediate response
+                return new Response(
+                  JSON.stringify({ success: true, content: confirmation }),
+                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              } else {
+                const noDataMessages = {
+                  en: `ℹ️ No ${report_type} data found for ${timePeriodLabel}.`,
+                  ru: `ℹ️ Данных по ${report_type} за ${timePeriodLabel} не найдено.`,
+                  ka: `ℹ️ ${report_type} მონაცემები არ მოიძებნა ${timePeriodLabel}.`,
+                  es: `ℹ️ No se encontraron datos de ${report_type} para ${timePeriodLabel}.`
+                };
+                
+                toolResult = { 
+                  success: false, 
+                  error: noDataMessages[userLanguage as keyof typeof noDataMessages] || noDataMessages.en
+                };
+              }
+              break;
             }
 
             case 'create_or_update_event': {
