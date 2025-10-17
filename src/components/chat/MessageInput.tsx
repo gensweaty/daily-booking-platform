@@ -417,7 +417,13 @@ export const MessageInput = ({
     try {
       console.log('🎤 Sending audio for transcription...', { audioLength: audioBase64.length });
       
+      // Get authenticated session
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        headers: {
+          Authorization: `Bearer ${session?.access_token || ''}`
+        },
         body: { audio: audioBase64 }
       });
 
@@ -448,7 +454,7 @@ export const MessageInput = ({
         
         // Show success feedback
         toast({
-          title: t('voice.transcribing'),
+          title: "Voice transcribed",
           description: data.text,
           duration: 2000
         });
@@ -564,6 +570,15 @@ export const MessageInput = ({
 
       <form onSubmit={handleSubmit} className="flex items-end gap-2">
         <div className="flex-1 relative" onDrop={handleDrop} onDragOver={handleDragOver}>
+          {/* Voice Recorder Bar - Positioned above input */}
+          {isAIChannel && !editingMessage && (
+            <VoiceRecorder
+              onRecordingComplete={handleVoiceRecording}
+              onError={handleVoiceError}
+              disabled={isUploading || isSendingAI || isTranscribing}
+            />
+          )}
+          
           <Textarea
             ref={textareaRef}
             value={message}
@@ -621,15 +636,6 @@ export const MessageInput = ({
                   <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" previewPosition="none" skinTonePosition="none" />
                 </PopoverContent>
               </Popover>
-            )}
-            
-            {/* Voice Recorder - Only for AI channels */}
-            {isAIChannel && !editingMessage && (
-              <VoiceRecorder
-                onRecordingComplete={handleVoiceRecording}
-                onError={handleVoiceError}
-                disabled={isUploading || isSendingAI || isTranscribing}
-              />
             )}
           </div>
         </div>

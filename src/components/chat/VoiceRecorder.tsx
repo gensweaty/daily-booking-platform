@@ -98,45 +98,45 @@ export const VoiceRecorder = ({ onRecordingComplete, onError, disabled }: VoiceR
 
   if (isRecording) {
     return (
-      <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 bg-gradient-to-r from-primary/90 to-primary/80 backdrop-blur-sm px-6 py-3 rounded-full shadow-2xl border border-primary/20 animate-in slide-in-from-bottom-5 duration-300">
-        <div className="flex items-center gap-2">
+      <div className="absolute bottom-full left-0 right-0 mb-2 flex items-center justify-between gap-3 bg-gradient-to-r from-primary/95 to-primary/85 backdrop-blur-sm px-4 py-2.5 rounded-lg shadow-lg border border-primary/30 animate-in slide-in-from-bottom-2 duration-200">
+        <div className="flex items-center gap-2.5">
           <div className="relative">
             <div className="absolute inset-0 bg-white/30 rounded-full animate-ping" />
-            <Mic className="h-5 w-5 text-white relative z-10" />
+            <Mic className="h-4 w-4 text-white relative z-10" />
           </div>
           <span className="text-sm font-medium text-white">
             {t('voice.recording')}
           </span>
         </div>
         
-        <div className="flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full">
+        <div className="flex items-center gap-2 px-2.5 py-1 bg-white/20 rounded-md">
           <div className={cn(
-            "h-2 w-2 rounded-full bg-white",
+            "h-1.5 w-1.5 rounded-full bg-white",
             remainingSeconds <= 10 && "animate-pulse"
           )} />
-          <span className="text-sm font-bold text-white min-w-[2.5rem] text-center">
+          <span className="text-sm font-semibold text-white tabular-nums min-w-[2rem]">
             {remainingSeconds}s
           </span>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleCancelRecording}
             title={t('voice.cancelRecording')}
-            className="h-8 w-8 p-0 text-white/80 hover:text-white hover:bg-white/20 rounded-full"
+            className="h-7 w-7 p-0 text-white/80 hover:text-white hover:bg-white/20 rounded-md"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleStopRecording}
             title={t('voice.stopRecording')}
-            className="h-8 w-8 p-0 bg-white/20 hover:bg-white/30 text-white rounded-full"
+            className="h-7 w-7 p-0 bg-white/20 hover:bg-white/30 text-white rounded-md"
           >
-            <Square className="h-5 w-5 fill-white" />
+            <Square className="h-3.5 w-3.5 fill-white" />
           </Button>
         </div>
       </div>
