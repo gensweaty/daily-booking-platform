@@ -12,6 +12,7 @@ import { getEffectivePublicEmail } from '@/utils/chatEmail';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
+import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
 
 type Message = {
   id: string;
@@ -1433,8 +1434,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {channelInfo?.is_ai ? (
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm">
-                <span className="text-white text-xl">🤖</span>
+              <div className="h-10 w-10 rounded-full overflow-hidden flex-shrink-0 shadow-sm">
+                <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
               </div>
             ) : channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
               <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">

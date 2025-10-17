@@ -19,6 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 import { useAIChannel } from '@/hooks/useAIChannel';
+import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
 
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
@@ -598,8 +599,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             )}
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-sm">
-                <span className="text-white text-xl">🤖</span>
+              <div className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shadow-sm">
+                <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">Smartbookly AI</div>
