@@ -1387,6 +1387,7 @@ export type Database = {
       }
       scheduled_emails: {
         Row: {
+          business_name: string | null
           created_at: string
           created_by_name: string | null
           created_by_type: string | null
@@ -1396,12 +1397,14 @@ export type Database = {
           message: string
           recipient_email: string
           send_at: string
+          sender_email: string | null
           sender_name: string | null
           sent_at: string | null
           subject: string
           user_id: string
         }
         Insert: {
+          business_name?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_type?: string | null
@@ -1411,12 +1414,14 @@ export type Database = {
           message: string
           recipient_email: string
           send_at: string
+          sender_email?: string | null
           sender_name?: string | null
           sent_at?: string | null
           subject: string
           user_id: string
         }
         Update: {
+          business_name?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_type?: string | null
@@ -1426,6 +1431,7 @@ export type Database = {
           message?: string
           recipient_email?: string
           send_at?: string
+          sender_email?: string | null
           sender_name?: string | null
           sent_at?: string | null
           subject?: string

@@ -378,7 +378,9 @@ const handler = async (req: Request): Promise<Response> => {
                   subject: email.subject,
                   message: email.message,
                   language: email.language || 'en',
-                  sender_name: email.sender_name
+                  sender_name: email.sender_name,
+                  sender_email: email.sender_email,
+                  business_name: email.business_name
                 }
               }
             );
