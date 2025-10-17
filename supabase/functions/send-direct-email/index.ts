@@ -124,8 +124,13 @@ const handler = async (req: Request): Promise<Response> => {
       emailRequest.sender_name
     );
 
+    const fromAddress = 'SmartBookly <noreply@smartbookly.com>';
+    console.log('📧 Sending email with from address:', fromAddress);
+    console.log('📧 Recipient:', emailRequest.recipient_email);
+    console.log('📧 Using RESEND_API_KEY:', RESEND_API_KEY ? 'Present (length: ' + RESEND_API_KEY.length + ')' : 'MISSING');
+
     const emailResult = await resend.emails.send({
-      from: 'SmartBookly <noreply@smartbookly.com>',
+      from: fromAddress,
       to: [emailRequest.recipient_email],
       subject: emailRequest.subject || subject,
       html: html,
