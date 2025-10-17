@@ -19,7 +19,9 @@ interface DirectEmailRequest {
 const getEmailContent = (
   message: string,
   language: string = 'en',
-  senderName?: string
+  senderName?: string,
+  senderEmail?: string,
+  businessName?: string
 ): { subject: string; html: string } => {
   const subjects = {
     en: 'Message from SmartBookly',
@@ -47,7 +49,18 @@ const getEmailContent = (
   const greeting = greetings[lang] || greetings.en;
   const footer = footers[lang] || footers.en;
 
-  const senderInfo = senderName ? `<p><strong>${senderName}</strong></p>` : '';
+  // Build sender information with business name and email
+  let senderInfo = '';
+  if (businessName && senderEmail) {
+    // Business + email
+    senderInfo = `<p><strong>${businessName}</strong><br><span style="color: #666; font-size: 14px;">${senderEmail}</span></p>`;
+  } else if (senderName && senderEmail) {
+    // User name + email (no business)
+    senderInfo = `<p><strong>${senderName}</strong><br><span style="color: #666; font-size: 14px;">${senderEmail}</span></p>`;
+  } else if (senderName) {
+    // Just name
+    senderInfo = `<p><strong>${senderName}</strong></p>`;
+  }
 
   const html = `
     <!DOCTYPE html>
@@ -125,7 +138,9 @@ const handler = async (req: Request): Promise<Response> => {
     const { subject, html } = getEmailContent(
       emailRequest.message,
       emailRequest.language || 'en',
-      emailRequest.sender_name
+      emailRequest.sender_name,
+      emailRequest.sender_email,
+      emailRequest.business_name
     );
 
     // Construct from address: "Business/User Name (email) <noreply@smartbookly.com>"
