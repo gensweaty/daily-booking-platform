@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar, MessageSquare, Search, Bot, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
 import {
@@ -12,11 +12,24 @@ import { useLanguage } from '@/contexts/LanguageContext';
 
 interface AIQuickPromptsProps {
   onPromptSelect: (prompt: string) => void;
+  initiallyExpanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
-export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+export function AIQuickPrompts({ onPromptSelect, initiallyExpanded = false, onExpandedChange }: AIQuickPromptsProps) {
+  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
   const { t } = useLanguage();
+  
+  // Sync with parent state
+  useEffect(() => {
+    setIsExpanded(initiallyExpanded);
+  }, [initiallyExpanded]);
+  
+  const handleToggle = () => {
+    const newValue = !isExpanded;
+    setIsExpanded(newValue);
+    onExpandedChange?.(newValue);
+  };
 
   const pageGuides = [
     { label: "📅 Calendar Guide", prompt: t('quickActions.calendarGuidePrompt') },
@@ -73,7 +86,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
 
   return (
     <div className="border-t bg-muted/30">
-      <div className="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-muted/50" onClick={() => setIsExpanded(!isExpanded)}>
+      <div className="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-muted/50" onClick={handleToggle}>
         <div className="text-xs text-muted-foreground font-medium">Quick Actions</div>
         <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}

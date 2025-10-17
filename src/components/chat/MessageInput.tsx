@@ -75,9 +75,26 @@ export const MessageInput = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isSendingAI, setIsSendingAI] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showQuickPrompts, setShowQuickPrompts] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Quick prompts state with localStorage persistence
+  // Only show on very first time (first login + first chat open)
+  const [showQuickPrompts, setShowQuickPrompts] = useState(() => {
+    if (!isAIChannel) return false;
+    const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
+    const hasSeen = localStorage.getItem(hasSeenKey);
+    return hasSeen !== 'true'; // Show only if never seen before
+  });
+  
+  // Mark as seen when component mounts with quick prompts visible
+  useEffect(() => {
+    if (isAIChannel && showQuickPrompts) {
+      const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
+      // Don't mark as seen immediately - let user see it first
+      // Will be marked as seen when they first interact (send message or close manually)
+    }
+  }, [isAIChannel, showQuickPrompts, boardOwnerId]);
   
   // Voice recording hook (only for AI channels)
   const { start: startRecording, stop: stopRecording, transcribe, status: asrStatus, seconds } = useASR();
@@ -249,9 +266,15 @@ export const MessageInput = ({
         // For AI channels, ensure typing indicator stays on throughout entire process
         // Don't reset state if already in sending mode (from voice)
         if (!isSendingAI) {
+          // Mark quick prompts as seen when user sends first message
+          const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
+          localStorage.setItem(hasSeenKey, 'true');
           setShowQuickPrompts(false); // Close quick suggestions only on new send
           setIsSendingAI(true);
-          if (onAISending) onAISending(true);
+          if (onAISending) {
+            console.log('🤖 Setting AI typing indicator ON (text message)');
+            onAISending(true);
+          }
         }
         
         // Call AI edge function (it will insert the AI response)
@@ -305,8 +328,12 @@ export const MessageInput = ({
             variant: "destructive" 
           });
         } finally {
+          console.log('🤖 AI response complete, turning OFF typing indicator');
           setIsSendingAI(false);
-          if (onAISending) onAISending(false);
+          if (onAISending) {
+            // Small delay to ensure UI updates properly on mobile
+            setTimeout(() => onAISending(false), 100);
+          }
           // Keep quick prompts closed - user will reopen manually if needed
         }
       } else {
@@ -446,32 +473,40 @@ export const MessageInput = ({
 
   // Voice recording handler
   const handleStopAndSend = async () => {
-    console.log('🎤 Stop button clicked, stopping recording...');
+    console.log('🎤 [VOICE] Stop button clicked, stopping recording...');
     
     // For AI channels, start showing typing indicator immediately
     if (isAIChannel) {
+      console.log('🤖 [VOICE] Setting typing indicator ON immediately');
+      // Mark quick prompts as seen when using voice for first time
+      const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
+      localStorage.setItem(hasSeenKey, 'true');
+      
       setIsSendingAI(true);
-      if (onAISending) onAISending(true);
       setShowQuickPrompts(false);
+      if (onAISending) {
+        onAISending(true);
+        console.log('🤖 [VOICE] onAISending(true) called');
+      }
     }
     
     try {
       // Wait for recording to fully stop
+      console.log('🎤 [VOICE] Stopping recording...');
       await stopRecording();
-      console.log('🎤 Recording stopped successfully');
+      console.log('🎤 [VOICE] Recording stopped, starting transcription...');
       
       // Now transcribe (chunks are guaranteed to be available)
-      console.log('🎤 Starting transcription...');
       const { text } = await transcribe();
-      console.log('🎤 Transcription result:', text);
+      console.log('🎤 [VOICE] Transcription complete:', text ? `"${text.substring(0, 50)}..."` : 'EMPTY');
       
       if (!text || text.trim().length === 0) {
-        console.warn('🎤 No text transcribed');
+        console.warn('🎤 [VOICE] No text transcribed - resetting state');
         // Reset typing state on error
         if (isAIChannel) {
           setIsSendingAI(false);
           if (onAISending) onAISending(false);
-          setShowQuickPrompts(true);
+          setShowQuickPrompts(false); // Keep closed even on error
         }
         toast({ 
           title: "No speech detected", 
@@ -481,9 +516,8 @@ export const MessageInput = ({
         return;
       }
       
-      console.log('🎤 Transcribed text:', text);
-      
       // Set the message text
+      console.log('🎤 [VOICE] Setting message and sending to AI...');
       setMessage(text);
       messageRef.current = text;
       
@@ -492,7 +526,9 @@ export const MessageInput = ({
       }
       
       // Send immediately - uploadAndSend will handle AI response
+      // Note: uploadAndSend already has isSendingAI=true, so it won't reset the typing indicator
       await uploadAndSend();
+      console.log('🎤 [VOICE] Message sent, AI should be processing now');
       
       // Don't show success toast for AI channels (typing indicator shows progress)
       if (!isAIChannel) {
@@ -500,12 +536,15 @@ export const MessageInput = ({
       }
       
     } catch (e: any) {
-      console.error('Voice transcription error:', e);
+      console.error('🎤 [VOICE] Error:', e);
       // Reset typing state on error
       if (isAIChannel) {
         setIsSendingAI(false);
-        if (onAISending) onAISending(false);
-        setShowQuickPrompts(true);
+        if (onAISending) {
+          onAISending(false);
+          console.log('🤖 [VOICE] onAISending(false) called due to error');
+        }
+        setShowQuickPrompts(false); // Keep closed even on error
       }
       toast({ 
         title: "Voice to text failed", 
@@ -538,10 +577,23 @@ export const MessageInput = ({
     <div className="p-4">
       {/* AI Quick Prompts - show at top when in AI channel */}
       {isAIChannel && !editingMessage && !replyingTo && showQuickPrompts && (
-        <AIQuickPrompts onPromptSelect={(prompt) => {
-          setMessage(prompt);
-          setShowQuickPrompts(false); // Close after selecting a prompt
-        }} />
+        <AIQuickPrompts 
+          initiallyExpanded={showQuickPrompts}
+          onExpandedChange={(expanded) => {
+            // If user manually collapses, mark as seen and keep closed
+            if (!expanded) {
+              const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
+              localStorage.setItem(hasSeenKey, 'true');
+              setShowQuickPrompts(false);
+            }
+          }}
+          onPromptSelect={(prompt) => {
+            const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
+            localStorage.setItem(hasSeenKey, 'true');
+            setMessage(prompt);
+            setShowQuickPrompts(false); // Close after selecting a prompt
+          }} 
+        />
       )}
 
       {/* Reply Context */}
