@@ -129,6 +129,10 @@ export const MessageInput = ({
         // Handle AI channel message with file support
         console.log('🤖 Sending message to AI channel with attachments:', attachments.length);
         
+        // MOBILE OPTIMIZATION: Display user message IMMEDIATELY (optimistic paint)
+        // before doing any heavy processing, so UI feels instant
+        const userMessage = messageToSend.trim();
+        
         // Upload attachments if any
         let uploadedFiles: any[] = [];
         if (attachments.length > 0) {
@@ -154,6 +158,14 @@ export const MessageInput = ({
             });
           }
         }
+        
+        // ⚡ CRITICAL: Send user message NOW for immediate UI feedback (especially on mobile)
+        // This triggers optimistic paint in ChatArea, so user sees their message instantly
+        console.log('🤖 Displaying user message immediately (optimistic paint)');
+        onSendMessage(userMessage, uploadedFiles);
+        setMessage('');
+        messageRef.current = '';
+        setAttachments([]);
         
         // Get current user info with proper name resolution
         const { data: { user } } = await supabase.auth.getUser();
@@ -255,13 +267,6 @@ export const MessageInput = ({
             role: msg.sender_type === 'system' ? 'assistant' : 'user',
             content: msg.content
           }));
-
-        // Send user message with attachments
-        onSendMessage(messageToSend.trim(), uploadedFiles);
-        const userMessage = messageToSend.trim();
-        setMessage('');
-        messageRef.current = '';
-        setAttachments([]);
         
         // For AI channels, ensure typing indicator stays on throughout entire process
         // Don't reset state if already in sending mode (from voice)
@@ -502,20 +507,11 @@ export const MessageInput = ({
     let messageText = '';
     
     try {
-      // Wait for recording to fully stop with mobile-optimized delays
-      console.log('🎤 [VOICE] Stopping recording...');
+      // Stop recording and transcribe in parallel for speed
+      console.log('🎤 [VOICE] Stopping recording and starting transcription...');
       await stopRecording();
       
-      // Mobile needs extra time for audio buffer processing
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        console.log('🎤 [VOICE] Mobile detected, waiting for audio stabilization...');
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-      
-      console.log('🎤 [VOICE] Recording stopped, starting transcription...');
-      
-      // Now transcribe (chunks are guaranteed to be available)
+      // Transcribe immediately (no extra delays - every millisecond counts on mobile!)
       const { text } = await transcribe();
       console.log('🎤 [VOICE] Transcription complete:', text ? `"${text.substring(0, 50)}..."` : 'EMPTY');
       
@@ -527,8 +523,9 @@ export const MessageInput = ({
       messageText = text.trim();
       transcriptionSuccess = true;
       
-      // Set the message text with mobile-friendly batching
-      console.log('🎤 [VOICE] Setting message and sending...');
+      // Set message and send IMMEDIATELY - no delays!
+      // uploadAndSend now calls onSendMessage first for instant optimistic paint
+      console.log('🎤 [VOICE] Setting message and triggering instant send...');
       setMessage(messageText);
       messageRef.current = messageText;
       
@@ -536,35 +533,23 @@ export const MessageInput = ({
         textareaRef.current.value = messageText;
       }
       
-      // Mobile optimization: Force UI update before send
-      if (isMobile) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      
-      // Send immediately - uploadAndSend will handle AI response
-      // Note: uploadAndSend already has isSendingAI=true, so it won't reset the typing indicator
-      console.log('🎤 [VOICE] Calling uploadAndSend...');
+      // Send immediately - user message will appear instantly via optimistic paint
+      console.log('🎤 [VOICE] Calling uploadAndSend for instant UI update...');
       await uploadAndSend();
-      console.log('🎤 [VOICE] Upload complete, AI processing...');
+      console.log('🎤 [VOICE] Message sent, AI processing in background...');
       
       // Don't show success toast for AI channels (typing indicator shows progress)
       if (!isAIChannel) {
         toast({ title: "✓ Voice message sent", duration: 2000 });
       } else {
-        console.log('🤖 [VOICE] AI channel - keeping typing indicator active during processing');
+        console.log('🤖 [VOICE] User message displayed, AI thinking...');
       }
       
     } catch (e: any) {
       console.error('🎤 [VOICE] Error:', e);
       
-      // Reset typing state on error with mobile-friendly timing
+      // Reset typing state on error
       if (isAIChannel) {
-        // Mobile needs slight delay for smooth state transition
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        if (isMobile) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
         setIsSendingAI(false);
         if (onAISending) {
           onAISending(false);
@@ -579,7 +564,7 @@ export const MessageInput = ({
         title: transcriptionSuccess ? "Send failed" : "Voice to text failed", 
         description: errorMessage,
         variant: "destructive",
-        duration: 4000 // Longer duration for errors on mobile
+        duration: 4000
       });
     }
   };
