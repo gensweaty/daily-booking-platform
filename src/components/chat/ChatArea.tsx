@@ -138,6 +138,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string }; avatar_url?: string }>>(new Map());
   const [generalId, setGeneralId] = useState<string | null>(null);
   const [generalIdLoading, setGeneralIdLoading] = useState(true);
+  const [isAITyping, setIsAITyping] = useState(false);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -1506,6 +1507,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               onReply={handleReply}
               onEdit={handleEdit}
               onDelete={handleDeleteMessage}
+              isAITyping={isAITyping}
             />
             <div ref={bottomRef} />
           </div>
@@ -1533,6 +1535,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           currentChannelId={activeChannelId}
           isAIChannel={channelInfo?.is_ai || false}
           boardOwnerId={boardOwnerId}
+          onAISending={setIsAITyping}
+          onTranscribing={setIsAITyping}
         />
       </div>
     </div>

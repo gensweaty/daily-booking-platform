@@ -25,6 +25,7 @@ interface MessageInputProps {
   boardOwnerId?: string;
   userTimezone?: string;
   onAISending?: (isSending: boolean) => void;
+  onTranscribing?: (isTranscribing: boolean) => void;
 }
 
 const ALLOWED_MIME: Record<string, string[]> = {
@@ -63,7 +64,8 @@ export const MessageInput = ({
   isAIChannel = false,
   boardOwnerId,
   userTimezone,
-  onAISending
+  onAISending,
+  onTranscribing
 }: MessageInputProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -73,6 +75,7 @@ export const MessageInput = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isSendingAI, setIsSendingAI] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showQuickPrompts, setShowQuickPrompts] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -80,6 +83,13 @@ export const MessageInput = ({
   const { start: startRecording, stop: stopRecording, transcribe, status: asrStatus, seconds } = useASR();
   const isRecording = asrStatus === 'recording';
   const isTranscribing = asrStatus === 'transcribing';
+  
+  // Notify parent about transcription status
+  useEffect(() => {
+    if (onTranscribing) {
+      onTranscribing(isTranscribing);
+    }
+  }, [isTranscribing, onTranscribing]);
   
   const defaultPlaceholder = placeholder || t('chat.typeMessage');
 
@@ -234,6 +244,7 @@ export const MessageInput = ({
         setMessage('');
         messageRef.current = '';
         setAttachments([]);
+        setShowQuickPrompts(false); // Close quick suggestions
         setIsSendingAI(true);
         if (onAISending) onAISending(true);
         
@@ -290,6 +301,7 @@ export const MessageInput = ({
         } finally {
           setIsSendingAI(false);
           if (onAISending) onAISending(false);
+          setShowQuickPrompts(true); // Show quick suggestions again after AI responds
         }
       } else {
         // Handle normal message
@@ -322,6 +334,8 @@ export const MessageInput = ({
         setMessage('');
         messageRef.current = '';
         setAttachments([]);
+        setShowQuickPrompts(false); // Close quick suggestions on send
+        setTimeout(() => setShowQuickPrompts(true), 500); // Show again after a delay
       }
       
       if (textareaRef.current) {
@@ -491,8 +505,11 @@ export const MessageInput = ({
   return (
     <div className="p-4">
       {/* AI Quick Prompts - show at top when in AI channel */}
-      {isAIChannel && !editingMessage && !replyingTo && (
-        <AIQuickPrompts onPromptSelect={(prompt) => setMessage(prompt)} />
+      {isAIChannel && !editingMessage && !replyingTo && showQuickPrompts && (
+        <AIQuickPrompts onPromptSelect={(prompt) => {
+          setMessage(prompt);
+          setShowQuickPrompts(false); // Close after selecting a prompt
+        }} />
       )}
 
       {/* Reply Context */}
@@ -534,13 +551,6 @@ export const MessageInput = ({
               Recording… {seconds}s / 60s max
             </span>
           </div>
-        </div>
-      )}
-      {isTranscribing && (
-        <div className="mb-2 p-2 bg-primary/10 rounded border-l-2 border-primary">
-          <p className="text-xs text-muted-foreground">
-            Transcribing voice message… {seconds > 0 ? '(First use may take longer)' : ''}
-          </p>
         </div>
       )}
 
