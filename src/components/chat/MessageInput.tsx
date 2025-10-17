@@ -423,14 +423,19 @@ export const MessageInput = ({
 
   // Voice recording handler
   const handleStopAndSend = async () => {
+    console.log('🎤 Stop button clicked, stopping recording...');
     try {
       // Wait for recording to fully stop
       await stopRecording();
+      console.log('🎤 Recording stopped successfully');
       
       // Now transcribe (chunks are guaranteed to be available)
+      console.log('🎤 Starting transcription...');
       const { text } = await transcribe();
+      console.log('🎤 Transcription result:', text);
       
       if (!text || text.trim().length === 0) {
+        console.warn('🎤 No text transcribed');
         toast({ 
           title: "No speech detected", 
           description: "Try speaking closer to the microphone.", 

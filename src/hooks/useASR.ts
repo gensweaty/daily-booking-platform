@@ -51,22 +51,33 @@ export function useASR() {
       
       const mr = mediaRecorderRef.current;
       if (!mr || mr.state !== 'recording') {
+        setStatus('idle');
         resolve();
         return;
       }
       
-      // Wait for stop event before resolving
-      mr.onstop = () => {
+      // Set up one-time stop handler
+      const handleStop = () => {
+        console.log('🎤 Recording stopped, chunks collected:', chunksRef.current.length);
         mr.stream.getTracks().forEach(t => t.stop());
-        resolve();
+        setStatus('idle');
+        
+        // Small delay to ensure all chunks are fully captured
+        setTimeout(() => {
+          console.log('🎤 Final chunk count:', chunksRef.current.length, 'Total size:', chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0), 'bytes');
+          resolve();
+        }, 100);
       };
       
+      mr.addEventListener('stop', handleStop, { once: true });
       mr.stop();
     });
   }
 
   async function transcribe(): Promise<ASRResult> {
+    console.log('🎤 Starting transcription, chunks available:', chunksRef.current.length);
     const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'audio/webm' });
+    console.log('🎤 Blob created, size:', blob.size, 'bytes');
     
     if (blob.size === 0) {
       throw new Error('No audio data recorded. Please try again.');
@@ -77,22 +88,28 @@ export function useASR() {
     }
     
     setStatus('transcribing');
+    console.log('🎤 Loading Whisper model...');
     try {
       // Lazy-load transformers to avoid initial bundle impact
       const { pipeline } = await import('@huggingface/transformers');
 
       // Convert to 16k mono Float32
+      console.log('🎤 Converting audio to 16kHz mono...');
       const floatData = await blobToMono16kFloat32(blob);
+      console.log('🎤 Audio converted, samples:', floatData.length);
       
       // Check if audio data is silent (all values near zero)
       const avgAmplitude = floatData.reduce((sum, val) => sum + Math.abs(val), 0) / floatData.length;
+      console.log('🎤 Average amplitude:', avgAmplitude);
       if (avgAmplitude < 0.001) {
         throw new Error('No speech detected in recording. Check microphone permissions.');
       }
 
       // Build ASR pipeline with tiny model (multilingual)
+      console.log('🎤 Loading Whisper model pipeline...');
       const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
 
+      console.log('🎤 Running transcription...');
       const out = await asr(floatData, {
         chunk_length_s: 30,
         stride_length_s: 5,
@@ -100,6 +117,7 @@ export function useASR() {
         return_timestamps: false,
       }) as any;
 
+      console.log('🎤 Transcription complete:', out);
       setStatus('idle');
       return { text: out.text?.trim() || '', language: out.language };
     } catch (err) {
