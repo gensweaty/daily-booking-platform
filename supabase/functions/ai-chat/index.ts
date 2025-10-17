@@ -2657,46 +2657,38 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   console.log(`  📧 Extracted email address: "${recipientEmail}"`);
                 }
                 
-                // STEP 2: Extract potential names from prompt - MULTILINGUAL SUPPORT
-                // Supports English, Georgian (ა-ჰ), Spanish, Russian (А-Яа-я), and mixed scripts
-                const reminderPatterns = [
-                  // English: "remind NAME about", "remind NAME that", "reminder to NAME", "reminder for NAME"
-                  /remind\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(?:about|that|to|in)/i,
-                  /reminder\s+(?:to|for)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
-                  /send\s+reminder\s+to\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
-                  /set\s+reminder\s+for\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
-                  /notify\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+about/i,
+                // STEP 2: Extract potential recipient names - ONLY when clear grammatical indicators
+                // Be conservative: only extract when there's STRONG evidence of specifying a recipient
+                const clearRecipientPatterns = [
+                  // English: CLEAR recipient indicators - "to NAME", "for NAME", "NAME's"
+                  /(?:reminder|remind|send|notify)\s+(?:to|for)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
+                  /send\s+(?:reminder|notification)\s+to\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
+                  /([A-Za-z]+(?:\s+[A-Za-z]+)?)'s\s+(?:event|reminder)/i,
                   
-                  // Georgian: "შეახსენე NAME ს", "შეახსენე NAME -ს", "შეახსენება NAME სთვის"
-                  /შეახსენე\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s+[სზ]/iu,
-                  /შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)/iu,
-                  /გააგზავნე\s+შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)/iu,
+                  // Georgian: Clear recipient with dative case marker "ს" or "სთვის"
+                  /შეახსენე\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s*ს(?:\s|$)/iu,
+                  /შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s*სთვის/iu,
+                  /გააგზავნე\s+შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s*ს/iu,
                   
-                  // Spanish: "recordar a NAME sobre", "recordar NAME sobre", "recordatorio para NAME"
-                  /recordar\s+(?:a\s+)?([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)\s+sobre/iu,
-                  /recuerda\s+a\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)/iu,
+                  // Spanish: Clear recipient with "a NAME"
+                  /recordar\s+a\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)/iu,
                   /recordatorio\s+para\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)/iu,
                   
-                  // Russian: "напомни NAME о", "напомнить NAME о", "напоминание для NAME"
+                  // Russian: Clear recipient with dative case "NAME у"
                   /напомни(?:ть)?\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)\s+о/iu,
                   /напоминание\s+для\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)/iu,
-                  /отправить\s+напоминание\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)/iu,
-                  
-                  // Fallback: Extract any name-like word (Latin letters) surrounded by non-Latin text
-                  // This catches mixed-language prompts like "შეახსენე anna ს თავის"
-                  /(?:^|\s)([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+)?)(?:\s+(?:[ს]|about|sobre|о))/i,
                 ];
                 
-                for (const pattern of reminderPatterns) {
+                for (const pattern of clearRecipientPatterns) {
                   const match = prompt.match(pattern);
                   if (match && match[1]) {
                     recipientName = match[1].trim();
-                    console.log(`  ✓ Found potential recipient name: "${recipientName}"`);
+                    console.log(`  ✓ Found clear recipient indicator: "${recipientName}"`);
                     break;
                   }
                 }
                 
-                // STEP 3: If we found a name but no email yet, look it up in database
+                // STEP 3: If we found a name, look it up in database
                 if (recipientName && !recipientEmail) {
                   const nameLower = recipientName.toLowerCase();
                   
@@ -2717,7 +2709,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                         recipientEmail = customer.social_network_link || customer.user_number;
                         recipientCustomerId = customer.id;
                         recipientEventId = customer.event_id;
-                        console.log(`  ✅ Found customer: ${customer.user_surname || customer.title} (email: ${recipientEmail})`);
+                        recipientName = customer.user_surname || customer.title; // Use actual name from DB
+                        console.log(`  ✅ Found customer: ${recipientName} (email: ${recipientEmail})`);
                         break;
                       }
                     }
@@ -2740,22 +2733,23 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                           // Try to get email from social_network_link or user_number
                           recipientEmail = event.social_network_link || event.user_number;
                           recipientEventId = event.id;
-                          console.log(`  ✅ Found event person: ${event.user_surname || event.title} (email: ${recipientEmail})`);
+                          recipientName = event.user_surname || event.title; // Use actual name from DB
+                          console.log(`  ✅ Found event participant: ${recipientName} (email: ${recipientEmail})`);
                           break;
                         }
                       }
                     }
                   }
                   
-                  // STEP 4: If name was found but no matching database entry, ask for clarification
+                  // STEP 4: If name was explicitly mentioned but not found, ask for clarification
                   if (!recipientEmail && recipientName) {
                     console.log(`  ❌ Recipient "${recipientName}" not found in database, asking for clarification`);
                     
                     const clarificationMessages: Record<string, string> = {
-                      en: `I couldn't find a customer or event participant named "${recipientName}". Could you please provide:\n• The correct name, or\n• Their email address directly?\n\nThis will help me send the reminder to the right person.`,
+                      en: `I couldn't find a customer or event participant named "${recipientName}". Could you please provide:\n• The correct name, or\n• Their email address?\n\nThis will help me send the reminder to the right person.`,
                       ka: `ვერ ვიპოვე კლიენტი ან ღონისძიების მონაწილე სახელით "${recipientName}". გთხოვთ მიუთითოთ:\n• სწორი სახელი, ან\n• მათი ელფოსტის მისამართი?\n\nეს დამეხმარება შეხსენება გავუგზავნო სწორ ადამიანს.`,
-                      es: `No pude encontrar un cliente o participante del evento llamado "${recipientName}". ¿Podrías proporcionar:\n• El nombre correcto, o\n• Su dirección de correo electrónico directamente?\n\nEsto me ayudará a enviar el recordatorio a la persona correcta.`,
-                      ru: `Не удалось найти клиента или участника мероприятия с именем "${recipientName}". Не могли бы вы указать:\n• Правильное имя, или\n• Их адрес электронной почты напрямую?\n\nЭто поможет мне отправить напоминание нужному человеку.`
+                      es: `No pude encontrar un cliente o participante del evento llamado "${recipientName}". ¿Podrías proporcionar:\n• El nombre correcto, o\n• Su dirección de correo electrónico?\n\nEsto me ayudará a enviar el recordatorio a la persona correcta.`,
+                      ru: `Не удалось найти клиента или участника мероприятия с именем "${recipientName}". Не могли бы вы указать:\n• Правильное имя, или\n• Их адрес электронной почты?\n\nЭто поможет мне отправить напоминание нужному человеку.`
                     };
                     
                     const clarificationMsg = clarificationMessages[userLanguage] || clarificationMessages['en'];
@@ -2764,18 +2758,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     await supabaseAdmin.from('chat_messages').insert({
                       channel_id: channelId,
                       owner_id: ownerId,
-                      sender_type: 'ai',
-                      sender_name: 'AI Assistant',
+                      sender_type: 'admin',
+                      sender_name: 'Smartbookly AI',
                       content: clarificationMsg,
-                      message_type: 'text',
-                      has_attachments: false
+                      message_type: 'text'
                     });
                     
                     return new Response(
-                      JSON.stringify({ 
-                        response: clarificationMsg,
-                        metadata: { action: 'clarification_needed', recipient_not_found: recipientName }
-                      }),
+                      JSON.stringify({ success: true, content: clarificationMsg }),
                       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                     );
                   }
@@ -2783,7 +2773,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   // Validate email format if found
                   if (recipientEmail && !recipientEmail.includes('@')) {
                     console.log(`  ⚠️ Found recipient but no valid email: ${recipientEmail}`);
-                    recipientEmail = null; // Fall back to admin
+                    recipientEmail = null; // Fall back to self-reminder
+                    recipientName = null;
                   }
                   
                   if (recipientEmail) {
@@ -2793,9 +2784,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 
                 // STEP 5: If we have a direct email from prompt, use it
                 if (recipientEmail && recipientEmail.includes('@')) {
-                  console.log(`  🎯 Using direct email: ${recipientEmail}`);
+                  console.log(`  🎯 Using email for reminder: ${recipientEmail}`);
                 } else if (!recipientName && !recipientEmail) {
-                  console.log('  ℹ️ No specific recipient detected, reminder will go to admin/sub-user');
+                  console.log('  ℹ️ No specific recipient detected, reminder will go to user/sub-user');
                 }
               } catch (lookupError) {
                 console.error('  ⚠️ Error during recipient lookup:', lookupError);
