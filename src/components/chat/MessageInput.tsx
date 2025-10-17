@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Smile, X, FileText, Image as ImageIcon, FileSpreadsheet, Presentation } from 'lucide-react';
+import { Send, Paperclip, Smile, X, FileText, Image as ImageIcon, FileSpreadsheet, Presentation, Mic, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -10,6 +10,7 @@ import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import { useToast } from '@/hooks/use-toast';
 import { AIQuickPrompts } from './AIQuickPrompts';
+import { useASR } from '@/hooks/useASR';
 
 interface MessageInputProps {
   onSendMessage: (content: string, attachments?: any[]) => void;
@@ -73,6 +74,11 @@ export const MessageInput = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Voice recording hook (only for AI channels)
+  const { start: startRecording, stop: stopRecording, transcribe, status: asrStatus, seconds } = useASR();
+  const isRecording = asrStatus === 'recording';
+  const isTranscribing = asrStatus === 'transcribing';
   
   const defaultPlaceholder = placeholder || t('chat.typeMessage');
 
@@ -408,6 +414,34 @@ export const MessageInput = ({
     // do not preventDefault so text still pastes if there was any
   };
 
+  // Voice recording handler
+  const handleStopAndSend = async () => {
+    stopRecording();
+    try {
+      const { text } = await transcribe();
+      if (!text) {
+        toast({ 
+          title: "No speech detected", 
+          description: "Try again closer to the mic.", 
+          variant: "destructive" 
+        });
+        return;
+      }
+      // Put transcript into the input and auto-send
+      setMessage(text);
+      // Wait a tick so message is set, then send
+      setTimeout(async () => {
+        await uploadAndSend();
+      }, 0);
+    } catch (e: any) {
+      toast({ 
+        title: "Voice to text failed", 
+        description: e?.message || "Please try again.", 
+        variant: "destructive" 
+      });
+    }
+  };
+
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -461,6 +495,23 @@ export const MessageInput = ({
           <Button variant="ghost" size="sm" onClick={onCancelEdit} className="h-6 w-6 p-0 ml-2">
             <X className="h-3 w-3" />
           </Button>
+        </div>
+      )}
+
+      {/* Voice recording status */}
+      {isRecording && (
+        <div className="mb-2 p-2 bg-destructive/10 rounded border-l-2 border-destructive flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+            <span className="text-xs text-muted-foreground">
+              Recording… {seconds}s / 60s
+            </span>
+          </div>
+        </div>
+      )}
+      {isTranscribing && (
+        <div className="mb-2 p-2 bg-primary/10 rounded border-l-2 border-primary">
+          <p className="text-xs text-muted-foreground">Transcribing voice message…</p>
         </div>
       )}
 
@@ -520,7 +571,7 @@ export const MessageInput = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 disabled={isUploading}
                 aria-label="Attach files"
               >
@@ -535,7 +586,7 @@ export const MessageInput = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                     disabled={isUploading}
                     onClick={() => setShowEmojiPicker(v => !v)}
                     aria-label="Insert emoji"
@@ -547,6 +598,22 @@ export const MessageInput = ({
                   <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" previewPosition="none" skinTonePosition="none" />
                 </PopoverContent>
               </Popover>
+            )}
+
+            {/* Voice recording button - only for AI channels */}
+            {!editingMessage && isAIChannel && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                disabled={isUploading || isTranscribing}
+                onClick={() => isRecording ? handleStopAndSend() : startRecording()}
+                aria-label={isRecording ? "Stop recording" : "Record voice"}
+                title={isRecording ? "Stop recording" : "Record voice (max 60s)"}
+              >
+                {isRecording ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
+              </Button>
             )}
           </div>
         </div>
