@@ -1730,6 +1730,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         } else {
           // No match found, but client says sub-user - trust client but validate name
           requesterType = 'sub_user';
+          requesterIdentity = { email: senderName || authEmail || '' }; // Store email even without match
           baseName = (senderName && !senderName.includes('@'))
             ? senderName
             : nameFromEmail(senderName || authEmail);
@@ -1759,7 +1760,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       // Fallback to client-supplied values
       requesterType = (senderType as any) || 'admin';
       baseName = senderName || 'User';
-      requesterIdentity = { id: ownerId }; // Fallback identity
+      requesterIdentity = { id: ownerId, email: authEmail || senderName || '' }; // Fallback identity with email
     }
 
     const requesterName = withAiSuffix(baseName);
