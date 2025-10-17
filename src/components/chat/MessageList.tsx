@@ -228,8 +228,8 @@ export const MessageList = ({
               <div className="w-10 flex-shrink-0">
                 {isFirstInGroup ? (
                   message.sender_name === 'Smartbookly AI' ? (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-sm">
-                      <span className="text-white text-lg">🤖</span>
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 flex items-center justify-center shadow-lg border-2 border-purple-300/30">
+                      <span className="text-white text-xl font-bold">AI</span>
                     </div>
                   ) : (
                     <Avatar className="h-10 w-10">
@@ -385,9 +385,9 @@ export const MessageList = ({
         <div className="group relative mt-4">
           <div className="flex gap-3">
             <div className="w-10 flex-shrink-0">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-primary text-primary-foreground">AI</AvatarFallback>
-              </Avatar>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 flex items-center justify-center shadow-lg border-2 border-purple-300/30">
+                <span className="text-white text-xl font-bold">AI</span>
+              </div>
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">

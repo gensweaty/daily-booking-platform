@@ -590,23 +590,17 @@ export const MessageInput = ({
 
   return (
     <div className="p-4">
-      {/* AI Quick Prompts - show at top when in AI channel */}
-      {isAIChannel && !editingMessage && !replyingTo && showQuickPrompts && (
+      {/* AI Quick Prompts - always visible in AI channels but collapsed by default */}
+      {isAIChannel && !editingMessage && !replyingTo && (
         <AIQuickPrompts 
-          initiallyExpanded={showQuickPrompts}
+          initiallyExpanded={false}
           onExpandedChange={(expanded) => {
-            // If user manually collapses, mark as seen and keep closed
-            if (!expanded) {
-              const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
-              localStorage.setItem(hasSeenKey, 'true');
-              setShowQuickPrompts(false);
-            }
+            // Track state but don't hide the component
+            setShowQuickPrompts(expanded);
           }}
           onPromptSelect={(prompt) => {
-            const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
-            localStorage.setItem(hasSeenKey, 'true');
             setMessage(prompt);
-            setShowQuickPrompts(false); // Close after selecting a prompt
+            setShowQuickPrompts(false); // Collapse after selecting
           }} 
         />
       )}

@@ -598,8 +598,8 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             )}
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-sm">
-                <span className="text-white text-lg">🤖</span>
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 flex items-center justify-center shadow-lg border-2 border-purple-300/30">
+                <span className="text-white text-sm font-bold">AI</span>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">Smartbookly AI</div>
