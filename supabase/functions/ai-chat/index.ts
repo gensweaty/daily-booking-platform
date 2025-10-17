@@ -2649,7 +2649,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               let recipientName: string | null = null;
               
               try {
-                // Extract potential names from prompt - MULTILINGUAL SUPPORT
+                // STEP 1: First check for email addresses in the prompt
+                const emailPattern = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/;
+                const emailMatch = prompt.match(emailPattern);
+                if (emailMatch) {
+                  recipientEmail = emailMatch[1].trim();
+                  console.log(`  📧 Extracted email address: "${recipientEmail}"`);
+                }
+                
+                // STEP 2: Extract potential names from prompt - MULTILINGUAL SUPPORT
                 // Supports English, Georgian (ა-ჰ), Spanish, Russian (А-Яа-я), and mixed scripts
                 const reminderPatterns = [
                   // English: "remind NAME about", "remind NAME that"
@@ -2683,14 +2691,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   }
                 }
                 
-                // If we found a name, look it up in customers and events
-                if (recipientName) {
+                // STEP 3: If we found a name but no email yet, look it up in database
+                if (recipientName && !recipientEmail) {
                   const nameLower = recipientName.toLowerCase();
                   
                   // Search in customers first (CRM entries)
                   const { data: customers } = await supabaseAdmin
                     .from('customers')
-                    .select('id, user_surname, title, social_network_link, event_id')
+                    .select('id, user_surname, title, social_network_link, event_id, user_number')
                     .eq('user_id', ownerId)
                     .is('deleted_at', null)
                     .or(`user_surname.ilike.%${recipientName}%,title.ilike.%${recipientName}%`);
@@ -2700,7 +2708,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     for (const customer of customers) {
                       const customerName = (customer.user_surname || customer.title || '').toLowerCase();
                       if (customerName.includes(nameLower) || nameLower.includes(customerName)) {
-                        recipientEmail = customer.social_network_link;
+                        // Try to get email from social_network_link or user_number
+                        recipientEmail = customer.social_network_link || customer.user_number;
                         recipientCustomerId = customer.id;
                         recipientEventId = customer.event_id;
                         console.log(`  ✅ Found customer: ${customer.user_surname || customer.title} (email: ${recipientEmail})`);
@@ -2713,7 +2722,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   if (!recipientEmail) {
                     const { data: events } = await supabaseAdmin
                       .from('events')
-                      .select('id, user_surname, title, social_network_link')
+                      .select('id, user_surname, title, social_network_link, user_number')
                       .eq('user_id', ownerId)
                       .is('deleted_at', null)
                       .or(`user_surname.ilike.%${recipientName}%,title.ilike.%${recipientName}%`);
@@ -2723,7 +2732,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       for (const event of events) {
                         const eventName = (event.user_surname || event.title || '').toLowerCase();
                         if (eventName.includes(nameLower) || nameLower.includes(eventName)) {
-                          recipientEmail = event.social_network_link;
+                          // Try to get email from social_network_link or user_number
+                          recipientEmail = event.social_network_link || event.user_number;
                           recipientEventId = event.id;
                           console.log(`  ✅ Found event person: ${event.user_surname || event.title} (email: ${recipientEmail})`);
                           break;
@@ -2732,7 +2742,40 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     }
                   }
                   
-                  // Validate email format
+                  // STEP 4: If name was found but no matching database entry, ask for clarification
+                  if (!recipientEmail && recipientName) {
+                    console.log(`  ❌ Recipient "${recipientName}" not found in database, asking for clarification`);
+                    
+                    const clarificationMessages: Record<string, string> = {
+                      en: `I couldn't find a customer or event participant named "${recipientName}". Could you please provide:\n• The correct name, or\n• Their email address directly?\n\nThis will help me send the reminder to the right person.`,
+                      ka: `ვერ ვიპოვე კლიენტი ან ღონისძიების მონაწილე სახელით "${recipientName}". გთხოვთ მიუთითოთ:\n• სწორი სახელი, ან\n• მათი ელფოსტის მისამართი?\n\nეს დამეხმარება შეხსენება გავუგზავნო სწორ ადამიანს.`,
+                      es: `No pude encontrar un cliente o participante del evento llamado "${recipientName}". ¿Podrías proporcionar:\n• El nombre correcto, o\n• Su dirección de correo electrónico directamente?\n\nEsto me ayudará a enviar el recordatorio a la persona correcta.`,
+                      ru: `Не удалось найти клиента или участника мероприятия с именем "${recipientName}". Не могли бы вы указать:\n• Правильное имя, или\n• Их адрес электронной почты напрямую?\n\nЭто поможет мне отправить напоминание нужному человеку.`
+                    };
+                    
+                    const clarificationMsg = clarificationMessages[userLanguage] || clarificationMessages['en'];
+                    
+                    // Write the clarification message to chat
+                    await supabaseAdmin.from('chat_messages').insert({
+                      channel_id: channelId,
+                      owner_id: ownerId,
+                      sender_type: 'ai',
+                      sender_name: 'AI Assistant',
+                      content: clarificationMsg,
+                      message_type: 'text',
+                      has_attachments: false
+                    });
+                    
+                    return new Response(
+                      JSON.stringify({ 
+                        response: clarificationMsg,
+                        metadata: { action: 'clarification_needed', recipient_not_found: recipientName }
+                      }),
+                      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                    );
+                  }
+                  
+                  // Validate email format if found
                   if (recipientEmail && !recipientEmail.includes('@')) {
                     console.log(`  ⚠️ Found recipient but no valid email: ${recipientEmail}`);
                     recipientEmail = null; // Fall back to admin
@@ -2740,10 +2783,13 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   
                   if (recipientEmail) {
                     console.log(`  🎯 Reminder will be sent to: ${recipientEmail} (Customer ID: ${recipientCustomerId}, Event ID: ${recipientEventId})`);
-                  } else {
-                    console.log(`  ℹ️ No email found for "${recipientName}", reminder will go to admin`);
                   }
-                } else {
+                }
+                
+                // STEP 5: If we have a direct email from prompt, use it
+                if (recipientEmail && recipientEmail.includes('@')) {
+                  console.log(`  🎯 Using direct email: ${recipientEmail}`);
+                } else if (!recipientName && !recipientEmail) {
                   console.log('  ℹ️ No specific recipient detected, reminder will go to admin/sub-user');
                 }
               } catch (lookupError) {
