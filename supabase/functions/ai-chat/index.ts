@@ -802,6 +802,10 @@ serve(async (req) => {
               absolute_local: {
                 type: "string",
                 description: "Schedule for specific time in user's local timezone. Format: YYYY-MM-DDTHH:mm (e.g., '2025-10-17T16:30' for 4:30 PM local time). Use for specific times like 'at 4:30 PM', 'tomorrow at 9 AM'."
+              },
+              send_at: {
+                type: "string",
+                description: "LEGACY: ISO 8601 timestamp for when to send (kept for compatibility). Prefer offset_minutes or absolute_local instead."
               }
             },
             required: ["recipient_email", "message"]
@@ -2614,9 +2618,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'send_direct_email': {
-              const { recipient_email, message, subject, offset_minutes, absolute_local } = args;
+              const { recipient_email, message, subject, offset_minutes, absolute_local, send_at } = args;
               
-              console.log('📧 Processing email request:', { recipient_email, has_message: !!message, offset_minutes, absolute_local });
+              console.log('📧 Processing email request:', { recipient_email, has_message: !!message, offset_minutes, absolute_local, send_at });
               
               if (!recipient_email || !message) {
                 toolResult = { 
@@ -2636,8 +2640,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // Check if scheduling is requested (same logic as reminders)
-              if ((typeof offset_minutes === 'number' && offset_minutes > 0) || absolute_local) {
+              // Check if scheduling is requested (support both new and legacy formats)
+              if ((typeof offset_minutes === 'number' && offset_minutes > 0) || absolute_local || send_at) {
                 console.log('📅 Scheduling email using same logic as reminders');
                 
                 // 1) Base time is BROWSER time received from frontend
@@ -2646,7 +2650,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 // 2) Compute UTC send time deterministically on server (SAME AS REMINDERS)
                 let sendAtUtc: Date;
                 
-                if (typeof offset_minutes === 'number' && offset_minutes > 0) {
+                if (send_at) {
+                  // Legacy format support - convert ISO string directly
+                  sendAtUtc = new Date(send_at);
+                  console.log(`  📅 Using legacy send_at format: ${send_at}`);
+                } else if (typeof offset_minutes === 'number' && offset_minutes > 0) {
                   // Relative time: add offset to current browser time
                   sendAtUtc = new Date(baseNow.getTime() + offset_minutes * 60_000);
                   console.log(`  ⏱️ Relative time: ${offset_minutes} minutes from now`);
@@ -2695,7 +2703,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   sendAtUtc = guess;
                   console.log(`  ✅ Converted to UTC: ${sendAtUtc.toISOString()}`);
                 } else {
-                  toolResult = { success: false, error: 'Provide offset_minutes or absolute_local for scheduling.' };
+                  toolResult = { success: false, error: 'Provide offset_minutes, absolute_local, or send_at for scheduling.' };
                   break;
                 }
                 
