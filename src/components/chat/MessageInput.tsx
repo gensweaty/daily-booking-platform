@@ -82,13 +82,15 @@ export const MessageInput = ({
   
   const defaultPlaceholder = placeholder || t('chat.typeMessage');
 
-  const uploadAndSend = async () => {
+  const uploadAndSend = async (textOverride?: string) => {
     setIsUploading(true);
+    const messageToSend = textOverride !== undefined ? textOverride : message;
+    
     try {
       if (editingMessage) {
         // Handle editing
-        if (onEditMessage && message.trim()) {
-          await onEditMessage(editingMessage.id, message.trim());
+        if (onEditMessage && messageToSend.trim()) {
+          await onEditMessage(editingMessage.id, messageToSend.trim());
           setMessage('');
           if (onCancelEdit) onCancelEdit();
         }
@@ -224,8 +226,8 @@ export const MessageInput = ({
           }));
 
         // Send user message with attachments
-        onSendMessage(message.trim(), uploadedFiles);
-        const userMessage = message.trim();
+        onSendMessage(messageToSend.trim(), uploadedFiles);
+        const userMessage = messageToSend.trim();
         setMessage('');
         setAttachments([]);
         setIsSendingAI(true);
@@ -312,7 +314,7 @@ export const MessageInput = ({
             });
           }
         }
-        onSendMessage(message.trim(), uploadedFiles);
+        onSendMessage(messageToSend.trim(), uploadedFiles);
         setMessage('');
         setAttachments([]);
       }
@@ -432,15 +434,12 @@ export const MessageInput = ({
         return;
       }
       
-      // Show feedback
-      toast({ title: "📤 Sending voice message..." });
+      console.log('🎤 Transcribed text:', text);
       
-      // Set message and send
-      setMessage(text);
-      setTimeout(async () => {
-        await uploadAndSend();
-        toast({ title: "✓ Voice message sent", duration: 2000 });
-      }, 0);
+      // Directly send the transcribed text to AI without using state
+      await uploadAndSend(text);
+      
+      toast({ title: "✓ Voice message sent", duration: 2000 });
       
     } catch (e: any) {
       console.error('Voice transcription error:', e);
