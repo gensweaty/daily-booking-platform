@@ -1737,7 +1737,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       } else {
         // CLIENT SAYS: This is admin/owner - get personal name (NOT business name)
         requesterType = 'admin';
-        requesterIdentity = { id: ownerId }; // Store admin identity
+        requesterIdentity = { id: ownerId, email: authEmail }; // Store admin identity with email
         
         baseName =
           (authUser?.user_metadata?.full_name || authUser?.user_metadata?.name || '').trim()
@@ -2726,7 +2726,19 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   userLanguage
                 });
                 
-                // 5) Store scheduled email in database
+                // 5) Get business profile for scheduled email
+                const { data: businessProfile } = await supabaseAdmin
+                  .from('business_profiles')
+                  .select('business_name')
+                  .eq('user_id', ownerId)
+                  .maybeSingle();
+                
+                const senderEmail = requesterIdentity?.email || '';
+                const businessName = businessProfile?.business_name || null;
+                
+                console.log('📧 Scheduled email sender info:', { baseName, senderEmail, businessName });
+                
+                // 6) Store scheduled email in database with sender details
                 const { error: scheduleError } = await supabaseAdmin
                   .from('scheduled_emails')
                   .insert({
@@ -2736,6 +2748,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     message: message,
                     language: userLanguage,
                     sender_name: baseName,
+                    sender_email: senderEmail,
+                    business_name: businessName,
                     send_at: sendAtUtc.toISOString(),
                     created_by_type: requesterType,
                     created_by_name: baseName
@@ -2788,6 +2802,18 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 // Send immediately via edge function
                 console.log('📧 Sending email immediately');
                 
+                // Get business profile if exists
+                const { data: businessProfile } = await supabaseAdmin
+                  .from('business_profiles')
+                  .select('business_name')
+                  .eq('user_id', ownerId)
+                  .maybeSingle();
+                
+                const senderEmail = requesterIdentity?.email || '';
+                const businessName = businessProfile?.business_name || null;
+                
+                console.log('📧 Sender info:', { baseName, senderEmail, businessName });
+                
                 const { data: emailData, error: emailError } = await supabaseAdmin.functions.invoke(
                   'send-direct-email',
                   {
@@ -2796,7 +2822,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       message,
                       subject: subject || undefined,
                       language: userLanguage,
-                      sender_name: baseName
+                      sender_name: baseName,
+                      sender_email: senderEmail,
+                      business_name: businessName
                     }
                   }
                 );

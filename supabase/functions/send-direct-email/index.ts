@@ -12,6 +12,8 @@ interface DirectEmailRequest {
   message: string;
   language?: string;
   sender_name?: string;
+  sender_email?: string;
+  business_name?: string;
 }
 
 const getEmailContent = (
@@ -104,7 +106,9 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📧 Direct email request:', {
       recipient: emailRequest.recipient_email,
       language: emailRequest.language,
-      sender: emailRequest.sender_name
+      sender: emailRequest.sender_name,
+      senderEmail: emailRequest.sender_email,
+      businessName: emailRequest.business_name
     });
 
     if (!emailRequest.recipient_email || !emailRequest.message) {
@@ -124,7 +128,21 @@ const handler = async (req: Request): Promise<Response> => {
       emailRequest.sender_name
     );
 
-    const fromAddress = 'SmartBookly <noreply@smartbookly.com>';
+    // Construct from address: "Business/User Name (email) <noreply@smartbookly.com>"
+    let displayName = 'SmartBookly';
+    
+    if (emailRequest.business_name && emailRequest.sender_email) {
+      // Business exists: "Business Name (sender@email.com)"
+      displayName = `${emailRequest.business_name} (${emailRequest.sender_email})`;
+    } else if (emailRequest.sender_name && emailRequest.sender_email) {
+      // No business: "User Name (sender@email.com)"
+      displayName = `${emailRequest.sender_name} (${emailRequest.sender_email})`;
+    } else if (emailRequest.sender_email) {
+      // Only email available
+      displayName = emailRequest.sender_email;
+    }
+    
+    const fromAddress = `${displayName} <noreply@smartbookly.com>`;
     console.log('📧 Sending email with from address:', fromAddress);
     console.log('📧 Recipient:', emailRequest.recipient_email);
     console.log('📧 Using RESEND_API_KEY:', RESEND_API_KEY ? 'Present (length: ' + RESEND_API_KEY.length + ')' : 'MISSING');
