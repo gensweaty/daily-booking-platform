@@ -784,4 +784,20 @@ export interface TranslationType {
     deleteChatConfirmTitle: string;
     deleteChatConfirmMessage: string;
   };
+  quickActions: {
+    pageGuides: string;
+    allPages: string;
+    addForMe: string;
+    addEvent: string;
+    addTask: string;
+    addCustomer: string;
+    scheduleReminder: string;
+    todaySchedule: string;
+    findCustomer: string;
+    taskProgress: string;
+    paymentSummary: string;
+    excelReport: string;
+    analyzeDocument: string;
+    sendEmailForMe: string;
+  };
 }

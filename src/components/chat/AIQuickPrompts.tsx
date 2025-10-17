@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface AIQuickPromptsProps {
   onPromptSelect: (prompt: string) => void;
@@ -15,6 +16,7 @@ interface AIQuickPromptsProps {
 
 export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const { t } = useLanguage();
 
   const pageGuides = [
     { label: "📅 Calendar Guide", prompt: "Show me the detailed Calendar page guide. I want to learn how to use the calendar feature." },
@@ -23,47 +25,47 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
     { label: "🏢 Business Page Guide", prompt: "Show me the detailed Business Page guide. I want to learn how to set up my public booking page." },
     { label: "📊 Statistics Guide", prompt: "Show me the detailed Statistics page guide. I want to learn how to view analytics." },
     { label: "💬 Chat Guide", prompt: "Show me the detailed Chat page guide. I want to learn how to use team communication." },
-    { label: "📖 All Pages", prompt: "Show me detailed guides for Calendar, CRM, Tasks, Business Page, Statistics, and Chat features. How do I use each page?" },
+    { label: t('quickActions.allPages'), prompt: "Show me detailed guides for Calendar, CRM, Tasks, Business Page, Statistics, and Chat features. How do I use each page?" },
   ];
 
   const prompts = [
     { 
-      label: "Schedule Reminder", 
+      label: t('quickActions.scheduleReminder'),
       text: "Schedule a reminder for me",
       icon: Calendar
     },
     { 
-      label: "Today's Schedule", 
+      label: t('quickActions.todaySchedule'),
       text: "What's on my schedule today?",
       icon: Calendar
     },
     { 
-      label: "Find Customer", 
+      label: t('quickActions.findCustomer'),
       text: "Search for a customer",
       icon: Search
     },
     { 
-      label: "Task Progress", 
+      label: t('quickActions.taskProgress'),
       text: "Show me my task completion rate and what's pending",
       icon: Calendar
     },
     { 
-      label: "Payment Summary", 
+      label: t('quickActions.paymentSummary'),
       text: "Give me a summary of payments and revenue",
       icon: MessageSquare
     },
     { 
-      label: "Excel Report", 
+      label: t('quickActions.excelReport'),
       text: "Generate an Excel report with my statistics and data",
       icon: Bot
     },
     { 
-      label: "Analyze Document", 
+      label: t('quickActions.analyzeDocument'),
       text: "Please analyze this document for me. I'll upload the file and you can extract key information, summarize the content, and provide insights.",
       icon: Search
     },
     { 
-      label: "Send Email", 
+      label: t('quickActions.sendEmailForMe'),
       text: "Send a custom email for me. Please provide the recipient's email, subject, and message content.",
       icon: MessageSquare
     },
@@ -87,7 +89,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="text-[10px] h-7 px-2 justify-start">
                   <BookOpen className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span className="truncate">📖 Page Guides</span>
+                  <span className="truncate">{t('quickActions.pageGuides')}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuPortal>
@@ -109,7 +111,7 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="text-[10px] h-7 px-2 justify-start">
-                  <span className="truncate">➕ Add for me</span>
+                  <span className="truncate">{t('quickActions.addForMe')}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuPortal>
@@ -118,19 +120,19 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
                     onClick={() => onPromptSelect("Add a new event for me")}
                     className="cursor-pointer hover:bg-muted"
                   >
-                    📅 Add event
+                    {t('quickActions.addEvent')}
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={() => onPromptSelect("Add a new task for me")}
                     className="cursor-pointer hover:bg-muted"
                   >
-                    ✅ Add Task
+                    {t('quickActions.addTask')}
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={() => onPromptSelect("Add a new customer for me")}
                     className="cursor-pointer hover:bg-muted"
                   >
-                    👤 Add customer
+                    {t('quickActions.addCustomer')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenuPortal>

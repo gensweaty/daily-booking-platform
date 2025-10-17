@@ -783,5 +783,21 @@ export const translations: TranslationType = {
     deleteChat: "Eliminar Chat",
     deleteChatConfirmTitle: "¿Eliminar Chat?",
     deleteChatConfirmMessage: "¿Estás seguro de que quieres eliminar este chat? Esta acción no se puede deshacer y todos los mensajes se perderán."
+  },
+  quickActions: {
+    pageGuides: "📖 Guías de Páginas",
+    allPages: "📖 Todas las Páginas",
+    addForMe: "➕ Agregar por mí",
+    addEvent: "📅 Agregar evento",
+    addTask: "✅ Agregar Tarea",
+    addCustomer: "👤 Agregar cliente",
+    scheduleReminder: "Programar Recordatorio",
+    todaySchedule: "Agenda de Hoy",
+    findCustomer: "Buscar Cliente",
+    taskProgress: "Progreso de Tareas",
+    paymentSummary: "Resumen de Pagos",
+    excelReport: "Informe Excel",
+    analyzeDocument: "Analizar Documento",
+    sendEmailForMe: "Enviar Correo Por Mí",
   }
 };

@@ -783,5 +783,21 @@ export const translations: TranslationType = {
     deleteChat: "Delete Chat",
     deleteChatConfirmTitle: "Delete Chat?",
     deleteChatConfirmMessage: "Are you sure you want to delete this chat? This action cannot be undone and all messages will be lost."
+  },
+  quickActions: {
+    pageGuides: "📖 Page Guides",
+    allPages: "📖 All Pages",
+    addForMe: "➕ Add for me",
+    addEvent: "📅 Add event",
+    addTask: "✅ Add Task",
+    addCustomer: "👤 Add customer",
+    scheduleReminder: "Schedule Reminder",
+    todaySchedule: "Today's Schedule",
+    findCustomer: "Find Customer",
+    taskProgress: "Task Progress",
+    paymentSummary: "Payment Summary",
+    excelReport: "Excel Report",
+    analyzeDocument: "Analyze Document",
+    sendEmailForMe: "Send Email For Me",
   }
 };
