@@ -77,11 +77,16 @@ export function useASR() {
   async function transcribe(): Promise<ASRResult> {
     console.log('🎤 Starting transcription, chunks available:', chunksRef.current.length);
     const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'audio/webm' });
-    console.log('🎤 Blob created, size:', blob.size, 'bytes');
+    console.log('🎤 Blob created, size:', blob.size, 'bytes, type:', blob.type);
     
     // Only reject if completely empty
     if (blob.size === 0) {
       throw new Error('No audio data recorded. Please try again.');
+    }
+    
+    // Warn if audio is suspiciously small
+    if (blob.size < 1000) {
+      console.warn('⚠️ Audio blob is very small, may not contain valid audio:', blob.size, 'bytes');
     }
     
     setStatus('transcribing');
@@ -93,28 +98,40 @@ export function useASR() {
       // Convert to 16k mono Float32
       console.log('🎤 Converting audio to 16kHz mono...');
       const floatData = await blobToMono16kFloat32(blob);
-      console.log('🎤 Audio converted, samples:', floatData.length);
+      console.log('🎤 Audio converted, samples:', floatData.length, 'duration:', (floatData.length / 16000).toFixed(2), 'seconds');
       
-      // No amplitude check - let Whisper handle any audio quality
+      // Check audio quality
+      const maxAmplitude = Math.max(...Array.from(floatData).map(Math.abs));
+      const avgAmplitude = Array.from(floatData).reduce((sum, val) => sum + Math.abs(val), 0) / floatData.length;
+      console.log('🎤 Audio quality - Max amplitude:', maxAmplitude.toFixed(4), 'Avg amplitude:', avgAmplitude.toFixed(6));
+      
+      if (maxAmplitude < 0.001) {
+        throw new Error('Audio is too quiet. Please speak louder or check your microphone.');
+      }
 
-      // Build ASR pipeline with tiny model (multilingual)
+      // Build ASR pipeline with small model for better accuracy (multilingual)
       console.log('🎤 Loading Whisper model pipeline (this may take a moment on first use)...');
-      const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
+      const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-small');
 
-      console.log('🎤 Running transcription...');
+      console.log('🎤 Running transcription with optimized settings...');
       const out = await asr(floatData, {
         chunk_length_s: 30,
         stride_length_s: 5,
         task: 'transcribe',
         return_timestamps: false,
-        // Let the model auto-detect language for multilingual support
+        language: null, // Auto-detect language
+        // Force better decoding
+        num_beams: 1,
+        temperature: 0.0,
       }) as any;
 
-      console.log('🎤 Transcription complete:', out);
+      console.log('🎤 Transcription complete:', JSON.stringify(out));
       
       // Check if we got actual text back
       const transcribedText = out.text?.trim() || '';
-      if (transcribedText.length === 0) {
+      console.log('🎤 Final transcribed text:', JSON.stringify(transcribedText), 'length:', transcribedText.length);
+      
+      if (transcribedText.length === 0 || transcribedText.length < 2) {
         setStatus('idle');
         throw new Error('Could not transcribe audio. Please speak clearly and try again.');
       }
@@ -122,12 +139,12 @@ export function useASR() {
       setStatus('idle');
       return { text: transcribedText, language: out.language };
     } catch (err) {
-      console.error('Whisper transcription failed:', err);
+      console.error('❌ Whisper transcription failed:', err);
       setStatus('error');
       
       // Provide user-friendly error messages
       if (err instanceof Error) {
-        if (err.message.includes('audio data') || err.message.includes('transcribe audio')) {
+        if (err.message.includes('audio') || err.message.includes('quiet') || err.message.includes('transcribe')) {
           throw err; // Re-throw our custom errors
         }
         throw new Error('Transcription failed. Please try speaking more clearly or check your microphone.');
