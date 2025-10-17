@@ -416,27 +416,37 @@ export const MessageInput = ({
 
   // Voice recording handler
   const handleStopAndSend = async () => {
-    stopRecording();
     try {
+      // Wait for recording to fully stop
+      await stopRecording();
+      
+      // Now transcribe (chunks are guaranteed to be available)
       const { text } = await transcribe();
-      if (!text) {
+      
+      if (!text || text.trim().length === 0) {
         toast({ 
           title: "No speech detected", 
-          description: "Try again closer to the mic.", 
+          description: "Try speaking closer to the microphone.", 
           variant: "destructive" 
         });
         return;
       }
-      // Put transcript into the input and auto-send
+      
+      // Show feedback
+      toast({ title: "📤 Sending voice message..." });
+      
+      // Set message and send
       setMessage(text);
-      // Wait a tick so message is set, then send
       setTimeout(async () => {
         await uploadAndSend();
+        toast({ title: "✓ Voice message sent", duration: 2000 });
       }, 0);
+      
     } catch (e: any) {
+      console.error('Voice transcription error:', e);
       toast({ 
         title: "Voice to text failed", 
-        description: e?.message || "Please try again.", 
+        description: e?.message || "Please try recording again.", 
         variant: "destructive" 
       });
     }

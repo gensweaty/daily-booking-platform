@@ -19,7 +19,6 @@ export function useASR() {
       mediaRecorderRef.current = mr;
       chunksRef.current = [];
       mr.ondataavailable = e => e.data.size && chunksRef.current.push(e.data);
-      mr.onstop = () => stream.getTracks().forEach(t => t.stop());
 
       setSeconds(0);
       setStatus('recording');
@@ -43,19 +42,39 @@ export function useASR() {
     }
   }
 
-  function stop() {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
+  function stop(): Promise<void> {
+    return new Promise((resolve) => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      const mr = mediaRecorderRef.current;
+      if (!mr || mr.state !== 'recording') {
+        resolve();
+        return;
+      }
+      
+      // Wait for stop event before resolving
+      mr.onstop = () => {
+        mr.stream.getTracks().forEach(t => t.stop());
+        resolve();
+      };
+      
+      mr.stop();
+    });
   }
 
   async function transcribe(): Promise<ASRResult> {
     const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'audio/webm' });
-    if (blob.size === 0) throw new Error('No audio data recorded');
+    
+    if (blob.size === 0) {
+      throw new Error('No audio data recorded. Please try again.');
+    }
+    
+    if (blob.size < 1000) {
+      throw new Error('Recording too short or silent. Please speak clearly.');
+    }
     
     setStatus('transcribing');
     try {
@@ -64,6 +83,12 @@ export function useASR() {
 
       // Convert to 16k mono Float32
       const floatData = await blobToMono16kFloat32(blob);
+      
+      // Check if audio data is silent (all values near zero)
+      const avgAmplitude = floatData.reduce((sum, val) => sum + Math.abs(val), 0) / floatData.length;
+      if (avgAmplitude < 0.001) {
+        throw new Error('No speech detected in recording. Check microphone permissions.');
+      }
 
       // Build ASR pipeline with tiny model (multilingual)
       const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
@@ -79,16 +104,16 @@ export function useASR() {
       return { text: out.text?.trim() || '', language: out.language };
     } catch (err) {
       console.error('Whisper transcription failed:', err);
-      // Fallback to Web Speech API if available
-      try {
-        const text = await webSpeechFallback(blob);
-        setStatus('idle');
-        return { text };
-      } catch (e) {
-        console.error('Web Speech API fallback failed:', e);
-        setStatus('error');
-        throw new Error('Transcription failed. Please try again.');
+      setStatus('error');
+      
+      // Provide user-friendly error messages
+      if (err instanceof Error) {
+        if (err.message.includes('audio data') || err.message.includes('speech detected') || err.message.includes('too short')) {
+          throw err; // Re-throw our custom errors
+        }
+        throw new Error('Transcription failed. Please check your internet connection and try again.');
       }
+      throw new Error('Transcription failed. Please try again.');
     } finally {
       chunksRef.current = [];
     }
@@ -129,27 +154,3 @@ async function blobToMono16kFloat32(blob: Blob): Promise<Float32Array> {
   return resampled.getChannelData(0);
 }
 
-function webSpeechFallback(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return reject(new Error('Web Speech API not supported'));
-    
-    const rec = new SR();
-    rec.lang = 'en-US'; // can be switched dynamically
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-    rec.continuous = false;
-    
-    let text = '';
-    rec.onresult = (e: any) => { 
-      text = e.results[0]?.[0]?.transcript || ''; 
-    };
-    rec.onerror = (e: any) => reject(new Error(e.error || 'Speech recognition error'));
-    rec.onend = () => text ? resolve(text) : reject(new Error('No speech detected'));
-    
-    // Play the blob through an audio element to trigger recognition
-    const audio = new Audio(URL.createObjectURL(blob));
-    audio.onplay = () => rec.start();
-    audio.play().catch(err => reject(err));
-  });
-}
