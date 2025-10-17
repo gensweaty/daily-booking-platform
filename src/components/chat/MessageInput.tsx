@@ -245,10 +245,11 @@ export const MessageInput = ({
         setMessage('');
         messageRef.current = '';
         setAttachments([]);
-        setShowQuickPrompts(false); // Close quick suggestions
         
-        // Only set sending state if not already set (voice already set it)
+        // For AI channels, ensure typing indicator stays on throughout entire process
+        // Don't reset state if already in sending mode (from voice)
         if (!isSendingAI) {
+          setShowQuickPrompts(false); // Close quick suggestions only on new send
           setIsSendingAI(true);
           if (onAISending) onAISending(true);
         }
@@ -306,7 +307,7 @@ export const MessageInput = ({
         } finally {
           setIsSendingAI(false);
           if (onAISending) onAISending(false);
-          setShowQuickPrompts(true); // Show quick suggestions again after AI responds
+          // Keep quick prompts closed - user will reopen manually if needed
         }
       } else {
         // Handle normal message
@@ -339,8 +340,11 @@ export const MessageInput = ({
         setMessage('');
         messageRef.current = '';
         setAttachments([]);
-        setShowQuickPrompts(false); // Close quick suggestions on send
-        setTimeout(() => setShowQuickPrompts(true), 500); // Show again after a delay
+        // For regular (non-AI) channels, reopen quick prompts after a delay
+        if (!isAIChannel) {
+          setShowQuickPrompts(false);
+          setTimeout(() => setShowQuickPrompts(true), 500);
+        }
       }
       
       if (textareaRef.current) {
