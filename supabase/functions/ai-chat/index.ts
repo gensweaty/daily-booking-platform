@@ -2641,7 +2641,100 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // 4) Store reminder with creator tracking AND language for later email processing
+              // 4) SMART RECIPIENT DETECTION: Parse original prompt to identify recipient
+              console.log('🔍 Analyzing reminder recipient from prompt:', prompt);
+              let recipientEmail: string | null = null;
+              let recipientCustomerId: string | null = null;
+              let recipientEventId: string | null = null;
+              let recipientName: string | null = null;
+              
+              try {
+                // Extract potential names from prompt (look for "remind [NAME] about")
+                const reminderPatterns = [
+                  /remind\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+about/i,
+                  /reminder\s+for\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+about/i,
+                  /remind\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+that/i,
+                  /notify\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+about/i,
+                ];
+                
+                for (const pattern of reminderPatterns) {
+                  const match = prompt.match(pattern);
+                  if (match && match[1]) {
+                    recipientName = match[1].trim();
+                    console.log(`  ✓ Found potential recipient name: "${recipientName}"`);
+                    break;
+                  }
+                }
+                
+                // If we found a name, look it up in customers and events
+                if (recipientName) {
+                  const nameLower = recipientName.toLowerCase();
+                  
+                  // Search in customers first (CRM entries)
+                  const { data: customers } = await supabaseAdmin
+                    .from('customers')
+                    .select('id, user_surname, title, social_network_link, event_id')
+                    .eq('user_id', ownerId)
+                    .is('deleted_at', null)
+                    .or(`user_surname.ilike.%${recipientName}%,title.ilike.%${recipientName}%`);
+                  
+                  if (customers && customers.length > 0) {
+                    // Find best match
+                    for (const customer of customers) {
+                      const customerName = (customer.user_surname || customer.title || '').toLowerCase();
+                      if (customerName.includes(nameLower) || nameLower.includes(customerName)) {
+                        recipientEmail = customer.social_network_link;
+                        recipientCustomerId = customer.id;
+                        recipientEventId = customer.event_id;
+                        console.log(`  ✅ Found customer: ${customer.user_surname || customer.title} (email: ${recipientEmail})`);
+                        break;
+                      }
+                    }
+                  }
+                  
+                  // If not found in customers, search in events
+                  if (!recipientEmail) {
+                    const { data: events } = await supabaseAdmin
+                      .from('events')
+                      .select('id, user_surname, title, social_network_link')
+                      .eq('user_id', ownerId)
+                      .is('deleted_at', null)
+                      .or(`user_surname.ilike.%${recipientName}%,title.ilike.%${recipientName}%`);
+                    
+                    if (events && events.length > 0) {
+                      // Find best match
+                      for (const event of events) {
+                        const eventName = (event.user_surname || event.title || '').toLowerCase();
+                        if (eventName.includes(nameLower) || nameLower.includes(eventName)) {
+                          recipientEmail = event.social_network_link;
+                          recipientEventId = event.id;
+                          console.log(`  ✅ Found event person: ${event.user_surname || event.title} (email: ${recipientEmail})`);
+                          break;
+                        }
+                      }
+                    }
+                  }
+                  
+                  // Validate email format
+                  if (recipientEmail && !recipientEmail.includes('@')) {
+                    console.log(`  ⚠️ Found recipient but no valid email: ${recipientEmail}`);
+                    recipientEmail = null; // Fall back to admin
+                  }
+                  
+                  if (recipientEmail) {
+                    console.log(`  🎯 Reminder will be sent to: ${recipientEmail} (Customer ID: ${recipientCustomerId}, Event ID: ${recipientEventId})`);
+                  } else {
+                    console.log(`  ℹ️ No email found for "${recipientName}", reminder will go to admin`);
+                  }
+                } else {
+                  console.log('  ℹ️ No specific recipient detected, reminder will go to admin/sub-user');
+                }
+              } catch (lookupError) {
+                console.error('  ⚠️ Error during recipient lookup:', lookupError);
+                // Continue without recipient - reminder will go to admin
+              }
+              
+              // 5) Store reminder with creator tracking, language, AND recipient info
               const { data: reminderRow, error: reminderError } = await supabaseAdmin
                 .from('custom_reminders')
                 .insert({
@@ -2654,7 +2747,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   created_by_type: requesterType,
                   created_by_sub_user_id: requesterType === 'sub_user' ? requesterIdentity?.id : null,
                   created_by_name: baseName,
-                  language: userLanguage  // CRITICAL: Store language for email localization
+                  language: userLanguage,  // CRITICAL: Store language for email localization
+                  recipient_email: recipientEmail,  // NEW: Recipient's email if found
+                  recipient_customer_id: recipientCustomerId,  // NEW: Customer ID if applicable
+                  recipient_event_id: recipientEventId  // NEW: Event ID if applicable
                 })
                 .select()
                 .single();
@@ -2665,7 +2761,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // 5) Build HUMAN message on server (no LLM) - in user's language
+              // 6) Build HUMAN message on server (no LLM) - in user's language
               const display = formatInUserZone(remindAtUtc);
               
               console.log('Reminder debug:', {
@@ -2674,18 +2770,33 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 baseNow: currentLocalTime,
                 remindAtUtc: remindAtUtc.toISOString(),
                 display,
-                userLanguage
+                userLanguage,
+                recipientEmail,
+                recipientName
               });
               
-              // Localized confirmation messages
-              const confirmations = {
-                en: `✅ Reminder set! I'll remind you about '${title}' at ${display}. You'll receive both an email and dashboard notification.`,
-                ru: `✅ Напоминание установлено! Я напомню вам о '${title}' в ${display}. Вы получите уведомление по электронной почте и на панели управления.`,
-                ka: `✅ შეხსენება დაყენებულია! გაგახსენებთ '${title}' ${display}-ზე. მიიღებთ შეტყობინებას ელფოსტით და პანელზე.`,
-                es: `✅ ¡Recordatorio establecido! Te recordaré sobre '${title}' a las ${display}. Recibirás una notificación por correo electrónico y en el panel.`
-              };
+              // Localized confirmation messages (adapted based on recipient)
+              let confirmation: string;
               
-              const confirmation = confirmations[userLanguage as keyof typeof confirmations] || confirmations.en;
+              if (recipientEmail && recipientName) {
+                // Reminder is FOR someone else (customer/event person)
+                const recipientConfirmations = {
+                  en: `✅ Reminder set! I'll remind ${recipientName} about '${title}' at ${display}. They'll receive an email notification.`,
+                  ru: `✅ Напоминание установлено! Я напомню ${recipientName} о '${title}' в ${display}. Они получат уведомление по электронной почте.`,
+                  ka: `✅ შეხსენება დაყენებულია! გავახსენებ ${recipientName}-ს '${title}' ${display}-ზე. მიიღებს შეტყობინებას ელფოსტით.`,
+                  es: `✅ ¡Recordatorio establecido! Le recordaré a ${recipientName} sobre '${title}' a las ${display}. Recibirá una notificación por correo electrónico.`
+                };
+                confirmation = recipientConfirmations[userLanguage as keyof typeof recipientConfirmations] || recipientConfirmations.en;
+              } else {
+                // Reminder is FOR admin/sub-user themselves
+                const selfConfirmations = {
+                  en: `✅ Reminder set! I'll remind you about '${title}' at ${display}. You'll receive both an email and dashboard notification.`,
+                  ru: `✅ Напоминание установлено! Я напомню вам о '${title}' в ${display}. Вы получите уведомление по электронной почте и на панели управления.`,
+                  ka: `✅ შეხსენება დაყენებულია! გაგახსენებთ '${title}' ${display}-ზე. მიიღებთ შეტყობინებას ელფოსტით და პანელზე.`,
+                  es: `✅ ¡Recordatorio establecido! Te recordaré sobre '${title}' a las ${display}. Recibirás una notificación por correo electrónico y en el panel.`
+                };
+                confirmation = selfConfirmations[userLanguage as keyof typeof selfConfirmations] || selfConfirmations.en;
+              }
               
               // 6) Write bot message now (skip second LLM call)
               // CRITICAL: Mark this message with a special flag so process-reminders won't duplicate it
