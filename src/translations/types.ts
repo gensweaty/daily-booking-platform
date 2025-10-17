@@ -799,5 +799,23 @@ export interface TranslationType {
     excelReport: string;
     analyzeDocument: string;
     sendEmailForMe: string;
+    scheduleReminderPrompt: string;
+    todaySchedulePrompt: string;
+    findCustomerPrompt: string;
+    taskProgressPrompt: string;
+    paymentSummaryPrompt: string;
+    excelReportPrompt: string;
+    analyzeDocumentPrompt: string;
+    sendEmailPrompt: string;
+    addEventPrompt: string;
+    addTaskPrompt: string;
+    addCustomerPrompt: string;
+    calendarGuidePrompt: string;
+    crmGuidePrompt: string;
+    tasksGuidePrompt: string;
+    businessGuidePrompt: string;
+    statisticsGuidePrompt: string;
+    chatGuidePrompt: string;
+    allPagesPrompt: string;
   };
 }

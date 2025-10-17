@@ -19,54 +19,54 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
   const { t } = useLanguage();
 
   const pageGuides = [
-    { label: "📅 Calendar Guide", prompt: "Show me the detailed Calendar page guide. I want to learn how to use the calendar feature." },
-    { label: "👥 CRM Guide", prompt: "Show me the detailed CRM page guide. I want to learn how to manage customers." },
-    { label: "✅ Tasks Guide", prompt: "Show me the detailed Tasks page guide. I want to learn how to use the task board." },
-    { label: "🏢 Business Page Guide", prompt: "Show me the detailed Business Page guide. I want to learn how to set up my public booking page." },
-    { label: "📊 Statistics Guide", prompt: "Show me the detailed Statistics page guide. I want to learn how to view analytics." },
-    { label: "💬 Chat Guide", prompt: "Show me the detailed Chat page guide. I want to learn how to use team communication." },
-    { label: t('quickActions.allPages'), prompt: "Show me detailed guides for Calendar, CRM, Tasks, Business Page, Statistics, and Chat features. How do I use each page?" },
+    { label: "📅 Calendar Guide", prompt: t('quickActions.calendarGuidePrompt') },
+    { label: "👥 CRM Guide", prompt: t('quickActions.crmGuidePrompt') },
+    { label: "✅ Tasks Guide", prompt: t('quickActions.tasksGuidePrompt') },
+    { label: "🏢 Business Page Guide", prompt: t('quickActions.businessGuidePrompt') },
+    { label: "📊 Statistics Guide", prompt: t('quickActions.statisticsGuidePrompt') },
+    { label: "💬 Chat Guide", prompt: t('quickActions.chatGuidePrompt') },
+    { label: t('quickActions.allPages'), prompt: t('quickActions.allPagesPrompt') },
   ];
 
   const prompts = [
     { 
       label: t('quickActions.scheduleReminder'),
-      text: "Schedule a reminder for me",
+      text: t('quickActions.scheduleReminderPrompt'),
       icon: Calendar
     },
     { 
       label: t('quickActions.todaySchedule'),
-      text: "What's on my schedule today?",
+      text: t('quickActions.todaySchedulePrompt'),
       icon: Calendar
     },
     { 
       label: t('quickActions.findCustomer'),
-      text: "Search for a customer",
+      text: t('quickActions.findCustomerPrompt'),
       icon: Search
     },
     { 
       label: t('quickActions.taskProgress'),
-      text: "Show me my task completion rate and what's pending",
+      text: t('quickActions.taskProgressPrompt'),
       icon: Calendar
     },
     { 
       label: t('quickActions.paymentSummary'),
-      text: "Give me a summary of payments and revenue",
+      text: t('quickActions.paymentSummaryPrompt'),
       icon: MessageSquare
     },
     { 
       label: t('quickActions.excelReport'),
-      text: "Generate an Excel report with my statistics and data",
+      text: t('quickActions.excelReportPrompt'),
       icon: Bot
     },
     { 
       label: t('quickActions.analyzeDocument'),
-      text: "Please analyze this document for me. I'll upload the file and you can extract key information, summarize the content, and provide insights.",
+      text: t('quickActions.analyzeDocumentPrompt'),
       icon: Search
     },
     { 
       label: t('quickActions.sendEmailForMe'),
-      text: "Send a custom email for me. Please provide the recipient's email, subject, and message content.",
+      text: t('quickActions.sendEmailPrompt'),
       icon: MessageSquare
     },
   ];
@@ -117,19 +117,19 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
               <DropdownMenuPortal>
                 <DropdownMenuContent align="start" className="w-48 bg-background/95 backdrop-blur-sm border border-border shadow-lg z-[99999]">
                   <DropdownMenuItem 
-                    onClick={() => onPromptSelect("Add a new event for me")}
+                    onClick={() => onPromptSelect(t('quickActions.addEventPrompt'))}
                     className="cursor-pointer hover:bg-muted"
                   >
                     {t('quickActions.addEvent')}
                   </DropdownMenuItem>
                   <DropdownMenuItem 
-                    onClick={() => onPromptSelect("Add a new task for me")}
+                    onClick={() => onPromptSelect(t('quickActions.addTaskPrompt'))}
                     className="cursor-pointer hover:bg-muted"
                   >
                     {t('quickActions.addTask')}
                   </DropdownMenuItem>
                   <DropdownMenuItem 
-                    onClick={() => onPromptSelect("Add a new customer for me")}
+                    onClick={() => onPromptSelect(t('quickActions.addCustomerPrompt'))}
                     className="cursor-pointer hover:bg-muted"
                   >
                     {t('quickActions.addCustomer')}
