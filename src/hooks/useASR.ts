@@ -24,16 +24,9 @@ export function useASR() {
       setStatus('recording');
       mr.start();
 
-      // 60s hard cap
+      // Timer with no hard cap - just count seconds
       timerRef.current = window.setInterval(() => {
-        setSeconds(s => {
-          const next = s + 1;
-          if (next >= 60) {
-            stop(); // auto-stop at 60s
-            return 60;
-          }
-          return next;
-        });
+        setSeconds(s => s + 1);
       }, 1000) as unknown as number;
     } catch (err) {
       console.error('Mic permission denied or unavailable:', err);
@@ -98,7 +91,7 @@ export function useASR() {
       // No amplitude check - let Whisper handle any audio quality
 
       // Build ASR pipeline with tiny model (multilingual)
-      console.log('🎤 Loading Whisper model pipeline...');
+      console.log('🎤 Loading Whisper model pipeline (this may take a moment on first use)...');
       const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
 
       console.log('🎤 Running transcription...');
@@ -107,7 +100,7 @@ export function useASR() {
         stride_length_s: 5,
         task: 'transcribe',
         return_timestamps: false,
-        language: 'english', // Help model focus on English for better accuracy
+        // Let the model auto-detect language for multilingual support
       }) as any;
 
       console.log('🎤 Transcription complete:', out);

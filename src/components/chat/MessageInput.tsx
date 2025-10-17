@@ -446,7 +446,7 @@ export const MessageInput = ({
       
       console.log('🎤 Transcribed text:', text);
       
-      // Show transcribed text in textarea first
+      // Set the message text
       setMessage(text);
       messageRef.current = text;
       
@@ -454,10 +454,7 @@ export const MessageInput = ({
         textareaRef.current.value = text;
       }
       
-      // Brief delay so user can see what was transcribed
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Now send it
+      // Send immediately - no artificial delay
       await uploadAndSend();
       
       toast({ title: "✓ Voice message sent", duration: 2000 });
@@ -534,14 +531,16 @@ export const MessageInput = ({
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
             <span className="text-xs text-muted-foreground">
-              Recording… {seconds}s / 60s
+              Recording… {seconds}s
             </span>
           </div>
         </div>
       )}
       {isTranscribing && (
         <div className="mb-2 p-2 bg-primary/10 rounded border-l-2 border-primary">
-          <p className="text-xs text-muted-foreground">Transcribing voice message…</p>
+          <p className="text-xs text-muted-foreground">
+            Transcribing voice message… {seconds > 0 ? '(First use may take longer)' : ''}
+          </p>
         </div>
       )}
 
@@ -643,7 +642,7 @@ export const MessageInput = ({
                 disabled={isUploading || isTranscribing}
                 onClick={() => isRecording ? handleStopAndSend() : startRecording()}
                 aria-label={isRecording ? "Stop recording" : "Record voice"}
-                title={isRecording ? "Stop recording" : "Record voice (max 60s)"}
+                title={isRecording ? "Stop recording" : "Record voice message"}
               >
                 {isRecording ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
               </Button>
