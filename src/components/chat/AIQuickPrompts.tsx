@@ -57,6 +57,16 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
       text: "Generate an Excel report with my statistics and data",
       icon: Bot
     },
+    { 
+      label: "Analyze Document", 
+      text: "Please analyze this document for me. I'll upload the file and you can extract key information, summarize the content, and provide insights.",
+      icon: Search
+    },
+    { 
+      label: "Send Email", 
+      text: "Send a custom email for me. Please provide the recipient's email, subject, and message content.",
+      icon: MessageSquare
+    },
   ];
 
   return (
