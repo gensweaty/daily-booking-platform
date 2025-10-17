@@ -531,7 +531,7 @@ export const MessageInput = ({
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
             <span className="text-xs text-muted-foreground">
-              Recording… {seconds}s
+              Recording… {seconds}s / 60s max
             </span>
           </div>
         </div>
@@ -642,7 +642,7 @@ export const MessageInput = ({
                 disabled={isUploading || isTranscribing}
                 onClick={() => isRecording ? handleStopAndSend() : startRecording()}
                 aria-label={isRecording ? "Stop recording" : "Record voice"}
-                title={isRecording ? "Stop recording" : "Record voice message"}
+                title={isRecording ? "Stop recording and send" : "Record voice message (max 60s)"}
               >
                 {isRecording ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
               </Button>

@@ -24,9 +24,16 @@ export function useASR() {
       setStatus('recording');
       mr.start();
 
-      // Timer with no hard cap - just count seconds
+      // 60s maximum duration - auto-stop at limit
       timerRef.current = window.setInterval(() => {
-        setSeconds(s => s + 1);
+        setSeconds(s => {
+          const next = s + 1;
+          if (next >= 60) {
+            stop(); // auto-stop at 60s
+            return 60;
+          }
+          return next;
+        });
       }, 1000) as unknown as number;
     } catch (err) {
       console.error('Mic permission denied or unavailable:', err);

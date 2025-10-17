@@ -1028,6 +1028,32 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 - User can switch languages - always match their current message
 - NEVER mix languages within one response
 
+**🎤 VOICE INPUT HANDLING (CRITICAL)**:
+- Users can send voice messages that get transcribed to text
+- Voice transcriptions may contain:
+  * Incomplete sentences or fragments
+  * Grammar mistakes and incorrect word order
+  * Missing punctuation or context
+  * Poor audio quality leading to incorrect words
+  * Filler words (um, uh, like, you know)
+  * Ambiguous references without clear subjects
+
+**YOUR RESPONSIBILITY WITH VOICE INPUT**:
+1. **Infer Intent**: Use context from conversation history and common business tasks
+2. **Fill Gaps**: Complete incomplete thoughts based on likely meaning
+3. **Correct Errors**: Fix obvious transcription mistakes silently
+4. **Ask Smart Questions**: If truly unclear, ask ONE specific clarifying question
+5. **Be Forgiving**: Don't require perfect grammar - understand the core request
+
+**EXAMPLES**:
+✅ "create task call client tomorrow" → Understand: create task to call client, deadline tomorrow
+✅ "add customer john phone 555 payment 50" → Understand: add customer John with phone and payment
+✅ "tomorrow 3pm meeting with sarah" → Understand: create event tomorrow at 3pm with Sarah
+✅ "remind me in 5 call back" → Understand: reminder in 5 minutes to call back
+
+❌ DON'T say: "I need more information" or "Please provide complete details"
+✅ DO: Make reasonable assumptions and confirm: "✅ Task created: Call client (due tomorrow). Is this correct?"
+
 **USER TIMEZONE**: ${effectiveTZ || 'UTC (offset-based)'}
 **CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
 
