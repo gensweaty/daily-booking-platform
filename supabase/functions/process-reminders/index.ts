@@ -212,10 +212,13 @@ const handler = async (req: Request): Promise<Response> => {
                 message: reminder.message,
                 reminderTime: reminder.remind_at,
                 userId: reminder.user_id,
-                recipientUserId: recipientUserId, // Pass the actual recipient's auth user ID
-                createdByType: reminder.created_by_type, // Pass creator type for language lookup
-                createdBySubUserId: reminder.created_by_sub_user_id, // Pass sub-user ID for language lookup
-                recipientEmail: recipientEmail // NEW: Pass recipient email if exists
+                recipientUserId: recipientUserId,
+                createdByType: reminder.created_by_type,
+                createdBySubUserId: reminder.created_by_sub_user_id,
+                recipientEmail: recipientEmail,
+                recipientName: recipientName,
+                eventId: reminder.recipient_event_id,
+                customerId: reminder.recipient_customer_id
               }
             });
 

@@ -31,124 +31,217 @@ interface CustomReminderEmailRequest {
   recipientUserId?: string;
   createdByType?: string;
   createdBySubUserId?: string;
-  recipientEmail?: string; // NEW: Email to send reminder to (for customers/event persons)
+  recipientEmail?: string;
+  recipientName?: string;
+  eventId?: string;
+  customerId?: string;
 }
 
-// Multi-language email content
-const getEmailContent = (language: string, title: string, message: string | undefined, reminderTime: string) => {
+// Format event date and time
+const formatEventTimeForLocale = (dateISO: string, lang: string): string => {
+  const date = new Date(dateISO);
+  const locale = lang === 'ka' ? 'ka-GE' : lang === 'es' ? 'es-ES' : lang === 'ru' ? 'ru-RU' : 'en-US';
+
+  const formatter = new Intl.DateTimeFormat(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Tbilisi',
+  });
+
+  return formatter.format(date);
+};
+
+// Multi-language email content - matching event reminder format
+const getEmailContent = (
+  language: string, 
+  title: string, 
+  recipientName: string,
+  message: string | undefined, 
+  reminderTime: string,
+  eventDetails?: {
+    startDate: string;
+    endDate: string;
+    paymentStatus?: string;
+    businessAddress?: string;
+  }
+) => {
   let subject, body;
   
+  const formattedStartDate = eventDetails?.startDate ? formatEventTimeForLocale(eventDetails.startDate, language) : null;
+  const formattedEndDate = eventDetails?.endDate ? formatEventTimeForLocale(eventDetails.endDate, language) : null;
+  
+  // Create address section if business address is available
+  const addressSection = eventDetails?.businessAddress ? 
+    (language === 'ka' ? 
+      `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>მისამართი:</strong> ${eventDetails.businessAddress}</p>` :
+      language === 'es' ?
+      `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Dirección:</strong> ${eventDetails.businessAddress}</p>` :
+      language === 'ru' ?
+      `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Адрес:</strong> ${eventDetails.businessAddress}</p>` :
+      `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Address:</strong> ${eventDetails.businessAddress}</p>`
+    ) : '';
+  
   if (language === 'ka') {
-    subject = "🔔 შეხსენება";
+    subject = "📅 მოვლენის შეხსენება - " + title;
     body = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-          <div style="margin: 0 auto 12px auto; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
-            <span style="font-size: 32px;">🔔</span>
-          </div>
-          <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 600;">შეხსენება</h1>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">მოვლენის შეხსენება -</h1>
+          <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${title}</h2>
         </div>
         
-        <div style="padding: 20px;">
-          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 12px;">
-            <h2 style="color: #111827; margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4;">${title}</h2>
+        <div style="background: white; color: #333; padding: 30px; margin: 0;">
+          <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+            გამარჯობა ${recipientName}!
+          </p>
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+            ეს არის შეხსენება თქვენი მოახლოებული მოვლენის შესახებ:
+          </p>
+          ${message ? `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px; font-style: italic; color: #555;">${message}</p>` : ''}
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 მოვლენის დეტალები</h3>
+            
+            <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>მოვლენა:</strong> ${title}</p>
+            ${formattedStartDate ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>დაწყების თარიღი:</strong> ${formattedStartDate}</p>` : ''}
+            ${formattedEndDate ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>დასრულების თარიღი:</strong> ${formattedEndDate}</p>` : ''}
+            ${addressSection}
+            ${eventDetails?.paymentStatus ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>გადახდის სტატუსი:</strong> <span style="background: ${eventDetails.paymentStatus === 'fully_paid' ? '#d4edda' : eventDetails.paymentStatus === 'partly_paid' ? '#fff3cd' : '#f8d7da'}; color: ${eventDetails.paymentStatus === 'fully_paid' ? '#155724' : eventDetails.paymentStatus === 'partly_paid' ? '#856404' : '#721c24'}; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${eventDetails.paymentStatus === 'fully_paid' ? 'სრულად გადახდილი' : eventDetails.paymentStatus === 'partly_paid' ? 'ნაწილობრივ გადახდილი' : 'არ არის გადახდილი'}</span></p>` : ''}
           </div>
           
-          ${message && message !== title ? `
-            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
-              <p style="color: #4b5563; margin: 0; line-height: 1.6;">${message}</p>
-            </div>
-          ` : ''}
-          
-          <div style="background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
-            <div style="color: #9ca3af; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">დაგეგმილია</div>
-            <div style="display: flex; align-items: center;">
-              <span style="color: #f3f4f6; margin-right: 6px; font-size: 14px;">🕐</span>
-              <span style="color: #ffffff; font-size: 13px; font-weight: 500;">${new Date(reminderTime).toLocaleString('ka-GE')}</span>
-            </div>
+          <div style="text-align: center; margin: 30px 0;">
+            <p style="margin: 0; font-size: 18px; color: #333;">🎉 არ დაგავიწყდეს!</p>
           </div>
           
-          <div style="text-align: center; padding: 14px; background: #f3f4f6; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <p style="margin: 0; color: #6b7280; font-size: 12px;">
-              📱 SmartBookly-დან მიღებული შეხსენება
-            </p>
-          </div>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+          <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+            მიღებულია SmartBookly-დან - თქვენი ჭკვიანი დაჯავშნის სისტემა
+          </p>
         </div>
       </div>
     `;
   } else if (language === 'es') {
-    subject = "🔔 Recordatorio";
+    subject = "📅 Recordatorio de Evento - " + title;
     body = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-          <div style="margin: 0 auto 12px auto; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
-            <span style="font-size: 32px;">🔔</span>
-          </div>
-          <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 600;">Recordatorio</h1>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Recordatorio de Evento -</h1>
+          <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${title}</h2>
         </div>
         
-        <div style="padding: 20px;">
-          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 12px;">
-            <h2 style="color: #111827; margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4;">${title}</h2>
+        <div style="background: white; color: #333; padding: 30px; margin: 0;">
+          <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+            ¡Hola ${recipientName}!
+          </p>
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+            Este es un recordatorio sobre tu próximo evento:
+          </p>
+          ${message ? `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px; font-style: italic; color: #555;">${message}</p>` : ''}
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Detalles del Evento</h3>
+            
+            <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Evento:</strong> ${title}</p>
+            ${formattedStartDate ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Fecha de Inicio:</strong> ${formattedStartDate}</p>` : ''}
+            ${formattedEndDate ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Fecha de Fin:</strong> ${formattedEndDate}</p>` : ''}
+            ${addressSection}
+            ${eventDetails?.paymentStatus ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Estado de Pago:</strong> <span style="background: ${eventDetails.paymentStatus === 'fully_paid' ? '#d4edda' : eventDetails.paymentStatus === 'partly_paid' ? '#fff3cd' : '#f8d7da'}; color: ${eventDetails.paymentStatus === 'fully_paid' ? '#155724' : eventDetails.paymentStatus === 'partly_paid' ? '#856404' : '#721c24'}; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${eventDetails.paymentStatus === 'fully_paid' ? 'PAGADO' : eventDetails.paymentStatus === 'partly_paid' ? 'PARCIALMENTE PAGADO' : 'NO PAGADO'}</span></p>` : ''}
           </div>
           
-          ${message && message !== title ? `
-            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
-              <p style="color: #4b5563; margin: 0; line-height: 1.6;">${message}</p>
-            </div>
-          ` : ''}
-          
-          <div style="background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
-            <div style="color: #9ca3af; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Programada Para</div>
-            <div style="display: flex; align-items: center;">
-              <span style="color: #f3f4f6; margin-right: 6px; font-size: 14px;">🕐</span>
-              <span style="color: #ffffff; font-size: 13px; font-weight: 500;">${new Date(reminderTime).toLocaleString('es-ES')}</span>
-            </div>
+          <div style="text-align: center; margin: 30px 0;">
+            <p style="margin: 0; font-size: 18px; color: #333;">🎉 ¡No lo olvides!</p>
           </div>
           
-          <div style="text-align: center; padding: 14px; background: #f3f4f6; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <p style="margin: 0; color: #6b7280; font-size: 12px;">
-              📱 Recordatorio de SmartBookly
-            </p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+          <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+            SmartBookly - Sistema de Gestión de Reservas Inteligente
+          </p>
+        </div>
+      </div>
+    `;
+  } else if (language === 'ru') {
+    subject = "📅 Напоминание о Событии - " + title;
+    body = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Напоминание о Событии -</h1>
+          <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${title}</h2>
+        </div>
+        
+        <div style="background: white; color: #333; padding: 30px; margin: 0;">
+          <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+            Здравствуйте ${recipientName}!
+          </p>
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+            Это напоминание о вашем предстоящем событии:
+          </p>
+          ${message ? `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px; font-style: italic; color: #555;">${message}</p>` : ''}
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Детали События</h3>
+            
+            <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Событие:</strong> ${title}</p>
+            ${formattedStartDate ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Дата Начала:</strong> ${formattedStartDate}</p>` : ''}
+            ${formattedEndDate ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Дата Окончания:</strong> ${formattedEndDate}</p>` : ''}
+            ${addressSection}
+            ${eventDetails?.paymentStatus ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Статус Оплаты:</strong> <span style="background: ${eventDetails.paymentStatus === 'fully_paid' ? '#d4edda' : eventDetails.paymentStatus === 'partly_paid' ? '#fff3cd' : '#f8d7da'}; color: ${eventDetails.paymentStatus === 'fully_paid' ? '#155724' : eventDetails.paymentStatus === 'partly_paid' ? '#856404' : '#721c24'}; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${eventDetails.paymentStatus === 'fully_paid' ? 'ОПЛАЧЕНО' : eventDetails.paymentStatus === 'partly_paid' ? 'ЧАСТИЧНО ОПЛАЧЕНО' : 'НЕ ОПЛАЧЕНО'}</span></p>` : ''}
           </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <p style="margin: 0; font-size: 18px; color: #333;">🎉 Не забудьте!</p>
+          </div>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+          <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+            SmartBookly - Умная Система Управления Бронированиями
+          </p>
         </div>
       </div>
     `;
   } else {
-    subject = "🔔 Reminder";
+    subject = "📅 Event Reminder - " + title;
     body = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); border: 1px solid #e5e7eb;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 24px; border-radius: 8px 8px 0 0; text-align: center;">
-          <div style="margin: 0 auto 12px auto; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
-            <span style="font-size: 32px;">🔔</span>
-          </div>
-          <h1 style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 600;">Reminder Alert</h1>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Event Reminder -</h1>
+          <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${title}</h2>
         </div>
         
-        <div style="padding: 20px;">
-          <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px; margin-bottom: 12px;">
-            <h2 style="color: #111827; margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4;">${title}</h2>
+        <div style="background: white; color: #333; padding: 30px; margin: 0;">
+          <p style="font-size: 18px; line-height: 1.6; margin-bottom: 20px;">
+            Hello ${recipientName}!
+          </p>
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 25px;">
+            This is a reminder about your upcoming event:
+          </p>
+          ${message ? `<p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px; font-style: italic; color: #555;">${message}</p>` : ''}
+          
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 25px 0;">
+            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 18px;">📋 Event Details</h3>
+            
+            <p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Event:</strong> ${title}</p>
+            ${formattedStartDate ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Start Date:</strong> ${formattedStartDate}</p>` : ''}
+            ${formattedEndDate ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>End Date:</strong> ${formattedEndDate}</p>` : ''}
+            ${addressSection}
+            ${eventDetails?.paymentStatus ? `<p style="margin: 8px 0; font-size: 14px; color: #666;"><strong>Payment Status:</strong> <span style="background: ${eventDetails.paymentStatus === 'fully_paid' ? '#d4edda' : eventDetails.paymentStatus === 'partly_paid' ? '#fff3cd' : '#f8d7da'}; color: ${eventDetails.paymentStatus === 'fully_paid' ? '#155724' : eventDetails.paymentStatus === 'partly_paid' ? '#856404' : '#721c24'}; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${eventDetails.paymentStatus === 'fully_paid' ? 'PAID' : eventDetails.paymentStatus === 'partly_paid' ? 'PARTLY PAID' : 'NOT PAID'}</span></p>` : ''}
           </div>
           
-          ${message && message !== title ? `
-            <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #667eea;">
-              <p style="color: #4b5563; margin: 0; line-height: 1.6;">${message}</p>
-            </div>
-          ` : ''}
-          
-          <div style="background: #1f2937; border: 1px solid #374151; border-radius: 6px; padding: 14px; margin-bottom: 16px;">
-            <div style="color: #9ca3af; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">Scheduled For</div>
-            <div style="display: flex; align-items: center;">
-              <span style="color: #f3f4f6; margin-right: 6px; font-size: 14px;">🕐</span>
-              <span style="color: #ffffff; font-size: 13px; font-weight: 500;">${new Date(reminderTime).toLocaleString('en-US')}</span>
-            </div>
+          <div style="text-align: center; margin: 30px 0;">
+            <p style="margin: 0; font-size: 18px; color: #333;">🎉 Don't forget!</p>
           </div>
           
-          <div style="text-align: center; padding: 14px; background: #f3f4f6; border-radius: 6px; border: 1px solid #e5e7eb;">
-            <p style="margin: 0; color: #6b7280; font-size: 12px;">
-              📱 Reminder from SmartBookly
-            </p>
-          </div>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">
+          <p style="font-size: 12px; color: #999; text-align: center; margin: 0;">
+            SmartBookly - Smart Booking Management System
+          </p>
         </div>
       </div>
     `;
@@ -177,9 +270,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
-    const { reminderId, userEmail, title, message, reminderTime, userId, recipientUserId, createdByType, createdBySubUserId, recipientEmail }: CustomReminderEmailRequest = await req.json();
+    const { 
+      reminderId, 
+      userEmail, 
+      title, 
+      message, 
+      reminderTime, 
+      userId, 
+      recipientUserId, 
+      createdByType, 
+      createdBySubUserId, 
+      recipientEmail,
+      recipientName,
+      eventId,
+      customerId
+    }: CustomReminderEmailRequest = await req.json();
 
-    // NEW: Use recipient email if provided, otherwise use admin email
+    // Use recipient email if provided, otherwise use admin email
     const emailToSend = recipientEmail || userEmail;
 
     // Validate required fields
@@ -191,7 +298,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Check for duplicate email - IMMEDIATE check before processing
+    // Check for duplicate email
     const emailKey = `${reminderId}-${emailToSend}`;
     const lastSent = recentlySentEmails.get(emailKey);
     if (lastSent && Date.now() - lastSent < DUPLICATE_WINDOW_MS) {
@@ -202,7 +309,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Mark as sent IMMEDIATELY to prevent race conditions
+    // Mark as sent IMMEDIATELY
     recentlySentEmails.set(emailKey, Date.now());
 
     // CRITICAL FIX: Use the language stored in the reminder itself (from AI chat)
@@ -257,8 +364,67 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`📧 Sending to customer/event person email: ${recipientEmail}`);
     }
 
+    // Try to fetch event details if eventId is provided
+    let eventDetails;
+    let recipientDisplayName = recipientName || title;
+    
+    if (eventId) {
+      try {
+        const { data: event } = await supabase
+          .from('events')
+          .select('start_date, end_date, payment_status, user_id, title, user_surname')
+          .eq('id', eventId)
+          .is('deleted_at', null)
+          .single();
+        
+        if (event) {
+          recipientDisplayName = recipientName || event.user_surname || event.title;
+          
+          // Get business address
+          const { data: businessProfile } = await supabase
+            .from('business_profiles')
+            .select('contact_address')
+            .eq('user_id', event.user_id)
+            .single();
+          
+          eventDetails = {
+            startDate: event.start_date,
+            endDate: event.end_date,
+            paymentStatus: event.payment_status,
+            businessAddress: businessProfile?.contact_address
+          };
+        }
+      } catch (error) {
+        console.error('Error fetching event details:', error);
+      }
+    }
+    
+    // If no event but customer ID provided, try to fetch customer name
+    if (!recipientDisplayName && customerId) {
+      try {
+        const { data: customer } = await supabase
+          .from('customers')
+          .select('user_surname, title')
+          .eq('id', customerId)
+          .single();
+        
+        if (customer) {
+          recipientDisplayName = customer.user_surname || customer.title;
+        }
+      } catch (error) {
+        console.error('Error fetching customer details:', error);
+      }
+    }
+
     // Get localized email content
-    const { subject, body: emailBody } = getEmailContent(languagePreference, title, message, reminderTime);
+    const { subject, body: emailBody } = getEmailContent(
+      languagePreference, 
+      title, 
+      recipientDisplayName,
+      message, 
+      reminderTime,
+      eventDetails
+    );
 
     const emailResponse = await resend.emails.send({
       from: "SmartBookly <noreply@smartbookly.com>",
