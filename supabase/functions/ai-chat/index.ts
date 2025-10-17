@@ -2649,12 +2649,29 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               let recipientName: string | null = null;
               
               try {
-                // Extract potential names from prompt (look for "remind [NAME] about")
+                // Extract potential names from prompt - MULTILINGUAL SUPPORT
+                // Supports English, Georgian (ა-ჰ), Spanish, Russian (А-Яа-я), and mixed scripts
                 const reminderPatterns = [
-                  /remind\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+about/i,
-                  /reminder\s+for\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+about/i,
-                  /remind\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+that/i,
-                  /notify\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+about/i,
+                  // English: "remind NAME about", "remind NAME that"
+                  /remind\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(?:about|that)/i,
+                  /reminder\s+for\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+about/i,
+                  /notify\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+about/i,
+                  
+                  // Georgian: "შეახსენე NAME ს", "შეახსენე NAME -ს"
+                  /შეახსენე\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s+[სზ]/iu,
+                  /შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s+[სზ]/iu,
+                  
+                  // Spanish: "recordar a NAME sobre", "recordar NAME sobre"
+                  /recordar\s+(?:a\s+)?([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)\s+sobre/iu,
+                  /recuerda\s+a\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)\s+sobre/iu,
+                  
+                  // Russian: "напомни NAME о", "напомнить NAME о"
+                  /напомни(?:ть)?\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)\s+о/iu,
+                  /напоминание\s+для\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)\s+о/iu,
+                  
+                  // Fallback: Extract any name-like word (Latin letters) surrounded by non-Latin text
+                  // This catches mixed-language prompts like "შეახსენე anna ს თავის"
+                  /(?:^|\s)([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+)?)(?:\s+(?:[ს]|about|sobre|о))/i,
                 ];
                 
                 for (const pattern of reminderPatterns) {
