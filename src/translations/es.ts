@@ -782,16 +782,6 @@ export const translations: TranslationType = {
     noCustomChats: "No hay chats personalizados",
     deleteChat: "Eliminar Chat",
     deleteChatConfirmTitle: "¿Eliminar Chat?",
-    deleteChatConfirmMessage: "¿Estás seguro de que quieres eliminar este chat? Esta acción no se puede deshacer y todos los mensajes se perderán.",
-    quickActions: {
-      scheduleReminder: "Programar Recordatorio",
-      todaysSchedule: "Agenda de Hoy",
-      findCustomer: "Buscar Cliente",
-      taskProgress: "Progreso de Tareas",
-      paymentSummary: "Resumen de Pagos",
-      excelReport: "Informe Excel",
-      analyzeDocument: "Analizar Documento",
-      sendEmail: "Enviar Email por mí"
-    }
+    deleteChatConfirmMessage: "¿Estás seguro de que quieres eliminar este chat? Esta acción no se puede deshacer y todos los mensajes se perderán."
   }
 };

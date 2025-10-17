@@ -783,15 +783,5 @@ export interface TranslationType {
     deleteChat: string;
     deleteChatConfirmTitle: string;
     deleteChatConfirmMessage: string;
-    quickActions: {
-      scheduleReminder: string;
-      todaysSchedule: string;
-      findCustomer: string;
-      taskProgress: string;
-      paymentSummary: string;
-      excelReport: string;
-      analyzeDocument: string;
-      sendEmail: string;
-    };
   };
 }

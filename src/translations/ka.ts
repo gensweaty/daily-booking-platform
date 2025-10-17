@@ -782,16 +782,6 @@ export const translations: TranslationType = {
     noCustomChats: "მორგებული ჩატები არ არის",
     deleteChat: "ჩათის წაშლა",
     deleteChatConfirmTitle: "წავშალოთ ჩათი?",
-    deleteChatConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ ამ ჩათის წაშლა? ეს მოქმედება შეუქცევადია და ყველა შეტყობინება დაიკარგება.",
-    quickActions: {
-      scheduleReminder: "შეხსენების დაგეგმვა",
-      todaysSchedule: "დღევანდელი განრიგი",
-      findCustomer: "კლიენტის მოძებნა",
-      taskProgress: "დავალების პროგრესი",
-      paymentSummary: "გადახდების შეჯამება",
-      excelReport: "Excel ანგარიში",
-      analyzeDocument: "დოკუმენტის ანალიზი",
-      sendEmail: "ელფოსტის გაგზავნა ჩემთვის"
-    }
+    deleteChatConfirmMessage: "დარწმუნებული ხართ, რომ გსურთ ამ ჩათის წაშლა? ეს მოქმედება შეუქცევადია და ყველა შეტყობინება დაიკარგება."
   }
 };

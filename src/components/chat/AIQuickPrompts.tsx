@@ -28,42 +28,42 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
 
   const prompts = [
     { 
-      label: "Schedule Reminder",
+      label: "Schedule Reminder", 
       text: "Schedule a reminder for me",
       icon: Calendar
     },
     { 
-      label: "Today's Schedule",
+      label: "Today's Schedule", 
       text: "What's on my schedule today?",
       icon: Calendar
     },
     { 
-      label: "Find Customer",
+      label: "Find Customer", 
       text: "Search for a customer",
       icon: Search
     },
     { 
-      label: "Task Progress",
+      label: "Task Progress", 
       text: "Show me my task completion rate and what's pending",
       icon: Calendar
     },
     { 
-      label: "Payment Summary",
+      label: "Payment Summary", 
       text: "Give me a summary of payments and revenue",
       icon: MessageSquare
     },
     { 
-      label: "Excel Report",
+      label: "Excel Report", 
       text: "Generate an Excel report with my statistics and data",
       icon: Bot
     },
     { 
-      label: "Analyze Document",
+      label: "Analyze Document", 
       text: "Please analyze this document for me. I'll upload the file and you can extract key information, summarize the content, and provide insights.",
       icon: Search
     },
     { 
-      label: "Send Email For me",
+      label: "Send Email", 
       text: "Send a custom email for me. Please provide the recipient's email, subject, and message content.",
       icon: MessageSquare
     },

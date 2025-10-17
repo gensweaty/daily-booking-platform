@@ -782,16 +782,6 @@ export const translations: TranslationType = {
     noCustomChats: "No custom chats",
     deleteChat: "Delete Chat",
     deleteChatConfirmTitle: "Delete Chat?",
-    deleteChatConfirmMessage: "Are you sure you want to delete this chat? This action cannot be undone and all messages will be lost.",
-    quickActions: {
-      scheduleReminder: "Schedule Reminder",
-      todaysSchedule: "Today's Schedule",
-      findCustomer: "Find Customer",
-      taskProgress: "Task Progress",
-      paymentSummary: "Payment Summary",
-      excelReport: "Excel Report",
-      analyzeDocument: "Analyze Document",
-      sendEmail: "Send Email For me"
-    }
+    deleteChatConfirmMessage: "Are you sure you want to delete this chat? This action cannot be undone and all messages will be lost."
   }
 };
