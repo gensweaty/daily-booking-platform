@@ -49,11 +49,11 @@ const getEmailContent = (
   const greeting = greetings[lang] || greetings.en;
   const footer = footers[lang] || footers.en;
 
-  // Build sender information with business name and email
+  // Build sender information with name, business name, and email
   let senderInfo = '';
   if (businessName && senderEmail) {
-    // Business + email
-    senderInfo = `<p><strong>${businessName}</strong><br><span style="color: #666; font-size: 14px;">${senderEmail}</span></p>`;
+    // Business + email + name
+    senderInfo = `<p><strong>${senderName || 'User'}</strong><br><strong>${businessName}</strong><br><span style="color: #666; font-size: 14px;">${senderEmail}</span></p>`;
   } else if (senderName && senderEmail) {
     // User name + email (no business)
     senderInfo = `<p><strong>${senderName}</strong><br><span style="color: #666; font-size: 14px;">${senderEmail}</span></p>`;
