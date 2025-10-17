@@ -275,6 +275,8 @@ export const MessageInput = ({
             console.log('🤖 Setting AI typing indicator ON (text message)');
             onAISending(true);
           }
+        } else {
+          console.log('🤖 Already in sending mode (voice), maintaining typing indicator');
         }
         
         // Call AI edge function (it will insert the AI response)
@@ -329,11 +331,19 @@ export const MessageInput = ({
           });
         } finally {
           console.log('🤖 AI response complete, turning OFF typing indicator');
-          setIsSendingAI(false);
-          if (onAISending) {
-            // Small delay to ensure UI updates properly on mobile
-            setTimeout(() => onAISending(false), 100);
-          }
+          
+          // Mobile optimization: Delay state reset to ensure smooth UI transition
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          const delay = isMobile ? 150 : 50;
+          
+          setTimeout(() => {
+            setIsSendingAI(false);
+            if (onAISending) {
+              onAISending(false);
+              console.log('🤖 Typing indicator turned OFF');
+            }
+          }, delay);
+          
           // Keep quick prompts closed - user will reopen manually if needed
         }
       } else {
@@ -367,11 +377,8 @@ export const MessageInput = ({
         setMessage('');
         messageRef.current = '';
         setAttachments([]);
-        // For regular (non-AI) channels, reopen quick prompts after a delay
-        if (!isAIChannel) {
-          setShowQuickPrompts(false);
-          setTimeout(() => setShowQuickPrompts(true), 500);
-        }
+        // Don't auto-reopen quick prompts for any channel - user controls visibility
+        setShowQuickPrompts(false);
       }
       
       if (textareaRef.current) {
@@ -471,7 +478,7 @@ export const MessageInput = ({
     // do not preventDefault so text still pastes if there was any
   };
 
-  // Voice recording handler
+  // Voice recording handler with mobile-optimized state management
   const handleStopAndSend = async () => {
     console.log('🎤 [VOICE] Stop button clicked, stopping recording...');
     
@@ -482,6 +489,7 @@ export const MessageInput = ({
       const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
       localStorage.setItem(hasSeenKey, 'true');
       
+      // Batch state updates for mobile performance
       setIsSendingAI(true);
       setShowQuickPrompts(false);
       if (onAISending) {
@@ -490,10 +498,21 @@ export const MessageInput = ({
       }
     }
     
+    let transcriptionSuccess = false;
+    let messageText = '';
+    
     try {
-      // Wait for recording to fully stop
+      // Wait for recording to fully stop with mobile-optimized delays
       console.log('🎤 [VOICE] Stopping recording...');
       await stopRecording();
+      
+      // Mobile needs extra time for audio buffer processing
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        console.log('🎤 [VOICE] Mobile detected, waiting for audio stabilization...');
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
       console.log('🎤 [VOICE] Recording stopped, starting transcription...');
       
       // Now transcribe (chunks are guaranteed to be available)
@@ -502,43 +521,50 @@ export const MessageInput = ({
       
       if (!text || text.trim().length === 0) {
         console.warn('🎤 [VOICE] No text transcribed - resetting state');
-        // Reset typing state on error
-        if (isAIChannel) {
-          setIsSendingAI(false);
-          if (onAISending) onAISending(false);
-          setShowQuickPrompts(false); // Keep closed even on error
-        }
-        toast({ 
-          title: "No speech detected", 
-          description: "Try speaking closer to the microphone.", 
-          variant: "destructive" 
-        });
-        return;
+        throw new Error('No speech detected. Try speaking closer to the microphone.');
       }
       
-      // Set the message text
-      console.log('🎤 [VOICE] Setting message and sending to AI...');
-      setMessage(text);
-      messageRef.current = text;
+      messageText = text.trim();
+      transcriptionSuccess = true;
+      
+      // Set the message text with mobile-friendly batching
+      console.log('🎤 [VOICE] Setting message and sending...');
+      setMessage(messageText);
+      messageRef.current = messageText;
       
       if (textareaRef.current) {
-        textareaRef.current.value = text;
+        textareaRef.current.value = messageText;
+      }
+      
+      // Mobile optimization: Force UI update before send
+      if (isMobile) {
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
       
       // Send immediately - uploadAndSend will handle AI response
       // Note: uploadAndSend already has isSendingAI=true, so it won't reset the typing indicator
+      console.log('🎤 [VOICE] Calling uploadAndSend...');
       await uploadAndSend();
-      console.log('🎤 [VOICE] Message sent, AI should be processing now');
+      console.log('🎤 [VOICE] Upload complete, AI processing...');
       
       // Don't show success toast for AI channels (typing indicator shows progress)
       if (!isAIChannel) {
         toast({ title: "✓ Voice message sent", duration: 2000 });
+      } else {
+        console.log('🤖 [VOICE] AI channel - keeping typing indicator active during processing');
       }
       
     } catch (e: any) {
       console.error('🎤 [VOICE] Error:', e);
-      // Reset typing state on error
+      
+      // Reset typing state on error with mobile-friendly timing
       if (isAIChannel) {
+        // Mobile needs slight delay for smooth state transition
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
         setIsSendingAI(false);
         if (onAISending) {
           onAISending(false);
@@ -546,10 +572,14 @@ export const MessageInput = ({
         }
         setShowQuickPrompts(false); // Keep closed even on error
       }
+      
+      // Show user-friendly error
+      const errorMessage = e?.message || "Voice transcription failed. Please try recording again.";
       toast({ 
-        title: "Voice to text failed", 
-        description: e?.message || "Please try recording again.", 
-        variant: "destructive" 
+        title: transcriptionSuccess ? "Send failed" : "Voice to text failed", 
+        description: errorMessage,
+        variant: "destructive",
+        duration: 4000 // Longer duration for errors on mobile
       });
     }
   };

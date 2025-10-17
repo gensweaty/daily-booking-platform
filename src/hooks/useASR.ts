@@ -110,18 +110,23 @@ export function useASR() {
     console.log('🎤 Starting transcription, chunks available:', chunksRef.current.length);
     
     if (chunksRef.current.length === 0) {
-      throw new Error('No audio data recorded. Please try again.');
+      throw new Error('No audio recorded. Please try again.');
     }
     
     const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'audio/webm' });
     console.log('🎤 Blob created, size:', blob.size, 'bytes, type:', blob.type);
     
     if (blob.size === 0) {
-      throw new Error('No audio data recorded. Please try again.');
+      throw new Error('No audio recorded. Please try again.');
     }
     
-    if (blob.size < 5000) {
+    // Mobile-specific size threshold (accounts for different codec compression)
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const minSize = isMobile ? 3000 : 5000;
+    
+    if (blob.size < minSize) {
       console.warn('⚠️ Audio blob is very small:', blob.size, 'bytes - audio might be too short');
+      throw new Error('Recording too short. Please speak for at least 1 second.');
     }
     
     setStatus('transcribing');
@@ -140,16 +145,25 @@ export function useASR() {
         console.log('🎤 Audio converted successfully, samples:', floatData.length, 'duration:', (floatData.length / 16000).toFixed(2), 'seconds');
       } catch (convErr) {
         console.error('❌ Audio conversion error:', convErr);
-        throw new Error('Failed to process audio format. Please try recording again.');
+        // Mobile-specific error messages
+        if (isMobile && convErr instanceof Error && convErr.message.includes('decode')) {
+          throw new Error('Audio format not supported. Try again or use a different device.');
+        }
+        throw new Error('Failed to process audio. Please try recording again.');
       }
       
-      // Validate audio content
-      const maxAmplitude = Math.max(...Array.from(floatData.slice(0, Math.min(floatData.length, 10000))).map(Math.abs));
-      const avgAmplitude = Array.from(floatData.slice(0, Math.min(floatData.length, 10000))).reduce((sum, val) => sum + Math.abs(val), 0) / Math.min(floatData.length, 10000);
+      // Validate audio content with mobile-adjusted thresholds
+      const sampleSize = Math.min(floatData.length, 10000);
+      const samples = Array.from(floatData.slice(0, sampleSize));
+      const maxAmplitude = Math.max(...samples.map(Math.abs));
+      const avgAmplitude = samples.reduce((sum, val) => sum + Math.abs(val), 0) / sampleSize;
       console.log('🎤 Audio quality - Max amplitude:', maxAmplitude.toFixed(4), 'Avg amplitude:', avgAmplitude.toFixed(6));
       
-      if (maxAmplitude < 0.0005) {
-        throw new Error('Audio is too quiet. Please speak louder.');
+      // Mobile devices often have different recording sensitivity
+      const minAmplitude = isMobile ? 0.0003 : 0.0005;
+      
+      if (maxAmplitude < minAmplitude) {
+        throw new Error('Audio too quiet. Please speak louder and closer to the microphone.');
       }
 
       // Build ASR pipeline with base model for better balance
@@ -183,12 +197,20 @@ export function useASR() {
       
       if (err instanceof Error) {
         // Pass through our custom error messages
-        if (err.message.includes('audio') || err.message.includes('quiet') || err.message.includes('speech') || err.message.includes('format')) {
+        if (err.message.includes('audio') || 
+            err.message.includes('quiet') || 
+            err.message.includes('speech') || 
+            err.message.includes('format') ||
+            err.message.includes('short') ||
+            err.message.includes('supported')) {
           throw err;
         }
       }
       
-      throw new Error('Voice transcription failed. Please try recording again.');
+      // Generic fallback with mobile hint
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const hint = isMobile ? ' Try using headphones or a quieter location.' : '';
+      throw new Error('Voice transcription failed.' + hint + ' Please try recording again.');
     } finally {
       chunksRef.current = [];
     }
@@ -215,13 +237,14 @@ async function blobToMono16kFloat32(blob: Blob): Promise<Float32Array> {
   
   let audio: AudioBuffer;
   try {
-    // Mobile devices may need a copy of the buffer
-    const bufferCopy = arrayBuffer.slice(0);
-    audio = await ctx.decodeAudioData(bufferCopy);
+    // Mobile devices may need a copy of the buffer to prevent memory issues
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const bufferToUse = isMobile ? arrayBuffer.slice(0) : arrayBuffer;
+    audio = await ctx.decodeAudioData(bufferToUse);
   } catch (decodeErr) {
     await ctx.close();
     console.error('🎤 Audio decode error:', decodeErr);
-    throw new Error('Audio decode failed');
+    throw new Error('Audio decode failed - unsupported format');
   }
   
   console.log('🎤 Decoded audio:', {
@@ -231,12 +254,16 @@ async function blobToMono16kFloat32(blob: Blob): Promise<Float32Array> {
     length: audio.length
   });
   
-  if (audio.duration < 0.3) {
+  // Mobile-adjusted minimum duration (some codecs have initialization overhead)
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const minDuration = isMobile ? 0.2 : 0.3;
+  
+  if (audio.duration < minDuration) {
     await ctx.close();
-    throw new Error('Audio too short - please speak for at least 0.5 seconds');
+    throw new Error(`Recording too short (${audio.duration.toFixed(1)}s) - please speak for at least 1 second`);
   }
   
-  // Mix down to mono
+  // Mix down to mono with proper handling for silent channels
   const monoData = new Float32Array(audio.length);
   if (audio.numberOfChannels === 1) {
     const channel = audio.getChannelData(0);
@@ -249,28 +276,34 @@ async function blobToMono16kFloat32(blob: Blob): Promise<Float32Array> {
     }
   }
   
-  // Resample to 16kHz
+  // Resample to 16kHz with mobile-optimized processing
   const targetSampleRate = 16000;
   const targetLength = Math.ceil(audio.duration * targetSampleRate);
   
   console.log('🎤 Resampling from', audio.sampleRate, 'Hz to 16kHz, target length:', targetLength);
   
-  const offlineCtx = new OfflineAudioContext(1, targetLength, targetSampleRate);
-  const buffer = offlineCtx.createBuffer(1, monoData.length, audio.sampleRate);
-  buffer.copyToChannel(monoData, 0);
-  
-  const source = offlineCtx.createBufferSource();
-  source.buffer = buffer;
-  source.connect(offlineCtx.destination);
-  source.start(0);
-  
-  const resampled = await offlineCtx.startRendering();
-  const resampledData = resampled.getChannelData(0);
-  
-  console.log('🎤 Resampled to', resampledData.length, 'samples');
-  
-  await ctx.close();
-  
-  return resampledData;
+  try {
+    const offlineCtx = new OfflineAudioContext(1, targetLength, targetSampleRate);
+    const buffer = offlineCtx.createBuffer(1, monoData.length, audio.sampleRate);
+    buffer.copyToChannel(monoData, 0);
+    
+    const source = offlineCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(offlineCtx.destination);
+    source.start(0);
+    
+    const resampled = await offlineCtx.startRendering();
+    const resampledData = resampled.getChannelData(0);
+    
+    console.log('🎤 Resampled to', resampledData.length, 'samples');
+    
+    await ctx.close();
+    
+    return resampledData;
+  } catch (resampleErr) {
+    await ctx.close();
+    console.error('🎤 Resampling error:', resampleErr);
+    throw new Error('Audio processing failed');
+  }
 }
 
