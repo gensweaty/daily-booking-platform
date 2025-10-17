@@ -2444,11 +2444,13 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
               const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59).toISOString();
               
-              // Filter by start_date (events happening this month) not created_at
+              // CRITICAL FIX: Filter by start_date for events, and by created_at for customers to match Statistics page
               const [eventsResult, bookingsResult, customersResult] = await Promise.all([
-                supabaseClient.from('events').select('payment_amount, payment_status').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
+                // Only fetch parent events and non-recurring events to prevent double-counting
+                supabaseClient.from('events').select('payment_amount, payment_status').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).or('is_recurring.is.null,is_recurring.eq.false,and(is_recurring.eq.true,parent_event_id.is.null)'),
                 supabaseClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
-                supabaseClient.from('customers').select('id').eq('user_id', ownerId).is('deleted_at', null)
+                // Filter customers by created_at (customers CREATED this month) to match Statistics/CRM page
+                supabaseClient.from('customers').select('id').eq('user_id', ownerId).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null)
               ]);
               
               // Combine events and bookings
@@ -2461,7 +2463,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 },
                 total_customers: customersResult.data?.length || 0
               };
-              console.log(`    ✓ Business stats generated: ${allEventsThisMonth.length} events this month`);
+              console.log(`    ✓ AI Business stats: ${allEventsThisMonth.length} events, ${customersResult.data?.length || 0} customers (created this month)`);
               break;
             }
 

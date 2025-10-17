@@ -123,13 +123,16 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const endDateStr = dateRange.end.toISOString();
 
       // Get regular events from events table (filter by start_date for events happening in the selected period)
+      // CRITICAL FIX: Only fetch non-recurring events OR parent recurring events (not child instances)
+      // This prevents double-counting recurring series
       const { data: regularEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
         .gte('start_date', startDateStr)
         .lte('start_date', endDateStr)
-        .is('deleted_at', null);
+        .is('deleted_at', null)
+        .or('is_recurring.is.null,is_recurring.eq.false,and(is_recurring.eq.true,parent_event_id.is.null)');
 
       if (eventsError) {
         console.error('Error fetching regular events:', eventsError);
@@ -221,35 +224,25 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         }
       }
 
-      // Separate recurring events by series for proper payment calculation
-      const recurringSeriesMap = new Map<string, any[]>();
+      // Separate recurring parent events from non-recurring events
+      // Since we only fetch parent events now, we just need to separate by is_recurring flag
+      const recurringEvents: any[] = [];
       const nonRecurringEvents: any[] = [];
 
       allEvents.forEach(event => {
-        if (event.is_recurring && event.parent_event_id) {
-          // This is a recurring instance - group by parent
-          const parentId = event.parent_event_id;
-          if (!recurringSeriesMap.has(parentId)) {
-            recurringSeriesMap.set(parentId, []);
-          }
-          recurringSeriesMap.get(parentId)?.push(event);
-        } else if (event.is_recurring && !event.parent_event_id) {
-          // This is a recurring parent - group by its own ID
-          if (!recurringSeriesMap.has(event.id)) {
-            recurringSeriesMap.set(event.id, []);
-          }
-          recurringSeriesMap.get(event.id)?.push(event);
+        if (event.is_recurring) {
+          recurringEvents.push(event);
         } else {
-          // Non-recurring event
           nonRecurringEvents.push(event);
         }
       });
 
-      console.log(`Processing ${recurringSeriesMap.size} recurring series and ${nonRecurringEvents.length} non-recurring events`);
+      console.log(`✅ EVENT COUNT FIX: Found ${recurringEvents.length} recurring series and ${nonRecurringEvents.length} non-recurring events`);
+      console.log(`📊 Total unique events: ${allEvents.length}`);
 
-      // Count unique events: non-recurring events + number of recurring series (not individual instances)
-      // This prevents double-counting parent events and their child instances
-      const totalEvents = nonRecurringEvents.length + recurringSeriesMap.size;
+      // Count unique events: Since we only fetch parent events, total is simply allEvents.length
+      // Each recurring series (parent) counts as ONE event, each non-recurring event counts as ONE
+      const totalEvents = allEvents.length;
 
       let partlyPaid = 0;
       let fullyPaid = 0;
@@ -308,67 +301,58 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         }
       });
 
-      // Process recurring series - count payments only once per series per unique person
-      for (const [seriesId, seriesEvents] of recurringSeriesMap) {
-        console.log(`Processing recurring series ${seriesId} with ${seriesEvents.length} instances`);
+      // Process recurring parent events - since we only fetch parents now, treat them like normal events
+      recurringEvents.forEach(event => {
+        const paymentStatus = event.payment_status || '';
         
-        // For payment status, check if ANY instance in the series has payments
-        let hasPartlyPaid = false;
-        let hasFullyPaid = false;
-        
-        // For income calculation, use the payment amount from the FIRST instance only
-        // (assuming all instances in a series have the same payment details)
-        const firstInstance = seriesEvents[0];
-        
-        seriesEvents.forEach(instance => {
-          const paymentStatus = instance.payment_status || '';
-          if (paymentStatus.includes('partly')) hasPartlyPaid = true;
-          if (paymentStatus.includes('fully')) hasFullyPaid = true;
+        if (paymentStatus.includes('partly')) {
+          partlyPaid++;
+        }
+        if (paymentStatus.includes('fully')) {
+          fullyPaid++;
+        }
 
-          // Count each instance for daily stats
-          if (instance.start_date) {
-            try {
-              const eventDate = parseISO(instance.start_date);
-              const day = format(eventDate, 'yyyy-MM-dd');
-              dailyBookings.set(day, (dailyBookings.get(day) || 0) + 1);
-            } catch (dateError) {
-              console.warn('Invalid date in recurring instance:', instance.start_date);
-            }
-          }
-        });
-
-        // Count payment status once per series
-        if (hasPartlyPaid && !hasFullyPaid) partlyPaid++;
-        if (hasFullyPaid) fullyPaid++;
-
-        // Add income only once per series (from first instance)
-        if ((firstInstance.payment_status?.includes('partly') || 
-             firstInstance.payment_status?.includes('fully')) && 
-            firstInstance.payment_amount) {
-          const amount = typeof firstInstance.payment_amount === 'number' 
-            ? firstInstance.payment_amount 
-            : parseFloat(String(firstInstance.payment_amount));
+        // Calculate income from main event (counted once per series)
+        if ((event.payment_status?.includes('partly') || 
+             event.payment_status?.includes('fully')) && 
+            event.payment_amount) {
+          const amount = typeof event.payment_amount === 'number' 
+            ? event.payment_amount 
+            : parseFloat(String(event.payment_amount));
           if (!isNaN(amount) && amount > 0) {
             totalIncome += amount;
             eventIncome += amount;
-            console.log(`Added ${amount} from recurring series ${seriesId} (counted once)`);
-
-            // Add to monthly income only once per series
-            if (firstInstance.start_date) {
-              try {
-                const eventDate = parseISO(firstInstance.start_date);
-                const month = format(eventDate, 'MMM yyyy');
-                monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
-              } catch (dateError) {
-                console.warn('Invalid date in recurring series:', firstInstance.start_date);
-              }
-            }
+            console.log(`Added ${amount} from recurring series ${event.id} (counted once)`);
           }
         }
 
-        // Get additional persons for this series and count their payments only once
+        // Daily stats for parent recurring event
+        if (event.start_date) {
+          try {
+            const eventDate = parseISO(event.start_date);
+            const day = format(eventDate, 'yyyy-MM-dd');
+            dailyBookings.set(day, (dailyBookings.get(day) || 0) + 1);
+
+            // Monthly income aggregation
+            const month = format(eventDate, 'MMM yyyy');
+            if ((event.payment_status?.includes('partly') || 
+                 event.payment_status?.includes('fully')) && 
+                event.payment_amount) {
+              const amount = typeof event.payment_amount === 'number' 
+                ? event.payment_amount 
+                : parseFloat(String(event.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
+              }
+            }
+          } catch (dateError) {
+            console.warn('Invalid date in recurring event:', event.start_date);
+          }
+        }
+
+        // Get additional persons for this recurring series
         const seriesAdditionalPersons = additionalPersons.filter(person => 
-          person.event_id === seriesId
+          person.event_id === event.id
         );
 
         seriesAdditionalPersons.forEach(person => {
@@ -380,7 +364,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             if (!isNaN(amount) && amount > 0) {
               totalIncome += amount;
               eventIncome += amount;
-              console.log(`Added ${amount} from additional person in recurring series ${seriesId} (counted once)`);
+              console.log(`Added ${amount} from additional person in recurring series ${event.id} (counted once)`);
               
               // Add to monthly income
               if (person.start_date) {
@@ -395,11 +379,12 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             }
           }
         });
-      }
+      });
 
       // Add income from additional persons for non-recurring events
+      const recurringEventIds = new Set(recurringEvents.map(e => e.id));
       const nonRecurringAdditionalPersons = additionalPersons.filter(person => 
-        !recurringSeriesMap.has(person.event_id || '')
+        !recurringEventIds.has(person.event_id || '')
       );
 
       nonRecurringAdditionalPersons.forEach(person => {
@@ -687,7 +672,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
         additionalPersonsCount: additionalPersons.length,
-        recurringSeriesCount: recurringSeriesMap.size
+        recurringEventsCount: recurringEvents.length
       });
 
       return result;
