@@ -818,4 +818,15 @@ export interface TranslationType {
     chatGuidePrompt: string;
     allPagesPrompt: string;
   };
+  voice: {
+    startRecording: string;
+    stopRecording: string;
+    recording: string;
+    transcribing: string;
+    remainingTime: string;
+    permissionDenied: string;
+    transcriptionFailed: string;
+    recordingError: string;
+    cancelRecording: string;
+  };
 }

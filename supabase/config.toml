@@ -65,6 +65,9 @@ verify_jwt = true
 [functions.generate-excel-report]
 verify_jwt = false
 
+[functions.transcribe-audio]
+verify_jwt = true
+
 [storage]
 # The maximum file size allowed (e.g. "5MB", "500KB").
 # file_size_limit = "50MiB"

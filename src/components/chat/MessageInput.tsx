@@ -10,6 +10,7 @@ import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import { useToast } from '@/hooks/use-toast';
 import { AIQuickPrompts } from './AIQuickPrompts';
+import { VoiceRecorder } from './VoiceRecorder';
 
 interface MessageInputProps {
   onSendMessage: (content: string, attachments?: any[]) => void;
@@ -71,6 +72,7 @@ export const MessageInput = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isSendingAI, setIsSendingAI] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -408,6 +410,63 @@ export const MessageInput = ({
     // do not preventDefault so text still pastes if there was any
   };
 
+  const handleVoiceRecording = async (audioBase64: string) => {
+    if (!isAIChannel) return;
+
+    setIsTranscribing(true);
+    try {
+      console.log('🎤 Sending audio for transcription...');
+      
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: audioBase64 }
+      });
+
+      if (error) {
+        console.error('❌ Transcription error:', error);
+        toast({
+          title: t('voice.transcriptionFailed'),
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (data?.text) {
+        const transcribedText = `🎤 ${data.text}`;
+        console.log('✅ Transcription:', data.text);
+        
+        setMessage(transcribedText);
+        
+        // Auto-send the transcribed message
+        setTimeout(() => {
+          if (transcribedText.trim()) {
+            setMessage(transcribedText);
+            // Trigger send by simulating form submission
+            const form = document.querySelector('form');
+            if (form) {
+              const event = new Event('submit', { bubbles: true, cancelable: true });
+              form.dispatchEvent(event);
+            }
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('❌ Voice message error:', error);
+      toast({
+        title: t('voice.transcriptionFailed'),
+        variant: 'destructive'
+      });
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const handleVoiceError = (error: string) => {
+    toast({
+      title: error,
+      variant: 'destructive'
+    });
+  };
+
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -548,6 +607,15 @@ export const MessageInput = ({
                 </PopoverContent>
               </Popover>
             )}
+            
+            {/* Voice Recorder - Only for AI channels */}
+            {isAIChannel && !editingMessage && (
+              <VoiceRecorder
+                onRecordingComplete={handleVoiceRecording}
+                onError={handleVoiceError}
+                disabled={isUploading || isSendingAI || isTranscribing}
+              />
+            )}
           </div>
         </div>
 
@@ -557,8 +625,8 @@ export const MessageInput = ({
           disabled={
             editingMessage 
               ? !message.trim() || isUploading
-              : (!message.trim() && attachments.length === 0) || isUploading
-          } 
+              : (!message.trim() && attachments.length === 0) || isUploading || isTranscribing
+          }
           className="h-12 w-12 p-0"
         >
           <Send className="h-4 w-4" />
