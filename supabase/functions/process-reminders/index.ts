@@ -166,7 +166,14 @@ const handler = async (req: Request): Promise<Response> => {
             let userEmail: string;
             const recipientUserId = reminder.user_id; // Always use board owner ID for language lookup
             
-            if (reminder.created_by_type === 'sub_user' && reminder.created_by_sub_user_id) {
+            // NEW: Check if reminder has a specific recipient email (for customers/event persons)
+            const recipientEmail = reminder.recipient_email;
+            
+            if (recipientEmail) {
+              // Reminder is for a customer/event person - use their email
+              userEmail = recipientEmail;
+              console.log(`📧 Sending reminder to customer/event email: ${recipientEmail}`);
+            } else if (reminder.created_by_type === 'sub_user' && reminder.created_by_sub_user_id) {
               // This reminder was created by a sub-user - send to sub-user's email
               const { data: subUserData, error: subUserError } = await supabase
                 .from('sub_users')
@@ -207,7 +214,8 @@ const handler = async (req: Request): Promise<Response> => {
                 userId: reminder.user_id,
                 recipientUserId: recipientUserId, // Pass the actual recipient's auth user ID
                 createdByType: reminder.created_by_type, // Pass creator type for language lookup
-                createdBySubUserId: reminder.created_by_sub_user_id // Pass sub-user ID for language lookup
+                createdBySubUserId: reminder.created_by_sub_user_id, // Pass sub-user ID for language lookup
+                recipientEmail: recipientEmail // NEW: Pass recipient email if exists
               }
             });
 

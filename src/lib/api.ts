@@ -269,6 +269,34 @@ export const deleteReminder = async (id: string) => {
   }
 };
 
+// Custom Reminders operations (new table with recipient support)
+export const createCustomReminder = async (reminder: {
+  title: string;
+  message?: string;
+  remind_at: string;
+  user_id: string;
+  language?: string;
+  recipient_email?: string;
+  recipient_customer_id?: string;
+  recipient_event_id?: string;
+  created_by_type?: string;
+  created_by_name?: string;
+  created_by_sub_user_id?: string;
+}) => {
+  const { data, error } = await supabase
+    .from('custom_reminders')
+    .insert([reminder])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating custom reminder:', error);
+    throw error;
+  }
+
+  return data;
+};
+
 // Email operations
 export const sendEventCreationEmail = async (
   recipientEmail: string,

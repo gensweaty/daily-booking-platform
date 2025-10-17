@@ -575,6 +575,9 @@ export type Database = {
           id: string
           language: string | null
           message: string | null
+          recipient_customer_id: string | null
+          recipient_email: string | null
+          recipient_event_id: string | null
           remind_at: string
           reminder_sent_at: string | null
           title: string
@@ -590,6 +593,9 @@ export type Database = {
           id?: string
           language?: string | null
           message?: string | null
+          recipient_customer_id?: string | null
+          recipient_email?: string | null
+          recipient_event_id?: string | null
           remind_at: string
           reminder_sent_at?: string | null
           title: string
@@ -605,12 +611,30 @@ export type Database = {
           id?: string
           language?: string | null
           message?: string | null
+          recipient_customer_id?: string | null
+          recipient_email?: string | null
+          recipient_event_id?: string | null
           remind_at?: string
           reminder_sent_at?: string | null
           title?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "custom_reminders_recipient_customer_id_fkey"
+            columns: ["recipient_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_reminders_recipient_event_id_fkey"
+            columns: ["recipient_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_files: {
         Row: {

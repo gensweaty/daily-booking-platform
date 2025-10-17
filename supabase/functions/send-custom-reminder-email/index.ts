@@ -28,9 +28,10 @@ interface CustomReminderEmailRequest {
   message?: string;
   reminderTime: string;
   userId: string;
-  recipientUserId?: string; // Optional: The actual recipient's auth user ID (for sub-users)
-  createdByType?: string; // Type of creator (admin/sub_user)
-  createdBySubUserId?: string; // Sub-user ID if creator was a sub-user
+  recipientUserId?: string;
+  createdByType?: string;
+  createdBySubUserId?: string;
+  recipientEmail?: string; // NEW: Email to send reminder to (for customers/event persons)
 }
 
 // Multi-language email content
@@ -176,10 +177,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
-    const { reminderId, userEmail, title, message, reminderTime, userId, recipientUserId, createdByType, createdBySubUserId }: CustomReminderEmailRequest = await req.json();
+    const { reminderId, userEmail, title, message, reminderTime, userId, recipientUserId, createdByType, createdBySubUserId, recipientEmail }: CustomReminderEmailRequest = await req.json();
+
+    // NEW: Use recipient email if provided, otherwise use admin email
+    const emailToSend = recipientEmail || userEmail;
 
     // Validate required fields
-    if (!reminderId || !userEmail || !title || !userId) {
+    if (!reminderId || !emailToSend || !title || !userId) {
       console.error("❌ Missing required fields");
       return new Response(
         JSON.stringify({ success: false, error: "Missing required fields" }),
@@ -188,7 +192,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Check for duplicate email - IMMEDIATE check before processing
-    const emailKey = `${reminderId}-${userEmail}`;
+    const emailKey = `${reminderId}-${emailToSend}`;
     const lastSent = recentlySentEmails.get(emailKey);
     if (lastSent && Date.now() - lastSent < DUPLICATE_WINDOW_MS) {
       console.log(`⚠️ Duplicate email prevented for ${emailKey} (sent ${Math.round((Date.now() - lastSent) / 1000)}s ago)`);
@@ -248,14 +252,17 @@ const handler = async (req: Request): Promise<Response> => {
       console.error(`⚠️ Error fetching language preference, using default 'en':`, error);
     }
 
-    console.log(`📧 Sending custom reminder email in ${languagePreference} for reminder ${reminderId} to ${userEmail}`);
+    console.log(`📧 Sending custom reminder email in ${languagePreference} for reminder ${reminderId} to ${emailToSend}`);
+    if (recipientEmail) {
+      console.log(`📧 Sending to customer/event person email: ${recipientEmail}`);
+    }
 
     // Get localized email content
     const { subject, body: emailBody } = getEmailContent(languagePreference, title, message, reminderTime);
 
     const emailResponse = await resend.emails.send({
       from: "SmartBookly <noreply@smartbookly.com>",
-      to: [userEmail],
+      to: [emailToSend],
       subject: subject,
       html: emailBody,
     });

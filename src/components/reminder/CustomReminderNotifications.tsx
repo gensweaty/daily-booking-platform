@@ -74,7 +74,14 @@ export function CustomReminderNotifications() {
         console.log('⏰ Reminder time:', reminderTime.toLocaleString());
         console.log('🕐 Current time:', now.toLocaleString());
         console.log('⏱️ Time difference:', timeDiff, 'ms');
-        console.log('📧 Email reminder will be sent to:', user?.email);
+        
+        // NEW: Check if there's a recipient email (for customers/event persons)
+        const recipientEmail = reminder.recipient_email;
+        const emailToNotify = recipientEmail || user?.email;
+        console.log('📧 Email reminder will be sent to:', emailToNotify);
+        if (recipientEmail) {
+          console.log('📧 Sending to customer/event person:', recipientEmail);
+        }
         
         // Mark as processed FIRST to prevent duplicate processing (SAME AS TASKS)
         processedReminders.current.add(reminderKey);
