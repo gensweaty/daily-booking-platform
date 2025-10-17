@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar, MessageSquare, Search, Bot, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +15,6 @@ interface AIQuickPromptsProps {
 
 export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const { t } = useLanguage();
 
   const pageGuides = [
     { label: "📅 Calendar Guide", prompt: "Show me the detailed Calendar page guide. I want to learn how to use the calendar feature." },
@@ -30,42 +28,42 @@ export function AIQuickPrompts({ onPromptSelect }: AIQuickPromptsProps) {
 
   const prompts = [
     { 
-      label: t('chat.quickActions.scheduleReminder'),
+      label: "Schedule Reminder",
       text: "Schedule a reminder for me",
       icon: Calendar
     },
     { 
-      label: t('chat.quickActions.todaysSchedule'),
+      label: "Today's Schedule",
       text: "What's on my schedule today?",
       icon: Calendar
     },
     { 
-      label: t('chat.quickActions.findCustomer'),
+      label: "Find Customer",
       text: "Search for a customer",
       icon: Search
     },
     { 
-      label: t('chat.quickActions.taskProgress'),
+      label: "Task Progress",
       text: "Show me my task completion rate and what's pending",
       icon: Calendar
     },
     { 
-      label: t('chat.quickActions.paymentSummary'),
+      label: "Payment Summary",
       text: "Give me a summary of payments and revenue",
       icon: MessageSquare
     },
     { 
-      label: t('chat.quickActions.excelReport'),
+      label: "Excel Report",
       text: "Generate an Excel report with my statistics and data",
       icon: Bot
     },
     { 
-      label: t('chat.quickActions.analyzeDocument'),
+      label: "Analyze Document",
       text: "Please analyze this document for me. I'll upload the file and you can extract key information, summarize the content, and provide insights.",
       icon: Search
     },
     { 
-      label: t('chat.quickActions.sendEmail'),
+      label: "Send Email For me",
       text: "Send a custom email for me. Please provide the recipient's email, subject, and message content.",
       icon: MessageSquare
     },
