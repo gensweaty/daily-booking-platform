@@ -2635,6 +2635,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               if (send_at && send_at.trim()) {
                 console.log('📅 Scheduling email for:', send_at);
                 
+                // Parse and format the scheduled time in user's timezone
+                const sendAtDate = new Date(send_at);
+                const displayTime = formatInUserZone(sendAtDate);
+                
                 // Store scheduled email in database
                 const { error: scheduleError } = await supabaseAdmin
                   .from('scheduled_emails')
@@ -2663,17 +2667,35 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       : 'Failed to schedule email'
                   };
                 } else {
-                  console.log('✅ Email scheduled successfully');
-                  toolResult = { 
-                    success: true, 
-                    message: userLanguage === 'ka' 
-                      ? `ელფოსტა დაიგეგმა ${send_at}-ზე`
-                      : userLanguage === 'es'
-                      ? `Correo electrónico programado para ${send_at}`
-                      : userLanguage === 'ru'
-                      ? `Письмо запланировано на ${send_at}`
-                      : `Email scheduled for ${send_at}`
+                  console.log('✅ Email scheduled successfully for:', displayTime);
+                  
+                  // Create friendly, detailed confirmation message (like reminders)
+                  const emailConfirmations = {
+                    en: `✅ Email scheduled! I'll send your message to ${recipient_email} at ${displayTime}. The recipient will receive your email with the subject "${subject || 'Message from SmartBookly'}" at the scheduled time.`,
+                    ru: `✅ Письмо запланировано! Я отправлю ваше сообщение ${recipient_email} в ${displayTime}. Получатель получит ваше письмо с темой "${subject || 'Сообщение от SmartBookly'}" в запланированное время.`,
+                    ka: `✅ ელფოსტა დაგეგმილია! გავაგზავნი თქვენს შეტყობინებას ${recipient_email}-ზე ${displayTime}-ზე. ადრესატი მიიღებს თქვენს წერილს თემით "${subject || 'შეტყობინება SmartBookly-დან'}" დაგეგმილ დროს.`,
+                    es: `✅ ¡Correo electrónico programado! Enviaré tu mensaje a ${recipient_email} a las ${displayTime}. El destinatario recibirá tu correo con el asunto "${subject || 'Mensaje de SmartBookly'}" en el momento programado.`
                   };
+                  
+                  const confirmation = emailConfirmations[userLanguage as keyof typeof emailConfirmations] || emailConfirmations.en;
+                  
+                  // Write confirmation message directly to chat (like reminders)
+                  await supabaseAdmin.from('chat_messages').insert({
+                    channel_id: channelId,
+                    owner_id: ownerId,
+                    sender_type: 'admin',
+                    sender_name: 'Smartbookly AI',
+                    content: confirmation,
+                    message_type: 'text'
+                  });
+                  
+                  console.log(`✅ Email schedule confirmation sent to chat in ${userLanguage}`);
+                  
+                  // Return early with immediate response (like reminders)
+                  return new Response(
+                    JSON.stringify({ success: true, content: confirmation }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  );
                 }
               } else {
                 // Send immediately via edge function
