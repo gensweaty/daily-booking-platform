@@ -133,6 +133,37 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('✅ Direct email sent:', emailResult);
 
+    // Check if Resend returned an error (even with 200 status)
+    if (emailResult.error) {
+      console.error('❌ Resend API error:', emailResult.error);
+      
+      // Special handling for domain verification error
+      if (emailResult.error.message && emailResult.error.message.includes('verify a domain')) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Domain verification required',
+            message: 'To send emails to external recipients, please verify your domain at resend.com/domains and update the "from" address to use your verified domain.'
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403,
+          }
+        );
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: emailResult.error.message || 'Failed to send email'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
+    }
+
     return new Response(
       JSON.stringify({ 
         success: true, 

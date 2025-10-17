@@ -2641,12 +2641,24 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 }
               );
               
-              if (emailError) {
-                console.error('❌ Failed to send direct email:', emailError);
-                toolResult = { 
-                  success: false, 
-                  error: `Failed to send email: ${emailError.message}` 
-                };
+              // Check for invocation error or response error
+              if (emailError || (emailData && !emailData.success)) {
+                const errorMsg = emailError?.message || emailData?.error || emailData?.message || 'Failed to send email';
+                console.error('❌ Failed to send direct email:', errorMsg);
+                
+                // Check if it's a domain verification error
+                if (errorMsg.includes('verify a domain') || errorMsg.includes('Domain verification')) {
+                  toolResult = { 
+                    success: false, 
+                    error: 'domain_verification_required',
+                    message: 'To send emails to external recipients, you need to verify a domain at resend.com/domains. Currently, emails can only be sent to your verified email address.'
+                  };
+                } else {
+                  toolResult = { 
+                    success: false, 
+                    error: errorMsg
+                  };
+                }
               } else {
                 console.log('✅ Direct email sent successfully');
                 toolResult = { 
