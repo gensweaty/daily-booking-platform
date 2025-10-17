@@ -79,13 +79,9 @@ export function useASR() {
     const blob = new Blob(chunksRef.current, { type: chunksRef.current[0]?.type || 'audio/webm' });
     console.log('🎤 Blob created, size:', blob.size, 'bytes');
     
+    // Only reject if completely empty
     if (blob.size === 0) {
       throw new Error('No audio data recorded. Please try again.');
-    }
-    
-    // Minimal size check - only reject truly empty recordings
-    if (blob.size < 100) {
-      throw new Error('Recording too short. Please try again.');
     }
     
     setStatus('transcribing');
@@ -99,12 +95,7 @@ export function useASR() {
       const floatData = await blobToMono16kFloat32(blob);
       console.log('🎤 Audio converted, samples:', floatData.length);
       
-      // Very lenient amplitude check - only catch completely silent recordings
-      const avgAmplitude = floatData.reduce((sum, val) => sum + Math.abs(val), 0) / floatData.length;
-      console.log('🎤 Average amplitude:', avgAmplitude);
-      if (avgAmplitude < 0.00001) {
-        throw new Error('No speech detected. Check microphone permissions.');
-      }
+      // No amplitude check - let Whisper handle any audio quality
 
       // Build ASR pipeline with tiny model (multilingual)
       console.log('🎤 Loading Whisper model pipeline...');
@@ -116,21 +107,30 @@ export function useASR() {
         stride_length_s: 5,
         task: 'transcribe',
         return_timestamps: false,
+        language: 'english', // Help model focus on English for better accuracy
       }) as any;
 
       console.log('🎤 Transcription complete:', out);
+      
+      // Check if we got actual text back
+      const transcribedText = out.text?.trim() || '';
+      if (transcribedText.length === 0) {
+        setStatus('idle');
+        throw new Error('Could not transcribe audio. Please speak clearly and try again.');
+      }
+      
       setStatus('idle');
-      return { text: out.text?.trim() || '', language: out.language };
+      return { text: transcribedText, language: out.language };
     } catch (err) {
       console.error('Whisper transcription failed:', err);
       setStatus('error');
       
       // Provide user-friendly error messages
       if (err instanceof Error) {
-        if (err.message.includes('audio data') || err.message.includes('speech detected') || err.message.includes('too short')) {
+        if (err.message.includes('audio data') || err.message.includes('transcribe audio')) {
           throw err; // Re-throw our custom errors
         }
-        throw new Error('Transcription failed. Please check your internet connection and try again.');
+        throw new Error('Transcription failed. Please try speaking more clearly or check your microphone.');
       }
       throw new Error('Transcription failed. Please try again.');
     } finally {
