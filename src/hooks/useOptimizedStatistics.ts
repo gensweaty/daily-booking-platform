@@ -247,8 +247,9 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
 
       console.log(`Processing ${recurringSeriesMap.size} recurring series and ${nonRecurringEvents.length} non-recurring events`);
 
-      // Count unique events in the selected date range
-      const totalEvents = allEvents.length;
+      // Count unique events: non-recurring events + number of recurring series (not individual instances)
+      // This prevents double-counting parent events and their child instances
+      const totalEvents = nonRecurringEvents.length + recurringSeriesMap.size;
 
       let partlyPaid = 0;
       let fullyPaid = 0;
@@ -749,15 +750,16 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       }
       // Booking requests are intentionally excluded from customerStats to match CRM page counts.
 
-      // Get additional customers from CRM (type = 'customer') whose events are in the date range
+      // Get additional customers from CRM (type = 'customer') created in the date range
+      // Match CRM page logic: filter by customer created_at, not event start_date
       const { data: crmCustomers, error: crmCustomersError } = await supabase
         .from('customers')
-        .select('*, events!inner(start_date)')
+        .select('*')
         .eq('user_id', userId)
         .eq('type', 'customer')
         .not('event_id', 'is', null)
-        .gte('events.start_date', startDateStr)
-        .lte('events.start_date', endDateStr)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null);
 
       if (crmCustomersError) {
