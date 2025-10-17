@@ -1655,13 +1655,16 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     let requesterType: 'admin' | 'sub_user' = senderType as any || 'admin';
     let baseName = senderName || 'User';
     let requesterIdentity: { id: string; fullname?: string; email?: string } | null = null;
+    let authEmail = ''; // Define in broader scope
+    let authId = '';
+    let authUser: any = null;
 
     try {
       // Get auth context
       const { data: authRes } = await supabaseClient.auth.getUser();
-      const authUser = authRes?.user || null;
-      const authEmail = (authUser?.email || '').toLowerCase();
-      const authId = authUser?.id || '';
+      authUser = authRes?.user || null;
+      authEmail = (authUser?.email || '').toLowerCase();
+      authId = authUser?.id || '';
 
       if (senderType === 'sub_user') {
         // CLIENT SAYS: This is a sub-user - try multiple matching strategies
