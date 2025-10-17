@@ -168,6 +168,31 @@ const handler = async (req: Request): Promise<Response> => {
             
             // NEW: Check if reminder has a specific recipient email (for customers/event persons)
             const recipientEmail = reminder.recipient_email;
+            let recipientName: string | null = null;
+            
+            // Try to get recipient name from customer or event
+            if (reminder.recipient_customer_id) {
+              const { data: customer } = await supabase
+                .from('customers')
+                .select('user_surname, title')
+                .eq('id', reminder.recipient_customer_id)
+                .single();
+              
+              if (customer) {
+                recipientName = customer.user_surname || customer.title;
+              }
+            } else if (reminder.recipient_event_id) {
+              const { data: event } = await supabase
+                .from('events')
+                .select('user_surname, title')
+                .eq('id', reminder.recipient_event_id)
+                .is('deleted_at', null)
+                .single();
+              
+              if (event) {
+                recipientName = event.user_surname || event.title;
+              }
+            }
             
             if (recipientEmail) {
               // Reminder is for a customer/event person - use their email
