@@ -74,6 +74,7 @@ const getEmailContent = (
           .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
           .message { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; white-space: pre-wrap; }
           .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+          .sender-info { margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 14px; }
         </style>
       </head>
       <body>
@@ -83,11 +84,11 @@ const getEmailContent = (
           </div>
           <div class="content">
             <p>${greeting},</p>
-            ${senderInfo}
             <div class="message">${message}</div>
             <div class="footer">
               <p>${footer}</p>
             </div>
+            ${senderInfo ? `<div class="sender-info">${senderInfo}</div>` : ''}
           </div>
         </div>
       </body>
