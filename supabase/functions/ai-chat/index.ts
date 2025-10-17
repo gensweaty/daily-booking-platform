@@ -778,7 +778,7 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "send_direct_email",
-          description: "Send a direct email or message to a specific email address with custom text. Use this when user explicitly asks to send an email or message to someone (not a reminder). Works across all languages. Can be sent immediately or scheduled for a specific time.",
+          description: "Send a direct email or message to a specific email address with custom text. Use this when user explicitly asks to send an email or message to someone (not a reminder). Works across all languages. Can be sent immediately or scheduled for a specific time using offset_minutes (for relative times like 'in 5 minutes') or absolute_local (for specific times like '4:30 PM').",
           parameters: {
             type: "object",
             properties: {
@@ -794,9 +794,14 @@ serve(async (req) => {
                 type: "string", 
                 description: "Optional custom email subject" 
               },
-              send_at: {
+              offset_minutes: {
+                type: "number",
+                description: "Schedule email X minutes from now (browser time). Use for relative times like 'in 5 minutes', 'in 1 hour' (60 minutes).",
+                minimum: 1
+              },
+              absolute_local: {
                 type: "string",
-                description: "ISO 8601 timestamp for scheduled sending (e.g., '2025-10-17T15:30:00Z'). If not provided or empty, email sends immediately."
+                description: "Schedule for specific time in user's local timezone. Format: YYYY-MM-DDTHH:mm (e.g., '2025-10-17T16:30' for 4:30 PM local time). Use for specific times like 'at 4:30 PM', 'tomorrow at 9 AM'."
               }
             },
             required: ["recipient_email", "message"]
@@ -2609,9 +2614,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'send_direct_email': {
-              const { recipient_email, message, subject, send_at } = args;
+              const { recipient_email, message, subject, offset_minutes, absolute_local } = args;
               
-              console.log('📧 Processing email request:', { recipient_email, has_message: !!message, send_at });
+              console.log('📧 Processing email request:', { recipient_email, has_message: !!message, offset_minutes, absolute_local });
               
               if (!recipient_email || !message) {
                 toolResult = { 
@@ -2631,15 +2636,89 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // If send_at is provided, schedule the email; otherwise send immediately
-              if (send_at && send_at.trim()) {
-                console.log('📅 Scheduling email for:', send_at);
+              // Check if scheduling is requested (same logic as reminders)
+              if ((typeof offset_minutes === 'number' && offset_minutes > 0) || absolute_local) {
+                console.log('📅 Scheduling email using same logic as reminders');
                 
-                // Parse and format the scheduled time in user's timezone
-                const sendAtDate = new Date(send_at);
-                const displayTime = formatInUserZone(sendAtDate);
+                // 1) Base time is BROWSER time received from frontend
+                const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
                 
-                // Store scheduled email in database
+                // 2) Compute UTC send time deterministically on server (SAME AS REMINDERS)
+                let sendAtUtc: Date;
+                
+                if (typeof offset_minutes === 'number' && offset_minutes > 0) {
+                  // Relative time: add offset to current browser time
+                  sendAtUtc = new Date(baseNow.getTime() + offset_minutes * 60_000);
+                  console.log(`  ⏱️ Relative time: ${offset_minutes} minutes from now`);
+                } else if (absolute_local) {
+                  // Absolute time: convert local wall time to UTC (SAME LOGIC AS REMINDERS)
+                  const [d, t] = absolute_local.split('T');
+                  const [Y, M, D] = d.split('-').map(Number);
+                  const [h, m] = t.split(':').map(Number);
+                  
+                  console.log(`  🕐 Absolute local time: ${absolute_local} (Year:${Y}, Month:${M}, Day:${D}, Hour:${h}, Minute:${m})`);
+                  
+                  // Start from UTC guess, then adjust so it displays as desired wall time in user's TZ
+                  let guess = new Date(Date.UTC(Y, M - 1, D, h, m));
+                  
+                  const fmt = (x: Date) =>
+                    new Intl.DateTimeFormat('en-CA', {
+                      timeZone: userTimezone,
+                      hour12: false,
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                      .formatToParts(x)
+                      .reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                  
+                  // Adjustment loop (handles DST edges) - SAME AS REMINDERS
+                  for (let i = 0; i < 3; i++) {
+                    const parts = fmt(guess);
+                    const want = `${Y}-${String(M).padStart(2, '0')}-${String(D).padStart(2, '0')}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                    const have = `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+                    
+                    console.log(`    Iteration ${i}: want=${want}, have=${have}`);
+                    
+                    if (have === want) break;
+                    
+                    const deltaMin =
+                      ((Y - +parts.year) * 525600) +
+                      ((M - +parts.month) * 43200) +
+                      ((D - +parts.day) * 1440) +
+                      ((h - +parts.hour) * 60) +
+                      (m - +parts.minute);
+                    guess = new Date(guess.getTime() + deltaMin * 60_000);
+                  }
+                  sendAtUtc = guess;
+                  console.log(`  ✅ Converted to UTC: ${sendAtUtc.toISOString()}`);
+                } else {
+                  toolResult = { success: false, error: 'Provide offset_minutes or absolute_local for scheduling.' };
+                  break;
+                }
+                
+                // 3) Validate future time
+                const nowUtc = new Date();
+                if (sendAtUtc <= new Date(nowUtc.getTime() - 1000)) {
+                  toolResult = { success: false, error: 'Email send time must be in the future.' };
+                  break;
+                }
+                
+                // 4) Format display time in user's timezone (SAME AS REMINDERS)
+                const displayTime = formatInUserZone(sendAtUtc);
+                
+                console.log('Email scheduling debug:', {
+                  effectiveTZ: userTimezone,
+                  tzOffsetMinutes,
+                  baseNow: currentLocalTime,
+                  sendAtUtc: sendAtUtc.toISOString(),
+                  displayTime,
+                  userLanguage
+                });
+                
+                // 5) Store scheduled email in database
                 const { error: scheduleError } = await supabaseAdmin
                   .from('scheduled_emails')
                   .insert({
@@ -2649,7 +2728,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     message: message,
                     language: userLanguage,
                     sender_name: baseName,
-                    send_at: send_at,
+                    send_at: sendAtUtc.toISOString(),
                     created_by_type: requesterType,
                     created_by_name: baseName
                   });
@@ -2669,7 +2748,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 } else {
                   console.log('✅ Email scheduled successfully for:', displayTime);
                   
-                  // Create friendly, detailed confirmation message (like reminders)
+                  // Create friendly, detailed confirmation message (SAME STYLE AS REMINDERS)
                   const emailConfirmations = {
                     en: `✅ Email scheduled! I'll send your message to ${recipient_email} at ${displayTime}. The recipient will receive your email with the subject "${subject || 'Message from SmartBookly'}" at the scheduled time.`,
                     ru: `✅ Письмо запланировано! Я отправлю ваше сообщение ${recipient_email} в ${displayTime}. Получатель получит ваше письмо с темой "${subject || 'Сообщение от SmartBookly'}" в запланированное время.`,
@@ -2679,7 +2758,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   
                   const confirmation = emailConfirmations[userLanguage as keyof typeof emailConfirmations] || emailConfirmations.en;
                   
-                  // Write confirmation message directly to chat (like reminders)
+                  // Write confirmation message directly to chat (SAME AS REMINDERS)
                   await supabaseAdmin.from('chat_messages').insert({
                     channel_id: channelId,
                     owner_id: ownerId,
@@ -2691,7 +2770,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   
                   console.log(`✅ Email schedule confirmation sent to chat in ${userLanguage}`);
                   
-                  // Return early with immediate response (like reminders)
+                  // Return early with immediate response (SAME AS REMINDERS)
                   return new Response(
                     JSON.stringify({ success: true, content: confirmation }),
                     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
