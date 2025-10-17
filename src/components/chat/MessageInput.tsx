@@ -10,7 +10,6 @@ import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 import { useToast } from '@/hooks/use-toast';
 import { AIQuickPrompts } from './AIQuickPrompts';
-import { VoiceRecorder } from './VoiceRecorder';
 
 interface MessageInputProps {
   onSendMessage: (content: string, attachments?: any[]) => void;
@@ -72,7 +71,6 @@ export const MessageInput = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isSendingAI, setIsSendingAI] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -410,108 +408,6 @@ export const MessageInput = ({
     // do not preventDefault so text still pastes if there was any
   };
 
-  const handleVoiceRecording = async (audioBase64: string) => {
-    if (!isAIChannel) return;
-
-    setIsTranscribing(true);
-    try {
-      console.log('🎤 Sending audio for transcription...', { audioLength: audioBase64.length });
-      
-      // Get authenticated session
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
-        headers: {
-          Authorization: `Bearer ${session?.access_token || ''}`
-        },
-        body: { audio: audioBase64 }
-      });
-
-      if (error) {
-        console.error('❌ Transcription error:', error);
-        
-        // Provide specific error messages
-        let errorMessage = 'Please try again';
-        if (error.message?.includes('FunctionsRelayError') || error.message?.includes('Not Found')) {
-          errorMessage = 'Voice feature is initializing. Please try again in a moment.';
-        } else if (error.message?.includes('Rate limit')) {
-          errorMessage = 'Too many requests. Please wait a moment.';
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        toast({
-          title: t('voice.transcriptionFailed'),
-          description: errorMessage,
-          variant: 'destructive',
-          duration: 4000
-        });
-        return;
-      }
-
-      // Check for error in response data
-      if (data?.error) {
-        console.error('❌ Transcription failed:', data.error);
-        
-        let errorMessage = data.error;
-        if (data.error.includes('Rate limit')) {
-          errorMessage = 'Rate limit exceeded. Please try again later.';
-        } else if (data.error.includes('quota')) {
-          errorMessage = 'Transcription quota exceeded. Please contact support.';
-        }
-        
-        toast({
-          title: t('voice.transcriptionFailed'),
-          description: errorMessage,
-          variant: 'destructive',
-          duration: 4000
-        });
-        return;
-      }
-
-      if (data?.text) {
-        const transcribedText = `🎤 ${data.text}`;
-        console.log('✅ Transcription successful:', data.text);
-        
-        // Show sending feedback
-        toast({
-          title: "📤 Sending voice message...",
-          duration: 1500
-        });
-        
-        // Set the message and send immediately
-        setMessage(transcribedText);
-        await uploadAndSend();
-        
-        // Clear and show success
-        setMessage('');
-        toast({
-          title: "✓ Voice message sent",
-          duration: 2000
-        });
-      } else {
-        throw new Error('Recording was too short or unclear. Please try again.');
-      }
-    } catch (error) {
-      console.error('❌ Voice message error:', error);
-      toast({
-        title: t('voice.transcriptionFailed'),
-        description: error instanceof Error ? error.message : 'Could not process voice message',
-        variant: 'destructive',
-        duration: 4000
-      });
-    } finally {
-      setIsTranscribing(false);
-    }
-  };
-
-  const handleVoiceError = (error: string) => {
-    toast({
-      title: error,
-      variant: 'destructive'
-    });
-  };
-
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
@@ -594,15 +490,6 @@ export const MessageInput = ({
 
       <form onSubmit={handleSubmit} className="flex items-end gap-2">
         <div className="flex-1 relative" onDrop={handleDrop} onDragOver={handleDragOver}>
-          {/* Voice Recorder Bar - Positioned above input */}
-          {isAIChannel && !editingMessage && (
-            <VoiceRecorder
-              onRecordingComplete={handleVoiceRecording}
-              onError={handleVoiceError}
-              disabled={isUploading || isSendingAI || isTranscribing}
-            />
-          )}
-          
           <Textarea
             ref={textareaRef}
             value={message}
@@ -633,7 +520,7 @@ export const MessageInput = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                 disabled={isUploading}
                 aria-label="Attach files"
               >
@@ -648,7 +535,7 @@ export const MessageInput = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                     disabled={isUploading}
                     onClick={() => setShowEmojiPicker(v => !v)}
                     aria-label="Insert emoji"
@@ -670,8 +557,8 @@ export const MessageInput = ({
           disabled={
             editingMessage 
               ? !message.trim() || isUploading
-              : (!message.trim() && attachments.length === 0) || isUploading || isTranscribing
-          }
+              : (!message.trim() && attachments.length === 0) || isUploading
+          } 
           className="h-12 w-12 p-0"
         >
           <Send className="h-4 w-4" />

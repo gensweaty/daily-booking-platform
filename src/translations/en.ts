@@ -818,16 +818,5 @@ export const translations: TranslationType = {
     statisticsGuidePrompt: "Show me the detailed Statistics page guide. I want to learn how to view analytics.",
     chatGuidePrompt: "Show me the detailed Chat page guide. I want to learn how to use team communication.",
     allPagesPrompt: "Show me detailed guides for Calendar, CRM, Tasks, Business Page, Statistics, and Chat features. How do I use each page?",
-  },
-  voice: {
-    startRecording: "Start voice message",
-    stopRecording: "Stop recording",
-    recording: "Recording...",
-    transcribing: "Transcribing voice message...",
-    remainingTime: "seconds remaining",
-    permissionDenied: "Microphone access denied. Please enable it in your browser settings.",
-    transcriptionFailed: "Could not transcribe audio. Please try again or type your message.",
-    recordingError: "Recording failed. Please try again.",
-    cancelRecording: "Cancel recording"
   }
 };

@@ -818,16 +818,5 @@ export const translations: TranslationType = {
     statisticsGuidePrompt: "Muéstrame la guía detallada de la página de Estadísticas. Quiero aprender a ver análisis.",
     chatGuidePrompt: "Muéstrame la guía detallada de la página de Chat. Quiero aprender a usar la comunicación en equipo.",
     allPagesPrompt: "Muéstrame guías detalladas para las funciones de Calendario, CRM, Tareas, Página de Negocio, Estadísticas y Chat. ¿Cómo uso cada página?",
-  },
-  voice: {
-    startRecording: "Iniciar mensaje de voz",
-    stopRecording: "Detener grabación",
-    recording: "Grabando...",
-    transcribing: "Transcribiendo mensaje de voz...",
-    remainingTime: "segundos restantes",
-    permissionDenied: "Acceso al micrófono denegado. Por favor, habilítalo en la configuración de tu navegador.",
-    transcriptionFailed: "No se pudo transcribir el audio. Por favor, inténtalo de nuevo o escribe tu mensaje.",
-    recordingError: "Error al grabar. Por favor, inténtalo de nuevo.",
-    cancelRecording: "Cancelar grabación"
   }
 };
