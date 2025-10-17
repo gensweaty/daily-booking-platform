@@ -777,6 +777,31 @@ serve(async (req) => {
       {
         type: "function",
         function: {
+          name: "send_direct_email",
+          description: "Send a direct email or message to a specific email address with custom text. Use this when user explicitly asks to send an email or message to someone (not a reminder). Works across all languages.",
+          parameters: {
+            type: "object",
+            properties: {
+              recipient_email: { 
+                type: "string", 
+                description: "Email address to send to (REQUIRED)" 
+              },
+              message: { 
+                type: "string", 
+                description: "Message content to send (REQUIRED)" 
+              },
+              subject: { 
+                type: "string", 
+                description: "Optional custom email subject" 
+              }
+            },
+            required: ["recipient_email", "message"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "create_custom_reminder",
           description: "Creates a reminder with BOTH dashboard and email notifications. Use offset_minutes for relative times (e.g., 'in 2 minutes').",
           parameters: {
@@ -2576,6 +2601,60 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .limit(limit);
               toolResult = messages || [];
               console.log(`    ✓ Retrieved ${toolResult.length} messages`);
+              break;
+            }
+
+            case 'send_direct_email': {
+              const { recipient_email, message, subject } = args;
+              
+              console.log('📧 Sending direct email:', { recipient_email, has_message: !!message });
+              
+              if (!recipient_email || !message) {
+                toolResult = { 
+                  success: false, 
+                  error: 'Both recipient_email and message are required' 
+                };
+                break;
+              }
+              
+              // Validate email format
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              if (!emailRegex.test(recipient_email)) {
+                toolResult = { 
+                  success: false, 
+                  error: 'Invalid email address format' 
+                };
+                break;
+              }
+              
+              // Send email via edge function
+              const { data: emailData, error: emailError } = await supabaseAdmin.functions.invoke(
+                'send-direct-email',
+                {
+                  body: {
+                    recipient_email,
+                    message,
+                    subject: subject || undefined,
+                    language: userLanguage,
+                    sender_name: baseName
+                  }
+                }
+              );
+              
+              if (emailError) {
+                console.error('❌ Failed to send direct email:', emailError);
+                toolResult = { 
+                  success: false, 
+                  error: `Failed to send email: ${emailError.message}` 
+                };
+              } else {
+                console.log('✅ Direct email sent successfully');
+                toolResult = { 
+                  success: true, 
+                  recipient: recipient_email,
+                  message: 'Email sent successfully'
+                };
+              }
               break;
             }
 

@@ -41,6 +41,9 @@ verify_jwt = false
 [functions.send-custom-reminder-email]
 verify_jwt = false
 
+[functions.send-direct-email]
+verify_jwt = false
+
 [functions.send-event-reminder-email]
 verify_jwt = false
 
