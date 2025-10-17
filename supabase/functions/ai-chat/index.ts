@@ -2660,22 +2660,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 // STEP 2: Extract potential names from prompt - MULTILINGUAL SUPPORT
                 // Supports English, Georgian (ა-ჰ), Spanish, Russian (А-Яа-я), and mixed scripts
                 const reminderPatterns = [
-                  // English: "remind NAME about", "remind NAME that"
-                  /remind\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(?:about|that)/i,
-                  /reminder\s+for\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+about/i,
+                  // English: "remind NAME about", "remind NAME that", "reminder to NAME", "reminder for NAME"
+                  /remind\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+(?:about|that|to|in)/i,
+                  /reminder\s+(?:to|for)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
+                  /send\s+reminder\s+to\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
+                  /set\s+reminder\s+for\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
                   /notify\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\s+about/i,
                   
-                  // Georgian: "შეახსენე NAME ს", "შეახსენე NAME -ს"
+                  // Georgian: "შეახსენე NAME ს", "შეახსენე NAME -ს", "შეახსენება NAME სთვის"
                   /შეახსენე\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s+[სზ]/iu,
-                  /შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s+[სზ]/iu,
+                  /შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)/iu,
+                  /გააგზავნე\s+შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)/iu,
                   
-                  // Spanish: "recordar a NAME sobre", "recordar NAME sobre"
+                  // Spanish: "recordar a NAME sobre", "recordar NAME sobre", "recordatorio para NAME"
                   /recordar\s+(?:a\s+)?([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)\s+sobre/iu,
-                  /recuerda\s+a\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)\s+sobre/iu,
+                  /recuerda\s+a\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)/iu,
+                  /recordatorio\s+para\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)/iu,
                   
-                  // Russian: "напомни NAME о", "напомнить NAME о"
+                  // Russian: "напомни NAME о", "напомнить NAME о", "напоминание для NAME"
                   /напомни(?:ть)?\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)\s+о/iu,
-                  /напоминание\s+для\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)\s+о/iu,
+                  /напоминание\s+для\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)/iu,
+                  /отправить\s+напоминание\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)/iu,
                   
                   // Fallback: Extract any name-like word (Latin letters) surrounded by non-Latin text
                   // This catches mixed-language prompts like "შეახსენე anna ს თავის"
