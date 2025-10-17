@@ -13,16 +13,38 @@ export function useASR() {
   async function start() {
     if (status !== 'idle') return;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 48000
+        } 
+      });
+      
+      // Try best audio format for Whisper compatibility
+      let mime = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mime)) {
+        mime = 'audio/webm';
+        if (!MediaRecorder.isTypeSupported(mime)) {
+          mime = 'audio/mp4';
+        }
+      }
+      
+      console.log('🎤 Using MIME type:', mime);
       const mr = new MediaRecorder(stream, { mimeType: mime });
       mediaRecorderRef.current = mr;
       chunksRef.current = [];
-      mr.ondataavailable = e => e.data.size && chunksRef.current.push(e.data);
+      
+      mr.ondataavailable = e => {
+        if (e.data.size > 0) {
+          console.log('🎤 Received audio chunk:', e.data.size, 'bytes');
+          chunksRef.current.push(e.data);
+        }
+      };
 
       setSeconds(0);
       setStatus('recording');
-      mr.start();
+      mr.start(100); // Collect data every 100ms for better reliability
 
       // 60s maximum duration - auto-stop at limit
       timerRef.current = window.setInterval(() => {
@@ -161,32 +183,73 @@ export function useASR() {
 // --- helpers ---
 
 async function blobToMono16kFloat32(blob: Blob): Promise<Float32Array> {
-  const arrayBuffer = await blob.arrayBuffer();
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const audio = await ctx.decodeAudioData(arrayBuffer.slice(0));
-  
-  // Resample to 16k mono
-  const offline = new OfflineAudioContext(1, Math.ceil(audio.duration * 16000), 16000);
-  const src = offline.createBufferSource();
-  
-  // mixdown to mono
-  const mono = offline.createBuffer(1, audio.length, audio.sampleRate);
-  if (audio.numberOfChannels === 1) {
-    audio.copyFromChannel(mono.getChannelData(0), 0);
-  } else {
-    // Mix stereo to mono
-    const left = audio.getChannelData(0);
-    const right = audio.getChannelData(1);
-    const monoData = mono.getChannelData(0);
-    for (let i = 0; i < audio.length; i++) {
-      monoData[i] = (left[i] + right[i]) / 2;
+  try {
+    const arrayBuffer = await blob.arrayBuffer();
+    console.log('🎤 ArrayBuffer size:', arrayBuffer.byteLength);
+    
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 48000 });
+    console.log('🎤 AudioContext sample rate:', ctx.sampleRate);
+    
+    const audio = await ctx.decodeAudioData(arrayBuffer);
+    console.log('🎤 Decoded audio:', {
+      duration: audio.duration.toFixed(2) + 's',
+      channels: audio.numberOfChannels,
+      sampleRate: audio.sampleRate,
+      length: audio.length
+    });
+    
+    if (audio.duration < 0.1) {
+      throw new Error('Audio too short (less than 0.1s)');
     }
+    
+    // First, mixdown to mono if stereo
+    const monoData = new Float32Array(audio.length);
+    if (audio.numberOfChannels === 1) {
+      const channel = audio.getChannelData(0);
+      for (let i = 0; i < audio.length; i++) {
+        monoData[i] = channel[i];
+      }
+    } else {
+      // Mix all channels to mono
+      const left = audio.getChannelData(0);
+      const right = audio.numberOfChannels > 1 ? audio.getChannelData(1) : left;
+      for (let i = 0; i < audio.length; i++) {
+        monoData[i] = (left[i] + right[i]) / 2;
+      }
+    }
+    
+    // Resample to 16kHz using OfflineAudioContext
+    const targetSampleRate = 16000;
+    const targetLength = Math.ceil(audio.duration * targetSampleRate);
+    
+    console.log('🎤 Resampling to 16kHz, target length:', targetLength);
+    
+    const offlineCtx = new OfflineAudioContext(1, targetLength, targetSampleRate);
+    const buffer = offlineCtx.createBuffer(1, monoData.length, audio.sampleRate);
+    buffer.copyToChannel(monoData, 0);
+    
+    const source = offlineCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(offlineCtx.destination);
+    source.start(0);
+    
+    const resampled = await offlineCtx.startRendering();
+    const resampledData = resampled.getChannelData(0);
+    
+    console.log('🎤 Resampled audio:', resampledData.length, 'samples at 16kHz');
+    
+    // Validate resampled data
+    const hasNonZero = Array.from(resampledData).some(v => Math.abs(v) > 0.0001);
+    if (!hasNonZero) {
+      throw new Error('Audio contains only silence');
+    }
+    
+    await ctx.close();
+    
+    return resampledData;
+  } catch (err) {
+    console.error('❌ Audio conversion failed:', err);
+    throw new Error('Failed to process audio. Please try again.');
   }
-  
-  src.buffer = mono;
-  src.connect(offline.destination);
-  src.start(0);
-  const resampled = await offline.startRendering();
-  return resampled.getChannelData(0);
 }
 
