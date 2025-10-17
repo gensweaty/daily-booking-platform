@@ -2444,14 +2444,21 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
               const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59).toISOString();
               
-              // CRITICAL FIX: Filter by created_at for both events and customers to match Statistics/CRM page logic
-              const [eventsResult, bookingsResult, customersResult] = await Promise.all([
-                // Fetch events created this month (not by start_date) - only parent events
-                supabaseClient.from('events').select('id, payment_amount, payment_status, booking_request_id').eq('user_id', ownerId).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null).or('is_recurring.is.null,is_recurring.eq.false,and(is_recurring.eq.true,parent_event_id.is.null)'),
-                // Fetch booking requests created this month
-                supabaseClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null),
-                // Filter customers by created_at (customers CREATED this month) to match Statistics/CRM page
-                supabaseClient.from('customers').select('id').eq('user_id', ownerId).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null)
+              // CRITICAL: Match CRM page logic EXACTLY
+              // - Events: filtered by start_date (when event happens)
+              // - Customers: filtered by created_at (when customer was added)
+              // - Exclude booking requests that were converted to events
+              const [eventsResult, bookingsResult, regularEventsForCustomers, crmCustomersResult, standaloneCrmResult] = await Promise.all([
+                // Events for event count: filter by start_date
+                supabaseClient.from('events').select('id, payment_amount, payment_status, booking_request_id').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
+                // Booking requests for event count: filter by start_date
+                supabaseClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
+                // Events for customer count: filter by start_date (main event persons)
+                supabaseClient.from('events').select('id, social_network_link, user_number, user_surname').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
+                // Event-linked customers: filter by created_at (additional persons on events)
+                supabaseClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).eq('type', 'customer').gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null),
+                // Standalone customers: filter by created_at (customers without events)
+                supabaseClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).is('event_id', null).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null)
               ]);
               
               // CRITICAL: Exclude booking requests that were already converted to events (avoid double-counting)
@@ -2465,17 +2472,50 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 booking => !bookingRequestIdsInEvents.has(booking.id)
               );
               
-              // Combine events and unconverted bookings (no double counting)
+              // Event count: regular events + unconverted bookings
               const allEventsThisMonth = [...(eventsResult.data || []), ...unconvertedBookings];
+              
+              // Customer count: Use Set to deduplicate by email+phone+name signature
+              const uniqueCustomers = new Set();
+              const withBookingSet = new Set();
+              const withoutBookingSet = new Set();
+              
+              // Add main event persons (WITH booking)
+              (regularEventsForCustomers.data || []).forEach(event => {
+                const customerKey = `${event.social_network_link || 'no-email'}_${event.user_number || 'no-phone'}_${event.user_surname || 'no-name'}`;
+                uniqueCustomers.add(customerKey);
+                withBookingSet.add(customerKey);
+              });
+              
+              // Add event-linked customers (WITH booking)
+              (crmCustomersResult.data || []).forEach(customer => {
+                const customerKey = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
+                uniqueCustomers.add(customerKey);
+                withBookingSet.add(customerKey);
+              });
+              
+              // Add standalone customers (WITHOUT booking)
+              (standaloneCrmResult.data || []).forEach(customer => {
+                const customerKey = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
+                uniqueCustomers.add(customerKey);
+                withoutBookingSet.add(customerKey);
+              });
+              
+              // Remove duplicates: if in both sets, keep in withBooking only
+              for (const key of withBookingSet) {
+                if (withoutBookingSet.has(key)) withoutBookingSet.delete(key);
+              }
+              
+              const totalCustomers = uniqueCustomers.size;
               
               toolResult = {
                 this_month: {
                   events: allEventsThisMonth.length,
                   revenue: allEventsThisMonth.reduce((sum, e) => sum + (Number(e.payment_amount) || 0), 0)
                 },
-                total_customers: customersResult.data?.length || 0
+                total_customers: totalCustomers
               };
-              console.log(`    ✓ AI Business stats: ${allEventsThisMonth.length} events (${eventsResult.data?.length || 0} regular + ${unconvertedBookings.length} unconverted bookings), ${customersResult.data?.length || 0} customers (created this month)`);
+              console.log(`    ✅ AI Business stats (matched CRM logic): ${allEventsThisMonth.length} events (${eventsResult.data?.length || 0} regular + ${unconvertedBookings.length} unconverted bookings), ${totalCustomers} unique customers (${withBookingSet.size} with booking, ${withoutBookingSet.size} without)`);
               break;
             }
 

@@ -713,14 +713,14 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const withBookingSet = new Set<string>();
       const withoutBookingSet = new Set<string>();
 
-      // Get regular events in the date range (main persons) - filter by CREATED_AT to match CRM logic
-      // This ensures we count customers who were added in this month, not by when their event is scheduled
+      // CRITICAL: Match CRM page logic EXACTLY - events by start_date, customers by created_at
+      // Get regular events in the date range (main persons) - filter by START_DATE (when event happens)
       const { data: regularEvents, error: regularEventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('parent_event_id', null)
         .is('deleted_at', null);
 
@@ -736,14 +736,14 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // Get approved booking requests in the date range (main persons) - filter by CREATED_AT to match CRM logic
+      // Get approved booking requests in the date range (main persons) - filter by START_DATE (when booking happens)
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'approved')
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
+        .gte('start_date', startDateStr)
+        .lte('start_date', endDateStr)
         .is('deleted_at', null);
 
       if (bookingRequestsError) {
@@ -806,15 +806,18 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const withBooking = withBookingSet.size;
       const withoutBooking = withoutBookingSet.size;
 
-      console.log('Final customer stats calculation (including booking requests):', {
-        uniqueCustomersFound: uniqueCustomers.size,
-        totalCustomers,
-        withBooking,
-        withoutBooking,
+      console.log('🔍 CUSTOMER COUNT DEBUG:', {
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
         crmCustomersCount: crmCustomers?.length || 0,
-        standaloneCrmCustomersCount: standaloneCrmCustomers?.length || 0
+        standaloneCrmCount: standaloneCrmCustomers?.length || 0,
+        dateRange: `${startDateStr} to ${endDateStr}`
+      });
+
+      console.log('✅ FINAL CUSTOMER STATS:', {
+        totalCustomers,
+        withBooking,
+        withoutBooking
       });
 
       return {
