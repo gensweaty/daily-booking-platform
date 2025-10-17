@@ -2372,8 +2372,13 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 created_before: args.created_before || 'none'
               });
               
-              // Fetch from all three sources to match Statistics page
-              const [standaloneCustomers, eventCustomers, eventMainPersons] = await Promise.all([
+              // Use same date logic as get_recent_customers for consistency
+              const now = new Date();
+              const startDate = args.created_after || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+              const endDate = args.created_before || new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+              
+              // CRITICAL: Use EXACT same logic as get_recent_customers and CRM page
+              const [standaloneCustomers, eventLinkedCustomers, events, bookingRequests] = await Promise.all([
                 // Standalone CRM customers by created_at
                 supabaseClient
                   .from('customers')
@@ -2381,8 +2386,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   .eq('user_id', ownerId)
                   .is('deleted_at', null)
                   .is('event_id', null)
-                  .gte('created_at', args.created_after || '1970-01-01')
-                  .lte('created_at', args.created_before || '2099-12-31')
+                  .gte('created_at', startDate)
+                  .lte('created_at', endDate)
                   .order('created_at', { ascending: false }),
                 // Event-linked customers (additional persons) by created_at
                 supabaseClient
@@ -2392,63 +2397,143 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   .eq('type', 'customer')
                   .not('event_id', 'is', null)
                   .is('deleted_at', null)
-                  .gte('created_at', args.created_after || '1970-01-01')
-                  .lte('created_at', args.created_before || '2099-12-31')
+                  .gte('created_at', startDate)
+                  .lte('created_at', endDate)
                   .order('created_at', { ascending: false }),
-                // Main event persons by start_date (to match Statistics logic)
+                // Main event persons by start_date
                 supabaseClient
                   .from('events')
                   .select('id, user_surname, user_number, social_network_link, payment_status, payment_amount, start_date, created_at')
                   .eq('user_id', ownerId)
                   .is('deleted_at', null)
                   .is('parent_event_id', null)
-                  .gte('start_date', args.created_after || '1970-01-01')
-                  .lte('start_date', args.created_before || '2099-12-31')
+                  .gte('start_date', startDate)
+                  .lte('start_date', endDate)
+                  .order('created_at', { ascending: false }),
+                // Approved booking requests by start_date
+                supabaseClient
+                  .from('booking_requests')
+                  .select('id, title, requester_name, requester_phone, requester_email, payment_status, payment_amount, created_at, start_date')
+                  .eq('user_id', ownerId)
+                  .eq('status', 'approved')
+                  .is('deleted_at', null)
+                  .gte('start_date', startDate)
+                  .lte('start_date', endDate)
                   .order('created_at', { ascending: false })
               ]);
               
-              if (standaloneCustomers.error || eventCustomers.error || eventMainPersons.error) {
-                console.error('    ❌ Error fetching customers:', standaloneCustomers.error || eventCustomers.error || eventMainPersons.error);
+              if (standaloneCustomers.error || eventLinkedCustomers.error || events.error || bookingRequests.error) {
+                console.error('    ❌ Error fetching customers:', standaloneCustomers.error || eventLinkedCustomers.error || events.error || bookingRequests.error);
                 toolResult = {
                   customers: [],
                   count: 0,
-                  error: (standaloneCustomers.error || eventCustomers.error || eventMainPersons.error)?.message,
+                  error: (standaloneCustomers.error || eventLinkedCustomers.error || events.error || bookingRequests.error)?.message,
                   filters_applied: { created_after: args.created_after, created_before: args.created_before }
                 };
               } else {
-                // Combine all sources
-                const allCustomers = [
-                  ...(standaloneCustomers.data || []),
-                  ...(eventCustomers.data || []),
-                  ...(eventMainPersons.data || []).map(e => ({
-                    id: e.id,
-                    title: e.user_surname,
-                    user_surname: e.user_surname,
-                    user_number: e.user_number,
-                    social_network_link: e.social_network_link,
-                    payment_status: e.payment_status,
-                    payment_amount: e.payment_amount,
-                    event_notes: '',
-                    created_at: e.created_at,
-                    start_date: e.start_date,
-                    end_date: null
-                  }))
-                ];
+                // Combine with signature-based deduplication (matching CRM)
+                const combined = [];
+                const seenSignatures = new Set();
+                const customerIdSet = new Set((standaloneCustomers.data || []).map(c => c.id));
                 
-                // Deduplicate by unique person signature (email + phone + name)
-                const uniqueCustomersMap = new Map();
-                allCustomers.forEach(customer => {
-                  const email = (customer.social_network_link || '').toLowerCase().trim();
-                  const phone = (customer.user_number || '').toLowerCase().trim();
-                  const name = (customer.user_surname || customer.title || '').toLowerCase().trim();
-                  const signature = `${email || 'no-email'}_${phone || 'no-phone'}_${name || 'no-name'}`;
+                // Add standalone customers
+                for (const customer of (standaloneCustomers.data || [])) {
+                  if (!customer) continue;
+                  const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
+                  if (!seenSignatures.has(signature)) {
+                    combined.push({
+                      id: customer.id,
+                      full_name: customer.title || customer.user_surname,
+                      email: customer.social_network_link,
+                      phone: customer.user_number,
+                      payment_status: customer.payment_status,
+                      payment_amount: customer.payment_amount,
+                      created_at: customer.created_at,
+                      start_date: customer.start_date,
+                      source: 'standalone_customer'
+                    });
+                    seenSignatures.add(signature);
+                  }
+                }
+                
+                // Add event-linked customers
+                for (const customer of (eventLinkedCustomers.data || [])) {
+                  if (!customer) continue;
+                  const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
+                  if (!seenSignatures.has(signature)) {
+                    combined.push({
+                      id: customer.id,
+                      full_name: customer.title || customer.user_surname,
+                      email: customer.social_network_link,
+                      phone: customer.user_number,
+                      payment_status: customer.payment_status,
+                      payment_amount: customer.payment_amount,
+                      created_at: customer.created_at,
+                      start_date: customer.start_date,
+                      source: 'event_linked_customer'
+                    });
+                    seenSignatures.add(signature);
+                  }
+                }
+                
+                // Add events (main persons)
+                for (const event of (events.data || [])) {
+                  if (!event) continue;
+                  const signature = `${event.user_surname}:::${event.start_date}`;
+                  if (!seenSignatures.has(signature)) {
+                    combined.push({
+                      id: event.id,
+                      full_name: event.user_surname,
+                      email: event.social_network_link,
+                      phone: event.user_number,
+                      payment_status: event.payment_status,
+                      payment_amount: event.payment_amount,
+                      created_at: event.created_at,
+                      start_date: event.start_date,
+                      source: 'event_main_person'
+                    });
+                    seenSignatures.add(signature);
+                  }
+                }
+                
+                // Add booking requests
+                for (const booking of (bookingRequests.data || [])) {
+                  if (!booking) continue;
+                  const signature = `booking-${booking.id}`;
+                  if (!seenSignatures.has(signature)) {
+                    combined.push({
+                      id: booking.id,
+                      full_name: booking.title || booking.requester_name,
+                      email: booking.requester_email,
+                      phone: booking.requester_phone,
+                      payment_status: booking.payment_status,
+                      payment_amount: booking.payment_amount,
+                      created_at: booking.created_at,
+                      start_date: booking.start_date,
+                      source: 'booking_request'
+                    });
+                    seenSignatures.add(signature);
+                  }
+                }
+                
+                // ID-based Map deduplication (matching CRM)
+                const uniqueData = new Map();
+                combined.forEach(item => {
+                  let key;
+                  if (item.source === 'booking_request') {
+                    key = `booking-${item.id}`;
+                  } else if (item.source === 'event_main_person') {
+                    key = `event-${item.id}`;
+                  } else {
+                    key = `customer-${item.id}`;
+                  }
                   
-                  if (!uniqueCustomersMap.has(signature)) {
-                    uniqueCustomersMap.set(signature, customer);
+                  if (!uniqueData.has(key) || new Date(item.created_at) > new Date(uniqueData.get(key).created_at)) {
+                    uniqueData.set(key, item);
                   }
                 });
                 
-                const uniqueCustomers = Array.from(uniqueCustomersMap.values());
+                const uniqueCustomers = Array.from(uniqueData.values());
                 
                 // Calculate payment breakdown
                 const paymentBreakdown = uniqueCustomers.reduce((acc, customer) => {
@@ -2463,16 +2548,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 }, 0);
                 
                 toolResult = {
+                  is_success: true,
                   customers: uniqueCustomers,
                   count: uniqueCustomers.length,
                   payment_breakdown: paymentBreakdown,
                   total_revenue: totalRevenue,
-                  filters_applied: {
-                    created_after: args.created_after || 'none',
-                    created_before: args.created_before || 'none'
-                  }
+                  period: `${startDate.split('T')[0]} to ${endDate.split('T')[0]}`
                 };
-                console.log(`    ✅ Found ${allCustomers.length} total customers, ${uniqueCustomers.length} unique after deduplication`);
+                console.log(`    ✅ Found ${combined.length} total, ${uniqueCustomers.length} unique after deduplication`);
                 console.log(`       Payment breakdown:`, paymentBreakdown);
                 console.log(`       Total revenue:`, totalRevenue);
               }
@@ -2494,8 +2577,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
             case 'get_recent_customers': {
               const limit = args.limit || 200;
-              const monthStart = args.start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-              const monthEnd = args.end_date || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString();
+              // FIX: When user asks for "this month", use FULL month, not just up to today
+              const now = new Date();
+              const monthStart = args.start_date || new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+              const monthEnd = args.end_date || new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
               
               console.log(`    📅 Fetching customers for period: ${monthStart} to ${monthEnd}`);
               
@@ -2557,41 +2642,45 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // Combine all data into single array
+              // CRITICAL FIX: Use EXACT same deduplication as CRM page (useOptimizedCRMData)
               const combined = [];
               const seenSignatures = new Set();
-              const customerIdSet = new Set((eventLinkedCustomers.data || []).map(c => c.id));
+              const customerIdSet = new Set((standaloneCustomers.data || []).map(c => c.id));
               
-              // Add standalone customers first
+              // Add standalone customers first (with signature deduplication)
               for (const customer of (standaloneCustomers.data || [])) {
                 if (!customer) continue;
                 const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
                 if (!seenSignatures.has(signature)) {
                   combined.push({
+                    id: customer.id,
                     full_name: customer.title || customer.user_surname,
                     email: customer.social_network_link,
                     phone: customer.user_number,
                     payment_status: customer.payment_status,
                     payment_amount: customer.payment_amount,
                     created_at: customer.created_at,
+                    start_date: customer.start_date,
                     source: 'standalone_customer'
                   });
                   seenSignatures.add(signature);
                 }
               }
               
-              // Add event-linked customers
+              // Add event-linked customers (with signature deduplication)
               for (const customer of (eventLinkedCustomers.data || [])) {
                 if (!customer) continue;
                 const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
                 if (!seenSignatures.has(signature)) {
                   combined.push({
+                    id: customer.id,
                     full_name: customer.title || customer.user_surname,
                     email: customer.social_network_link,
                     phone: customer.user_number,
                     payment_status: customer.payment_status,
                     payment_amount: customer.payment_amount,
                     created_at: customer.created_at,
+                    start_date: customer.start_date,
                     source: 'event_linked_customer'
                   });
                   seenSignatures.add(signature);
@@ -2606,12 +2695,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const signature = `${event.title}:::${event.start_date}`;
                 if (!seenSignatures.has(signature)) {
                   combined.push({
+                    id: event.id,
                     full_name: event.title || event.user_surname,
                     email: event.social_network_link,
                     phone: event.user_number,
                     payment_status: event.payment_status,
                     payment_amount: event.payment_amount,
                     created_at: event.created_at,
+                    start_date: event.start_date,
                     source: 'event_main_person'
                   });
                   seenSignatures.add(signature);
@@ -2621,26 +2712,37 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               // Add transformed booking requests
               for (const booking of (bookingRequests.data || [])) {
                 if (!booking) continue;
-                const signature = `booking-${booking.id}:::${booking.start_date}`;
+                const signature = `booking-${booking.id}`;
                 if (!seenSignatures.has(signature)) {
                   combined.push({
+                    id: booking.id,
                     full_name: booking.title || booking.requester_name,
                     email: booking.requester_email,
                     phone: booking.requester_phone,
                     payment_status: booking.payment_status,
                     payment_amount: booking.payment_amount,
                     created_at: booking.created_at,
+                    start_date: booking.start_date,
                     source: 'booking_request'
                   });
                   seenSignatures.add(signature);
                 }
               }
               
-              // Remove duplicates using Map based on unique ID
+              // CRITICAL FIX: Use ID-based Map deduplication like CRM (not index!)
               const uniqueData = new Map();
-              combined.forEach((item, index) => {
-                const key = `${item.source}-${index}`;
-                if (!uniqueData.has(key)) {
+              combined.forEach(item => {
+                let key;
+                if (item.source === 'booking_request') {
+                  key = `booking-${item.id}`;
+                } else if (item.source === 'event_main_person') {
+                  key = `event-${item.id}`;
+                } else {
+                  key = `customer-${item.id}`;
+                }
+                
+                // Keep the most recent version if duplicate found
+                if (!uniqueData.has(key) || new Date(item.created_at) > new Date(uniqueData.get(key).created_at)) {
                   uniqueData.set(key, item);
                 }
               });
@@ -2652,12 +2754,13 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               
               // Format for AI response (human-readable)
               toolResult = {
+                is_success: true,
                 customers: result,
                 count: result.length,
-                message: `Found ${result.length} customers for the period`
+                period: `${monthStart.split('T')[0]} to ${monthEnd.split('T')[0]}`
               };
               
-              console.log(`    ✅ Found ${result.length} unique customers (CRM logic applied)`);
+              console.log(`    ✅ Found ${combined.length} total, ${result.length} unique customers after deduplication (CRM logic)`);
               console.log(`       Sources: ${standaloneCustomers.data?.length || 0} standalone, ${eventLinkedCustomers.data?.length || 0} event-linked, ${events.data?.length || 0} events, ${bookingRequests.data?.length || 0} bookings`);
               break;
             }
@@ -4700,13 +4803,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         role: "user",
         content: `Generate a concise confirmation message about the action result. Use the user's language (${userLanguage}).
 
-CRITICAL RULES - YOU MUST FOLLOW THESE:
-1. DO NOT add "how else can I help?" or "Is there anything else?" - NEVER ask this
-2. DO NOT add extra pleasantries or filler text
-3. DO NOT return raw JSON or object data - ALWAYS format as human-readable text
-4. Do not add file names if there are no files attached
-5. Do not mention assignee names if there are no assignees
-6. NEVER generate new text yourself - ONLY use what the function returned
+⚠️ CRITICAL RULES - FAILURE TO FOLLOW THESE WILL BREAK THE UI:
+1. NEVER EVER show raw JSON objects, arrays, or code-like output ({"is_success": true...})
+2. NEVER show technical data like tool_code, function outputs, or debugging info
+3. ALWAYS format data as clean, human-readable text
+4. DO NOT add "how else can I help?" or "Is there anything else?" - NEVER ask this
+5. DO NOT add extra pleasantries or filler text
+6. Do not add file names if there are no files attached
+7. Do not mention assignee names if there are no assignees
 
 RESPONSE FORMAT (choose ONE based on result):
 - If time_conflict: "⚠️ That time slot is already booked with [conflict name]. Would you like a different time?"
@@ -4719,12 +4823,19 @@ RESPONSE FORMAT (choose ONE based on result):
 - If excel: Include download link
 - If error: State the error clearly
 
+**CUSTOMER COUNT REQUESTS (NEW CRITICAL RULE)**:
+If user asks ONLY for count (e.g., "customer count", "how many customers", "tell me count"):
+- ONLY show the count, DO NOT show the full list
+- Format: "You have [count] customers this month." 
+- STOP there, do not list all customers
+
 **CUSTOMER LIST FORMATTING (CRITICAL)**:
-When you receive customer data from get_recent_customers or get_all_customers:
-1. NEVER return raw JSON or array of objects
-2. ALWAYS format as a clean, numbered list with details
-3. Include: name, email (if provided), phone (if provided), date added
-4. Start with total count: "You have [count] customers this month."
+If user asks for list/details (e.g., "show customers", "list customers", "who are my customers"):
+1. NEVER EVER return raw JSON like {"is_success": true, "customers": [...]}
+2. NEVER show code-like objects or arrays
+3. ALWAYS format as a clean, numbered list with details
+4. Include: name, email (if provided), phone (if provided), date added
+5. Start with total count: "You have [count] customers this month."
 
 Example CORRECT format:
 "You have 44 customers this month. Here's the list:
