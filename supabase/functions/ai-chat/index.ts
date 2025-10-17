@@ -2850,11 +2850,34 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   }
                 } else {
                   console.log('✅ Direct email sent successfully');
-                  toolResult = { 
-                    success: true, 
-                    recipient: recipient_email,
-                    message: 'Email sent successfully'
+                  
+                  // Create friendly confirmation message (SAME STYLE AS SCHEDULED EMAILS)
+                  const emailConfirmations = {
+                    en: `✅ Email sent! Your message has been delivered to ${recipient_email}.`,
+                    ru: `✅ Письмо отправлено! Ваше сообщение доставлено ${recipient_email}.`,
+                    ka: `✅ ელფოსტა გაიგზავნა! თქვენი შეტყობინება მიწოდებულია ${recipient_email}-ზე.`,
+                    es: `✅ ¡Correo enviado! Tu mensaje ha sido entregado a ${recipient_email}.`
                   };
+                  
+                  const confirmation = emailConfirmations[userLanguage as keyof typeof emailConfirmations] || emailConfirmations.en;
+                  
+                  // Write confirmation message directly to chat (SAME AS SCHEDULED EMAILS)
+                  await supabaseAdmin.from('chat_messages').insert({
+                    channel_id: channelId,
+                    owner_id: ownerId,
+                    sender_type: 'admin',
+                    sender_name: 'Smartbookly AI',
+                    content: confirmation,
+                    message_type: 'text'
+                  });
+                  
+                  console.log(`✅ Email confirmation sent to chat in ${userLanguage}`);
+                  
+                  // Return early with immediate response (SAME AS SCHEDULED EMAILS)
+                  return new Response(
+                    JSON.stringify({ success: true, content: confirmation }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  );
                 }
               }
               break;
