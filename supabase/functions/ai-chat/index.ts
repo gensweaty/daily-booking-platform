@@ -2322,50 +2322,99 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 created_before: args.created_before || 'none'
               });
               
-              let query = supabaseClient
-                .from('customers')
-                .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, event_notes, created_at, start_date, end_date')
-                .eq('user_id', ownerId)
-                .is('deleted_at', null);
+              // Fetch from all three sources to match Statistics page
+              const [standaloneCustomers, eventCustomers, eventMainPersons] = await Promise.all([
+                // Standalone CRM customers by created_at
+                supabaseClient
+                  .from('customers')
+                  .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, event_notes, created_at, start_date, end_date')
+                  .eq('user_id', ownerId)
+                  .is('deleted_at', null)
+                  .is('event_id', null)
+                  .gte('created_at', args.created_after || '1970-01-01')
+                  .lte('created_at', args.created_before || '2099-12-31')
+                  .order('created_at', { ascending: false }),
+                // Event-linked customers (additional persons) by created_at
+                supabaseClient
+                  .from('customers')
+                  .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, event_notes, created_at, start_date, end_date')
+                  .eq('user_id', ownerId)
+                  .eq('type', 'customer')
+                  .not('event_id', 'is', null)
+                  .is('deleted_at', null)
+                  .gte('created_at', args.created_after || '1970-01-01')
+                  .lte('created_at', args.created_before || '2099-12-31')
+                  .order('created_at', { ascending: false }),
+                // Main event persons by start_date (to match Statistics logic)
+                supabaseClient
+                  .from('events')
+                  .select('id, user_surname, user_number, social_network_link, payment_status, payment_amount, start_date, created_at')
+                  .eq('user_id', ownerId)
+                  .is('deleted_at', null)
+                  .is('parent_event_id', null)
+                  .gte('start_date', args.created_after || '1970-01-01')
+                  .lte('start_date', args.created_before || '2099-12-31')
+                  .order('created_at', { ascending: false })
+              ]);
               
-              // Apply date filters
-              if (args.created_after) {
-                query = query.gte('created_at', args.created_after);
-                console.log(`       📅 Date filter: created_at >= ${args.created_after}`);
-              }
-              if (args.created_before) {
-                query = query.lte('created_at', args.created_before);
-                console.log(`       📅 Date filter: created_at <= ${args.created_before}`);
-              }
-              
-              query = query.order('created_at', { ascending: false });
-              
-              const { data: customers, error: customersError } = await query;
-              
-              if (customersError) {
-                console.error('    ❌ Error fetching customers:', customersError);
+              if (standaloneCustomers.error || eventCustomers.error || eventMainPersons.error) {
+                console.error('    ❌ Error fetching customers:', standaloneCustomers.error || eventCustomers.error || eventMainPersons.error);
                 toolResult = {
                   customers: [],
                   count: 0,
-                  error: customersError.message,
+                  error: (standaloneCustomers.error || eventCustomers.error || eventMainPersons.error)?.message,
                   filters_applied: { created_after: args.created_after, created_before: args.created_before }
                 };
               } else {
+                // Combine all sources
+                const allCustomers = [
+                  ...(standaloneCustomers.data || []),
+                  ...(eventCustomers.data || []),
+                  ...(eventMainPersons.data || []).map(e => ({
+                    id: e.id,
+                    title: e.user_surname,
+                    user_surname: e.user_surname,
+                    user_number: e.user_number,
+                    social_network_link: e.social_network_link,
+                    payment_status: e.payment_status,
+                    payment_amount: e.payment_amount,
+                    event_notes: '',
+                    created_at: e.created_at,
+                    start_date: e.start_date,
+                    end_date: null
+                  }))
+                ];
+                
+                // Deduplicate by unique person signature (email + phone + name)
+                const uniqueCustomersMap = new Map();
+                allCustomers.forEach(customer => {
+                  const email = (customer.social_network_link || '').toLowerCase().trim();
+                  const phone = (customer.user_number || '').toLowerCase().trim();
+                  const name = (customer.user_surname || customer.title || '').toLowerCase().trim();
+                  const signature = `${email || 'no-email'}_${phone || 'no-phone'}_${name || 'no-name'}`;
+                  
+                  if (!uniqueCustomersMap.has(signature)) {
+                    uniqueCustomersMap.set(signature, customer);
+                  }
+                });
+                
+                const uniqueCustomers = Array.from(uniqueCustomersMap.values());
+                
                 // Calculate payment breakdown
-                const paymentBreakdown = (customers || []).reduce((acc, customer) => {
+                const paymentBreakdown = uniqueCustomers.reduce((acc, customer) => {
                   const status = customer.payment_status || 'unknown';
                   acc[status] = (acc[status] || 0) + 1;
                   return acc;
                 }, {} as Record<string, number>);
                 
                 // Calculate total revenue
-                const totalRevenue = (customers || []).reduce((sum, customer) => {
+                const totalRevenue = uniqueCustomers.reduce((sum, customer) => {
                   return sum + (Number(customer.payment_amount) || 0);
                 }, 0);
                 
                 toolResult = {
-                  customers: customers || [],
-                  count: customers?.length || 0,
+                  customers: uniqueCustomers,
+                  count: uniqueCustomers.length,
                   payment_breakdown: paymentBreakdown,
                   total_revenue: totalRevenue,
                   filters_applied: {
@@ -2373,7 +2422,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     created_before: args.created_before || 'none'
                   }
                 };
-                console.log(`    ✅ Found ${customers?.length || 0} customers`);
+                console.log(`    ✅ Found ${allCustomers.length} total customers, ${uniqueCustomers.length} unique after deduplication`);
                 console.log(`       Payment breakdown:`, paymentBreakdown);
                 console.log(`       Total revenue:`, totalRevenue);
               }
@@ -2442,19 +2491,18 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 }))
               ];
               
-              // CRITICAL: Deduplicate customers using the same logic as CRM page
-              // Create unique key based on email, phone, and name (case-insensitive, trimmed)
+              // CRITICAL: Deduplicate customers - count each unique PERSON only once
+              // Use same logic as Statistics page: deduplicate by email_phone_name (without date)
               const uniqueCustomersMap = new Map();
               
               allCustomers.forEach(customer => {
                 const email = (customer.social_network_link || '').toLowerCase().trim();
                 const phone = (customer.user_number || '').toLowerCase().trim();
                 const name = (customer.user_surname || customer.title || '').toLowerCase().trim();
-                const createdDate = customer.created_at ? new Date(customer.created_at).toISOString().split('T')[0] : '';
                 
-                // Create unique signature: email_phone_name_date
-                // This ensures same person on different days is counted separately
-                const signature = `${email || 'no-email'}_${phone || 'no-phone'}_${name || 'no-name'}_${createdDate}`;
+                // Create unique signature: email_phone_name (NO DATE)
+                // This counts each unique person only once, regardless of how many times they appear
+                const signature = `${email || 'no-email'}_${phone || 'no-phone'}_${name || 'no-name'}`;
                 
                 // Keep first occurrence (most recent due to ordering)
                 if (!uniqueCustomersMap.has(signature)) {
