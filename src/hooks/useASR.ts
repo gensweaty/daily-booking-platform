@@ -83,8 +83,9 @@ export function useASR() {
       throw new Error('No audio data recorded. Please try again.');
     }
     
-    if (blob.size < 1000) {
-      throw new Error('Recording too short or silent. Please speak clearly.');
+    // Minimal size check - only reject truly empty recordings
+    if (blob.size < 100) {
+      throw new Error('Recording too short. Please try again.');
     }
     
     setStatus('transcribing');
@@ -98,11 +99,11 @@ export function useASR() {
       const floatData = await blobToMono16kFloat32(blob);
       console.log('🎤 Audio converted, samples:', floatData.length);
       
-      // Check if audio data is silent (all values near zero)
+      // Very lenient amplitude check - only catch completely silent recordings
       const avgAmplitude = floatData.reduce((sum, val) => sum + Math.abs(val), 0) / floatData.length;
       console.log('🎤 Average amplitude:', avgAmplitude);
-      if (avgAmplitude < 0.001) {
-        throw new Error('No speech detected in recording. Check microphone permissions.');
+      if (avgAmplitude < 0.00001) {
+        throw new Error('No speech detected. Check microphone permissions.');
       }
 
       // Build ASR pipeline with tiny model (multilingual)

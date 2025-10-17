@@ -446,16 +446,18 @@ export const MessageInput = ({
       
       console.log('🎤 Transcribed text:', text);
       
-      // Set both state and ref immediately
+      // Show transcribed text in textarea first
       setMessage(text);
       messageRef.current = text;
       
-      // Update textarea value as well
       if (textareaRef.current) {
         textareaRef.current.value = text;
       }
       
-      // Call uploadAndSend immediately - ref ensures text is available
+      // Brief delay so user can see what was transcribed
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Now send it
       await uploadAndSend();
       
       toast({ title: "✓ Voice message sent", duration: 2000 });
@@ -578,10 +580,10 @@ export const MessageInput = ({
             }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={defaultPlaceholder}
+            placeholder={isTranscribing ? "Transcribing voice..." : defaultPlaceholder}
             className="min-h-[60px] max-h-32 resize-none pr-20 py-3"
             rows={1}
-            disabled={isUploading}
+            disabled={isUploading || isTranscribing}
           />
 
           {/* Hidden file input */}
