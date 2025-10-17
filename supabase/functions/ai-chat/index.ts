@@ -701,11 +701,40 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_recent_customers",
-          description: "Get recently added customers from CRM",
+          description: `Get customers for a specific time period with proper formatting.
+          
+          **CRITICAL RESPONSE FORMATTING**:
+          When you receive the customer data from this tool:
+          1. Count the total: "You have [count] customers this month."
+          2. List each customer with their details:
+             - Name (added on date)
+             - Include email/phone if provided
+          3. Format as a clean, readable list
+          
+          Example output:
+          "You have 44 customers this month. Here's the list:
+          
+          • John Doe (email: john@example.com, added on 2025-10-15)
+          • Jane Smith (added on 2025-10-14)
+          • ..."
+          
+          **DO NOT** return raw JSON or object data. Always format as human-readable text.`,
           parameters: {
             type: "object",
             properties: {
-              limit: { type: "number", description: "Number to return (default 10)", default: 10 }
+              limit: { 
+                type: "number", 
+                description: "Max number of customers to return (default 200)", 
+                default: 200 
+              },
+              start_date: {
+                type: "string",
+                description: "Start date for filtering (ISO format: YYYY-MM-DD). Defaults to current month start."
+              },
+              end_date: {
+                type: "string",
+                description: "End date for filtering (ISO format: YYYY-MM-DD). Defaults to current month end."
+              }
             }
           }
         }
@@ -1097,6 +1126,27 @@ For EDIT: Include customer_id to update existing customer`,
 - ONLY show the user-friendly confirmation message (e.g., "✅ Customer updated: BAS")
 - DO NOT repeat the same message multiple times in one response
 - Focus on what matters to the user: what was created/updated and key details
+
+**CUSTOMER & DATA LIST FORMATTING (CRITICAL)**:
+When returning customer lists, event lists, or any data collections:
+1. NEVER return raw JSON arrays or objects
+2. ALWAYS format as clean, numbered lists with relevant details
+3. Start with a summary count (e.g., "You have 44 customers this month")
+4. List each item with: name, key details (email/phone if provided), date
+5. Use emojis sparingly for visual clarity
+
+Example CORRECT customer list:
+✅ "You have 44 customers this month. Here's the list:
+
+1. John Doe (email: john@example.com, added on 2025-10-15)
+2. Jane Smith (phone: 555-1234, added on 2025-10-14)
+3. Bob Johnson (added on 2025-10-13)
+..."
+
+Example FORBIDDEN formats:
+❌ {"is_success": true, "customers": [{"customer_id": "c_123"...}]}
+❌ [{"full_name": "weqe", "email": null, "phone": null...}]
+❌ Any raw JSON structure or array syntax
 
 Examples of FORBIDDEN responses:
 ❌ "EXAMPLE: Input: tool_code: print(default_api.create_or_update_customer..."
@@ -2443,80 +2493,172 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'get_recent_customers': {
-              const limit = args.limit || 200; // Fetch more to account for duplicates
+              const limit = args.limit || 200;
+              const monthStart = args.start_date || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+              const monthEnd = args.end_date || new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59).toISOString();
               
-              // Fetch all customers including those attached to events
-              const [standaloneCustomers, eventCustomers, eventMainPersons] = await Promise.all([
-                // Standalone CRM customers
+              console.log(`    📅 Fetching customers for period: ${monthStart} to ${monthEnd}`);
+              
+              // CRITICAL: Match CRM page logic EXACTLY
+              // Fetch from the SAME sources as useOptimizedCRMData
+              const [standaloneCustomers, eventLinkedCustomers, events, bookingRequests] = await Promise.all([
+                // Standalone CRM customers - filter by created_at (when customer was added)
                 supabaseClient
                   .from('customers')
-                  .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, created_at, event_id')
+                  .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, created_at, start_date, end_date')
                   .eq('user_id', ownerId)
                   .is('deleted_at', null)
                   .is('event_id', null)
+                  .gte('created_at', monthStart)
+                  .lte('created_at', monthEnd)
                   .order('created_at', { ascending: false }),
-                // Event-linked customers (additional persons)
+                
+                // Event-linked customers (additional persons) - filter by created_at
                 supabaseClient
                   .from('customers')
-                  .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, created_at, event_id')
+                  .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, created_at, start_date, end_date, event_id')
                   .eq('user_id', ownerId)
                   .eq('type', 'customer')
                   .is('deleted_at', null)
-                  .not('event_id', 'is', null)
+                  .gte('created_at', monthStart)
+                  .lte('created_at', monthEnd)
                   .order('created_at', { ascending: false }),
-                // Main event persons (from events table)
+                
+                // Events - filter by start_date (when event happens)
                 supabaseClient
                   .from('events')
-                  .select('id, user_surname, user_number, social_network_link, payment_status, payment_amount, created_at')
+                  .select('id, title, user_surname, user_number, social_network_link, payment_status, payment_amount, created_at, start_date, end_date, booking_request_id')
                   .eq('user_id', ownerId)
                   .is('deleted_at', null)
-                  .is('parent_event_id', null) // Only parent events, not recurring instances
+                  .is('parent_event_id', null)
+                  .gte('start_date', monthStart)
+                  .lte('start_date', monthEnd)
+                  .order('created_at', { ascending: false }),
+                
+                // Approved booking requests - filter by start_date
+                supabaseClient
+                  .from('booking_requests')
+                  .select('id, title, requester_name, requester_phone, requester_email, payment_status, payment_amount, created_at, start_date, end_date')
+                  .eq('user_id', ownerId)
+                  .eq('status', 'approved')
+                  .is('deleted_at', null)
+                  .gte('start_date', monthStart)
+                  .lte('start_date', monthEnd)
                   .order('created_at', { ascending: false })
               ]);
               
-              // Combine all sources
-              const allCustomers = [
-                ...(standaloneCustomers.data || []).map(c => ({ ...c, source: 'standalone' })),
-                ...(eventCustomers.data || []).map(c => ({ ...c, source: 'event_customer' })),
-                ...(eventMainPersons.data || []).map(e => ({
-                  id: e.id,
-                  title: e.user_surname,
-                  user_surname: e.user_surname,
-                  user_number: e.user_number,
-                  social_network_link: e.social_network_link,
-                  payment_status: e.payment_status,
-                  payment_amount: e.payment_amount,
-                  created_at: e.created_at,
-                  source: 'event_main'
-                }))
-              ];
+              if (standaloneCustomers.error || eventLinkedCustomers.error || events.error || bookingRequests.error) {
+                console.error('    ❌ Error fetching data:', standaloneCustomers.error || eventLinkedCustomers.error || events.error || bookingRequests.error);
+                toolResult = {
+                  customers: [],
+                  count: 0,
+                  error: 'Failed to fetch customer data'
+                };
+                break;
+              }
               
-              // CRITICAL: Deduplicate customers - count each unique PERSON only once
-              // Use same logic as Statistics page: deduplicate by email_phone_name (without date)
-              const uniqueCustomersMap = new Map();
+              // Combine all data into single array
+              const combined = [];
+              const seenSignatures = new Set();
+              const customerIdSet = new Set((eventLinkedCustomers.data || []).map(c => c.id));
               
-              allCustomers.forEach(customer => {
-                const email = (customer.social_network_link || '').toLowerCase().trim();
-                const phone = (customer.user_number || '').toLowerCase().trim();
-                const name = (customer.user_surname || customer.title || '').toLowerCase().trim();
+              // Add standalone customers first
+              for (const customer of (standaloneCustomers.data || [])) {
+                if (!customer) continue;
+                const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
+                if (!seenSignatures.has(signature)) {
+                  combined.push({
+                    full_name: customer.title || customer.user_surname,
+                    email: customer.social_network_link,
+                    phone: customer.user_number,
+                    payment_status: customer.payment_status,
+                    payment_amount: customer.payment_amount,
+                    created_at: customer.created_at,
+                    source: 'standalone_customer'
+                  });
+                  seenSignatures.add(signature);
+                }
+              }
+              
+              // Add event-linked customers
+              for (const customer of (eventLinkedCustomers.data || [])) {
+                if (!customer) continue;
+                const signature = `${customer.title}:::${customer.start_date}:::${customer.user_number}`;
+                if (!seenSignatures.has(signature)) {
+                  combined.push({
+                    full_name: customer.title || customer.user_surname,
+                    email: customer.social_network_link,
+                    phone: customer.user_number,
+                    payment_status: customer.payment_status,
+                    payment_amount: customer.payment_amount,
+                    created_at: customer.created_at,
+                    source: 'event_linked_customer'
+                  });
+                  seenSignatures.add(signature);
+                }
+              }
+              
+              // Add events (main persons) - skip if booking was converted to customer
+              for (const event of (events.data || [])) {
+                if (!event) continue;
+                if (event.booking_request_id && customerIdSet.has(event.booking_request_id)) continue;
                 
-                // Create unique signature: email_phone_name (NO DATE)
-                // This counts each unique person only once, regardless of how many times they appear
-                const signature = `${email || 'no-email'}_${phone || 'no-phone'}_${name || 'no-name'}`;
-                
-                // Keep first occurrence (most recent due to ordering)
-                if (!uniqueCustomersMap.has(signature)) {
-                  uniqueCustomersMap.set(signature, customer);
+                const signature = `${event.title}:::${event.start_date}`;
+                if (!seenSignatures.has(signature)) {
+                  combined.push({
+                    full_name: event.title || event.user_surname,
+                    email: event.social_network_link,
+                    phone: event.user_number,
+                    payment_status: event.payment_status,
+                    payment_amount: event.payment_amount,
+                    created_at: event.created_at,
+                    source: 'event_main_person'
+                  });
+                  seenSignatures.add(signature);
+                }
+              }
+              
+              // Add transformed booking requests
+              for (const booking of (bookingRequests.data || [])) {
+                if (!booking) continue;
+                const signature = `booking-${booking.id}:::${booking.start_date}`;
+                if (!seenSignatures.has(signature)) {
+                  combined.push({
+                    full_name: booking.title || booking.requester_name,
+                    email: booking.requester_email,
+                    phone: booking.requester_phone,
+                    payment_status: booking.payment_status,
+                    payment_amount: booking.payment_amount,
+                    created_at: booking.created_at,
+                    source: 'booking_request'
+                  });
+                  seenSignatures.add(signature);
+                }
+              }
+              
+              // Remove duplicates using Map based on unique ID
+              const uniqueData = new Map();
+              combined.forEach((item, index) => {
+                const key = `${item.source}-${index}`;
+                if (!uniqueData.has(key)) {
+                  uniqueData.set(key, item);
                 }
               });
               
-              // Convert back to array and sort by created_at descending
-              const uniqueCustomers = Array.from(uniqueCustomersMap.values())
+              // Convert back to array and sort
+              const result = Array.from(uniqueData.values())
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                .slice(0, limit); // Apply limit after deduplication
+                .slice(0, limit);
               
-              toolResult = uniqueCustomers;
-              console.log(`    ✓ Found ${allCustomers.length} total customers, ${uniqueCustomers.length} unique after deduplication`);
+              // Format for AI response (human-readable)
+              toolResult = {
+                customers: result,
+                count: result.length,
+                message: `Found ${result.length} customers for the period`
+              };
+              
+              console.log(`    ✅ Found ${result.length} unique customers (CRM logic applied)`);
+              console.log(`       Sources: ${standaloneCustomers.data?.length || 0} standalone, ${eventLinkedCustomers.data?.length || 0} event-linked, ${events.data?.length || 0} events, ${bookingRequests.data?.length || 0} bookings`);
               break;
             }
 
@@ -4561,7 +4703,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 CRITICAL RULES - YOU MUST FOLLOW THESE:
 1. DO NOT add "how else can I help?" or "Is there anything else?" - NEVER ask this
 2. DO NOT add extra pleasantries or filler text
-3. ONLY use the response provided by the function
+3. DO NOT return raw JSON or object data - ALWAYS format as human-readable text
 4. Do not add file names if there are no files attached
 5. Do not mention assignee names if there are no assignees
 6. NEVER generate new text yourself - ONLY use what the function returned
@@ -4576,6 +4718,25 @@ RESPONSE FORMAT (choose ONE based on result):
 - If reminder: "✅ Reminder set! I'll remind you about [title] at [display_time]. You'll receive both email and dashboard notification."
 - If excel: Include download link
 - If error: State the error clearly
+
+**CUSTOMER LIST FORMATTING (CRITICAL)**:
+When you receive customer data from get_recent_customers or get_all_customers:
+1. NEVER return raw JSON or array of objects
+2. ALWAYS format as a clean, numbered list with details
+3. Include: name, email (if provided), phone (if provided), date added
+4. Start with total count: "You have [count] customers this month."
+
+Example CORRECT format:
+"You have 44 customers this month. Here's the list:
+
+1. John Doe (email: john@example.com, added on 2025-10-15)
+2. Jane Smith (phone: 555-1234, added on 2025-10-14)
+3. Bob Johnson (added on 2025-10-13)
+..."
+
+Example FORBIDDEN format:
+❌ {"is_success": true, "customers": [{"customer_id": "c_123", "full_name": "weqe"...}]}
+❌ [{"customer_id": "c_20251015", "full_name": "weqe", "email": null...}]
 
 Be direct. Be concise. No extra text.`
       };
