@@ -592,18 +592,18 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
               if (onChannelSelect) onChannelSelect();
             }}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-left",
+              "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-left",
               currentChannelId === aiChannelId
                 ? "bg-gradient-to-r from-purple-500/10 to-blue-500/10 text-purple-700 dark:text-purple-300 font-medium shadow-sm border border-purple-500/20"
                 : "hover:bg-accent text-foreground"
             )}
           >
             <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shadow-sm">
+              <div className="flex-shrink-0 w-13 h-13 rounded-full overflow-hidden shadow-sm">
                 <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">Smartbookly AI</div>
+                <div className="font-medium text-[15px] truncate">Smartbookly AI</div>
                 <div className="text-xs text-muted-foreground truncate">AI Assistant</div>
               </div>
             </div>
@@ -663,15 +663,15 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
                   }
                 }}
                 className={cn(
-                  "flex-1 flex items-center justify-between px-3 py-2.5 rounded-r-lg transition-all text-left relative group",
+                  "flex-1 flex items-center justify-between px-4 py-3 rounded-r-lg transition-all text-left relative group",
                   "bg-muted hover:bg-muted/80 border border-muted/80 hover:border-muted border-l-0",
                   "dark:bg-muted/60 dark:hover:bg-muted/80 dark:border-muted/70 dark:hover:border-muted/90",
                   currentChannelId === generalChannelId ? "!bg-primary/20 !text-primary !border-primary/30 font-medium dark:!bg-primary/30 dark:!text-primary-foreground" : ""
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <Hash className="h-4 w-4 flex-shrink-0" />
-                  <span className="font-medium">
+                  <Hash className="h-5 w-5 flex-shrink-0" />
+                  <span className="font-medium text-[15px]">
                     <LanguageText>{t('chat.general')}</LanguageText>
                   </span>
                 </div>

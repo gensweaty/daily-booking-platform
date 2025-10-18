@@ -706,11 +706,11 @@ export const MessageInput = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
                 disabled={isUploading}
                 aria-label="Attach files"
               >
-                <Paperclip className="h-4 w-4" />
+                <Paperclip className="h-5 w-5" />
               </Button>
             )}
 
@@ -721,12 +721,12 @@ export const MessageInput = ({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                    className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
                     disabled={isUploading}
                     onClick={() => setShowEmojiPicker(v => !v)}
                     aria-label="Insert emoji"
                   >
-                    <Smile className="h-4 w-4" />
+                    <Smile className="h-5 w-5" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-background border-input z-[10000]" align="end" side="top" sideOffset={8}>
@@ -741,13 +741,13 @@ export const MessageInput = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                className="h-9 w-9 p-0 text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-500/10"
                 disabled={isUploading || isTranscribing}
                 onClick={() => isRecording ? handleStopAndSend() : startRecording()}
                 aria-label={isRecording ? "Stop recording" : "Record voice"}
                 title={isRecording ? "Stop recording and send" : "Record voice message (max 60s)"}
               >
-                {isRecording ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
+                {isRecording ? <Square className="h-5 w-5 text-destructive" /> : <Mic className="h-5 w-5" />}
               </Button>
             )}
           </div>
