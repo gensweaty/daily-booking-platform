@@ -699,7 +699,7 @@ export const MessageInput = ({
           />
 
           {/* Input Actions */}
-          <div className="absolute right-2 bottom-3 flex items-center gap-1">
+          <div className="absolute right-2 bottom-3 flex items-center gap-0.5">
             {!editingMessage && (
               <Button
                 type="button"
