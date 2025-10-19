@@ -158,6 +158,11 @@ export const PublicProfileDialog = ({
         await fetchSubUserProfile();
         
         console.log('✅ AVATAR DEBUG: Profile refetched, avatar should now be visible');
+        
+        toast({
+          title: t('common.success'),
+          description: "Avatar uploaded successfully",
+        });
       };
       reader.onerror = () => {
         throw new Error('Failed to read file');
@@ -165,7 +170,11 @@ export const PublicProfileDialog = ({
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading sub-user avatar:', error);
-      throw error; // Re-throw so SubUserAvatarUpload can handle the toast
+      toast({
+        title: t('common.error'),
+        description: "Failed to update avatar",
+        variant: "destructive",
+      });
     }
   };
 

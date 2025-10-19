@@ -106,12 +106,6 @@ export const AvatarUpload = ({ avatarUrl, onAvatarUpdate, size = 'md' }: AvatarU
         throw updateError;
       }
 
-      // Force real-time broadcast by updating a timestamp field
-      await supabase
-        .from('profiles')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('id', user.id);
-
       // Call the callback to update the parent component
       if (onAvatarUpdate) {
         onAvatarUpdate(cacheBustedUrl);
