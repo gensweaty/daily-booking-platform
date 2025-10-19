@@ -23,6 +23,7 @@ export const translations: TranslationType = {
     analytics: "Analytics",
     website: "Website",
     teamChat: "Team Chat",
+    ai: "AI Assistant",
     ownBookingWebsite: "Your own booking website",
     businessTitle: "For any type of business",
     smartAppointment: "Smart Appointment Scheduling",
@@ -30,6 +31,17 @@ export const translations: TranslationType = {
     modernCRM: "Modern CRM Solution",
     kanbanManagement: "Kanban Task Management",
     teamCollaboration: "Team Collaboration"
+  },
+  aiAssistant: {
+    title: "AI-Powered Business Assistant",
+    description: "Let AI handle your routine tasks and provide instant insights about your business. Your intelligent assistant works 24/7 to help you schedule events, manage customers, create tasks, and analyze your business data through simple conversations.",
+    feature1: "Schedule events and appointments with natural language commands",
+    feature2: "Add and manage customers with instant CRM integration",
+    feature3: "Create and assign tasks to team members automatically",
+    feature4: "Set custom reminders and never miss important deadlines",
+    feature5: "Get instant insights about products, customers, and business processes",
+    feature6: "Generate detailed Excel reports on demand",
+    feature7: "Analyze documents and files with AI-powered understanding"
   },
   booking: {
     title: "Booking System",

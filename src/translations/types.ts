@@ -28,6 +28,7 @@ export interface TranslationType {
     analytics: string;
     website: string;
     teamChat: string;
+    ai: string;
     ownBookingWebsite: string;
     businessTitle: string;
     smartAppointment: string;
@@ -35,6 +36,17 @@ export interface TranslationType {
     modernCRM: string;
     kanbanManagement: string;
     teamCollaboration: string;
+  };
+  aiAssistant: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+    feature5: string;
+    feature6: string;
+    feature7: string;
   };
   booking: {
     title: string;

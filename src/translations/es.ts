@@ -34,6 +34,7 @@ export const translations: TranslationType = {
     analytics: "Analítica",
     website: "Sitio Web",
     teamChat: "Chat de Equipo",
+    ai: "Asistente IA",
     ownBookingWebsite: "Su propio sitio web de reservas",
     businessTitle: "Para cualquier tipo de negocio",
     smartAppointment: "Programación Inteligente de Citas",
@@ -41,6 +42,17 @@ export const translations: TranslationType = {
     modernCRM: "Solución CRM Moderna",
     kanbanManagement: "Gestión de Tareas Kanban",
     teamCollaboration: "Colaboración de Equipo"
+  },
+  aiAssistant: {
+    title: "Asistente de Negocios con IA",
+    description: "Deje que la IA maneje sus tareas rutinarias y proporcione información instantánea sobre su negocio. Su asistente inteligente trabaja 24/7 para ayudarle a programar eventos, gestionar clientes, crear tareas y analizar sus datos empresariales a través de conversaciones simples.",
+    feature1: "Programe eventos y citas con comandos en lenguaje natural",
+    feature2: "Agregue y gestione clientes con integración CRM instantánea",
+    feature3: "Cree y asigne tareas a miembros del equipo automáticamente",
+    feature4: "Configure recordatorios personalizados y nunca pierda plazos importantes",
+    feature5: "Obtenga información instantánea sobre productos, clientes y procesos empresariales",
+    feature6: "Genere informes detallados en Excel bajo demanda",
+    feature7: "Analice documentos y archivos con comprensión impulsada por IA"
   },
   booking: {
     title: "Sistema de Reservas",
