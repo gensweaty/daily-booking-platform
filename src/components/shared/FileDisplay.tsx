@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { supabase, getStorageUrl, normalizeFilePath } from "@/integrations/supabase/client";
-import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon } from "lucide-react";
+import { Download, Trash2, FileIcon, ExternalLink, FileText, FileSpreadsheet, PresentationIcon, Music } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -207,6 +207,11 @@ export const FileDisplay = ({
     return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
   };
 
+  const isAudio = (filename: string): boolean => {
+    const ext = getFileExtension(filename);
+    return ['mp3', 'wav', 'm4a', 'ogg', 'webm'].includes(ext);
+  };
+
   const getFileIcon = (filename: string) => {
     const ext = getFileExtension(filename);
     
@@ -216,6 +221,8 @@ export const FileDisplay = ({
       return <FileSpreadsheet className="h-5 w-5" />;
     } else if (['ppt', 'pptx'].includes(ext)) {
       return <PresentationIcon className="h-5 w-5" />;
+    } else if (['mp3', 'wav', 'm4a', 'ogg', 'webm'].includes(ext)) {
+      return <Music className="h-5 w-5" />;
     }
     
     return <FileIcon className="h-5 w-5" />;
@@ -492,6 +499,10 @@ export const FileDisplay = ({
                         e.currentTarget.src = '/placeholder.svg';
                       }}
                     />
+                  </div>
+                ) : isAudio(file.filename) ? (
+                  <div className="h-8 w-8 bg-purple-100 dark:bg-purple-900 rounded flex items-center justify-center">
+                    <Music className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                   </div>
                 ) : (
                   <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
