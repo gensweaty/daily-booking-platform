@@ -50,12 +50,12 @@ const chatViews = [{
 
 // AI Assistant carousel views
 const aiViews = [{
-  src: "/lovable-uploads/ai-chat-interface.webp",
+  src: "/lovable-uploads/ai-chat-interface-new.webp",
   alt: "AI Assistant Interface",
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
-  src: "/lovable-uploads/ai-chat-conversation.webp",
+  src: "/lovable-uploads/ai-chat-conversation-new.webp",
   alt: "AI Chat Conversation",
   customStyle: "object-contain",
   customPadding: "p-4"
