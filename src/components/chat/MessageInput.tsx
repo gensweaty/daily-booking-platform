@@ -721,6 +721,11 @@ export const MessageInput = ({
                     type="button"
                     variant="ghost"
                     size="sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowEmojiPicker(!showEmojiPicker);
+                    }}
                     className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
                     disabled={isUploading}
                     aria-label="Insert emoji"
@@ -728,7 +733,13 @@ export const MessageInput = ({
                     <Smile className="h-5 w-5" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-background border-input z-[10000]" align="end" side="top" sideOffset={8}>
+                <PopoverContent 
+                  className="w-auto p-0 bg-background border-input z-[10000]" 
+                  align="end" 
+                  side="top" 
+                  sideOffset={8}
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
                   <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" previewPosition="none" skinTonePosition="none" />
                 </PopoverContent>
               </Popover>
