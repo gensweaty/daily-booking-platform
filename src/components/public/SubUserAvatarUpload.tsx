@@ -67,8 +67,21 @@ export const SubUserAvatarUpload = ({ avatarUrl, onAvatarUpload, size = 'md' }: 
 
     try {
       await onAvatarUpload(file);
+      
+      // Small delay to ensure database update completes
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      toast({
+        title: 'Success',
+        description: 'Avatar uploaded successfully',
+      });
     } catch (error) {
       console.error('Error uploading avatar:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to upload avatar',
+        variant: "destructive",
+      });
     } finally {
       setIsUploading(false);
       // Reset the file input

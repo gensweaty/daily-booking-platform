@@ -132,7 +132,9 @@ export const PublicProfileDialog = ({
       reader.onload = async (e) => {
         const result = e.target?.result as string;
         
-        // Save avatar URL to database
+        console.log('📤 AVATAR DEBUG: Uploading new avatar, size:', result.length);
+        
+        // Save avatar URL to database with timestamp to force update
         const { error } = await supabase
           .from('sub_users')
           .update({ 
@@ -143,15 +145,19 @@ export const PublicProfileDialog = ({
           .ilike('email', userEmail.trim().toLowerCase());
 
         if (error) {
+          console.error('❌ AVATAR DEBUG: Upload failed:', error);
           throw error;
         }
 
+        console.log('✅ AVATAR DEBUG: Avatar saved to database successfully');
+        
+        // Update local state immediately
         setAvatarUrl(result);
         
-        toast({
-          title: t('common.success'),
-          description: "Avatar updated successfully",
-        });
+        // Refetch profile to ensure sync
+        await fetchSubUserProfile();
+        
+        console.log('✅ AVATAR DEBUG: Profile refetched, avatar should now be visible');
       };
       reader.onerror = () => {
         throw new Error('Failed to read file');
@@ -159,11 +165,7 @@ export const PublicProfileDialog = ({
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error uploading sub-user avatar:', error);
-      toast({
-        title: t('common.error'),
-        description: "Failed to update avatar",
-        variant: "destructive",
-      });
+      throw error; // Re-throw so SubUserAvatarUpload can handle the toast
     }
   };
 
