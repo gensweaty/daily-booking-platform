@@ -55,10 +55,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const location = useLocation();
   const userTimezone = getUserTimezone();
 
-  // Network optimization
+  // Network optimization - ensure minimum 30 messages for chat history
   const networkInfo = useRef(detectNetworkQuality());
   const isSlowNet = useRef(isSlowNetwork(networkInfo.current));
-  const pageSize = useRef(getOptimalPageSize(networkInfo.current));
+  const pageSize = useRef(Math.max(30, getOptimalPageSize(networkInfo.current)));
   const pollingInterval = useRef(getOptimalPollingInterval(networkInfo.current));
 
   // Compute effective email using the same logic as ChatSidebar
@@ -209,6 +209,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     setLoading(true);
     setHasMoreMessages(true);
     oldestMessageId.current = null;
+    // Invalidate cache for the new channel to force fresh load
+    if (activeChannelId) {
+      cacheRef.current.delete(activeChannelId);
+    }
   }, [activeChannelId]);
 
   // Load General channel ID
@@ -510,7 +514,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     }
   }, [me, boardOwnerId, isInitialized, location.pathname, effectiveEmail, publicSubUserId]);
 
-  // Initial message loading
+  // Initial message loading - always fetch fresh to ensure history is visible
   useEffect(() => {
     if (!activeChannelId) {
       setMessages([]);
@@ -518,16 +522,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       return;
     }
 
-    // Check cache first
-    const cached = cacheRef.current.get(activeChannelId);
-    if (cached?.messages.length) {
-      setMessages(cached.messages);
-      setHasMoreMessages(cached.hasMore);
-      setLoading(false);
-      oldestMessageId.current = cached.messages[0]?.id || null;
-      return;
-    }
-
+    // Always do a fresh load to ensure we have the latest messages
     setLoading(true);
     loadMessages(activeChannelId).finally(() => setLoading(false));
   }, [activeChannelId, loadMessages]);
@@ -666,9 +661,19 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               const exists = prev.find(m => m.id === newMessage.id);
               if (exists) return prev;
               
-              return [...prev, messageWithAttachments].sort(
+              const updated = [...prev, messageWithAttachments].sort(
                 (a, b) => +new Date(a.created_at) - +new Date(b.created_at)
               );
+              
+              // Update cache with new message to keep it in sync
+              if (activeChannelId) {
+                cacheRef.current.set(activeChannelId, {
+                  messages: updated,
+                  hasMore: updated.length >= pageSize.current
+                });
+              }
+              
+              return updated;
             });
 
             // Auto-scroll to bottom for new messages
