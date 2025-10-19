@@ -723,7 +723,6 @@ export const MessageInput = ({
                     size="sm"
                     className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
                     disabled={isUploading}
-                    onClick={() => setShowEmojiPicker(v => !v)}
                     aria-label="Insert emoji"
                   >
                     <Smile className="h-5 w-5" />
