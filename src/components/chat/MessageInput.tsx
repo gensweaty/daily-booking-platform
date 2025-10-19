@@ -3,6 +3,7 @@ import { Send, Paperclip, Smile, X, FileText, Image as ImageIcon, FileSpreadshee
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { ChatMessage } from '@/hooks/useChatMessages';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +12,7 @@ import Picker from '@emoji-mart/react';
 import { useToast } from '@/hooks/use-toast';
 import { AIQuickPrompts } from './AIQuickPrompts';
 import { useASR } from '@/hooks/useASR';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface MessageInputProps {
   onSendMessage: (content: string, attachments?: any[]) => void;
@@ -69,6 +71,7 @@ export const MessageInput = ({
 }: MessageInputProps) => {
   const { t } = useLanguage();
   const { toast } = useToast();
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [message, setMessage] = useState('');
   const messageRef = useRef('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -715,34 +718,65 @@ export const MessageInput = ({
             )}
 
             {!editingMessage && (
-              <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowEmojiPicker(!showEmojiPicker);
-                    }}
-                    className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
-                    disabled={isUploading}
-                    aria-label="Insert emoji"
-                  >
-                    <Smile className="h-5 w-5" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent 
-                  className="w-auto p-0 bg-background border-input z-[10000]" 
-                  align="end" 
-                  side="top" 
-                  sideOffset={8}
-                  onOpenAutoFocus={(e) => e.preventDefault()}
-                >
-                  <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" previewPosition="none" skinTonePosition="none" />
-                </PopoverContent>
-              </Popover>
+              <>
+                {isMobile ? (
+                  <Sheet open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+                    <SheetTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
+                        disabled={isUploading}
+                        aria-label="Insert emoji"
+                      >
+                        <Smile className="h-5 w-5" />
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent 
+                      side="bottom" 
+                      className="h-[400px] p-0 border-t"
+                    >
+                      <div className="flex items-center justify-center h-full">
+                        <Picker 
+                          data={data} 
+                          onEmojiSelect={(emoji: any) => {
+                            handleEmojiSelect(emoji);
+                            setShowEmojiPicker(false);
+                          }} 
+                          theme="auto" 
+                          previewPosition="none" 
+                          skinTonePosition="none" 
+                        />
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                ) : (
+                  <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
+                        disabled={isUploading}
+                        aria-label="Insert emoji"
+                      >
+                        <Smile className="h-5 w-5" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent 
+                      className="w-auto p-0 bg-background border-input z-[10000]" 
+                      align="end" 
+                      side="top" 
+                      sideOffset={8}
+                      onOpenAutoFocus={(e) => e.preventDefault()}
+                    >
+                      <Picker data={data} onEmojiSelect={handleEmojiSelect} theme="auto" previewPosition="none" skinTonePosition="none" />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </>
             )}
 
             {/* Voice recording button - only for AI channels */}
