@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Smile, X, FileText, Image as ImageIcon, FileSpreadsheet, Presentation, Mic, Square } from 'lucide-react';
+import { Send, Paperclip, Smile, X, FileText, Image as ImageIcon, FileSpreadsheet, Presentation, Mic, Square, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -36,6 +36,7 @@ const ALLOWED_MIME: Record<string, string[]> = {
   word: ['application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/rtf'],
   excel: ['application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','text/csv'],
   ppt: ['application/vnd.ms-powerpoint','application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+  audio: ['audio/webm','audio/ogg','audio/mpeg','audio/mp4','audio/aac','audio/wav'],
 };
 
 const isAllowed = (file: File) => {
@@ -43,12 +44,13 @@ const isAllowed = (file: File) => {
   if (Object.values(ALLOWED_MIME).some(list => list.includes(t))) return true;
   // fallback by extension (covers some browsers that give generic types)
   const n = file.name.toLowerCase();
-  return /\.(png|jpe?g|gif|webp|bmp|svg|pdf|docx?|rtf|xlsx?|csv|pptx?)$/.test(n);
+  return /\.(png|jpe?g|gif|webp|bmp|svg|pdf|docx?|rtf|xlsx?|csv|pptx?|webm|ogg|mp3|m4a|aac|wav)$/.test(n);
 };
 
 const iconForName = (name: string, type: string) => {
   const n = name.toLowerCase();
   if (type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(n)) return <ImageIcon className="h-4 w-4 text-muted-foreground" />;
+  if (type.startsWith('audio/') || /\.(webm|ogg|mp3|m4a|aac|wav)$/i.test(n)) return <Music className="h-4 w-4 text-muted-foreground" />;
   if (n.endsWith('.xlsx') || n.endsWith('.xls') || n.endsWith('.csv')) return <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />;
   if (n.endsWith('.ppt') || n.endsWith('.pptx')) return <Presentation className="h-4 w-4 text-muted-foreground" />;
   return <FileText className="h-4 w-4 text-muted-foreground" />;
@@ -80,6 +82,13 @@ export const MessageInput = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Voice recording state (for non-AI channels)
+  const [voiceRecState, setVoiceRecState] = useState<'idle'|'recording'|'stopped'|'uploading'>('idle');
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const voiceMediaRef = useRef<MediaRecorder | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceTimerRef = useRef<number | null>(null);
   
   // Quick prompts state with localStorage persistence
   // Only show on very first time (first login + first chat open)
@@ -475,100 +484,210 @@ export const MessageInput = ({
 
   // NEW: paste from clipboard (screenshots etc.)
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const items = Array.from(e.clipboardData.items || []);
-    const imageItems = items.filter(it => it.type.startsWith('image/'));
-    if (!imageItems.length) return;
-    const files = imageItems.map(it => it.getAsFile()).filter(Boolean) as File[];
-    const validFiles = validateAndCollect(files);
-    if (validFiles.length) {
-      setAttachments(prev => [...prev, ...validFiles]);
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItems = items.filter(item => item.type.startsWith('image/'));
+
+    if (imageItems.length > 0) {
+      e.preventDefault();
+      imageItems.forEach(item => {
+        const file = item.getAsFile();
+        if (file) {
+          const valid = validateAndCollect([file]);
+          setAttachments(prev => [...prev, ...valid]);
+        }
+      });
     }
-    // do not preventDefault so text still pastes if there was any
   };
 
-  // Voice recording handler with mobile-optimized state management
-  const handleStopAndSend = async () => {
-    console.log('🎤 [VOICE] Stop button clicked, stopping recording...');
-    
-    // For AI channels, start showing typing indicator immediately
-    if (isAIChannel) {
-      console.log('🤖 [VOICE] Setting typing indicator ON immediately');
-      // Mark quick prompts as seen when using voice for first time
-      const hasSeenKey = `ai-quick-prompts-seen-${boardOwnerId || 'default'}`;
-      localStorage.setItem(hasSeenKey, 'true');
-      
-      // Batch state updates for mobile performance
-      setIsSendingAI(true);
-      setShowQuickPrompts(false);
-      if (onAISending) {
-        onAISending(true);
-        console.log('🤖 [VOICE] onAISending(true) called');
-      }
-    }
-    
-    let transcriptionSuccess = false;
-    let messageText = '';
+  // Voice recording functions (only for non-AI channels)
+  const startVoiceRecording = async () => {
+    if (voiceRecState !== 'idle') return;
     
     try {
-      // Stop recording and transcribe in parallel for speed
-      console.log('🎤 [VOICE] Stopping recording and starting transcription...');
-      await stopRecording();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Transcribe immediately (no extra delays - every millisecond counts on mobile!)
-      const { text } = await transcribe();
-      console.log('🎤 [VOICE] Transcription complete:', text ? `"${text.substring(0, 50)}..."` : 'EMPTY');
-      
-      if (!text || text.trim().length === 0) {
-        console.warn('🎤 [VOICE] No text transcribed - resetting state');
-        throw new Error('No speech detected. Try speaking closer to the microphone.');
+      let mimeType = '';
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+        mimeType = 'audio/ogg;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
       }
       
-      messageText = text.trim();
-      transcriptionSuccess = true;
+      const recorder = new MediaRecorder(stream, { 
+        mimeType: mimeType || undefined, 
+        audioBitsPerSecond: 24000
+      });
       
-      // Set message and send IMMEDIATELY - no delays!
-      // uploadAndSend now calls onSendMessage first for instant optimistic paint
-      console.log('🎤 [VOICE] Setting message and triggering instant send...');
-      setMessage(messageText);
-      messageRef.current = messageText;
+      voiceMediaRef.current = recorder;
+      voiceChunksRef.current = [];
       
-      if (textareaRef.current) {
-        textareaRef.current.value = messageText;
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) voiceChunksRef.current.push(e.data);
+      };
+      
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+      };
+      
+      setVoiceSeconds(0);
+      setVoiceRecState('recording');
+      recorder.start();
+      
+      voiceTimerRef.current = window.setInterval(() => {
+        setVoiceSeconds(s => {
+          const next = s + 1;
+          if (next >= 60) stopVoiceRecording();
+          return next;
+        });
+      }, 1000) as unknown as number;
+      
+      console.log('🎤 Voice recording started:', mimeType);
+    } catch (error) {
+      console.error('❌ Microphone access denied:', error);
+      toast({ 
+        title: "Microphone Access Denied", 
+        description: "Please allow microphone access to record voice messages.",
+        variant: "destructive" 
+      });
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (voiceTimerRef.current) {
+      clearInterval(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+    if (voiceMediaRef.current?.state === 'recording') {
+      voiceMediaRef.current.stop();
+    }
+    setVoiceRecState('stopped');
+    console.log('🎤 Voice recording stopped:', voiceSeconds, 'seconds');
+  };
+
+  const cancelVoiceRecording = () => {
+    stopVoiceRecording();
+    voiceChunksRef.current = [];
+    setVoiceRecState('idle');
+    setVoiceSeconds(0);
+    console.log('🎤 Voice recording canceled');
+  };
+
+  const sendVoiceMessage = async () => {
+    if (!voiceChunksRef.current.length) {
+      setVoiceRecState('idle');
+      return;
+    }
+    
+    setVoiceRecState('uploading');
+    
+    try {
+      const blob = new Blob(voiceChunksRef.current, { 
+        type: voiceChunksRef.current[0]?.type || 'audio/webm' 
+      });
+      
+      let ext = 'webm';
+      if (blob.type.includes('ogg')) ext = 'ogg';
+      else if (blob.type.includes('mp4')) ext = 'm4a';
+      else if (blob.type.includes('mpeg')) ext = 'mp3';
+      
+      const fileName = `voice-${Date.now()}.${ext}`;
+      const filePath = fileName;
+      
+      console.log('📤 Uploading voice message:', fileName, 'Size:', blob.size, 'Duration:', voiceSeconds);
+      
+      const { error: uploadError } = await supabase.storage
+        .from('chat_attachments')
+        .upload(filePath, blob);
+        
+      if (uploadError) {
+        console.error('❌ Voice upload failed:', uploadError);
+        toast({ 
+          title: "Upload Failed", 
+          description: "Could not upload voice message", 
+          variant: "destructive" 
+        });
+        setVoiceRecState('idle');
+        return;
       }
       
-      // Send immediately - user message will appear instantly via optimistic paint
-      console.log('🎤 [VOICE] Calling uploadAndSend for instant UI update...');
-      await uploadAndSend();
-      console.log('🎤 [VOICE] Message sent, AI processing in background...');
+      const { data: pub } = supabase.storage
+        .from('chat_attachments')
+        .getPublicUrl(filePath);
+        
+      const voiceAttachment = {
+        filename: fileName,
+        file_path: filePath,
+        content_type: blob.type,
+        size: blob.size,
+        public_url: pub.publicUrl,
+        meta: { duration: voiceSeconds }
+      };
       
-      // Don't show success toast for AI channels (typing indicator shows progress)
-      if (!isAIChannel) {
-        toast({ title: "✓ Voice message sent", duration: 2000 });
+      await onSendMessage('', [voiceAttachment]);
+      
+      voiceChunksRef.current = [];
+      setVoiceRecState('idle');
+      setVoiceSeconds(0);
+      
+      console.log('✅ Voice message sent successfully');
+    } catch (error) {
+      console.error('❌ Error sending voice message:', error);
+      toast({ 
+        title: "Send Failed", 
+        description: "Could not send voice message", 
+        variant: "destructive" 
+      });
+      setVoiceRecState('idle');
+    }
+  };
+
+  // Handle AI channel voice recording stop and transcription
+  const handleStopAndSend = async () => {
+    console.log('🎤 Stopping AI voice recording and transcribing...');
+    
+    // Stop the ASR recording
+    await stopRecording();
+    
+    try {
+      // Turn on typing indicator before transcription starts
+      if (onAISending) {
+        onAISending(true);
+      }
+      setIsSendingAI(true);
+      
+      // Transcribe the audio
+      const result = await transcribe();
+      
+      if (result.text) {
+        console.log('✅ Transcription complete:', result.text);
+        // Set the message and trigger send
+        setMessage(result.text);
+        messageRef.current = result.text;
+        
+        // Send the transcribed text (will be handled by uploadAndSend for AI channels)
+        setTimeout(() => uploadAndSend(), 100);
       } else {
-        console.log('🤖 [VOICE] User message displayed, AI thinking...');
-      }
-      
-    } catch (e: any) {
-      console.error('🎤 [VOICE] Error:', e);
-      
-      // Reset typing state on error
-      if (isAIChannel) {
-        setIsSendingAI(false);
+        console.log('❌ No transcription result');
         if (onAISending) {
           onAISending(false);
-          console.log('🤖 [VOICE] onAISending(false) called due to error');
         }
-        setShowQuickPrompts(false); // Keep closed even on error
+        setIsSendingAI(false);
       }
-      
-      // Show user-friendly error
-      const errorMessage = e?.message || "Voice transcription failed. Please try recording again.";
-      toast({ 
-        title: transcriptionSuccess ? "Send failed" : "Voice to text failed", 
-        description: errorMessage,
-        variant: "destructive",
-        duration: 4000
+    } catch (error) {
+      console.error('❌ Transcription error:', error);
+      toast({
+        title: "Transcription Failed",
+        description: error instanceof Error ? error.message : "Could not transcribe voice message",
+        variant: "destructive"
       });
+      if (onAISending) {
+        onAISending(false);
+      }
+      setIsSendingAI(false);
     }
   };
 
@@ -581,6 +700,16 @@ export const MessageInput = ({
   }, [message]);
 
   useEffect(() => { textareaRef.current?.focus(); }, []);
+  
+  // Cleanup voice recording on unmount
+  useEffect(() => {
+    return () => {
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      if (voiceMediaRef.current?.state === 'recording') {
+        voiceMediaRef.current.stop();
+      }
+    };
+  }, []);
   
   // Set message content when editing
   useEffect(() => {
@@ -797,6 +926,82 @@ export const MessageInput = ({
               >
                 {isRecording ? <Square className="h-5 w-5 text-destructive" /> : <Mic className="h-5 w-5" />}
               </Button>
+            )}
+
+            {/* Voice Message Button - Only for DMs/Custom Chats (NOT AI channels) */}
+            {!editingMessage && !isAIChannel && voiceRecState === 'idle' && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
+                onClick={startVoiceRecording}
+                title="Record voice message (max 60s)"
+                aria-label="Record voice message"
+              >
+                <Mic className="h-5 w-5" />
+              </Button>
+            )}
+
+            {/* Voice Recording Active */}
+            {!editingMessage && !isAIChannel && voiceRecState === 'recording' && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-destructive/10 rounded-md">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={stopVoiceRecording}
+                  title="Stop recording"
+                >
+                  <Square className="h-4 w-4 text-destructive fill-destructive" />
+                </Button>
+                <span className="text-sm font-mono text-destructive">
+                  {Math.floor(voiceSeconds / 60)}:{(voiceSeconds % 60).toString().padStart(2, '0')}
+                </span>
+                {voiceSeconds >= 55 && (
+                  <span className="text-xs text-muted-foreground animate-pulse">
+                    {60 - voiceSeconds}s left
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Voice Recording Stopped */}
+            {!editingMessage && !isAIChannel && voiceRecState === 'stopped' && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-muted rounded-md">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={cancelVoiceRecording}
+                  title="Cancel voice message"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium">
+                  Voice ({voiceSeconds}s)
+                </span>
+                <Button
+                  type="button"
+                  variant="default"
+                  size="sm"
+                  onClick={sendVoiceMessage}
+                  title="Send voice message"
+                >
+                  Send
+                </Button>
+              </div>
+            )}
+
+            {/* Voice Recording Uploading */}
+            {!editingMessage && !isAIChannel && voiceRecState === 'uploading' && (
+              <div className="flex items-center gap-2 px-2 py-1 bg-muted rounded-md">
+                <span className="text-sm font-medium">
+                  Sending voice...
+                </span>
+              </div>
             )}
           </div>
         </div>

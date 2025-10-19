@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { FileText, FileSpreadsheet, FileIcon, Image as ImageIcon, Download, ExternalLink, Presentation } from 'lucide-react';
+import { FileText, FileSpreadsheet, FileIcon, Image as ImageIcon, Download, ExternalLink, Presentation, Music } from 'lucide-react';
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from '@/components/ui/dialog';
 
 type Att = {
@@ -11,11 +11,16 @@ type Att = {
   size?: number;
   public_url?: string;
   object_url?: string;
+  meta?: {
+    duration?: number;
+    [key: string]: any;
+  };
 };
 
 const iconFor = (ct?: string, name?: string) => {
   const n = (name || '').toLowerCase();
   if (ct?.startsWith('image/')) return <ImageIcon className="h-4 w-4" />;
+  if (ct?.startsWith('audio/') || /\.(webm|ogg|mp3|m4a|aac|wav)$/i.test(n)) return <Music className="h-4 w-4" />;
   if (ct === 'application/pdf' || n.endsWith('.pdf')) return <FileText className="h-4 w-4" />;
   if (ct?.includes('spreadsheet') || n.endsWith('.xlsx') || n.endsWith('.xls') || n.endsWith('.csv')) return <FileSpreadsheet className="h-4 w-4" />;
   if (ct?.includes('presentation') || n.endsWith('.ppt') || n.endsWith('.pptx')) return <Presentation className="h-4 w-4" />;
@@ -118,6 +123,7 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
       <div className="mt-2 grid gap-3">
         {attachments.map((a, i) => {
           const isImage = a.content_type?.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(a.filename);
+          const isAudio = a.content_type?.startsWith('audio/') || /\.(webm|ogg|mp3|m4a|aac|wav)$/i.test(a.filename);
           const href = publicUrlFor(a);
 
           return (
@@ -151,6 +157,27 @@ export function MessageAttachments({ attachments }: { attachments: Att[] }) {
                      }}
                    />
                  </button>
+              ) : isAudio ? (
+                <div className="w-full px-4 py-3 bg-background">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Music className="h-5 w-5 text-primary" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">{a.filename}</div>
+                      {a.meta?.duration && (
+                        <div className="text-xs text-muted-foreground">
+                          {Math.floor(a.meta.duration / 60)}:{(a.meta.duration % 60).toString().padStart(2, '0')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <audio 
+                    src={href} 
+                    controls 
+                    preload="metadata" 
+                    className="w-full h-8"
+                    style={{ maxWidth: '100%' }}
+                  />
+                </div>
               ) : (
                 <button type="button" onClick={() => openDoc(a)} className="w-full text-left">
                   <div className="w-full h-28 px-4 flex items-center gap-3 bg-background">
