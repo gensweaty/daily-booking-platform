@@ -2377,6 +2377,7 @@ export type Database = {
           p_requester_sub_user_id?: string
         }
         Returns: {
+          attachments: Json
           channel_id: string
           content: string
           created_at: string
