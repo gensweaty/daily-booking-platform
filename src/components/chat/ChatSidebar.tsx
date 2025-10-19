@@ -69,9 +69,6 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
     type: 'admin' | 'sub_user'; 
     avatar_url?: string | null;
   }>>([]);
-  
-  // Track avatar refresh timestamp
-  const [, setAvatarRefreshKey] = useState(0);
   const [customChats, setCustomChats] = useState<Array<{
     id: string;
     name: string;
@@ -579,55 +576,6 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
       supabase.removeChannel(channelsChannel);
     };
   }, [boardOwnerId, me?.id, me?.type, loadCustomChats]);
-
-  // Real-time subscription for avatar updates
-  useEffect(() => {
-    if (!boardOwnerId) return;
-
-    console.log('🖼️ Setting up real-time subscriptions for avatar updates');
-
-    // Subscribe to profile avatar updates (admin users)
-    const avatarChannel = supabase
-      .channel(`avatars-${boardOwnerId}`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'profiles',
-        filter: `id=eq.${boardOwnerId}`
-      }, (payload) => {
-        console.log('🖼️ Admin profile avatar updated:', payload);
-        if (payload.new.avatar_url !== payload.old?.avatar_url) {
-          setMembers(prev => prev.map(m => 
-            m.id === boardOwnerId && m.type === 'admin'
-              ? { ...m, avatar_url: payload.new.avatar_url }
-              : m
-          ));
-          setAvatarRefreshKey(k => k + 1);
-        }
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'sub_users',
-        filter: `board_owner_id=eq.${boardOwnerId}`
-      }, (payload) => {
-        console.log('🖼️ Sub-user avatar updated:', payload);
-        if (payload.new.avatar_url !== payload.old?.avatar_url) {
-          setMembers(prev => prev.map(m => 
-            m.id === payload.new.id && m.type === 'sub_user'
-              ? { ...m, avatar_url: payload.new.avatar_url }
-              : m
-          ));
-          setAvatarRefreshKey(k => k + 1);
-        }
-      })
-      .subscribe();
-
-    return () => {
-      console.log('🖼️ Cleaning up avatar subscriptions');
-      supabase.removeChannel(avatarChannel);
-    };
-  }, [boardOwnerId]);
 
   return (
     <div className="w-full h-full bg-muted/20 p-4 overflow-y-auto">

@@ -132,9 +132,7 @@ export const PublicProfileDialog = ({
       reader.onload = async (e) => {
         const result = e.target?.result as string;
         
-        console.log('📤 AVATAR DEBUG: Uploading new avatar, size:', result.length);
-        
-        // Save avatar URL to database with timestamp to force update
+        // Save avatar URL to database
         const { error } = await supabase
           .from('sub_users')
           .update({ 
@@ -145,23 +143,14 @@ export const PublicProfileDialog = ({
           .ilike('email', userEmail.trim().toLowerCase());
 
         if (error) {
-          console.error('❌ AVATAR DEBUG: Upload failed:', error);
           throw error;
         }
 
-        console.log('✅ AVATAR DEBUG: Avatar saved to database successfully');
-        
-        // Update local state immediately
         setAvatarUrl(result);
-        
-        // Refetch profile to ensure sync
-        await fetchSubUserProfile();
-        
-        console.log('✅ AVATAR DEBUG: Profile refetched, avatar should now be visible');
         
         toast({
           title: t('common.success'),
-          description: "Avatar uploaded successfully",
+          description: "Avatar updated successfully",
         });
       };
       reader.onerror = () => {

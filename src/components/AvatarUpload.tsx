@@ -85,21 +85,15 @@ export const AvatarUpload = ({ avatarUrl, onAvatarUpdate, size = 'md' }: AvatarU
         throw uploadError;
       }
 
-      // Get the public URL with cache-busting timestamp
-      const timestamp = Date.now();
+      // Get the public URL
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(fileName);
-      
-      const cacheBustedUrl = `${publicUrl}?t=${timestamp}`;
 
       // Update the profile with the new avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ 
-          avatar_url: cacheBustedUrl,
-          updated_at: new Date().toISOString()
-        })
+        .update({ avatar_url: publicUrl })
         .eq('id', user.id);
 
       if (updateError) {
@@ -108,7 +102,7 @@ export const AvatarUpload = ({ avatarUrl, onAvatarUpdate, size = 'md' }: AvatarU
 
       // Call the callback to update the parent component
       if (onAvatarUpdate) {
-        onAvatarUpdate(cacheBustedUrl);
+        onAvatarUpdate(publicUrl);
       }
 
       toast({
