@@ -3618,35 +3618,85 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   console.log(`  📧 Extracted email address: "${recipientEmail}"`);
                 }
                 
-                // STEP 2: Extract potential recipient names - ONLY when clear grammatical indicators
-                // Be conservative: only extract when there's STRONG evidence of specifying a recipient
-                const clearRecipientPatterns = [
-                  // English: CLEAR recipient indicators - "to NAME", "for NAME", "NAME's"
-                  /(?:reminder|remind|send|notify)\s+(?:to|for)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
-                  /send\s+(?:reminder|notification)\s+to\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i,
-                  /([A-Za-z]+(?:\s+[A-Za-z]+)?)'s\s+(?:event|reminder)/i,
+                // STEP 1.5: Check for self-referential pronouns (user referring to themselves)
+                // This prevents misinterpretation of "me", "myself" as third-party recipients
+                const selfReferentialPatterns = [
+                  // English - common self-referential phrases
+                  /\b(?:remind|send|notify|alert|tell)\s+(?:me|myself)\b/i,
+                  /\bfor\s+me\b/i,
+                  /\bto\s+me\b/i,
+                  /\bmy\s+reminder\b/i,
+                  /\bi\s+(?:want|need|would\s+like)\b/i,
                   
-                  // Georgian: Clear recipient with dative case marker "ს" or "სთვის"
-                  /შეახსენე\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s*ს(?:\s|$)/iu,
-                  /შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s*სთვის/iu,
-                  /გააგზავნე\s+შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s*ს/iu,
+                  // Georgian
+                  /\bშემახსენე\b/iu,  // "remind me"
+                  /\bჩემთვის\b/iu,  // "for me"
+                  /\bჩემი\s+შეხსენება\b/iu,  // "my reminder"
+                  /\bმე\s+მჭირდება\b/iu,  // "I need"
                   
-                  // Spanish: Clear recipient with "a NAME"
-                  /recordar\s+a\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)/iu,
-                  /recordatorio\s+para\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)/iu,
+                  // Spanish
+                  /\b(?:recuérdame|recordarme|avísame)\b/iu,
+                  /\bpara\s+mí\b/iu,
+                  /\bmi\s+recordatorio\b/iu,
+                  /\byo\s+(?:quiero|necesito)\b/iu,
                   
-                  // Russian: Clear recipient with dative case "NAME у"
-                  /напомни(?:ть)?\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)\s+о/iu,
-                  /напоминание\s+для\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)/iu,
+                  // Russian
+                  /\bнапомни\s+мне\b/iu,
+                  /\bдля\s+меня\b/iu,
+                  /\bмоё\s+напоминание\b/iu,
+                  /\bмне\s+нужно\b/iu,
                 ];
-                
-                for (const pattern of clearRecipientPatterns) {
-                  const match = prompt.match(pattern);
-                  if (match && match[1]) {
-                    recipientName = match[1].trim();
-                    console.log(`  ✓ Found clear recipient indicator: "${recipientName}"`);
+
+                let isSelfReminder = false;
+                for (const pattern of selfReferentialPatterns) {
+                  if (pattern.test(prompt)) {
+                    isSelfReminder = true;
+                    console.log('  ✓ Detected self-referential language - reminder for current user');
                     break;
                   }
+                }
+                
+                // STEP 2: Extract potential recipient names - ONLY when clear grammatical indicators
+                // Skip this if user is clearly referring to themselves
+                // Be conservative: only extract when there's STRONG evidence of specifying a recipient
+                if (!isSelfReminder) {
+                  const clearRecipientPatterns = [
+                    // English: CLEAR recipient indicators - "to NAME", "for NAME", "NAME's"
+                    /(?:reminder|remind|send|notify)\s+(?:to|for)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\b/i,
+                    /send\s+(?:reminder|notification)\s+to\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)\b/i,
+                    /([A-Za-z]+(?:\s+[A-Za-z]+)?)'s\s+(?:event|reminder)\b/i,
+                    
+                    // Georgian: Clear recipient with dative case marker "ს" or "სთვის"
+                    /შეახსენე\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s*ს(?:\s|$)/iu,
+                    /შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s*სთვის/iu,
+                    /გააგზავნე\s+შეახსენება\s+([A-Za-zა-ჰ]+(?:\s+[A-Za-zა-ჰ]+)?)\s*ს/iu,
+                    
+                    // Spanish: Clear recipient with "a NAME"
+                    /recordar\s+a\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)\b/iu,
+                    /recordatorio\s+para\s+([A-Za-záéíóúñÁÉÍÓÚÑ]+(?:\s+[A-Za-záéíóúñÁÉÍÓÚÑ]+)?)\b/iu,
+                    
+                    // Russian: Clear recipient with dative case "NAME у"
+                    /напомни(?:ть)?\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)\s+о\b/iu,
+                    /напоминание\s+для\s+([A-Za-zА-Яа-я]+(?:\s+[A-Za-zА-Яа-я]+)?)\b/iu,
+                  ];
+                  
+                  for (const pattern of clearRecipientPatterns) {
+                    const match = prompt.match(pattern);
+                    if (match && match[1]) {
+                      const extractedName = match[1].trim();
+                      // CRITICAL: Filter out self-referential words even if they match pattern
+                      const selfWords = ['me', 'myself', 'my', 'i', 'მე', 'ჩემი', 'yo', 'mí', 'mi', 'я', 'меня', 'мне'];
+                      if (!selfWords.includes(extractedName.toLowerCase())) {
+                        recipientName = extractedName;
+                        console.log(`  ✓ Found clear recipient indicator: "${recipientName}"`);
+                        break;
+                      } else {
+                        console.log(`  ℹ️ Ignored self-referential word in pattern: "${extractedName}"`);
+                      }
+                    }
+                  }
+                } else {
+                  console.log('  ℹ️ Skipping recipient extraction - user is creating reminder for themselves');
                 }
                 
                 // STEP 3: If we found a name, look it up in database
