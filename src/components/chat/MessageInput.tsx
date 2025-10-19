@@ -432,13 +432,13 @@ export const MessageInput = ({
     const valid: File[] = [];
     for (const file of files) {
       const okType = isAllowed(file);
-      const okSize = file.size <= 50 * 1024 * 1024;
+      const okSize = file.size <= 5 * 1024 * 1024; // 5MB limit
       if (!okType) {
         toast({ title: "Invalid file type", description: `${file.name} is not a supported file type`, variant: "destructive" });
         continue;
       }
       if (!okSize) {
-        toast({ title: "File too large", description: `${file.name} exceeds 50MB limit`, variant: "destructive" });
+        toast({ title: "File too large", description: `${file.name} exceeds 5MB limit`, variant: "destructive" });
         continue;
       }
       valid.push(file);
