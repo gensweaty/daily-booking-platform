@@ -2081,7 +2081,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         model: "google/gemini-2.5-flash",
         messages,
         tools,
-        tool_choice: "auto"
+        tool_choice: "auto",
+        temperature: 0.7,
+        max_tokens: 2048
       }),
     });
 
@@ -4922,7 +4924,9 @@ Be direct. Be concise. No extra text.`
         },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
-          messages: [...finalMessages, responsePrompt]
+          messages: [...finalMessages, responsePrompt],
+          temperature: 0.7,
+          max_tokens: 2048
         }),
       });
 

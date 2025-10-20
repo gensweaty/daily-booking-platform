@@ -649,15 +649,15 @@ export const MessageInput = ({
   const handleStopAndSend = async () => {
     console.log('🎤 Stopping AI voice recording and transcribing...');
     
-    // Stop the ASR recording
-    await stopRecording();
+    // Turn on typing indicator IMMEDIATELY before any async operations
+    if (onAISending) {
+      onAISending(true);
+    }
+    setIsSendingAI(true);
     
     try {
-      // Turn on typing indicator before transcription starts
-      if (onAISending) {
-        onAISending(true);
-      }
-      setIsSendingAI(true);
+      // Stop the ASR recording
+      await stopRecording();
       
       // Transcribe the audio
       const result = await transcribe();
@@ -669,7 +669,7 @@ export const MessageInput = ({
         messageRef.current = result.text;
         
         // Send the transcribed text (will be handled by uploadAndSend for AI channels)
-        setTimeout(() => uploadAndSend(), 100);
+        setTimeout(() => uploadAndSend(), 50);
       } else {
         console.log('❌ No transcription result');
         if (onAISending) {
