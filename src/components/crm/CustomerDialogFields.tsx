@@ -262,8 +262,6 @@ export const CustomerDialogFields = ({
       {/* Payment Status for Standalone Customers (without events) */}
       {!isEventBased && (
         <div className="space-y-4 border-t pt-4 mt-4">
-          <Label className="font-medium">{t("crm.paymentDetails")}</Label>
-          
           <div className="space-y-2">
             <Label htmlFor="paymentStatus">
               {isGeorgian ? (
