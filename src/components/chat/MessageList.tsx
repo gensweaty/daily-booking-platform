@@ -383,7 +383,7 @@ export const MessageList = ({
 
       {/* AI Typing Indicator */}
       {isAITyping && (
-        <div className="group relative mt-4">
+        <div className="group relative mt-4 animate-fade-in">
           <div className="flex gap-3">
             <div className="w-10 flex-shrink-0">
               <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm">
@@ -396,7 +396,7 @@ export const MessageList = ({
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm italic">AI is thinking...</span>
+                <span className="text-sm italic animate-pulse">AI is thinking...</span>
               </div>
             </div>
           </div>

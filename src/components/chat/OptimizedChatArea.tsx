@@ -727,6 +727,16 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => clearInterval(interval);
   }, [activeChannelId, realtimeEnabled, loadMessages]);
 
+  // Auto-scroll when AI typing indicator appears
+  useEffect(() => {
+    if (isSendingToAI) {
+      // Small delay to ensure the typing indicator is rendered first
+      setTimeout(() => {
+        scrollToBottom();
+      }, 50);
+    }
+  }, [isSendingToAI, scrollToBottom]);
+
   if (!isInitialized || loading) {
     return (
       <div className="h-full flex flex-col items-center justify-center space-y-4">
