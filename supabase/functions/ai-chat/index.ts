@@ -976,7 +976,11 @@ OPTIONAL fields (if user provides):
 - payment_amount: Payment amount (number)
 - event_name: Type of event (birthday, meeting, etc)
 
-For EDIT: Include event_id to update existing event`,
+EDITING EVENTS:
+- If user mentions editing an event, FIRST use get_upcoming_events or get_all_events to find the event by name
+- Then include the event_id parameter to update it
+- Files uploaded during editing will be added to the event
+- Example: "edit event aaa" → call get_upcoming_events, find "aaa", then call with event_id`,
           parameters: {
             type: "object",
             properties: {
@@ -1021,7 +1025,11 @@ TEAM ASSIGNMENT (FULLY AUTOMATIC):
 - Examples: "Cau" → finds "Cau", "papex" → finds "Papex Grigolia", "admin" → assigns to owner
 - NEVER ask which team member - just use the name provided and let system handle it!
 
-For EDIT: Include task_id`,
+EDITING TASKS:
+- If user mentions editing a task, FIRST use get_all_tasks to find the task by name
+- Then include the task_id parameter to update it
+- Files uploaded during editing will be added to the task
+- Example: "edit task KAKA" → call get_all_tasks, find "KAKA", then call with task_id`,
           parameters: {
             type: "object",
             properties: {
@@ -1057,7 +1065,11 @@ OPTIONAL fields (if user provides):
 - event_start: Event start date if create_event is true
 - event_end: Event end date if create_event is true
 
-For EDIT: Include customer_id to update existing customer`,
+EDITING CUSTOMERS:
+- The system automatically finds customers by exact name match
+- If user mentions editing a customer, just provide the full_name - system will auto-detect
+- Files uploaded during editing will be added to the customer
+- Example: "edit customer BAS and add file" → system finds "BAS" automatically and adds file`,
           parameters: {
             type: "object",
             properties: {
@@ -1436,19 +1448,21 @@ Analysis: October is showing a stronger performance in terms of revenue compared
    - Optional: phone, email/social, notes, payment details
    - Can optionally create linked event
    - Example: "Add customer Mike Jones, phone 555-1234" → CREATE IMMEDIATELY
-   - **CRITICAL UPDATING WORKFLOW:**
-     * When user says "edit that customer" or "update customer anania" → Look at RECENT MESSAGES in conversation history
-     * Find the customer name from previous messages (e.g., if you just created "anania", use "anania" as full_name)
-     * NEVER EVER provide customer_id parameter - ALWAYS leave it null/undefined
-     * System automatically searches by exact name when updating - providing customer_id causes errors
-     * The system will find the most recently created customer with that exact name
-   - Example workflow: User creates "anania" → Later says "edit that customer" → You call create_or_update_customer with full_name="anania" and NO customer_id → System finds and updates the existing customer
+   - **EDITING CUSTOMERS (AUTOMATIC NAME MATCHING)**:
+     * System automatically finds customers by EXACT name match - no search needed!
+     * Just provide full_name and the system updates the most recent customer with that exact name
+     * Files uploaded during editing are AUTOMATICALLY attached
+     * Example: "edit customer BAS and add document" → Call create_or_update_customer with full_name="BAS" + file auto-attaches
+     * Example: User created "John Smith" → Later says "edit that customer, payment 50$" → Call with full_name="John Smith", payment_amount=50
 
-4. **📎 FILE UPLOADS** (NEW!)
-   - You CAN process file attachments sent with messages
-   - When user attaches files (images, PDFs, documents), they are automatically uploaded to storage
-   - Files are linked to events automatically when creating/updating events
-   - Confirm to user: "✅ File '[filename]' has been attached to the event"
+4. **📎 FILE UPLOADS & ATTACHMENTS** (FULLY AUTOMATIC!)
+   - Files uploaded in chat are AUTOMATICALLY attached to events/tasks/customers
+   - Works for BOTH creating AND editing
+   - NO parameters needed - files just attach themselves
+   - **During Creation**: "Add event for John with this document" → File auto-attaches
+   - **During Editing**: "Edit event aaa and add this PDF" → File auto-attaches to existing event
+   - Supported for: Events, Tasks, Customers
+   - NEVER ask "should I attach the file?" - It's automatic!
 
 **CRITICAL AGENT WORKFLOW RULES**:
 
@@ -1472,13 +1486,48 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 - Payment details are OPTIONAL - only include if provided
 
 **FOR EDITING/UPDATING:**
-- **FOR EVENTS/TASKS**: ALWAYS search for the item FIRST before updating
-  - Steps: 1) Call get_all_tasks / get_upcoming_events, 2) Find the item ID, 3) Call create_or_update_* with the ID
-  - Example: "Update John's event" → Call get_upcoming_events → Find event with John → Call create_or_update_event with event_id
-- **FOR CUSTOMERS**: NEVER search first - just provide the full_name from conversation history
-  - The system automatically finds the most recent customer with that exact name
-  - Example: User creates customer "anania" → Later says "edit that customer" → Call create_or_update_customer with full_name="anania" (no customer_id)
-  - CRITICAL: Check your recent responses in conversation history to find the exact customer name mentioned
+- **CRITICAL WORKFLOW FOR ALL EDITS**:
+  1. User mentions "edit event aaa" / "update task XYZ" / "edit customer John" / "change that event"
+  2. YOU MUST FIRST search for the item to get its ID:
+     - For EVENTS: Call get_all_events or get_upcoming_events to find the event by name/title
+     - For TASKS: Call get_all_tasks to find the task by name/title
+     - For CUSTOMERS: Just use the full_name - system automatically finds by exact name match
+  3. Then call create_or_update_* with the found ID (except customers)
+  
+- **EVENTS EDITING EXAMPLE**:
+  - User: "edit event aaa and add this document"
+  - Step 1: Call get_all_events or get_upcoming_events
+  - Step 2: Find event with title matching "aaa", get its event_id
+  - Step 3: Call create_or_update_event with event_id + new data + attachments (files auto-link!)
+  
+- **TASKS EDITING EXAMPLE**:
+  - User: "edit task KAKA to done status"
+  - Step 1: Call get_all_tasks
+  - Step 2: Find task with title matching "KAKA", get its task_id
+  - Step 3: Call create_or_update_task with task_id and status="done"
+  
+- **CUSTOMERS EDITING EXAMPLE** (DIFFERENT - NO SEARCH NEEDED):
+  - User: "edit customer BAS and add payment 10$"
+  - Step 1: Just call create_or_update_customer with full_name="BAS", payment_amount=10
+  - NO need to search first - system auto-finds by exact name
+  - Files uploaded during edit will be attached automatically!
+  
+- **FILE ATTACHMENTS DURING EDITING**:
+  - ✅ Files uploaded with edit requests are AUTOMATICALLY attached
+  - ✅ Works for ALL types: events, tasks, customers
+  - ✅ NO extra parameters needed - just call the edit function with ID
+  - Example: "edit event aaa and attach this document" → Files auto-link to event aaa
+  
+- **CRITICAL: SEARCH FIRST FOR EVENTS/TASKS**:
+  - ❌ NEVER call create_or_update_event/task without event_id/task_id when user says "edit"
+  - ✅ ALWAYS search first using get_all_* tools to find the ID
+  - ❌ NEVER ask user for IDs - YOU must find them via search tools
+  
+- **CUSTOMERS ARE EXCEPTION**:
+  - ❌ NEVER search for customers before editing
+  - ❌ NEVER provide customer_id parameter
+  - ✅ ALWAYS just use full_name from conversation - system finds automatically
+  - The system searches by exact name and updates the most recent match
 
 **IMPORTANT PRINCIPLES:**
 1. **ACT IMMEDIATELY** when you have minimum required info (name for customers/tasks, name+dates for events)
@@ -4153,7 +4202,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                             event_id: event_id,
                             user_id: ownerId,
                             filename: attachment.filename,
-                            file_path: `chat_attachments/${attachment.file_path}`,
+                            file_path: attachment.file_path.startsWith('chat_attachments/') ? attachment.file_path : `chat_attachments/${attachment.file_path}`,
                             content_type: attachment.content_type,
                             size: attachment.size
                           });
@@ -4224,7 +4273,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                             event_id: newEventId,
                             user_id: ownerId,
                             filename: attachment.filename,
-                            file_path: `chat_attachments/${attachment.file_path}`,
+                            file_path: attachment.file_path.startsWith('chat_attachments/') ? attachment.file_path : `chat_attachments/${attachment.file_path}`,
                             content_type: attachment.content_type,
                             size: attachment.size
                           });
@@ -4718,11 +4767,49 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     };
                   } else {
                     console.log(`    ✅ Customer updated: ${full_name} (ID: ${updatedCustomer.id})`);
+                    
+                    // CRITICAL FIX: Link chat attachment files to customer during EDIT
+                    let uploadedFiles = [];
+                    if (attachments && attachments.length > 0) {
+                      console.log(`    📎 Linking ${attachments.length} file attachments to updated customer ${updatedCustomer.id}`);
+                      for (const attachment of attachments) {
+                        try {
+                          console.log(`    → Linking ${attachment.filename} from chat_attachments`);
+                          
+                          // Create customer_files_new record pointing to chat_attachments file
+                          const { error: dbError } = await supabaseAdmin.from('customer_files_new').insert({
+                            customer_id: updatedCustomer.id,
+                            user_id: ownerId,
+                            filename: attachment.filename,
+                            file_path: attachment.file_path.startsWith('chat_attachments/') ? attachment.file_path : `chat_attachments/${attachment.file_path}`,
+                            content_type: attachment.content_type,
+                            size: attachment.size
+                          });
+                          
+                          if (dbError) {
+                            console.error(`    ❌ DB insert error for ${attachment.filename}:`, dbError);
+                            continue;
+                          }
+                          
+                          uploadedFiles.push(attachment.filename);
+                          console.log(`    ✅ File ${attachment.filename} linked to customer`);
+                        } catch (fileError) {
+                          console.error(`    ❌ Error linking file ${attachment.filename}:`, fileError);
+                        }
+                      }
+                    }
+                    
+                    let message = `Customer updated: ${full_name}`;
+                    if (uploadedFiles.length > 0) {
+                      message += ` with ${uploadedFiles.length} new file(s) attached`;
+                    }
+                    
                     toolResult = { 
                       success: true, 
                       customer_id: updatedCustomer.id,
                       action: 'updated',
-                      message: `Customer updated: ${full_name}`
+                      message,
+                      uploaded_files: uploadedFiles
                     };
                     
                     // Broadcast change for real-time sync
@@ -4763,7 +4850,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                             customer_id: newCustomer.id,
                             user_id: ownerId,
                             filename: attachment.filename,
-                            file_path: `chat_attachments/${attachment.file_path}`,
+                            file_path: attachment.file_path.startsWith('chat_attachments/') ? attachment.file_path : `chat_attachments/${attachment.file_path}`,
                             content_type: attachment.content_type,
                             size: attachment.size
                           });
