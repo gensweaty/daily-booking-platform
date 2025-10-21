@@ -613,10 +613,18 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     loadParticipants();
   }, [activeChannelId, boardOwnerId, teamMembers, fetchChannelParticipants]);
 
-  // Scroll management
+  // Scroll management - instant for immediate visibility
   const scrollToBottom = useCallback(() => {
     if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      // First: Instant scroll to ensure immediate visibility
+      bottomRef.current.scrollIntoView({ behavior: 'instant', block: 'end' });
+      
+      // Second: Smooth polish for better UX (optional on mobile to avoid jank)
+      requestAnimationFrame(() => {
+        if (bottomRef.current) {
+          bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+      });
     }
   }, []);
 
@@ -727,13 +735,13 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => clearInterval(interval);
   }, [activeChannelId, realtimeEnabled, loadMessages]);
 
-  // Auto-scroll when AI typing indicator appears
+  // Auto-scroll when AI typing indicator appears - immediate, no delay
   useEffect(() => {
     if (isSendingToAI) {
-      // Small delay to ensure the typing indicator is rendered first
-      setTimeout(() => {
+      // Immediate scroll using requestAnimationFrame for optimal performance
+      requestAnimationFrame(() => {
         scrollToBottom();
-      }, 50);
+      });
     }
   }, [isSendingToAI, scrollToBottom]);
 
