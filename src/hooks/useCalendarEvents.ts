@@ -89,8 +89,8 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
     enabled: !!(businessUserId || user?.id),
     staleTime: 0, // Always consider data stale for immediate updates
     gcTime: 1000, // Keep in cache for 1 second only
-    refetchInterval: 1500, // Moderate polling every 1.5 seconds
-    refetchIntervalInBackground: false, // Disable background refetch to avoid visible loading
+    refetchInterval: false, // CRITICAL: Disable polling to prevent form resets in dialogs
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
   });
@@ -233,8 +233,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
         p_event_id: null,
         p_created_by_type: 'admin',
         p_created_by_name: username || 'Admin',
+        p_created_by_ai: false,
         p_last_edited_by_type: 'admin',
-        p_last_edited_by_name: username || 'Admin'
+        p_last_edited_by_name: username || 'Admin',
+        p_last_edited_by_ai: false
       });
 
       if (error) throw error;
@@ -339,8 +341,10 @@ export const useCalendarEvents = (businessId?: string, businessUserId?: string) 
           p_event_id: eventData.id,
           p_created_by_type: 'admin',
           p_created_by_name: username || 'Admin',
+          p_created_by_ai: false,
           p_last_edited_by_type: 'admin',
-          p_last_edited_by_name: username || 'Admin'
+          p_last_edited_by_name: username || 'Admin',
+          p_last_edited_by_ai: false
         });
 
         if (error) throw error;

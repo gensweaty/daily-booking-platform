@@ -27,6 +27,10 @@ export interface ChatAttachment {
   file_path: string;
   content_type?: string;
   size?: number;
+  meta?: {
+    duration?: number;
+    [key: string]: any;
+  };
 }
 
 export interface ChatChannel {

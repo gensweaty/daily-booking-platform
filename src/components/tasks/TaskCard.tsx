@@ -11,6 +11,7 @@ import { TaskAssigneeDisplay } from "./TaskAssigneeDisplay";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 
 interface TaskCardProps {
   task: Task;
@@ -22,9 +23,20 @@ interface TaskCardProps {
 }
 
 export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard = false }: TaskCardProps) => {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isGeorgian = language === 'ka';
   const [isHovered, setIsHovered] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  
+  // Debug logging for permission issues
+  console.log('TaskCard render:', { 
+    taskId: task.id, 
+    title: task.title,
+    hasOnEdit: !!onEdit, 
+    hasOnDelete: !!onDelete,
+    createdByType: task.created_by_type,
+    createdByName: task.created_by_name
+  });
   
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
@@ -247,7 +259,7 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDelete(task.id);
+                          setIsDeleteConfirmOpen(true);
                         }}
                         className="text-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8 transition-all duration-200"
                         title="Delete task"
@@ -261,7 +273,39 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
             </div>
           </div>
         );
-        return snapshot.isDragging ? createPortal(child, document.body) : child;
+        return snapshot.isDragging ? createPortal(child, document.body) : (
+          <>
+            {child}
+            {/* Delete Confirmation Dialog */}
+            <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+              <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2 text-sm sm:text-base">
+                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
+                    {t("tasks.deleteTaskConfirmTitle")}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="text-xs sm:text-sm">
+                    {t("common.deleteConfirmMessage")}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                  <AlertDialogCancel className="text-xs sm:text-sm">{t("common.cancel")}</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => {
+                      if (onDelete) {
+                        onDelete(task.id);
+                      }
+                      setIsDeleteConfirmOpen(false);
+                    }} 
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm"
+                  >
+                    {t("common.delete")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </>
+        );
       }}
     </Draggable>
   );

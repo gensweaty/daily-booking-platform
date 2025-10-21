@@ -123,13 +123,16 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const endDateStr = dateRange.end.toISOString();
 
       // Get regular events from events table (filter by start_date for events happening in the selected period)
+      // CRITICAL FIX: Only fetch non-recurring events OR parent recurring events (not child instances)
+      // This prevents double-counting recurring series
       const { data: regularEvents, error: eventsError } = await supabase
         .from('events')
         .select('*')
         .eq('user_id', userId)
         .gte('start_date', startDateStr)
         .lte('start_date', endDateStr)
-        .is('deleted_at', null);
+        .is('deleted_at', null)
+        .or('is_recurring.is.null,is_recurring.eq.false,and(is_recurring.eq.true,parent_event_id.is.null)');
 
       if (eventsError) {
         console.error('Error fetching regular events:', eventsError);
@@ -173,8 +176,21 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         };
       }
 
-      // Transform booking requests to match event structure for statistics
-      const transformedBookingRequests = (bookingRequests || []).map(booking => ({
+      // CRITICAL FIX: Exclude booking requests that were already converted to events
+      // Check which booking requests have been converted to events by matching booking_request_id
+      const bookingRequestIdsInEvents = new Set(
+        (regularEvents || [])
+          .filter(event => event.booking_request_id)
+          .map(event => event.booking_request_id)
+      );
+
+      // Filter out booking requests that were already converted to events
+      const unconvertedBookingRequests = (bookingRequests || []).filter(
+        booking => !bookingRequestIdsInEvents.has(booking.id)
+      );
+
+      // Transform remaining booking requests to match event structure for statistics
+      const transformedBookingRequests = unconvertedBookingRequests.map(booking => ({
         ...booking,
         type: 'booking_request',
         title: booking.title,
@@ -184,60 +200,63 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         event_notes: booking.description
       }));
 
-      // Combine both types of events
+      // Combine both types of events (no double counting now)
       const allEvents = [
         ...(regularEvents || []),
         ...transformedBookingRequests
       ];
 
+      console.log(`🔍 EVENT COUNT DEBUG: ${regularEvents?.length || 0} regular events, ${bookingRequests?.length || 0} total booking requests, ${unconvertedBookingRequests.length} unconverted booking requests, ${bookingRequestIdsInEvents.size} already converted to events`);
+
       console.log(`Found ${regularEvents?.length || 0} regular events and ${bookingRequests?.length || 0} approved booking requests in date range`);
 
-      // Get additional persons only for parent events (not child instances) that have events in the date range
-      const parentEventIds = regularEvents
-        ?.filter(event => !event.parent_event_id) // Only parent events
-        .map(event => event.id) || [];
+      // Get additional persons for ALL parent events that have instances in the date range
+      // This includes both parent events directly in range AND parents of child instances in range
+      const parentEventIds = new Set<string>();
+      
+      regularEvents?.forEach(event => {
+        if (!event.parent_event_id) {
+          // This is a parent event
+          parentEventIds.add(event.id);
+        } else {
+          // This is a child instance - include its parent
+          parentEventIds.add(event.parent_event_id);
+        }
+      });
 
       let additionalPersons: any[] = [];
-      if (parentEventIds.length > 0) {
+      if (parentEventIds.size > 0) {
         const { data: customers, error: customersError } = await supabase
           .from('customers')
           .select('*')
-          .in('event_id', parentEventIds)
+          .in('event_id', Array.from(parentEventIds))
           .eq('type', 'customer')
           .is('deleted_at', null);
 
         if (!customersError && customers) {
           additionalPersons = customers;
+          console.log(`Fetched ${customers.length} additional persons for ${parentEventIds.size} parent events`);
         }
       }
 
-      // Separate recurring events by series for proper payment calculation
-      const recurringSeriesMap = new Map<string, any[]>();
+      // Separate recurring parent events from non-recurring events
+      // Since we only fetch parent events now, we just need to separate by is_recurring flag
+      const recurringEvents: any[] = [];
       const nonRecurringEvents: any[] = [];
 
       allEvents.forEach(event => {
-        if (event.is_recurring && event.parent_event_id) {
-          // This is a recurring instance - group by parent
-          const parentId = event.parent_event_id;
-          if (!recurringSeriesMap.has(parentId)) {
-            recurringSeriesMap.set(parentId, []);
-          }
-          recurringSeriesMap.get(parentId)?.push(event);
-        } else if (event.is_recurring && !event.parent_event_id) {
-          // This is a recurring parent - group by its own ID
-          if (!recurringSeriesMap.has(event.id)) {
-            recurringSeriesMap.set(event.id, []);
-          }
-          recurringSeriesMap.get(event.id)?.push(event);
+        if (event.is_recurring) {
+          recurringEvents.push(event);
         } else {
-          // Non-recurring event
           nonRecurringEvents.push(event);
         }
       });
 
-      console.log(`Processing ${recurringSeriesMap.size} recurring series and ${nonRecurringEvents.length} non-recurring events`);
+      console.log(`✅ EVENT COUNT FIX: Found ${recurringEvents.length} recurring series and ${nonRecurringEvents.length} non-recurring events`);
+      console.log(`📊 Total unique events: ${allEvents.length}`);
 
-      // Count unique events in the selected date range
+      // Count unique events: Since we only fetch parent events, total is simply allEvents.length
+      // Each recurring series (parent) counts as ONE event, each non-recurring event counts as ONE
       const totalEvents = allEvents.length;
 
       let partlyPaid = 0;
@@ -297,67 +316,58 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         }
       });
 
-      // Process recurring series - count payments only once per series per unique person
-      for (const [seriesId, seriesEvents] of recurringSeriesMap) {
-        console.log(`Processing recurring series ${seriesId} with ${seriesEvents.length} instances`);
+      // Process recurring parent events - since we only fetch parents now, treat them like normal events
+      recurringEvents.forEach(event => {
+        const paymentStatus = event.payment_status || '';
         
-        // For payment status, check if ANY instance in the series has payments
-        let hasPartlyPaid = false;
-        let hasFullyPaid = false;
-        
-        // For income calculation, use the payment amount from the FIRST instance only
-        // (assuming all instances in a series have the same payment details)
-        const firstInstance = seriesEvents[0];
-        
-        seriesEvents.forEach(instance => {
-          const paymentStatus = instance.payment_status || '';
-          if (paymentStatus.includes('partly')) hasPartlyPaid = true;
-          if (paymentStatus.includes('fully')) hasFullyPaid = true;
+        if (paymentStatus.includes('partly')) {
+          partlyPaid++;
+        }
+        if (paymentStatus.includes('fully')) {
+          fullyPaid++;
+        }
 
-          // Count each instance for daily stats
-          if (instance.start_date) {
-            try {
-              const eventDate = parseISO(instance.start_date);
-              const day = format(eventDate, 'yyyy-MM-dd');
-              dailyBookings.set(day, (dailyBookings.get(day) || 0) + 1);
-            } catch (dateError) {
-              console.warn('Invalid date in recurring instance:', instance.start_date);
-            }
-          }
-        });
-
-        // Count payment status once per series
-        if (hasPartlyPaid && !hasFullyPaid) partlyPaid++;
-        if (hasFullyPaid) fullyPaid++;
-
-        // Add income only once per series (from first instance)
-        if ((firstInstance.payment_status?.includes('partly') || 
-             firstInstance.payment_status?.includes('fully')) && 
-            firstInstance.payment_amount) {
-          const amount = typeof firstInstance.payment_amount === 'number' 
-            ? firstInstance.payment_amount 
-            : parseFloat(String(firstInstance.payment_amount));
+        // Calculate income from main event (counted once per series)
+        if ((event.payment_status?.includes('partly') || 
+             event.payment_status?.includes('fully')) && 
+            event.payment_amount) {
+          const amount = typeof event.payment_amount === 'number' 
+            ? event.payment_amount 
+            : parseFloat(String(event.payment_amount));
           if (!isNaN(amount) && amount > 0) {
             totalIncome += amount;
             eventIncome += amount;
-            console.log(`Added ${amount} from recurring series ${seriesId} (counted once)`);
-
-            // Add to monthly income only once per series
-            if (firstInstance.start_date) {
-              try {
-                const eventDate = parseISO(firstInstance.start_date);
-                const month = format(eventDate, 'MMM yyyy');
-                monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
-              } catch (dateError) {
-                console.warn('Invalid date in recurring series:', firstInstance.start_date);
-              }
-            }
+            console.log(`Added ${amount} from recurring series ${event.id} (counted once)`);
           }
         }
 
-        // Get additional persons for this series and count their payments only once
+        // Daily stats for parent recurring event
+        if (event.start_date) {
+          try {
+            const eventDate = parseISO(event.start_date);
+            const day = format(eventDate, 'yyyy-MM-dd');
+            dailyBookings.set(day, (dailyBookings.get(day) || 0) + 1);
+
+            // Monthly income aggregation
+            const month = format(eventDate, 'MMM yyyy');
+            if ((event.payment_status?.includes('partly') || 
+                 event.payment_status?.includes('fully')) && 
+                event.payment_amount) {
+              const amount = typeof event.payment_amount === 'number' 
+                ? event.payment_amount 
+                : parseFloat(String(event.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
+              }
+            }
+          } catch (dateError) {
+            console.warn('Invalid date in recurring event:', event.start_date);
+          }
+        }
+
+        // Get additional persons for this recurring series
         const seriesAdditionalPersons = additionalPersons.filter(person => 
-          person.event_id === seriesId
+          person.event_id === event.id
         );
 
         seriesAdditionalPersons.forEach(person => {
@@ -369,7 +379,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             if (!isNaN(amount) && amount > 0) {
               totalIncome += amount;
               eventIncome += amount;
-              console.log(`Added ${amount} from additional person in recurring series ${seriesId} (counted once)`);
+              console.log(`Added ${amount} from additional person in recurring series ${event.id} (counted once)`);
               
               // Add to monthly income
               if (person.start_date) {
@@ -384,11 +394,12 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             }
           }
         });
-      }
+      });
 
       // Add income from additional persons for non-recurring events
+      const recurringEventIds = new Set(recurringEvents.map(e => e.id));
       const nonRecurringAdditionalPersons = additionalPersons.filter(person => 
-        !recurringSeriesMap.has(person.event_id || '')
+        !recurringEventIds.has(person.event_id || '')
       );
 
       nonRecurringAdditionalPersons.forEach(person => {
@@ -676,7 +687,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
         additionalPersonsCount: additionalPersons.length,
-        recurringSeriesCount: recurringSeriesMap.size
+        recurringEventsCount: recurringEvents.length
       });
 
       return result;
@@ -702,7 +713,8 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const withBookingSet = new Set<string>();
       const withoutBookingSet = new Set<string>();
 
-      // Get regular events in the date range (main persons) - filter by start_date for events happening in this period
+      // CRITICAL: Match CRM page logic EXACTLY - events by start_date, customers by created_at
+      // Get regular events in the date range (main persons) - filter by START_DATE (when event happens)
       const { data: regularEvents, error: regularEventsError } = await supabase
         .from('events')
         .select('*')
@@ -724,7 +736,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         });
       }
 
-      // Get approved booking requests in the date range (main persons) - filter by start_date for events happening in this period
+      // Get approved booking requests in the date range (main persons) - filter by START_DATE (when booking happens)
       const { data: bookingRequests, error: bookingRequestsError } = await supabase
         .from('booking_requests')
         .select('*')
@@ -739,15 +751,16 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       }
       // Booking requests are intentionally excluded from customerStats to match CRM page counts.
 
-      // Get additional customers from CRM (type = 'customer') whose events are in the date range
+      // Get additional customers from CRM (type = 'customer') created in the date range
+      // Match CRM page logic: filter by customer created_at, not event start_date
       const { data: crmCustomers, error: crmCustomersError } = await supabase
         .from('customers')
-        .select('*, events!inner(start_date)')
+        .select('*')
         .eq('user_id', userId)
         .eq('type', 'customer')
         .not('event_id', 'is', null)
-        .gte('events.start_date', startDateStr)
-        .lte('events.start_date', endDateStr)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
         .is('deleted_at', null);
 
       if (crmCustomersError) {
@@ -793,15 +806,18 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const withBooking = withBookingSet.size;
       const withoutBooking = withoutBookingSet.size;
 
-      console.log('Final customer stats calculation (including booking requests):', {
-        uniqueCustomersFound: uniqueCustomers.size,
-        totalCustomers,
-        withBooking,
-        withoutBooking,
+      console.log('🔍 CUSTOMER COUNT DEBUG:', {
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
         crmCustomersCount: crmCustomers?.length || 0,
-        standaloneCrmCustomersCount: standaloneCrmCustomers?.length || 0
+        standaloneCrmCount: standaloneCrmCustomers?.length || 0,
+        dateRange: `${startDateStr} to ${endDateStr}`
+      });
+
+      console.log('✅ FINAL CUSTOMER STATS:', {
+        totalCustomers,
+        withBooking,
+        withoutBooking
       });
 
       return {

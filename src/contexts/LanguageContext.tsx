@@ -59,7 +59,7 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, [language]);
 
-  const t = (key: string, params?: Record<string, string | number>): string => {
+  const t = React.useCallback((key: string, params?: Record<string, string | number>): string => {
     if (!key) return '';
     
     try {
@@ -92,13 +92,13 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       console.error(`Error getting translation for key: ${key}`, error);
       return key.split('.').pop() || key; // Return last part of key as fallback
     }
-  };
+  }, [language]);
 
   const contextValue = React.useMemo(() => ({
     language,
     setLanguage,
     t
-  }), [language]);
+  }), [language, t]);
 
   console.log('[DEBUG] LanguageProvider providing context:', contextValue);
 
@@ -112,10 +112,26 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
   console.log('[DEBUG] useLanguage called, context:', context);
+  
+  // If context is undefined, it means we're outside the provider
+  // This should not happen, but we provide a fallback to prevent crashes
   if (context === undefined) {
     console.error('[DEBUG] useLanguage called outside of provider! Stack:', new Error().stack);
-    throw new Error('useLanguage must be used within a LanguageProvider');
+    
+    // Return a fallback context to prevent app crash
+    return {
+      language: 'en' as Language,
+      setLanguage: () => {
+        console.warn('setLanguage called outside LanguageProvider');
+      },
+      t: (key: string) => {
+        const fallback = key.split('.').pop() || key;
+        console.warn(`Translation requested outside provider: ${key}, returning: ${fallback}`);
+        return fallback;
+      }
+    };
   }
+  
   return context;
 };
 

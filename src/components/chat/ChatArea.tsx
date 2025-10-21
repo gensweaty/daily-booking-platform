@@ -12,6 +12,7 @@ import { getEffectivePublicEmail } from '@/utils/chatEmail';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
+import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
 
 type Message = {
   id: string;
@@ -106,7 +107,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     name: string; 
     isDM: boolean; 
     dmPartner?: { name: string; avatar?: string };
-    avatar_url?: string; 
+    avatar_url?: string;
+    is_ai?: boolean;
   } | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
@@ -137,6 +139,14 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const headerCacheRef = useRef<Map<string, { name: string; isDM: boolean; dmPartner?: { name: string; avatar?: string }; avatar_url?: string }>>(new Map());
   const [generalId, setGeneralId] = useState<string | null>(null);
   const [generalIdLoading, setGeneralIdLoading] = useState(true);
+  const [isAITyping, setIsAITyping] = useState(false);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages.length]);
 
   // -------- helper: fetch attachments correctly for public vs internal
   const fetchAttachments = async (messageId: string) => {
@@ -274,7 +284,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       // What kind of channel is this?
       const { data: ch, error: chErr } = await supabase
         .from('chat_channels')
-        .select('name, is_dm, avatar_url')
+        .select('name, is_dm, avatar_url, is_ai')
         .eq('id', activeChannelId)
         .maybeSingle();
       if (chErr) {
@@ -287,7 +297,20 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const info = { 
           name: ch?.name || t('chat.general'), 
           isDM: false,
-          avatar_url: ch?.avatar_url 
+          avatar_url: ch?.avatar_url,
+          is_ai: ch?.is_ai || false
+        } as const;
+        headerCacheRef.current.set(activeChannelId, info);
+        setChannelInfo(info);
+        return;
+      }
+
+      // CRITICAL: Check if this is an AI DM channel (per-member AI)
+      if (ch?.is_ai && ch?.is_dm) {
+        const info = { 
+          name: t('chat.smartbooklyAI'), 
+          isDM: true,
+          is_ai: true
         } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
@@ -1410,7 +1433,11 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       <div className="border-b p-4 bg-muted/30 relative">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
+            {channelInfo?.is_ai ? (
+              <div className="h-10 w-10 rounded-full overflow-hidden flex-shrink-0 shadow-sm">
+                <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
+              </div>
+            ) : channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
               <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
                 <img
                   src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
@@ -1442,7 +1469,9 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
                 data-participant-trigger
               >
                 <h2 className="font-semibold">
-                  {channelInfo?.isDM
+                  {channelInfo?.is_ai
+                    ? t('chat.smartbooklyAI')
+                    : channelInfo?.isDM
                     ? (channelInfo?.dmPartner?.name || t('chat.directMessage'))
                     : (channelInfo?.name || t('chat.general'))}
                 </h2>
@@ -1479,6 +1508,7 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               onReply={handleReply}
               onEdit={handleEdit}
               onDelete={handleDeleteMessage}
+              isAITyping={isAITyping}
             />
             <div ref={bottomRef} />
           </div>
@@ -1503,6 +1533,11 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             attachments: editingMessage.attachments
           } : null}
           onCancelEdit={handleCancelEdit}
+          currentChannelId={activeChannelId}
+          isAIChannel={channelInfo?.is_ai || false}
+          boardOwnerId={boardOwnerId}
+          onAISending={setIsAITyping}
+          onTranscribing={setIsAITyping}
         />
       </div>
     </div>

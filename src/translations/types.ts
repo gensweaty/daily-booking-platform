@@ -28,6 +28,7 @@ export interface TranslationType {
     analytics: string;
     website: string;
     teamChat: string;
+    ai: string;
     ownBookingWebsite: string;
     businessTitle: string;
     smartAppointment: string;
@@ -35,6 +36,17 @@ export interface TranslationType {
     modernCRM: string;
     kanbanManagement: string;
     teamCollaboration: string;
+  };
+  aiAssistant: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+    feature5: string;
+    feature6: string;
+    feature7: string;
   };
   booking: {
     title: string;
@@ -764,6 +776,7 @@ export interface TranslationType {
     owner: string;
     teamMember: string;
     directMessage: string;
+    smartbooklyAI: string;
     typeMessage: string;
     noTeamMembers: string;
     loading: string;
@@ -782,5 +795,39 @@ export interface TranslationType {
     deleteChat: string;
     deleteChatConfirmTitle: string;
     deleteChatConfirmMessage: string;
+  };
+  quickActions: {
+    pageGuides: string;
+    allPages: string;
+    addForMe: string;
+    addEvent: string;
+    addTask: string;
+    addCustomer: string;
+    scheduleReminder: string;
+    todaySchedule: string;
+    findCustomer: string;
+    taskProgress: string;
+    paymentSummary: string;
+    excelReport: string;
+    analyzeDocument: string;
+    sendEmailForMe: string;
+    scheduleReminderPrompt: string;
+    todaySchedulePrompt: string;
+    findCustomerPrompt: string;
+    taskProgressPrompt: string;
+    paymentSummaryPrompt: string;
+    excelReportPrompt: string;
+    analyzeDocumentPrompt: string;
+    sendEmailPrompt: string;
+    addEventPrompt: string;
+    addTaskPrompt: string;
+    addCustomerPrompt: string;
+    calendarGuidePrompt: string;
+    crmGuidePrompt: string;
+    tasksGuidePrompt: string;
+    businessGuidePrompt: string;
+    statisticsGuidePrompt: string;
+    chatGuidePrompt: string;
+    allPagesPrompt: string;
   };
 }

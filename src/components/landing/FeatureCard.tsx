@@ -22,7 +22,7 @@ interface FeatureCardProps {
     customPadding?: string;
   }[];
   reverse?: boolean;
-  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website' | 'teamChat';
+  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website' | 'teamChat' | 'aiAssistant';
 }
 
 export const FeatureCard = ({

@@ -72,20 +72,21 @@ export const updateTask = async (id: string, updates: Partial<Task>) => {
   return data;
 };
 
-export const getTasks = async (userId: string) => {
+export const getTasks = async (ownerId: string) => {
   const { data, error } = await supabase
     .from('tasks')
     .select('*')
-    .eq('user_id', userId)
-    .eq('archived', false)  // Only get non-archived tasks
-    .order('position', { ascending: true });
+    .eq('user_id', ownerId)
+    .is('archived_at', null)  // Only get non-archived tasks
+    .order('position', { ascending: true })
+    .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error getting tasks:', error);
     throw error;
   }
 
-  return data;
+  return data || [];
 };
 
 export const deleteTask = async (id: string) => {
@@ -266,6 +267,34 @@ export const deleteReminder = async (id: string) => {
     console.error('Error deleting reminder:', error);
     throw error;
   }
+};
+
+// Custom Reminders operations (new table with recipient support)
+export const createCustomReminder = async (reminder: {
+  title: string;
+  message?: string;
+  remind_at: string;
+  user_id: string;
+  language?: string;
+  recipient_email?: string;
+  recipient_customer_id?: string;
+  recipient_event_id?: string;
+  created_by_type?: string;
+  created_by_name?: string;
+  created_by_sub_user_id?: string;
+}) => {
+  const { data, error } = await supabase
+    .from('custom_reminders')
+    .insert([reminder])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error creating custom reminder:', error);
+    throw error;
+  }
+
+  return data;
 };
 
 // Email operations

@@ -24,11 +24,20 @@ export const usePublicCalendarEvents = (
         throw error;
       }
       
-      console.log('[usePublicCalendarEvents] Fetched events:', data?.length || 0);
-      return (data || []) as CalendarEventType[];
+      // CRITICAL: Filter out exclusion markers (excluded_from_series = true)
+      // These are NOT events — they're directives marking excluded instances
+      const filtered = (data || []).filter((e: any) => !e.excluded_from_series);
+      
+      console.log('[usePublicCalendarEvents] Fetched events:', {
+        total: data?.length || 0,
+        afterFiltering: filtered.length,
+        excluded: (data?.length || 0) - filtered.length
+      });
+      
+      return filtered as CalendarEventType[];
     },
     enabled: !!boardUserId,
-    refetchInterval: 1500,
+    refetchInterval: false, // CRITICAL: Disable polling to prevent form resets in dialogs
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: true,
@@ -105,8 +114,10 @@ export const usePublicCalendarEvents = (
         p_event_id: null,
         p_created_by_type: 'sub_user',
         p_created_by_name: externalUserName,
+        p_created_by_ai: false,
         p_last_edited_by_type: 'sub_user',
-        p_last_edited_by_name: externalUserName
+        p_last_edited_by_name: externalUserName,
+        p_last_edited_by_ai: false
       });
 
       if (error) {
@@ -215,8 +226,10 @@ export const usePublicCalendarEvents = (
         p_event_id: eventData.id,
         p_created_by_type: 'sub_user',
         p_created_by_name: externalUserName,
+        p_created_by_ai: false,
         p_last_edited_by_type: 'sub_user',
-        p_last_edited_by_name: externalUserName
+        p_last_edited_by_name: externalUserName,
+        p_last_edited_by_ai: false
       });
 
       if (error) {

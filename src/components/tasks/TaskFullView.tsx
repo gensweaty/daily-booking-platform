@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 import { Card, CardContent } from "../ui/card";
 import { Separator } from "../ui/separator";
 import { format, parseISO } from "date-fns";
+import { formatAttribution } from "@/lib/metadata";
 
 interface TaskFullViewProps {
   task: Task;
@@ -75,7 +76,17 @@ export const TaskFullView = ({
   
   useEffect(() => {
     console.log("TaskFullView - task received:", task);
-  }, [task]);
+    console.log("TaskFullView - permission props:", {
+      hasOnEdit: !!onEdit,
+      hasOnDelete: !!onDelete,
+      hasOnArchive: !!onArchive,
+      isArchived,
+      taskId: task.id,
+      createdByType: task.created_by_type,
+      createdByName: task.created_by_name,
+      createdByAI: task.created_by_ai
+    });
+  }, [task, onEdit, onDelete, onArchive, isArchived]);
 
   const { data: files, refetch } = useQuery({
     queryKey: ['taskFiles', task.id],
@@ -153,14 +164,6 @@ export const TaskFullView = ({
 
   const formattedCreatedDate = formatDate(task.created_at);
   const formattedUpdatedDate = task.updated_at ? formatDate(task.updated_at) : formattedCreatedDate;
-
-  const normalizeName = (name?: string) => {
-    if (!name) return undefined;
-    if (name.includes('@')) {
-      return externalUserName || name.split('@')[0];
-    }
-    return name;
-  };
 
   return (
     <TooltipProvider>
@@ -271,8 +274,8 @@ export const TaskFullView = ({
                    {task.created_by_name && (
                       <span className="ml-1">
                         {language === 'ka' 
-                          ? `${normalizeName(task.created_by_name)}-ს ${t("common.by")}` 
-                          : `${t("common.by")} ${normalizeName(task.created_by_name)}`}
+                          ? `${formatAttribution(task.created_by_name, task.created_by_type, task.created_by_ai)}-ს ${t("common.by")}` 
+                          : `${t("common.by")} ${formatAttribution(task.created_by_name, task.created_by_type, task.created_by_ai)}`}
                       </span>
                     )}
                 </span>
@@ -284,8 +287,8 @@ export const TaskFullView = ({
                    {task.last_edited_by_name && task.last_edited_at && (
                       <span className="ml-1">
                         {language === 'ka' 
-                          ? `${normalizeName(task.last_edited_by_name)}-ს ${t("common.by")}` 
-                          : `${t("common.by")} ${normalizeName(task.last_edited_by_name)}`}
+                          ? `${formatAttribution(task.last_edited_by_name, task.last_edited_by_type, task.last_edited_by_ai)}-ს ${t("common.by")}` 
+                          : `${t("common.by")} ${formatAttribution(task.last_edited_by_name, task.last_edited_by_type, task.last_edited_by_ai)}`}
                       </span>
                     )}
                 </span>
@@ -390,7 +393,7 @@ export const TaskFullView = ({
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg z-[10001]">
+        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-sm sm:text-base">
               <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />

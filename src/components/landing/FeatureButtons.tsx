@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Calendar, ListTodo, Users, BarChart, Globe, MessageCircle } from "lucide-react";
+import { Calendar, ListTodo, Users, BarChart, Globe, MessageCircle, Bot } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
@@ -33,6 +33,22 @@ export const FeatureButtons = () => {
         </h2>
       </div>
       <div className="max-w-4xl mx-auto">
+        {/* Featured AI Button */}
+        <div className="mb-6">
+          <Button 
+            variant="outline"
+            onClick={(e) => {
+              createRipple(e);
+              scrollToSection('ai-assistant');
+            }}
+            className="w-full h-14 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-6 ripple-container group animate-fade-in border-primary/30"
+          >
+            <Bot className="w-6 h-6 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
+            <span className="text-base font-semibold">
+              <LanguageText>{t('aiAssistant.title')}</LanguageText>
+            </span>
+          </Button>
+        </div>
         {/* First row */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Button 

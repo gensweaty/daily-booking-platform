@@ -12,6 +12,7 @@ import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recu
 import { Clock, RefreshCcw, User, Calendar, History } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { uploadEventFiles, loadEventFiles } from "@/utils/eventFileUpload";
+import { formatAttribution } from "@/lib/metadata";
 
 interface PublicEventDialogProps {
   open: boolean;
@@ -80,6 +81,32 @@ const isoToLocalDateTimeInput = (isoString: string): string => {
   }
 };
 
+// Helper to derive the precise original occurrence window for "Edit this" instances
+const deriveOriginalInstanceWindow = (d: CalendarEventType, key: string) => {
+  const baseStart = new Date(d.start_date);
+  const baseEnd = new Date(d.end_date);
+
+  // 1) virtual id → instance date
+  let instanceDate: string | null = isVirtualInstance(key) ? getInstanceDate(key) : null;
+
+  // 2) fallback to explicit instance date from row
+  if (!instanceDate && d.recurrence_instance_date) {
+    instanceDate = d.recurrence_instance_date.slice(0, 10); // YYYY-MM-DD
+  }
+
+  if (instanceDate) {
+    const [y, m, day] = instanceDate.split('-').map(Number);
+    const instStart = new Date(baseStart); 
+    instStart.setFullYear(y, m - 1, day);
+    const instEnd = new Date(baseEnd);     
+    instEnd.setFullYear(y, m - 1, day);
+    return { startISO: instStart.toISOString(), endISO: instEnd.toISOString() };
+  }
+
+  // fallback: parent's base window
+  return { startISO: baseStart.toISOString(), endISO: baseEnd.toISOString() };
+};
+
 export const PublicEventDialog = ({
   open,
   onOpenChange,
@@ -144,7 +171,8 @@ export const PublicEventDialog = ({
   // CRITICAL: Detect virtual instance from either source
   const eventKey = eventId || initialData?.id || "";
   const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
-  const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
+  // CRITICAL: Excluded events are standalone, not part of a recurring series
+  const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent && !initialData?.excluded_from_series;
 
   // Resolve the real series root (parent) id regardless of what was clicked
   const resolveSeriesRootId = React.useCallback(() => {
@@ -159,22 +187,6 @@ export const PublicEventDialog = ({
   const isEventCreatedByCurrentUser = initialData ? 
     (initialData.created_by_type === 'sub_user' && initialData.created_by_name === externalUserName) ||
     (initialData.created_by_type !== 'sub_user' && initialData.created_by_type !== 'admin') : true;
-
-  // Helper function to normalize names and get current user's username
-  const normalizeName = (name?: string, type?: string) => {
-    if (!name) return undefined;
-    
-    // If this is an admin user and we have their profile username, use it
-    if (type === 'admin' && currentUserProfileName) {
-      return currentUserProfileName;
-    }
-    
-    // For other cases, normalize the stored name
-    if (name.includes('@')) {
-      return name.split('@')[0];
-    }
-    return name;
-  };
 
   // Fetch current user's profile username for display
   useEffect(() => {
@@ -303,18 +315,32 @@ export const PublicEventDialog = ({
     }
   };
 
+  // CRITICAL FIX: Use a ref to track if we've already loaded data for this event
+  const loadedEventRef = React.useRef<string | null>(null);
+  
   // Initialize form data
   useEffect(() => {
-    // Reset dialog states when opening
-    setEditChoice(null);
-    setShowEditDialog(false);
-    setShowDeleteDialog(false);
-    setIsLoading(false);
+    // CRITICAL: Don't reset dialog states if they're currently open
+    // This prevents the dialogs from closing when real-time updates occur
+    if (!showEditDialog && !showDeleteDialog) {
+      setEditChoice(null);
+      setShowEditDialog(false);
+      setShowDeleteDialog(false);
+      setIsLoading(false);
+    }
     
     const loadAndSetEventData = async () => {
       if (open) {
         if (initialData || eventId) {
           const targetEventId = eventId || initialData?.id;
+          
+          // CRITICAL FIX: Only load if we haven't loaded this event yet or if event ID changed
+          if (loadedEventRef.current === targetEventId) {
+            console.log('[PublicEventDialog] 🔒 Skipping reload - event already loaded:', targetEventId);
+            return;
+          }
+          
+          loadedEventRef.current = targetEventId;
           const eventData = initialData;
           
           // Load existing files and additional persons if we have an event ID
@@ -335,39 +361,22 @@ export const PublicEventDialog = ({
             setPaymentStatus(eventData.payment_status || "");
             setPaymentAmount(eventData.payment_amount?.toString() || "");
 
-            // CRITICAL: Enhanced virtual instance date handling for both eventId and initialData.id
-            const isCurrentlyVirtual = !!eventKey && isVirtualInstance(eventKey);
-            if (isCurrentlyVirtual && (initialData || eventId)) {
-              const instanceDate = getInstanceDate(eventKey);
-              if (instanceDate) {
-                // Calculate the instance dates using parent's base time but instance's date
-                const baseStart = new Date(eventData.start_date);
-                const baseEnd = new Date(eventData.end_date);
-                const [year, month, day] = instanceDate.split('-').map(n => +n);
-                const newStart = new Date(baseStart);
-                newStart.setFullYear(year, month - 1, day);
-                const newEnd = new Date(baseEnd);  
-                newEnd.setFullYear(year, month - 1, day);
-
-                setStartDate(isoToLocalDateTimeInput(newStart.toISOString()));
-                setEndDate(isoToLocalDateTimeInput(newEnd.toISOString()));
-
-                // ⭐ capture the original occurrence (the one to exclude)
-                setOriginalInstanceStartISO(newStart.toISOString());
-                setOriginalInstanceEndISO(newEnd.toISOString());
-                console.log('[PublicEventDialog] 🗓️ Set virtual instance dates:', instanceDate, 'Start:', newStart.toISOString());
-              } else {
-                setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-                setEndDate(isoToLocalDateTimeInput(eventData.end_date));
-                setOriginalInstanceStartISO(null);
-                setOriginalInstanceEndISO(null);
-              }
-            } else {
-              setStartDate(isoToLocalDateTimeInput(eventData.start_date));
-              setEndDate(isoToLocalDateTimeInput(eventData.end_date));
-              setOriginalInstanceStartISO(null);
-              setOriginalInstanceEndISO(null);
-            }
+            // CRITICAL: Derive the original occurrence window using the surgical fix utility
+            const { startISO, endISO } = deriveOriginalInstanceWindow(eventData, eventKey);
+            setOriginalInstanceStartISO(startISO);
+            setOriginalInstanceEndISO(endISO);
+            
+            // Set the visible form dates (user can edit these)
+            setStartDate(isoToLocalDateTimeInput(startISO));
+            setEndDate(isoToLocalDateTimeInput(endISO));
+            
+            console.log('[PublicEventDialog] 🗓️ Set instance window:', {
+              eventKey,
+              isVirtual: isVirtualInstance(eventKey),
+              hasRecurrenceDate: !!eventData.recurrence_instance_date,
+              originalStart: startISO,
+              originalEnd: endISO
+            });
 
             setIsRecurring(eventData.is_recurring || false);
             setRepeatPattern(eventData.repeat_pattern || "");
@@ -392,6 +401,9 @@ export const PublicEventDialog = ({
           // Reset all fields for new event
           resetFormFields();
         }
+      } else {
+        // CRITICAL: Clear the loaded event ref when dialog closes
+        loadedEventRef.current = null;
       }
     };
 
@@ -550,11 +562,19 @@ export const PublicEventDialog = ({
               p_event_data: safeSeriesData,
               p_additional_persons: additionalPersonsData,
               p_edited_by_type: 'sub_user',
-              p_edited_by_name: externalUserName
+              p_edited_by_name: externalUserName,
+              p_edited_by_ai: false
             });
 
             if (updateSeriesError) throw updateSeriesError;
             if (!updateResult?.success) throw new Error(updateResult?.error || 'Failed to update series');
+
+            // Always show success toast and notify parent
+            toast({ 
+              title: t("common.success"), 
+              description: t("events.eventSeriesUpdated") || "Event series updated successfully" 
+            });
+            onEventUpdated?.();
 
             // file upload stays against series root (unchanged)
             if (files.length > 0) {
@@ -597,10 +617,19 @@ export const PublicEventDialog = ({
                 p_event_id: childId,
                 p_created_by_type: 'sub_user',
                 p_created_by_name: externalUserName,
+                p_created_by_ai: false,
                 p_last_edited_by_type: 'sub_user',
                 p_last_edited_by_name: externalUserName,
+                p_last_edited_by_ai: false
               });
               if (updErr) throw updErr;
+              
+              // Always show success toast and notify parent
+              toast({ 
+                title: t("common.success"), 
+                description: t("events.eventUpdated") || "Event updated successfully" 
+              });
+              onEventUpdated?.();
             } else {
               // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
               const rpcTargetId = isVirtualEvent ? getParentEventId(eventKey) : targetEventId;
@@ -625,15 +654,23 @@ export const PublicEventDialog = ({
                   language: language || 'en'
                 },
                 p_additional_persons: additionalPersonsData,
-                // NEW: exclude the ORIGINAL occurrence (captured at open)
-                p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
-                p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
+                // CRITICAL: Always use the derived original window, never the edited values
+                p_instance_start: originalInstanceStartISO!,
+                p_instance_end: originalInstanceEndISO!,
                 p_edited_by_type: 'sub_user',
-                p_edited_by_name: externalUserName
+                p_edited_by_name: externalUserName,
+                p_edited_by_ai: false
               });
 
               if (editError) throw editError;
               if (!editResult?.success) throw new Error(editResult?.error || 'Failed to edit single instance');
+
+              // Always show success toast and notify parent
+              toast({ 
+                title: t("common.success"), 
+                description: t("events.eventUpdated") || "Event updated successfully" 
+              });
+              onEventUpdated?.();
 
               const newEventId = editResult.new_event_id;
               if (files.length && newEventId) {
@@ -673,8 +710,10 @@ export const PublicEventDialog = ({
             p_event_id: targetEventId,
             p_created_by_type: 'sub_user',
             p_created_by_name: externalUserName,
+            p_created_by_ai: false,
             p_last_edited_by_type: 'sub_user',
-            p_last_edited_by_name: externalUserName
+            p_last_edited_by_name: externalUserName,
+            p_last_edited_by_ai: false
           });
 
           if (rpcError) throw rpcError;
@@ -732,8 +771,10 @@ export const PublicEventDialog = ({
             p_user_id: publicBoardUserId,
             p_created_by_type: 'sub_user',
             p_created_by_name: externalUserName,
+            p_created_by_ai: false,
             p_last_edited_by_type: 'sub_user',
-            p_last_edited_by_name: externalUserName
+            p_last_edited_by_name: externalUserName,
+            p_last_edited_by_ai: false
           });
 
           if (rpcError) {
@@ -986,8 +1027,8 @@ export const PublicEventDialog = ({
                       {(currentEventData || initialData)?.created_by_name && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type)}`}
+                            ? `${formatAttribution((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type, (currentEventData || initialData)?.created_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${formatAttribution((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type, (currentEventData || initialData)?.created_by_ai)}`}
                         </span>
                       )}
                     </span>
@@ -999,8 +1040,8 @@ export const PublicEventDialog = ({
                       {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type)}`}
+                            ? `${formatAttribution((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type, (currentEventData || initialData)?.last_edited_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${formatAttribution((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type, (currentEventData || initialData)?.last_edited_by_ai)}`}
                         </span>
                       )}
                     </span>

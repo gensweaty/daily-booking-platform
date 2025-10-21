@@ -1,4 +1,4 @@
-import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle } from "lucide-react";
+import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle, Bot } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
@@ -48,6 +48,19 @@ const chatViews = [{
   customPadding: "p-4"
 }];
 
+// AI Assistant carousel views
+const aiViews = [{
+  src: "/lovable-uploads/ai-chat-interface-new.webp",
+  alt: "AI Assistant Interface",
+  customStyle: "object-contain",
+  customPadding: "p-4"
+}, {
+  src: "/lovable-uploads/ai-chat-conversation-new.webp",
+  alt: "AI Chat Conversation",
+  customStyle: "object-contain",
+  customPadding: "p-4"
+}];
+
 import { FeatureCard } from "./FeatureCard";
 
 export const FeatureSection = () => {
@@ -55,6 +68,15 @@ export const FeatureSection = () => {
     t
   } = useLanguage();
   const features = [{
+    icon: Bot,
+    title: t('aiAssistant.title'),
+    description: t('aiAssistant.description'),
+    carousel: aiViews,
+    benefits: [t('aiAssistant.feature1'), t('aiAssistant.feature2'), t('aiAssistant.feature3'), t('aiAssistant.feature4'), t('aiAssistant.feature5'), t('aiAssistant.feature6'), t('aiAssistant.feature7')],
+    translationPrefix: 'aiAssistant' as const,
+    id: "ai-assistant",
+    reverse: false
+  }, {
     icon: Globe,
     title: t('website.title'),
     description: t('website.description'),
@@ -62,7 +84,7 @@ export const FeatureSection = () => {
     benefits: [t('website.feature1'), t('website.feature2'), t('website.feature3'), t('website.feature4'), t('website.feature5')],
     translationPrefix: 'website' as const,
     id: "booking-website",
-    reverse: false
+    reverse: true
   }, {
     icon: Calendar,
     title: t('booking.title'),
@@ -71,7 +93,7 @@ export const FeatureSection = () => {
     benefits: [t('booking.feature1'), t('booking.feature2'), t('booking.feature3'), t('booking.feature4'), t('booking.feature5')],
     translationPrefix: 'booking' as const,
     id: "smart-booking",
-    reverse: true
+    reverse: false
   }, {
     icon: ChartBar,
     title: t('analytics.title'),
@@ -80,7 +102,7 @@ export const FeatureSection = () => {
     benefits: [t('analytics.feature1'), t('analytics.feature2'), t('analytics.feature3'), t('analytics.feature4'), t('analytics.feature5')],
     translationPrefix: 'analytics' as const,
     id: "analytics",
-    reverse: false
+    reverse: true
   }, {
     icon: Users,
     title: t('crm.title'),
@@ -89,7 +111,7 @@ export const FeatureSection = () => {
     benefits: [t('crm.feature1'), t('crm.feature2'), t('crm.feature3'), t('crm.feature4'), t('crm.feature5')],
     translationPrefix: 'crm' as const,
     id: "crm-solution",
-    reverse: true
+    reverse: false
   }, {
     icon: ListTodo,
     title: t('tasks.title'),
@@ -98,7 +120,7 @@ export const FeatureSection = () => {
     benefits: [t('tasks.feature1'), t('tasks.feature2'), t('tasks.feature3'), t('tasks.feature4'), t('tasks.feature5')],
     translationPrefix: 'tasks' as const,
     id: "task-management",
-    reverse: false
+    reverse: true
   }, {
     icon: MessageCircle,
     title: t('teamChat.title'),
@@ -107,7 +129,7 @@ export const FeatureSection = () => {
     benefits: [t('teamChat.feature1'), t('teamChat.feature2'), t('teamChat.feature3'), t('teamChat.feature4'), t('teamChat.feature5')],
     translationPrefix: 'teamChat' as const,
     id: "team-chat",
-    reverse: true
+    reverse: false
   }];
   return <section className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">

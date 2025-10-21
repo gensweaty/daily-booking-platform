@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-explicit-any
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 
 const corsHeaders = {
@@ -6,14 +6,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-function jsonResponse(status: number, body: any) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json", ...corsHeaders },
-  });
-}
-
-export const handler = async (req: Request): Promise<Response> => {
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -21,34 +14,50 @@ export const handler = async (req: Request): Promise<Response> => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
     const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
     if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-      return jsonResponse(500, { error: "Missing Supabase env vars" });
+      return new Response(
+        JSON.stringify({ error: "Missing Supabase environment variables" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
     const { ownerEmail, emails } = await req.json();
 
     if (!ownerEmail || !Array.isArray(emails) || emails.length === 0) {
-      return jsonResponse(400, { error: "ownerEmail and emails[] are required" });
+      return new Response(
+        JSON.stringify({ error: "ownerEmail and emails[] are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const norm = (s: string) => (s || "").trim().toLowerCase();
-    const ownerEmailNorm = norm(ownerEmail);
-    const emailsNorm = emails.map(norm);
+    const normalize = (s: string) => (s || "").trim().toLowerCase();
+    const ownerEmailNorm = normalize(ownerEmail);
+    const emailsNorm = emails.map(normalize);
 
-    // Get board owner user id via Auth Admin API
+    // Get board owner user ID via Auth Admin API
     const { data: ownerUsers, error: ownerErr } = await supabase.auth.admin.listUsers({
       page: 1,
       perPage: 1000
     });
     
-    if (ownerErr) throw ownerErr;
+    if (ownerErr) {
+      console.error("Error fetching owner user:", ownerErr);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch owner user", detail: ownerErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     
     const ownerUser = ownerUsers.users.find(u => u.email?.toLowerCase() === ownerEmailNorm);
-    if (ownerErr || !ownerUser) {
-      return jsonResponse(404, { error: "Owner user not found", detail: String(ownerErr || 'Not found') });
+    if (!ownerUser) {
+      return new Response(
+        JSON.stringify({ error: "Owner user not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+    
     const ownerId = ownerUser.id;
 
     // Get all public boards for this owner
@@ -56,10 +65,16 @@ export const handler = async (req: Request): Promise<Response> => {
       .from("public_boards")
       .select("id")
       .eq("user_id", ownerId);
+      
     if (boardsErr) {
-      return jsonResponse(500, { error: "Failed fetching boards", detail: boardsErr.message });
+      console.error("Error fetching boards:", boardsErr);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch boards", detail: boardsErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
-    const boardIds = (boards || []).map((b: any) => b.id);
+    
+    const boardIds = (boards || []).map((b) => b.id);
 
     // Delete sub_users rows
     const { error: delSubsErr } = await supabase
@@ -67,28 +82,38 @@ export const handler = async (req: Request): Promise<Response> => {
       .delete()
       .eq("board_owner_id", ownerId)
       .in("email", emailsNorm);
+      
     if (delSubsErr) {
-      return jsonResponse(500, { error: "Failed deleting sub users", detail: delSubsErr.message });
+      console.error("Error deleting sub-users:", delSubsErr);
+      return new Response(
+        JSON.stringify({ error: "Failed to delete sub-users", detail: delSubsErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Also delete any existing access tokens for these emails on these boards
+    // Delete access tokens for these emails on these boards
     if (boardIds.length > 0) {
       const { error: delAccessErr } = await supabase
         .from("public_board_access")
         .delete()
         .in("board_id", boardIds)
         .in("external_user_email", emailsNorm);
+        
       if (delAccessErr) {
-        // Non-fatal, but report
-        console.warn("Failed deleting public_board_access records", delAccessErr);
+        console.warn("Failed to delete public_board_access records:", delAccessErr);
       }
     }
 
-    return jsonResponse(200, { success: true, ownerId, emails: emailsNorm });
-  } catch (e) {
-    console.error("admin-delete-sub-users error", e);
-    return jsonResponse(500, { error: "Unhandled error", detail: String(e) });
+    return new Response(
+      JSON.stringify({ success: true, ownerId, emails: emailsNorm }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+    
+  } catch (error) {
+    console.error("admin-delete-sub-users error:", error);
+    return new Response(
+      JSON.stringify({ error: "Internal server error", detail: error instanceof Error ? error.message : String(error) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
-};
-
-Deno.serve(handler);
+});

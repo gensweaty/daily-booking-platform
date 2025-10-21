@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Reply, Edit, Trash2, Smile } from 'lucide-react';
+import { Reply, Edit, Trash2, Smile, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
+import ReactMarkdown from 'react-markdown';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +17,7 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MessageAttachments } from './MessageAttachments';
 import { supabase } from '@/integrations/supabase/client';
+import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
 
 type ChatMessage = {
   id: string;
@@ -45,6 +47,7 @@ interface MessageListProps {
   onReply: (messageId: string) => void;
   onEdit: (message: ChatMessage) => void;
   onDelete: (messageId: string) => void;
+  isAITyping?: boolean;
 }
 
 export const MessageList = ({
@@ -53,6 +56,7 @@ export const MessageList = ({
   onReply,
   onEdit,
   onDelete,
+  isAITyping = false,
 }: MessageListProps) => {
   const { t } = useLanguage();
   const [hoveredMessage, setHoveredMessage] = useState<string | null>(null);
@@ -97,22 +101,24 @@ export const MessageList = ({
     if (isDeleted(m)) return false;
 
     // 🔧 FIX: Only show as edited if there's explicit edit evidence
-    // explicit edit flags
+    // Check for explicit edit flags first
     // @ts-ignore
     if (m.edited_at || (m as any).is_edited === true) return true;
 
-    // content changed (if original was sent) - this is the most reliable indicator
+    // Content changed (if original was sent) - this is the most reliable indicator
     if (m.original_content && m.original_content.trim() !== (m.content || "").trim()) return true;
 
-    // 🔧 FIX: Don't rely solely on timestamp differences for file messages
-    // File uploads and system updates can cause timestamp differences without being user edits
-    // Only consider timestamp differences if we have other evidence of editing
+    // 🔧 CRITICAL FIX: NEVER mark messages with attachments as edited based on timestamps alone
+    // File uploads cause the backend to update timestamps after creation, but this is NOT an edit
     const hasFileAttachments = (m.attachments && m.attachments.length > 0) || 
                                (m.files && m.files.length > 0) || 
                                ((m as any).has_attachments === true);
     
-    if (!hasFileAttachments && m.updated_at && m.created_at) {
-      // For non-file messages, significant timestamp differences might indicate edits
+    // If message has file attachments, don't consider timestamp differences as edits
+    if (hasFileAttachments) return false;
+    
+    // For non-file messages, significant timestamp differences might indicate edits
+    if (m.updated_at && m.created_at) {
       const timeDiff = new Date(m.updated_at).getTime() - new Date(m.created_at).getTime();
       // Only consider it edited if updated more than 1 second after creation (allows for minor DB delays)
       if (timeDiff > 1000) return true;
@@ -222,10 +228,16 @@ export const MessageList = ({
               {/* Avatar (first in group only) */}
               <div className="w-10 flex-shrink-0">
                 {isFirstInGroup ? (
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={message.sender_avatar || ''} />
-                    <AvatarFallback>{getInitials(message.sender_name || 'U')}</AvatarFallback>
-                  </Avatar>
+                  message.sender_name === 'Smartbookly AI' ? (
+                    <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm">
+                      <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={message.sender_avatar || ''} />
+                      <AvatarFallback>{getInitials(message.sender_name || 'U')}</AvatarFallback>
+                    </Avatar>
+                  )
                 ) : (
                   <div className="h-10 flex items-center justify-center">
                     {hoveredMessage === message.id && (
@@ -276,7 +288,29 @@ export const MessageList = ({
 
                 {/* Text */}
                 <div className={`text-sm leading-relaxed ${deleted ? 'text-muted-foreground italic' : 'text-foreground'}`}>
-                  {deleted ? `[${t('chat.messageDeleted')}]` : message.content}
+                  {deleted ? (
+                    `[${t('chat.messageDeleted')}]`
+                  ) : (
+                    <ReactMarkdown
+                      components={{
+                        a: ({ node, ...props }) => (
+                          <a
+                            {...props}
+                            className="text-primary hover:underline font-medium"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          />
+                        ),
+                        p: ({ node, ...props }) => <p {...props} className="mb-2 last:mb-0" />,
+                        strong: ({ node, ...props }) => <strong {...props} className="font-semibold" />,
+                        code: ({ node, ...props }) => (
+                          <code {...props} className="bg-muted px-1 py-0.5 rounded text-sm" />
+                        ),
+                      }}
+                    >
+                      {message.content}
+                    </ReactMarkdown>
+                  )}
                 </div>
 
                 {/* Attachments — use your existing rich component so thumbnails & popup work again */}
@@ -346,6 +380,28 @@ export const MessageList = ({
           </div>
         );
       })}
+
+      {/* AI Typing Indicator */}
+      {isAITyping && (
+        <div className="group relative mt-4 animate-fade-in">
+          <div className="flex gap-3">
+            <div className="w-10 flex-shrink-0">
+              <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm">
+                <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-medium text-sm">Smartbookly AI</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm italic animate-pulse">AI is thinking...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

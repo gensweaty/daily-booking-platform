@@ -17,6 +17,7 @@ import { format, parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { uploadEventFiles, loadEventFiles } from "@/utils/eventFileUpload";
+import { formatAttribution } from "@/lib/metadata";
 
 interface EventDialogProps {
   open: boolean;
@@ -205,6 +206,7 @@ export const EventDialog = ({
   const [reminderAt, setReminderAt] = useState("");
   const [emailReminderEnabled, setEmailReminderEnabled] = useState(false);
   const [currentUserProfileName, setCurrentUserProfileName] = useState<string>("");
+  const [currentSubUserFullName, setCurrentSubUserFullName] = useState<string>("");
   const [editChoice, setEditChoice] = useState<"this" | "series" | null>(null);
   const [originalInstanceStartISO, setOriginalInstanceStartISO] = useState<string | null>(null);
   const [originalInstanceEndISO, setOriginalInstanceEndISO] = useState<string | null>(null);
@@ -213,7 +215,8 @@ export const EventDialog = ({
   // CRITICAL: Detect virtual instance from either source
   const eventKey = eventId || initialData?.id || "";
   const isVirtualEvent = !!eventKey && isVirtualInstance(eventKey);
-  const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent;
+  // CRITICAL: Excluded events are standalone, not part of a recurring series
+  const isRecurringEvent = (initialData?.is_recurring || isVirtualEvent || initialData?.parent_event_id) && !isNewEvent && !initialData?.excluded_from_series;
 
   // Resolve the real series root (parent) id regardless of what was clicked
   const resolveSeriesRootId = React.useCallback(() => {
@@ -244,29 +247,28 @@ export const EventDialog = ({
         if (data?.username) {
           setCurrentUserProfileName(data.username);
         }
+        
+        // If sub-user, also fetch their full name
+        if (isSubUser && user.email) {
+          const effectiveUserId = getEffectiveUserId();
+          const { data: subUserData } = await supabase
+            .from('sub_users')
+            .select('fullname')
+            .eq('board_owner_id', effectiveUserId)
+            .ilike('email', user.email)
+            .maybeSingle();
+            
+          if (subUserData?.fullname) {
+            setCurrentSubUserFullName(subUserData.fullname);
+          }
+        }
       } catch (err) {
         console.error('Exception fetching current user profile:', err);
       }
     };
     
     fetchCurrentUserProfile();
-  }, [user?.id]);
-
-  // Helper function to normalize names and get current user's username
-  const normalizeName = (name?: string, isCurrentUser = false) => {
-    if (!name) return undefined;
-    
-    // If this is the current user and we have their profile username, use it
-    if (isCurrentUser && currentUserProfileName) {
-      return currentUserProfileName;
-    }
-    
-    // For other cases, normalize the stored name
-    if (name.includes('@')) {
-      return name.split('@')[0];
-    }
-    return name;
-  };
+  }, [user?.id, isSubUser]);
 
 
   const loadAdditionalPersons = async (targetEventId: string) => {
@@ -385,11 +387,14 @@ export const EventDialog = ({
   const loadedEventRef = React.useRef<string | null>(null);
   
   useEffect(() => {
-    // Reset dialog states when opening
-    setEditChoice(null);
-    setShowEditDialog(false);
-    setShowDeleteDialog(false);
-    setIsLoading(false);
+    // CRITICAL: Don't reset dialog states if they're currently open
+    // This prevents the dialogs from closing when real-time updates occur
+    if (!showEditDialog && !showDeleteDialog) {
+      setEditChoice(null);
+      setShowEditDialog(false);
+      setShowDeleteDialog(false);
+      setIsLoading(false);
+    }
     
     const loadAndSetEventData = async () => {
       if (open) {
@@ -924,11 +929,15 @@ export const EventDialog = ({
         // Add sub-user metadata
         ...(isPublicMode && externalUserName ? {
           last_edited_by_type: 'sub_user',
-          last_edited_by_name: externalUserName
+          last_edited_by_name: externalUserName,
+          last_edited_by_ai: false
         } : isSubUser ? {
           last_edited_by_type: 'sub_user',
-          last_edited_by_name: user?.email || 'sub_user'
-        } : {})
+          last_edited_by_name: currentSubUserFullName || user?.email || 'sub_user',
+          last_edited_by_ai: false
+        } : {
+          last_edited_by_ai: false
+        })
       };
 
       console.log("📤 Sending event data to backend with reminder fields:", {
@@ -971,7 +980,8 @@ export const EventDialog = ({
             p_event_data: seriesEventData,
             p_additional_persons: additionalPersons,
             p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
+            p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+            p_edited_by_ai: false
           });
           if (error) throw error;
           if (!seriesResult?.success) throw new Error(seriesResult?.error || 'Failed to update series');
@@ -986,47 +996,57 @@ export const EventDialog = ({
           toast({ title: t("common.success"), description: t("events.eventSeriesUpdated") });
           onEventUpdated?.();
         } else {
-          // edit only this instance -> split + exclude
+          // CRITICAL FIX: Edit only this instance
+          // If we're editing an ACTUAL event (not a virtual instance), UPDATE it directly
+          // Only create a new standalone event if we're editing a VIRTUAL instance
           
-          // 1) If this dialog is already editing a split child (not a virtual ID), just UPDATE it.
-          //    (Avoid creating a second standalone + exclusion)
-          if (!isVirtualEvent && initialData?.parent_event_id && !initialData?.excluded_from_series) {
-            const childId = initialData.id || eventId;
+          if (!isVirtualEvent) {
+            // This is an actual database event - UPDATE it directly
+            const actualEventId = initialData?.id || eventId;
+            console.log('🔄 Updating actual event directly:', actualEventId);
+            
             const { error: updErr } = await supabase.rpc('save_event_with_persons', {
-              p_event_data: {
-                ...eventData,        // includes new start/end from inputs
-                id: childId
-              },
+              p_event_data: eventData, // includes new start/end from inputs
               p_additional_persons: additionalPersons,
               p_user_id: effectiveUserId,
-              p_event_id: childId,
+              p_event_id: actualEventId,
               p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-              p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+              p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+              p_created_by_ai: false,
               p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-              p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+              p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+              p_last_edited_by_ai: false,
             });
             if (updErr) throw updErr;
+            
+            // Handle file uploads for the updated event
+            if (files.length && actualEventId) {
+              await uploadFiles(actualEventId);
+              setFiles([]);
+              await loadExistingFiles(actualEventId);
+            }
           } else {
-            // 2) Virtual instance -> split + exclude using the ORIGINAL occurrence window
-            const parentIdForRpc = isVirtualEvent ? getParentEventId(eventKey) : (initialData?.parent_event_id || eventId || initialData?.id);
+            // This is a VIRTUAL instance -> split it off by creating a standalone event
+            console.log('🔄 Splitting virtual instance into standalone event');
+            const parentIdForRpc = getParentEventId(eventKey);
 
             const { data: standaloneResult, error } = await supabase.rpc('edit_single_event_instance_v2', {
               p_event_id: parentIdForRpc,
               p_user_id: effectiveUserId,
-              // NEW: include the NEW desired times on the standalone
               p_event_data: {
-                ...eventData, // must include start_date & end_date from inputs
+                ...eventData, // includes new start_date & end_date from inputs
                 language
               },
-              // NEW: exclude the ORIGINAL occurrence (captured at open)
+              // Mark the ORIGINAL occurrence for exclusion
               p_instance_start: originalInstanceStartISO || localDateTimeInputToISOString(startDate),
-              p_instance_end: originalInstanceEndISO   || localDateTimeInputToISOString(endDate),
+              p_instance_end: originalInstanceEndISO || localDateTimeInputToISOString(endDate),
               p_additional_persons: additionalPersons,
               p_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-              p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null
+              p_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+              p_edited_by_ai: false
             });
             if (error) throw error;
-            if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to update only this instance');
+            if (!standaloneResult?.success) throw new Error(standaloneResult?.error || 'Failed to split instance');
 
             const newEventId = standaloneResult.new_event_id;
             if (files.length && newEventId) {
@@ -1055,9 +1075,11 @@ export const EventDialog = ({
         p_user_id: effectiveUserId,
         p_event_id: actualEventId,
         p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-        p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+        p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+        p_created_by_ai: false,
         p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-        p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : null,
+        p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+        p_last_edited_by_ai: false,
       });
       if (singleErr) throw singleErr;
 
@@ -1131,9 +1153,11 @@ export const EventDialog = ({
             p_user_id: effectiveUserId,
             p_event_id: null,
             p_created_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : (user?.email || 'admin'),
+            p_created_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+            p_created_by_ai: false,
             p_last_edited_by_type: isPublicMode ? 'sub_user' : isSubUser ? 'sub_user' : 'admin',
-            p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (user?.email || 'sub_user') : (user?.email || 'admin'),
+            p_last_edited_by_name: isPublicMode ? externalUserName : isSubUser ? (currentSubUserFullName || user?.email || 'sub_user') : (currentUserProfileName || user?.email || 'admin'),
+            p_last_edited_by_ai: false,
           });
 
           if (result.error) throw result.error;
@@ -1364,8 +1388,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.created_by_name && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_name === currentUserProfileName || (currentEventData || initialData)?.created_by_name === user?.email)}`}
+                            ? `${formatAttribution((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type, (currentEventData || initialData)?.created_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${formatAttribution((currentEventData || initialData)?.created_by_name, (currentEventData || initialData)?.created_by_type, (currentEventData || initialData)?.created_by_ai)}`}
                         </span>
                       )}
                     </span>
@@ -1377,8 +1401,8 @@ export const EventDialog = ({
                       {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (
                         <span className="ml-1">
                           {language === 'ka' 
-                            ? `${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email)}-ს ${t("common.by")}` 
-                            : `${t("common.by")} ${normalizeName((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_name === currentUserProfileName || (currentEventData || initialData)?.last_edited_by_name === user?.email)}`}
+                            ? `${formatAttribution((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type, (currentEventData || initialData)?.last_edited_by_ai)}-ს ${t("common.by")}` 
+                            : `${t("common.by")} ${formatAttribution((currentEventData || initialData)?.last_edited_by_name, (currentEventData || initialData)?.last_edited_by_type, (currentEventData || initialData)?.last_edited_by_ai)}`}
                         </span>
                       )}
                     </span>

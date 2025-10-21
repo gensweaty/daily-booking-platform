@@ -20,7 +20,7 @@ export const useUserLanguage = () => {
         .from('profiles')
         .select('username')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       const { error } = await supabase
         .from('profiles')
@@ -53,7 +53,7 @@ export const useUserLanguage = () => {
         .from('profiles')
         .select('language')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error('Error loading language preference:', error);

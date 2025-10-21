@@ -4,14 +4,24 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useState, useEffect, forwardRef } from "react";
 import { LanguageText } from "./LanguageText";
 
-const MAX_FILE_SIZE_DOCS = 1024 * 1024; // 1MB
-const MAX_FILE_SIZE_IMAGES = 50 * 1024 * 1024; // 50MB for images
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for all files
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-const ALLOWED_DOC_TYPES = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-// .docx
-"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-// .xlsx
-"application/vnd.openxmlformats-officedocument.presentationml.presentation" // .pptx
+const ALLOWED_DOC_TYPES = [
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation" // .pptx
+];
+const ALLOWED_AUDIO_TYPES = [
+  "audio/mpeg", // .mp3
+  "audio/mp3", // .mp3 (alternative)
+  "audio/webm", // .webm
+  "audio/wav", // .wav
+  "audio/x-wav", // .wav (alternative)
+  "audio/m4a", // .m4a
+  "audio/x-m4a", // .m4a (alternative)
+  "audio/ogg", // .ogg
+  "video/webm" // .webm (can contain audio-only recordings)
 ];
 
 interface FileUploadFieldProps {
@@ -75,15 +85,17 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
   const validateFile = (file: File) => {
     const isImage = ALLOWED_IMAGE_TYPES.includes(file.type);
     const isDoc = ALLOWED_DOC_TYPES.includes(file.type);
-    if (!isImage && !isDoc) {
-      return "Invalid file type. Please upload an image (jpg, jpeg, png, webp) or document (pdf, docx, xlsx, pptx)";
+    const isAudio = ALLOWED_AUDIO_TYPES.includes(file.type);
+    
+    if (!isImage && !isDoc && !isAudio) {
+      return "Invalid file type. Please upload an image (jpg, jpeg, png, webp), document (pdf, docx, xlsx, pptx), or audio file (mp3, webm, wav, m4a, ogg)";
     }
 
-    // If maxSizeMB is provided, use it, otherwise use default values
-    const sizeLimit = maxSizeMB ? maxSizeMB * 1024 * 1024 : isImage ? MAX_FILE_SIZE_IMAGES : MAX_FILE_SIZE_DOCS;
+    // If maxSizeMB is provided, use it, otherwise use default 5MB
+    const sizeLimit = maxSizeMB ? maxSizeMB * 1024 * 1024 : MAX_FILE_SIZE;
     if (file.size > sizeLimit) {
-      const displaySize = maxSizeMB || (isImage ? MAX_FILE_SIZE_IMAGES / (1024 * 1024) : MAX_FILE_SIZE_DOCS / (1024 * 1024));
-      return `File size exceeds ${displaySize}MB limit${isImage ? ' for images' : ' for documents'}`;
+      const displaySize = maxSizeMB || (MAX_FILE_SIZE / (1024 * 1024));
+      return `File size exceeds ${displaySize}MB limit`;
     }
     return null;
   };
@@ -123,7 +135,7 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
           <img src={imageUrl} alt="Preview" className="max-h-40 rounded-md object-cover" />
         </div>}
       
-      <Input id="file" type="file" onChange={handleFileChange} accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES].join(",")} className="cursor-pointer bg-background border-gray-300" onClick={e => {
+      <Input id="file" type="file" onChange={handleFileChange} accept={acceptedFileTypes || [...ALLOWED_IMAGE_TYPES, ...ALLOWED_DOC_TYPES, ...ALLOWED_AUDIO_TYPES].join(",")} className="cursor-pointer bg-background border-gray-300" onClick={e => {
       // Reset value before opening to ensure onChange triggers even if same file is selected
       (e.target as HTMLInputElement).value = '';
     }} disabled={disabled || isUploading} ref={ref} />
@@ -135,9 +147,9 @@ export const FileUploadField = forwardRef<HTMLInputElement, FileUploadFieldProps
       {!hideDescription && !actualFileError && (
         <p className="text-xs text-muted-foreground mt-1">
           {language === 'en' ? 
-            "Supported Formats: .jpg, .jpeg, .png, .pdf, .docx, .xls" :
+            "Supported: Images, Documents, Audio (Max 5MB)" :
             language === 'ka' ?
-            "მხარდაჭერილი ფორმატები: .jpg, .jpeg, .png, .pdf, .docx, .xls" :
+            "მხარდაჭერილია: სურათები, დოკუმენტები, აუდიო (მაქს. 5MB)" :
             <LanguageText>{t("common.supportedFormats")}</LanguageText>
           }
         </p>

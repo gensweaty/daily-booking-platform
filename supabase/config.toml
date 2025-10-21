@@ -38,6 +38,12 @@ verify_jwt = false
 [functions.send-task-reminder-email]
 verify_jwt = false
 
+[functions.send-custom-reminder-email]
+verify_jwt = false
+
+[functions.send-direct-email]
+verify_jwt = false
+
 [functions.send-event-reminder-email]
 verify_jwt = false
 
@@ -47,7 +53,16 @@ verify_jwt = false
 [functions.admin-delete-sub-users]
 verify_jwt = true
 
+[functions.admin-change-user-plan]
+verify_jwt = true
+
 [functions.send-comment-email]
+verify_jwt = false
+
+[functions.ai-chat]
+verify_jwt = true
+
+[functions.generate-excel-report]
 verify_jwt = false
 
 [storage]

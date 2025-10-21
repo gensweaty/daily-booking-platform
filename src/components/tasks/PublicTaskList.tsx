@@ -116,11 +116,12 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
 
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<Task> }) => {
-      // Add metadata tracking for external user edits
+      // Add metadata tracking for sub-user edits
       const updatesWithMetadata = {
         ...updates,
-        last_edited_by_type: 'external_user',
-        last_edited_by_name: `${externalUserName} (Sub User)`,
+        last_edited_by_type: 'sub_user',
+        last_edited_by_name: externalUserName,
+        last_edited_by_ai: false,
         last_edited_at: new Date().toISOString(),
       };
 
@@ -289,15 +290,15 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     );
   }
 
-  // External users should only be able to delete/edit their own tasks
+  // Sub-users can only delete/edit their own tasks (both manual and AI-created)
   const canDeleteTask = (task: Task) => {
-    return task.created_by_type === 'external_user' && 
-           task.created_by_name === `${externalUserName} (Sub User)`;
+    return task.created_by_type === 'sub_user' && 
+           task.created_by_name === externalUserName;
   };
 
   const canEditTask = (task: Task) => {
-    return task.created_by_type === 'external_user' && 
-           task.created_by_name === `${externalUserName} (Sub User)`;
+    return task.created_by_type === 'sub_user' && 
+           task.created_by_name === externalUserName;
   };
 
   const handleDeleteTask = async (taskId: string) => {
@@ -317,8 +318,9 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
         .update({ 
           archived: true,
           archived_at: new Date().toISOString(),
-          last_edited_by_type: 'external_user',
-          last_edited_by_name: `${externalUserName} (Sub User)`,
+          last_edited_by_type: 'sub_user',
+          last_edited_by_name: externalUserName,
+          last_edited_by_ai: false,
           last_edited_at: new Date().toISOString()
         })
         .eq('id', taskId)

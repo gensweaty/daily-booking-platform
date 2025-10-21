@@ -549,8 +549,22 @@ export const CustomerDialog = ({
             );
             console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] File uploaded successfully:`, uploadedFileData);
             
-            // Immediately update displayedFiles state to show the new file
-            setDisplayedFiles(prev => [...prev, uploadedFileData]);
+            // Refresh files from database to ensure UI is in sync
+            await refreshFilesForCustomer(customerId);
+            
+            // Reload files from database to update displayedFiles state
+            const { data: refreshedFiles, error: refreshError } = await supabase
+              .from('customer_files_new')
+              .select('*')
+              .eq('customer_id', customerId)
+              .eq('user_id', getEffectiveUserId());
+            
+            if (!refreshError && refreshedFiles) {
+              console.log(`✅ [${isPublicMode ? 'Public' : 'Internal'}] Reloaded ${refreshedFiles.length} files after upload`);
+              setDisplayedFiles(refreshedFiles);
+            } else if (refreshError) {
+              console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] Error reloading files:`, refreshError);
+            }
           } catch (uploadError) {
             console.error(`❌ [${isPublicMode ? 'Public' : 'Internal'}] File upload failed:`, uploadError);
             toast({

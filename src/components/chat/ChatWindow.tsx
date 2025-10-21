@@ -28,14 +28,14 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  // Set state on mount - minimized on first open for desktop, maximized for mobile
+  // Set state on mount - normal on first open for desktop, maximized for mobile
   useEffect(() => {
     if (!isOpen) return;
     if (isMobile) {
       setWindowState('maximized');
       setIsSidebarCollapsed(true);
     } else {
-      setWindowState('minimized');
+      setWindowState('normal');
     }
   }, [isOpen, isMobile]);
 

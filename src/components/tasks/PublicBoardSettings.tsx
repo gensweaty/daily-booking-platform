@@ -56,7 +56,7 @@ export const PublicBoardSettings = () => {
         .from('public_boards')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         console.error('Error fetching public board:', error);
@@ -102,7 +102,7 @@ export const PublicBoardSettings = () => {
         .select('id')
         .eq('slug', slug.trim())
         .neq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (existingBoard) {
         toast({

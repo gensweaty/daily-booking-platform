@@ -44,8 +44,11 @@ export interface CalendarEventType {
   // Sub-user tracking properties
   created_by_type?: string;
   created_by_name?: string;
+  created_by_ai?: boolean;
   last_edited_by_type?: string;
   last_edited_by_name?: string;
+  last_edited_by_ai?: boolean;
+  recurrence_instance_date?: string;
   files?: Array<{
     id: string;
     event_id: string;

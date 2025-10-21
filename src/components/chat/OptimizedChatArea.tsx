@@ -14,6 +14,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { detectNetworkQuality, isSlowNetwork, getOptimalPageSize, getOptimalPollingInterval } from '@/utils/networkDetector';
 import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
+import { getUserTimezone } from '@/utils/timezoneUtils';
 
 type Message = {
   id: string;
@@ -52,11 +53,12 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   const { toast } = useToast();
   const { t } = useLanguage();
   const location = useLocation();
+  const userTimezone = getUserTimezone();
 
-  // Network optimization
+  // Network optimization - ensure minimum 30 messages for chat history
   const networkInfo = useRef(detectNetworkQuality());
   const isSlowNet = useRef(isSlowNetwork(networkInfo.current));
-  const pageSize = useRef(getOptimalPageSize(networkInfo.current));
+  const pageSize = useRef(Math.max(30, getOptimalPageSize(networkInfo.current)));
   const pollingInterval = useRef(getOptimalPollingInterval(networkInfo.current));
 
   // Compute effective email using the same logic as ChatSidebar
@@ -102,9 +104,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     isDM: boolean; 
     dmPartner?: { name: string; avatar?: string };
     avatar_url?: string;
+    is_ai?: boolean;
   } | null>(null);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [isSendingToAI, setIsSendingToAI] = useState(false);
   
   // Participant dropdown state
   const [showParticipants, setShowParticipants] = useState(false);
@@ -205,6 +209,10 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     setLoading(true);
     setHasMoreMessages(true);
     oldestMessageId.current = null;
+    // Invalidate cache for the new channel to force fresh load
+    if (activeChannelId) {
+      cacheRef.current.delete(activeChannelId);
+    }
   }, [activeChannelId]);
 
   // Load General channel ID
@@ -238,7 +246,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
       const { data: ch } = await supabase
         .from('chat_channels')
-        .select('name, is_dm, avatar_url')
+        .select('name, is_dm, avatar_url, is_ai')
         .eq('id', activeChannelId)
         .maybeSingle();
 
@@ -246,7 +254,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         const info = { 
           name: ch?.name || t('chat.general'), 
           isDM: false,
-          avatar_url: ch?.avatar_url 
+          avatar_url: ch?.avatar_url,
+          is_ai: ch?.is_ai || false
         } as const;
         headerCacheRef.current.set(activeChannelId, info);
         setChannelInfo(info);
@@ -419,8 +428,8 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       const ids = normalized.map(m => m.id);
       let byMsg: Record<string, any[]> = {};
       
-      if (ids.length && !isSlowNet.current) {
-        // Only load attachments on faster networks to avoid delays
+      // 🔧 FIX: Always load attachments - user data must be visible regardless of network speed
+      if (ids.length) {
         if (onPublicBoard && me?.type === 'sub_user') {
           const { data: attRows } = await supabase.rpc('list_files_for_messages_public', {
             p_message_ids: ids
@@ -505,7 +514,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     }
   }, [me, boardOwnerId, isInitialized, location.pathname, effectiveEmail, publicSubUserId]);
 
-  // Initial message loading
+  // Initial message loading - always fetch fresh to ensure history is visible
   useEffect(() => {
     if (!activeChannelId) {
       setMessages([]);
@@ -513,16 +522,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       return;
     }
 
-    // Check cache first
-    const cached = cacheRef.current.get(activeChannelId);
-    if (cached?.messages.length) {
-      setMessages(cached.messages);
-      setHasMoreMessages(cached.hasMore);
-      setLoading(false);
-      oldestMessageId.current = cached.messages[0]?.id || null;
-      return;
-    }
-
+    // Always do a fresh load to ensure we have the latest messages
     setLoading(true);
     loadMessages(activeChannelId).finally(() => setLoading(false));
   }, [activeChannelId, loadMessages]);
@@ -613,10 +613,18 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     loadParticipants();
   }, [activeChannelId, boardOwnerId, teamMembers, fetchChannelParticipants]);
 
-  // Scroll management
+  // Scroll management - instant for immediate visibility
   const scrollToBottom = useCallback(() => {
     if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
+      // First: Instant scroll to ensure immediate visibility
+      bottomRef.current.scrollIntoView({ behavior: 'instant', block: 'end' });
+      
+      // Second: Smooth polish for better UX (optional on mobile to avoid jank)
+      requestAnimationFrame(() => {
+        if (bottomRef.current) {
+          bottomRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+      });
     }
   }, []);
 
@@ -661,9 +669,19 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
               const exists = prev.find(m => m.id === newMessage.id);
               if (exists) return prev;
               
-              return [...prev, messageWithAttachments].sort(
+              const updated = [...prev, messageWithAttachments].sort(
                 (a, b) => +new Date(a.created_at) - +new Date(b.created_at)
               );
+              
+              // Update cache with new message to keep it in sync
+              if (activeChannelId) {
+                cacheRef.current.set(activeChannelId, {
+                  messages: updated,
+                  hasMore: updated.length >= pageSize.current
+                });
+              }
+              
+              return updated;
             });
 
             // Auto-scroll to bottom for new messages
@@ -671,12 +689,24 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           } else if (payload.eventType === 'UPDATE') {
             const updatedMessage = payload.new as any;
             
+            // 🔧 CRITICAL FIX: Preserve attachments during updates
+            // The UPDATE payload from database doesn't include attachments (they're in a separate table)
+            // If we spread updatedMessage over existing message, we'll lose the attachments array
             setMessages(prev =>
-              prev.map(m =>
-                m.id === updatedMessage.id
-                  ? { ...m, ...updatedMessage, _isUpdate: true }
-                  : m
-              )
+              prev.map(m => {
+                if (m.id === updatedMessage.id) {
+                  // Preserve existing attachments array
+                  const preservedAttachments = m.attachments || [];
+                  
+                  return {
+                    ...m,
+                    ...updatedMessage,
+                    attachments: preservedAttachments, // Keep existing attachments
+                    _isUpdate: true
+                  };
+                }
+                return m;
+              })
             );
           } else if (payload.eventType === 'DELETE') {
             const deletedMessage = payload.old as any;
@@ -704,6 +734,16 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
     return () => clearInterval(interval);
   }, [activeChannelId, realtimeEnabled, loadMessages]);
+
+  // Auto-scroll when AI typing indicator appears - immediate, no delay
+  useEffect(() => {
+    if (isSendingToAI) {
+      // Immediate scroll using requestAnimationFrame for optimal performance
+      requestAnimationFrame(() => {
+        scrollToBottom();
+      });
+    }
+  }, [isSendingToAI, scrollToBottom]);
 
   if (!isInitialized || loading) {
     return (
@@ -799,6 +839,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             onDelete={(messageId: string) => {
               console.log('Delete message:', messageId);
             }}
+            isAITyping={isSendingToAI}
           />
           
           <div ref={bottomRef} />
@@ -813,6 +854,11 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
           onCancelReply={() => setReplyingTo(null)}
           editingMessage={editingMessage ? { ...editingMessage, updated_at: editingMessage.updated_at || editingMessage.created_at } : null}
           onCancelEdit={() => setEditingMessage(null)}
+          currentChannelId={activeChannelId}
+          isAIChannel={channelInfo?.is_ai || false}
+          boardOwnerId={boardOwnerId}
+          userTimezone={userTimezone}
+          onAISending={setIsSendingToAI}
         />
       </div>
     </div>

@@ -223,6 +223,7 @@ export type Database = {
           dm_pair_key: string | null
           emoji: string | null
           id: string
+          is_ai: boolean | null
           is_custom: boolean
           is_default: boolean | null
           is_deleted: boolean
@@ -242,6 +243,7 @@ export type Database = {
           dm_pair_key?: string | null
           emoji?: string | null
           id?: string
+          is_ai?: boolean | null
           is_custom?: boolean
           is_default?: boolean | null
           is_deleted?: boolean
@@ -261,6 +263,7 @@ export type Database = {
           dm_pair_key?: string | null
           emoji?: string | null
           id?: string
+          is_ai?: boolean | null
           is_custom?: boolean
           is_default?: boolean | null
           is_deleted?: boolean
@@ -561,6 +564,78 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_reminders: {
+        Row: {
+          created_at: string
+          created_by_name: string | null
+          created_by_sub_user_id: string | null
+          created_by_type: string | null
+          deleted_at: string | null
+          email_sent: boolean | null
+          id: string
+          language: string | null
+          message: string | null
+          recipient_customer_id: string | null
+          recipient_email: string | null
+          recipient_event_id: string | null
+          remind_at: string
+          reminder_sent_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_name?: string | null
+          created_by_sub_user_id?: string | null
+          created_by_type?: string | null
+          deleted_at?: string | null
+          email_sent?: boolean | null
+          id?: string
+          language?: string | null
+          message?: string | null
+          recipient_customer_id?: string | null
+          recipient_email?: string | null
+          recipient_event_id?: string | null
+          remind_at: string
+          reminder_sent_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by_name?: string | null
+          created_by_sub_user_id?: string | null
+          created_by_type?: string | null
+          deleted_at?: string | null
+          email_sent?: boolean | null
+          id?: string
+          language?: string | null
+          message?: string | null
+          recipient_customer_id?: string | null
+          recipient_email?: string | null
+          recipient_event_id?: string | null
+          remind_at?: string
+          reminder_sent_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_reminders_recipient_customer_id_fkey"
+            columns: ["recipient_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_reminders_recipient_event_id_fkey"
+            columns: ["recipient_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_files: {
         Row: {
           content_type: string | null
@@ -647,6 +722,7 @@ export type Database = {
         Row: {
           create_event: boolean | null
           created_at: string | null
+          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deleted_at: string | null
@@ -656,6 +732,7 @@ export type Database = {
           id: string
           is_group_member: boolean | null
           last_edited_at: string | null
+          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           paid_at: string | null
@@ -673,6 +750,7 @@ export type Database = {
         Insert: {
           create_event?: boolean | null
           created_at?: string | null
+          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deleted_at?: string | null
@@ -682,6 +760,7 @@ export type Database = {
           id?: string
           is_group_member?: boolean | null
           last_edited_at?: string | null
+          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           paid_at?: string | null
@@ -699,6 +778,7 @@ export type Database = {
         Update: {
           create_event?: boolean | null
           created_at?: string | null
+          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deleted_at?: string | null
@@ -708,6 +788,7 @@ export type Database = {
           id?: string
           is_group_member?: boolean | null
           last_edited_at?: string | null
+          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           paid_at?: string | null
@@ -832,6 +913,7 @@ export type Database = {
           booking_request_id: string | null
           content_type: string | null
           created_at: string | null
+          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deleted_at: string | null
@@ -850,6 +932,7 @@ export type Database = {
           is_recurring: boolean | null
           language: string | null
           last_edited_at: string | null
+          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           original_booking_id: string | null
@@ -877,6 +960,7 @@ export type Database = {
           booking_request_id?: string | null
           content_type?: string | null
           created_at?: string | null
+          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deleted_at?: string | null
@@ -895,6 +979,7 @@ export type Database = {
           is_recurring?: boolean | null
           language?: string | null
           last_edited_at?: string | null
+          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           original_booking_id?: string | null
@@ -922,6 +1007,7 @@ export type Database = {
           booking_request_id?: string | null
           content_type?: string | null
           created_at?: string | null
+          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deleted_at?: string | null
@@ -940,6 +1026,7 @@ export type Database = {
           is_recurring?: boolean | null
           language?: string | null
           last_edited_at?: string | null
+          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           original_booking_id?: string | null
@@ -1298,6 +1385,60 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_emails: {
+        Row: {
+          business_name: string | null
+          created_at: string
+          created_by_name: string | null
+          created_by_type: string | null
+          deleted_at: string | null
+          id: string
+          language: string | null
+          message: string
+          recipient_email: string
+          send_at: string
+          sender_email: string | null
+          sender_name: string | null
+          sent_at: string | null
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          business_name?: string | null
+          created_at?: string
+          created_by_name?: string | null
+          created_by_type?: string | null
+          deleted_at?: string | null
+          id?: string
+          language?: string | null
+          message: string
+          recipient_email: string
+          send_at: string
+          sender_email?: string | null
+          sender_name?: string | null
+          sent_at?: string | null
+          subject: string
+          user_id: string
+        }
+        Update: {
+          business_name?: string | null
+          created_at?: string
+          created_by_name?: string | null
+          created_by_type?: string | null
+          deleted_at?: string | null
+          id?: string
+          language?: string | null
+          message?: string
+          recipient_email?: string
+          send_at?: string
+          sender_email?: string | null
+          sender_name?: string | null
+          sent_at?: string | null
+          subject?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       "Stripe cusotmers": {
         Row: {
           created_at: string
@@ -1541,6 +1682,7 @@ export type Database = {
           assigned_to_name: string | null
           assigned_to_type: string | null
           created_at: string | null
+          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deadline_at: string | null
@@ -1550,6 +1692,7 @@ export type Database = {
           external_user_email: string | null
           id: string
           last_edited_at: string | null
+          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           position: number | null
@@ -1573,6 +1716,7 @@ export type Database = {
           assigned_to_name?: string | null
           assigned_to_type?: string | null
           created_at?: string | null
+          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deadline_at?: string | null
@@ -1582,6 +1726,7 @@ export type Database = {
           external_user_email?: string | null
           id?: string
           last_edited_at?: string | null
+          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           position?: number | null
@@ -1605,6 +1750,7 @@ export type Database = {
           assigned_to_name?: string | null
           assigned_to_type?: string | null
           created_at?: string | null
+          created_by_ai?: boolean | null
           created_by_name?: string | null
           created_by_type?: string | null
           deadline_at?: string | null
@@ -1614,6 +1760,7 @@ export type Database = {
           external_user_email?: string | null
           id?: string
           last_edited_at?: string | null
+          last_edited_by_ai?: boolean | null
           last_edited_by_name?: string | null
           last_edited_by_type?: string | null
           position?: number | null
@@ -1796,6 +1943,7 @@ export type Database = {
       edit_single_event_instance_v2: {
         Args: {
           p_additional_persons: Json
+          p_edited_by_ai?: boolean
           p_edited_by_name: string
           p_edited_by_type: string
           p_event_data: Json
@@ -1819,6 +1967,10 @@ export type Database = {
         }
         Returns: Json
       }
+      ensure_ai_channel: {
+        Args: { p_owner_id: string }
+        Returns: string
+      }
       ensure_dm_channel: {
         Args: {
           p_a_id: string
@@ -1827,6 +1979,14 @@ export type Database = {
           p_b_type: string
           p_owner_id: string
         }
+        Returns: string
+      }
+      ensure_personal_ai_channel: {
+        Args: { p_owner_id: string; p_user_id: string; p_user_type: string }
+        Returns: string
+      }
+      ensure_unique_ai_channel: {
+        Args: { p_owner_id: string; p_user_identity: string }
         Returns: string
       }
       find_or_create_dm: {
@@ -2036,6 +2196,7 @@ export type Database = {
           assigned_to_name: string | null
           assigned_to_type: string | null
           created_at: string | null
+          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deadline_at: string | null
@@ -2045,6 +2206,7 @@ export type Database = {
           external_user_email: string | null
           id: string
           last_edited_at: string | null
+          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           position: number | null
@@ -2064,6 +2226,7 @@ export type Database = {
           booking_request_id: string | null
           content_type: string | null
           created_at: string | null
+          created_by_ai: boolean | null
           created_by_name: string | null
           created_by_type: string | null
           deleted_at: string | null
@@ -2082,6 +2245,7 @@ export type Database = {
           is_recurring: boolean | null
           language: string | null
           last_edited_at: string | null
+          last_edited_by_ai: boolean | null
           last_edited_by_name: string | null
           last_edited_by_type: string | null
           original_booking_id: string | null
@@ -2132,6 +2296,15 @@ export type Database = {
           id: string
           name: string
           type: string
+        }[]
+      }
+      get_upcoming_custom_reminders: {
+        Args: { p_user_id: string }
+        Returns: {
+          id: string
+          message: string
+          remind_at: string
+          title: string
         }[]
       }
       get_user_participating_channels: {
@@ -2204,6 +2377,7 @@ export type Database = {
           p_requester_sub_user_id?: string
         }
         Returns: {
+          attachments: Json
           channel_id: string
           content: string
           created_at: string
@@ -2257,23 +2431,18 @@ export type Database = {
         Returns: undefined
       }
       save_event_with_persons: {
-        Args:
-          | {
-              p_additional_persons: Json
-              p_created_by_name?: string
-              p_created_by_type?: string
-              p_event_data: Json
-              p_event_id?: string
-              p_last_edited_by_name?: string
-              p_last_edited_by_type?: string
-              p_user_id: string
-            }
-          | {
-              p_additional_persons: Json
-              p_event_data: Json
-              p_event_id?: string
-              p_user_id: string
-            }
+        Args: {
+          p_additional_persons: Json
+          p_created_by_ai?: boolean
+          p_created_by_name?: string
+          p_created_by_type?: string
+          p_event_data: Json
+          p_event_id?: string
+          p_last_edited_by_ai?: boolean
+          p_last_edited_by_name?: string
+          p_last_edited_by_type?: string
+          p_user_id: string
+        }
         Returns: string
       }
       send_authenticated_message: {
@@ -2362,6 +2531,7 @@ export type Database = {
       update_event_series_safe: {
         Args: {
           p_additional_persons: Json
+          p_edited_by_ai?: boolean
           p_edited_by_name: string
           p_edited_by_type: string
           p_event_data: Json
