@@ -1,6 +1,4 @@
-import { MessageCircle, Bot } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Bot, Pencil } from 'lucide-react';
 
 interface ChatIconProps {
   onClick: () => void;
@@ -14,50 +12,51 @@ interface ChatIconProps {
 export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false, teamChatText, loadingText }: ChatIconProps) => {
   console.log('🎯 ChatIcon rendering:', { isOpen, unreadCount, isPending });
   
-  
   return (
-    <div className="fixed bottom-2 right-2 z-[9999]" style={{ zIndex: 9999 }}>
-      <Button
+    <div className="fixed bottom-4 right-4 z-[9999] md:bottom-6 md:right-6" style={{ zIndex: 9999 }}>
+      <button
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           console.log('🖱️ ChatIcon clicked!');
           onClick();
         }}
-        size="sm"
         disabled={isPending}
         className={`
-          relative h-8 px-3 bg-muted/90 hover:bg-muted border shadow-lg transition-all duration-200 pointer-events-auto
-          flex items-center gap-2 text-sm font-medium
-          ${isOpen 
-            ? 'bg-muted hover:bg-muted/80 scale-95' 
-            : 'hover:scale-105'
-          }
-          ${isPending 
-            ? 'opacity-70 cursor-wait' 
-            : ''
-          }
+          relative h-12 px-4 rounded-lg shadow-2xl transition-all duration-300 pointer-events-auto
+          flex items-center gap-2.5 text-white font-semibold text-sm
+          bg-gradient-to-r from-[#4169E1] to-[#8B5CF6]
+          hover:shadow-[0_8px_30px_rgba(139,92,246,0.4)]
+          ${isOpen ? 'scale-95' : 'hover:scale-105'}
+          ${isPending ? 'opacity-70 cursor-wait' : ''}
+          md:h-11 md:px-5
         `}
         style={{ zIndex: 9999 }}
       >
+        {/* Yellow edit icon badge */}
+        <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center shadow-md">
+          <Pencil className="h-2.5 w-2.5 text-blue-900" strokeWidth={2.5} />
+        </div>
+
+        {/* Bot icon */}
         {isPending ? (
-          <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
+          <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
         ) : (
-          <div className="relative w-4 h-4">
-            <MessageCircle className="h-4 w-4" />
-            <Bot className="h-2 w-2 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-          </div>
+          <Bot className="h-5 w-5 md:h-5 md:w-5" strokeWidth={2} />
         )}
-        <span>
+        
+        {/* Text */}
+        <span className="text-sm md:text-sm whitespace-nowrap">
           {isPending ? loadingText : teamChatText}
         </span>
         
+        {/* Unread count badge */}
         {unreadCount > 0 && !isPending && (
-          <div className="absolute -top-2 -right-2 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-background">
+          <div className="absolute -top-2 -left-2 h-6 w-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white shadow-lg">
             {unreadCount > 9 ? '9+' : unreadCount}
           </div>
         )}
-      </Button>
+      </button>
     </div>
   );
 };

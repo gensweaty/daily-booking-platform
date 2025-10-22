@@ -33,7 +33,7 @@ export const translations: TranslationType = {
     crm: "CRM",
     analytics: "Analítica",
     website: "Sitio Web",
-    teamChat: "Chat de Equipo",
+    teamChat: "IA & Chat de Equipo",
     ai: "Asistente IA",
     ownBookingWebsite: "Su propio sitio web de reservas",
     businessTitle: "Para cualquier tipo de negocio",
@@ -770,7 +770,7 @@ export const translations: TranslationType = {
     december: "Diciembre"
   },
   chat: {
-    teamChat: "Chat del Equipo e IA",
+    teamChat: "IA & Chat de Equipo",
     general: "General",
     teamMembers: "Miembros del Equipo",
     owner: "Propietario",

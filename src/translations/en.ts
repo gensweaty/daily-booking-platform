@@ -22,7 +22,7 @@ export const translations: TranslationType = {
     crm: "CRM",
     analytics: "Analytics",
     website: "Website",
-    teamChat: "Team Chat",
+    teamChat: "AI & Team Chat",
     ai: "AI Assistant",
     ownBookingWebsite: "Your own booking website",
     businessTitle: "For any type of business",
@@ -770,7 +770,7 @@ export const translations: TranslationType = {
     addAttachment: "Add Attachment"
   },
   chat: {
-    teamChat: "Team Chat & AI",
+    teamChat: "AI & Team Chat",
     general: "General",
     teamMembers: "Team Members",
     owner: "Owner",
