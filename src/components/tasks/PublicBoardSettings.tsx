@@ -25,11 +25,21 @@ interface PublicBoard {
   slug: string;
 }
 
-export const PublicBoardSettings = () => {
+interface PublicBoardSettingsProps {
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+}
+
+export const PublicBoardSettings = ({ isOpen: externalIsOpen, onOpenChange: externalOnOpenChange, hideTrigger = false }: PublicBoardSettingsProps = {}) => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  
+  // Use external state if provided, otherwise use internal state
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+  const setIsOpen = externalOnOpenChange || setInternalIsOpen;
   const [isPublic, setIsPublic] = useState(false);
   const [magicWord, setMagicWord] = useState("");
   const [slug, setSlug] = useState("");
@@ -183,17 +193,19 @@ export const PublicBoardSettings = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button 
-          variant="outline" 
-          className="flex items-center gap-2 bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 border-primary/20 hover:border-primary/30 transition-all duration-300"
-        >
-          {isPublic ? <Globe className="h-4 w-4 text-green-500" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
-          <span className="font-medium">
-            {isPublic ? t("publicBoard.public") : t("publicBoard.private")}
-          </span>
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2 bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 border-primary/20 hover:border-primary/30 transition-all duration-300"
+          >
+            {isPublic ? <Globe className="h-4 w-4 text-green-500" /> : <Lock className="h-4 w-4 text-muted-foreground" />}
+            <span className="font-medium">
+              {isPublic ? t("publicBoard.public") : t("publicBoard.private")}
+            </span>
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

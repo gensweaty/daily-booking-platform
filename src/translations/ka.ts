@@ -349,7 +349,8 @@ export const translations: TranslationType = {
   publicBoard: {
     public: "საჯარო",
     private: "პრივატული",
-    boardSettings: "დაფის პარამეტრები",
+    boardSettings: "პანელის პარამეტრები და გუნდის მართვა",
+    manageTeam: "გუნდის მართვა",
     makePublic: "საჯაროს გახადება",
     publicDescription: "საშუალება მისცეთ გარე მომხმარებლებს წვდომა თქვენს ამოცანების დაფაზე",
     boardSlug: "დაფის URL",
