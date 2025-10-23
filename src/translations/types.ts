@@ -344,6 +344,8 @@ export interface TranslationType {
     public: string;
     private: string;
     boardSettings: string;
+    manageTeam: string;
+    dashboardAndTeamManagement: string;
     makePublic: string;
     publicDescription: string;
     boardSlug: string;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { flushSync } from 'react-dom';
-import { Hash, Trash2 } from 'lucide-react';
+import { Hash, Trash2, Settings } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useChat } from './ChatProvider';
@@ -20,6 +20,7 @@ import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 import { useAIChannel } from '@/hooks/useAIChannel';
 import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
+import { PublicBoardSettings } from '@/components/tasks/PublicBoardSettings';
 
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
@@ -86,6 +87,9 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
   // Visual suppression layer to prevent badge flicker during channel switches
   const [switchingChannelId, setSwitchingChannelId] = useState<string | null>(null);
   const suppressionTimeoutRef = useRef<NodeJS.Timeout>();
+  
+  // State for Board Settings dialog
+  const [boardSettingsOpen, setBoardSettingsOpen] = useState(false);
   
   // Enhanced badge getter with visual suppression
   const getVisibleBadge = (channelId: string) => {
@@ -694,9 +698,23 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
 
         {/* Team Members */}
         <div className="pt-4">
-          <p className="text-xs font-medium text-muted-foreground mb-2 px-2 uppercase tracking-wide">
-            <LanguageText>{t('chat.teamMembers')}</LanguageText>
-          </p>
+          <div className="flex items-center justify-between mb-2 px-2">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <LanguageText>{t('chat.teamMembers')}</LanguageText>
+            </p>
+            {me?.type === 'admin' && !isPublicBoard && (
+              <button
+                onClick={() => setBoardSettingsOpen(true)}
+                className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded-md transition-colors"
+                title={t('publicBoard.manageTeam')}
+              >
+                <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground flex-shrink-0" />
+                <span className="hidden md:inline text-sm text-muted-foreground hover:text-foreground whitespace-nowrap">
+                  {t('publicBoard.manageTeam')}
+                </span>
+              </button>
+            )}
+          </div>
           
           {members.map((member) => {
             // Robust "is me" detection
@@ -1131,6 +1149,13 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Board Settings Dialog (controlled externally) */}
+      <PublicBoardSettings 
+        isOpen={boardSettingsOpen} 
+        onOpenChange={setBoardSettingsOpen}
+        hideTrigger={true}
+      />
     </div>
   );
 };

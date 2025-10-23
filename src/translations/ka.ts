@@ -33,7 +33,7 @@ export const translations: TranslationType = {
     crm: "CRM",
     analytics: "ანალიტიკა",
     website: "ვებგვერდი",
-    teamChat: "გუნდური ჩათი",
+    teamChat: "AI & გუნდური ჩათი",
     ai: "AI ასისტენტი",
     ownBookingWebsite: "თქვენი საკუთარი დაჯავშნის ვებგვერდი",
     businessTitle: "ყველა ტიპის ბიზნესისთვის",
@@ -349,7 +349,9 @@ export const translations: TranslationType = {
   publicBoard: {
     public: "საჯარო",
     private: "პრივატული",
-    boardSettings: "დაფის პარამეტრები",
+    boardSettings: "პანელის პარამეტრები და გუნდის მართვა",
+    manageTeam: "გუნდის მართვა",
+    dashboardAndTeamManagement: "დაფა და გუნდის მართვა",
     makePublic: "საჯაროს გახადება",
     publicDescription: "საშუალება მისცეთ გარე მომხმარებლებს წვდომა თქვენს ამოცანების დაფაზე",
     boardSlug: "დაფის URL",
@@ -770,7 +772,7 @@ export const translations: TranslationType = {
     december: "დეკემბერი"
   },
   chat: {
-    teamChat: "გუნდური ჩათი და AI",
+    teamChat: "AI & გუნდური ჩათი",
     general: "ზოგადი",
     teamMembers: "გუნდის წევრები",
     owner: "მფლობელი",

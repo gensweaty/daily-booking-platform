@@ -25,6 +25,7 @@ import { SubscriptionCountdown } from "./subscription/SubscriptionCountdown";
 import { AvatarUpload } from "./AvatarUpload";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ProfileButton } from "./dashboard/ProfileButton";
+import { PublicBoardSettings } from "./tasks/PublicBoardSettings";
 
 interface DashboardHeaderProps {
   username: string;
@@ -52,6 +53,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [userProfileName, setUserProfileName] = useState<string | null>(null);
+  const [teamManagementOpen, setTeamManagementOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const fetchUserProfile = async () => {
@@ -427,6 +429,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   </div>
                 </div>
 
+                {/* Dashboard and Team Management Button */}
+                <div className="bg-gradient-to-r from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-4 md:p-6 border border-orange-200/50 dark:border-orange-800/50">
+                  <Button
+                    onClick={() => setTeamManagementOpen(true)}
+                    className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-semibold py-3 md:py-4 text-sm md:text-base"
+                  >
+                    <LanguageText>{t('publicBoard.dashboardAndTeamManagement')}</LanguageText>
+                  </Button>
+                </div>
+
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl p-4 md:p-6 border border-purple-200/50 dark:border-purple-800/50">
                   <div className="flex justify-between items-center mb-4 md:mb-6">
                     <h3 className={`${isMobile ? 'text-lg' : 'text-xl'} font-semibold text-gray-800 dark:text-gray-200 flex items-center gap-2`}>
@@ -597,6 +609,12 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       <ManageSubscriptionDialog 
         open={isManageSubscriptionOpen} 
         onOpenChange={setIsManageSubscriptionOpen} 
+      />
+      
+      <PublicBoardSettings
+        isOpen={teamManagementOpen}
+        onOpenChange={setTeamManagementOpen}
+        hideTrigger={true}
       />
     </header>
   );
