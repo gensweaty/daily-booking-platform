@@ -340,6 +340,7 @@ export const translations: TranslationType = {
     private: "Private",
     boardSettings: "Dashboard Settings and Team Management",
     manageTeam: "Manage Team",
+    dashboardAndTeamManagement: "Dashboard And Team Management",
     makePublic: "Make Public",
     publicDescription: "Allow external users to access your task board",
     boardSlug: "Board URL",

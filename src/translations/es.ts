@@ -351,6 +351,7 @@ export const translations: TranslationType = {
     private: "Privado",
     boardSettings: "Configuración del Panel y Gestión de Equipo",
     manageTeam: "Gestionar Equipo",
+    dashboardAndTeamManagement: "Panel Y Gestión De Equipos",
     makePublic: "Hacer Público",
     publicDescription: "Permitir a usuarios externos acceder a tu tablero de tareas",
     boardSlug: "URL del Tablero",
