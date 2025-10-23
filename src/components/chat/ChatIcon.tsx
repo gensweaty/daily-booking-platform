@@ -23,9 +23,9 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false, 
         aria-label="Open AI & Team Chat"
         className={`
           relative inline-flex items-center gap-2
-          px-3 py-2 h-10
-          rounded-xl
-          text-white font-semibold text-sm
+          px-3 py-2 h-10 md:h-11
+          rounded-xl md:rounded-[14px]
+          text-white font-semibold text-xs md:text-sm
           bg-gradient-to-r from-[#2563EB] via-[#6D28D9] to-[#DB2777]
           shadow-[0_6px_16px_rgba(109,40,217,0.35)]
           transition-all duration-150
@@ -38,40 +38,60 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false, 
       >
         {/* Chat bubble with robot icon */}
         {isPending ? (
-          <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full" />
+          <div className="animate-spin h-5 w-5 md:h-6 md:w-6 border-2 border-white border-t-transparent rounded-full" />
         ) : (
-          <span className="relative inline-flex items-center justify-center w-8 h-8 flex-shrink-0">
-            {/* Simplified chat bubble + robot matching reference */}
-            <svg viewBox="0 0 32 32" className="w-8 h-8" aria-hidden="true">
-              {/* Chat bubble outline */}
+          <span className="relative inline-flex items-center justify-center w-7 h-7 md:w-8 md:h-8 flex-shrink-0">
+            {/* Chat bubble with robot face matching reference image */}
+            <svg viewBox="0 0 48 48" className="w-full h-full" aria-hidden="true">
+              {/* Chat bubble outline - rounded square speech bubble */}
               <path 
-                d="M6 8c0-2 1.5-3.5 3.5-3.5h13c2 0 3.5 1.5 3.5 3.5v9c0 2-1.5 3.5-3.5 3.5h-6l-4 3.2c-.6.5-1.4 0-1.3-.7l.3-2.5h-.5c-2 0-3.5-1.5-3.5-3.5V8z" 
+                d="M8 12c0-3.3 2.7-6 6-6h20c3.3 0 6 2.7 6 6v16c0 3.3-2.7 6-6 6h-8l-6 5c-.8.6-2-.1-1.8-1.2l.6-3.8H14c-3.3 0-6-2.7-6-6V12z" 
+                fill="none" 
+                stroke="white" 
+                strokeWidth="2.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              
+              {/* Robot head - white filled circle */}
+              <circle cx="24" cy="20" r="9.5" fill="white" />
+              
+              {/* Left headphone arc */}
+              <path 
+                d="M16 19c0-4.4 3.6-8 8-8" 
                 fill="none" 
                 stroke="white" 
                 strokeWidth="2.2"
                 strokeLinecap="round"
-                strokeLinejoin="round"
               />
-              {/* Robot head - white circle */}
-              <circle cx="16" cy="13" r="6" fill="white" />
-              {/* Left eye */}
-              <circle cx="14" cy="12.5" r="1.3" fill="#2563EB" />
-              {/* Right eye */}
-              <circle cx="18" cy="12.5" r="1.3" fill="#2563EB" />
-              {/* Wide smile */}
+              
+              {/* Right headphone arc */}
               <path 
-                d="M13 15.5c.6.8 1.8 1.3 3 1.3s2.4-.5 3-1.3" 
+                d="M32 19c0-4.4-3.6-8-8-8" 
                 fill="none" 
-                stroke="#2563EB" 
-                strokeWidth="1.4"
+                stroke="white" 
+                strokeWidth="2.2"
                 strokeLinecap="round"
               />
-              {/* Antenna */}
-              <line x1="16" y1="7" x2="16" y2="5.5" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
-              <circle cx="16" cy="4.8" r="0.9" fill="white" />
-              {/* Headphone arcs */}
-              <path d="M11 11.5c0-2.8 2.2-5 5-5" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.9" />
-              <path d="M21 11.5c0-2.8-2.2-5-5-5" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.9" />
+              
+              {/* Left eye - solid blue dot */}
+              <circle cx="21" cy="19" r="1.8" fill="#2563EB" />
+              
+              {/* Right eye - solid blue dot */}
+              <circle cx="27" cy="19" r="1.8" fill="#2563EB" />
+              
+              {/* Happy smile - curved line */}
+              <path 
+                d="M20 23.5c1 1.5 2.5 2.5 4 2.5s3-1 4-2.5" 
+                fill="none" 
+                stroke="#2563EB" 
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              
+              {/* Top antenna */}
+              <line x1="24" y1="10.5" x2="24" y2="8" stroke="white" strokeWidth="2.2" strokeLinecap="round" />
+              <circle cx="24" cy="7" r="1.4" fill="white" />
             </svg>
           </span>
         )}
