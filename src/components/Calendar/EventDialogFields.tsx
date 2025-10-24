@@ -701,6 +701,7 @@ export const EventDialogFields = ({
           deadlineValue={endDate}
           emailReminder={emailReminderEnabled}
           onEmailReminderChange={setEmailReminderEnabled}
+          context="event"
         />
       </div>
       

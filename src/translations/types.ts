@@ -386,6 +386,8 @@ export interface TranslationType {
     deleteSubUserConfirm: string;
   };
   events: {
+    eventReminder: string;
+    reminderEmailSent: string;
     addEvent: string;
     submitBookingRequest: string;
     fullNameRequired: string;

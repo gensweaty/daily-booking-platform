@@ -22,17 +22,19 @@ interface TaskDateTimePickerProps {
   deadlineValue?: string; // for reminder validation
   emailReminder?: boolean;
   onEmailReminderChange?: (enabled: boolean) => void;
+  context?: 'task' | 'event';
 }
 
-export const TaskDateTimePicker = ({
-  label,
-  value,
-  onChange,
+export const TaskDateTimePicker = ({ 
+  label, 
+  value, 
+  onChange, 
   placeholder,
   type = 'deadline',
   deadlineValue,
   emailReminder = false,
-  onEmailReminderChange
+  onEmailReminderChange,
+  context = 'task'
 }: TaskDateTimePickerProps) => {
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -89,11 +91,12 @@ export const TaskDateTimePicker = ({
       const isoString = dateTime.toISOString();
       
       // Validate the selected datetime
-      const validationResult = await validateDateTime(
-        isoString, 
-        type,
-        deadlineValue
-      );
+    const validationResult = await validateDateTime(
+      isoString,
+      type,
+      deadlineValue,
+      context
+    );
       
       if (!validationResult.valid) {
         toast({
@@ -105,6 +108,12 @@ export const TaskDateTimePicker = ({
       }
       
       onChange(isoString);
+      
+      // Auto-enable email reminder when setting reminder time
+      if (type === 'reminder' && onEmailReminderChange) {
+        onEmailReminderChange(true);
+      }
+      
       setIsOpen(false);
     }
   };

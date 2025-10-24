@@ -11,6 +11,7 @@ interface ValidationRequest {
   timezone: string;
   type: 'deadline' | 'reminder';
   deadlineDateTime?: string; // for reminder validation
+  context?: 'task' | 'event'; // task reminders check against deadline, events only check future
 }
 
 interface ValidationResponse {
@@ -22,7 +23,7 @@ interface ValidationResponse {
 
 const validateDateTime = (req: ValidationRequest): ValidationResponse => {
   try {
-    const { dateTime, timezone, type, deadlineDateTime } = req;
+    const { dateTime, timezone, type, deadlineDateTime, context = 'task' } = req;
     
     console.log('Validation input:', { dateTime, timezone, type });
     
@@ -80,8 +81,9 @@ const validateDateTime = (req: ValidationRequest): ValidationResponse => {
       };
     }
     
-    // Additional validation for reminders - must be before deadline
-    if (type === 'reminder' && deadlineDateTime) {
+    // Additional validation for task reminders - must be before deadline
+    // Event reminders don't need to be before the event date
+    if (type === 'reminder' && context === 'task' && deadlineDateTime) {
       const deadlineTime = new Date(deadlineDateTime);
       if (selectedTimeUtc >= deadlineTime) {
         return {

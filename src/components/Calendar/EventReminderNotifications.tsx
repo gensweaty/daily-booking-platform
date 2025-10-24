@@ -180,9 +180,10 @@ export const EventReminderNotifications = () => {
           alreadyProcessed: processedReminders.has(reminderKey)
         });
         
-        // Check if reminder is due (within 1 minute window)
+        // Check if reminder is due (within precise timing window)
+        // Allow up to 5 seconds before (for processing) and 55 seconds after
         const timeDiff = now.getTime() - reminderTime.getTime();
-        const isDue = timeDiff >= 0 && timeDiff <= 60000; // 0 to 60 seconds past due time
+        const isDue = timeDiff >= -5000 && timeDiff <= 55000;
         
         console.log('📊 Time analysis:', {
           timeDiff,

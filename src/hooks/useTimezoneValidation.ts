@@ -14,7 +14,8 @@ interface UseTimezoneValidationReturn {
   validateDateTime: (
     dateTime: string, 
     type: 'deadline' | 'reminder',
-    deadlineDateTime?: string
+    deadlineDateTime?: string,
+    context?: 'task' | 'event'
   ) => Promise<ValidationResult>;
   isValidating: boolean;
 }
@@ -25,7 +26,8 @@ export const useTimezoneValidation = (): UseTimezoneValidationReturn => {
   const validateDateTime = async (
     dateTime: string,
     type: 'deadline' | 'reminder',
-    deadlineDateTime?: string
+    deadlineDateTime?: string,
+    context: 'task' | 'event' = 'task'
   ): Promise<ValidationResult> => {
     setIsValidating(true);
     
@@ -37,7 +39,8 @@ export const useTimezoneValidation = (): UseTimezoneValidationReturn => {
           dateTime,
           timezone,
           type,
-          deadlineDateTime
+          deadlineDateTime,
+          context
         }
       });
       
