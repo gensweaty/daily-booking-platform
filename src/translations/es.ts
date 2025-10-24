@@ -392,6 +392,8 @@ export const translations: TranslationType = {
     deleteSubUserConfirm: "¿Está seguro de que desea eliminar este sub usuario? Esta acción no se puede deshacer.",
   },
   events: {
+    eventReminder: "Recordatorio de Evento",
+    reminderEmailSent: "Recordatorio de evento enviado por email exitosamente",
     addEvent: "Agregar Evento",
     submitBookingRequest: "Enviar Solicitud de Reserva",
     fullNameRequired: "Nombre Completo Requerido",

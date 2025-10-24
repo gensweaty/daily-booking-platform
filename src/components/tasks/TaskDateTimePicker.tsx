@@ -108,6 +108,12 @@ export const TaskDateTimePicker = ({
       }
       
       onChange(isoString);
+      
+      // Auto-enable email reminder when setting reminder time
+      if (type === 'reminder' && onEmailReminderChange) {
+        onEmailReminderChange(true);
+      }
+      
       setIsOpen(false);
     }
   };

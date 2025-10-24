@@ -394,6 +394,8 @@ export const translations: TranslationType = {
     errorDeleting: "Error deleting booking request"
   },
   events: {
+    eventReminder: "Event Reminder",
+    reminderEmailSent: "Event reminder email sent successfully",
     addEvent: "Add Event",
     submitBookingRequest: "Submit Booking Request",
     fullNameRequired: "Full Name Required",

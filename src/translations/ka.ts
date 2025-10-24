@@ -392,6 +392,8 @@ export const translations: TranslationType = {
     deleteSubUserConfirm: "დარწმუნებული ხართ, რომ გსურთ ქვე-მომხმარებლის წაშლა? ეს მოქმედება შეუქცევადია.",
   },
   events: {
+    eventReminder: "ღონისძიების შეხსენება",
+    reminderEmailSent: "ღონისძიების შეხსენება ელფოსტით წარმატებით გაიგზავნა",
     addEvent: "ღონისძიების დამატება",
     submitBookingRequest: "დაჯავშნის მოთხოვნის გაგზავნა",
     fullNameRequired: "სრული სახელი აუცილებელია",
