@@ -62,9 +62,10 @@ export const playNotificationSound = async (): Promise<boolean> => {
     source.connect(gainNode);
     gainNode.connect(context.destination);
     
-    source.start(0);
+    // Play for maximum 1 second: start(when, offset, duration)
+    source.start(0, 0, 1.0);
     
-    console.log('✅ Notification sound played');
+    console.log('✅ Notification sound played (max 1s)');
     return true;
   } catch (error) {
     console.warn('❌ Error playing notification sound:', error);
