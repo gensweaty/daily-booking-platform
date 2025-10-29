@@ -453,7 +453,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
           senderName: 'Smartbookly AI',
         });
-        // DON'T dispatch event again - let normal flow handle it to avoid duplicate processing
+        // Dispatch event for badge updates (sound already played, won't play again)
+        window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));
         return;
       }
 
@@ -536,8 +537,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
         senderName: 'Smartbookly AI',
       });
-      // DON'T dispatch event again - let normal flow handle it to avoid duplicate processing
-      // Fall through to normal flow for badge updates
+      // Dispatch event for badge updates (sound already played, won't play again)
+      window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));
+      return;
     }
 
     // Handle message updates differently - don't dedupe updates
