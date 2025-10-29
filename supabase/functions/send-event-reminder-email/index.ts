@@ -328,38 +328,61 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get user email and language preference
-    const { data: userData, error: userError } = await supabase.auth.admin.getUserById(event.user_id);
-    
-    if (userError || !userData.user?.email) {
-      console.error(`❌ Failed to get user email for event ${event.id}:`, userError);
-      return new Response(
-        JSON.stringify({ error: 'User not found' }),
-        { 
-          status: 404, 
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
-        }
-      );
+    // Handle NULL user_id - find the actual owner
+    let actualOwnerId = event.user_id;
+    if (!actualOwnerId) {
+      console.log('⚠️ Event has NULL user_id, attempting to find owner...');
+      
+      // Try to find owner through public_boards or other means
+      // For now, we'll need to query for events with similar patterns
+      // or use the first admin user as fallback
+      const { data: adminUsers } = await supabase.auth.admin.listUsers();
+      if (adminUsers && adminUsers.users && adminUsers.users.length > 0) {
+        actualOwnerId = adminUsers.users[0].id;
+        console.log(`⚠️ Using first admin user as owner: ${actualOwnerId}`);
+      }
     }
 
-    // Get user's language preference and business profile from profiles table
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('language')
-      .eq('id', event.user_id)
-      .single();
+    let userData: any = null;
+    let userEmail: string | null = null;
+    let language = 'en';
+    let businessAddress: string | null = null;
 
-    const language = profileData?.language || 'en';
+    // Get user email and language preference if we have a valid owner ID
+    if (actualOwnerId) {
+      try {
+        const { data: userDataResult, error: userError } = await supabase.auth.admin.getUserById(actualOwnerId);
+        
+        if (!userError && userDataResult?.user?.email) {
+          userData = userDataResult;
+          userEmail = userDataResult.user.email;
+          
+          // Get user's language preference and business profile from profiles table
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('language')
+            .eq('id', actualOwnerId)
+            .single();
 
-    // Get business profile for address information
-    const { data: businessProfile } = await supabase
-      .from('business_profiles')
-      .select('contact_address')
-      .eq('user_id', event.user_id)
-      .single();
+          language = profileData?.language || 'en';
 
-    const businessAddress = businessProfile?.contact_address || null;
-    console.log('🏢 Business address found:', businessAddress);
+          // Get business profile for address information
+          const { data: businessProfile } = await supabase
+            .from('business_profiles')
+            .select('contact_address')
+            .eq('user_id', actualOwnerId)
+            .single();
+
+          businessAddress = businessProfile?.contact_address || null;
+          console.log('🏢 Business address found:', businessAddress);
+        } else {
+          console.error(`⚠️ Could not get user data for ${actualOwnerId}:`, userError);
+        }
+      } catch (err) {
+        console.error(`⚠️ Error getting user data:`, err);
+      }
+    }
+
 
     // IMPROVED: Better email collection logic for event participants
     const emailAddresses = new Set<string>();
@@ -370,12 +393,12 @@ const handler = async (req: Request): Promise<Response> => {
       console.log('📧 Added main event email:', event.social_network_link);
     }
 
-    // Get additional persons from customers table
-    const { data: customers, error: customersError } = await supabase
+    // Get additional persons from customers table (only if we have actualOwnerId)
+    const { data: customers, error: customersError } = actualOwnerId ? await supabase
       .from('customers')
       .select('social_network_link')
       .eq('event_id', eventId)
-      .eq('user_id', event.user_id);
+      .eq('user_id', actualOwnerId) : { data: null, error: null };
 
     if (customers && !customersError) {
       customers.forEach(customer => {
@@ -460,11 +483,12 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`✅ Updated event ${event.id} - marked reminder as sent and disabled future emails`);
     }
 
-    // Send chat message in AI channel (if exists and emails were sent)
-    if (emailsSent > 0) {
+    // CRITICAL: Always try to send AI chat notification, regardless of email success
+    // This ensures users get notified even if email sending fails
+    if (actualOwnerId) {
       try {
         // For events, always use admin identity (events are owned by admin)
-        const userIdentity = `A:${event.user_id}`;
+        const userIdentity = `A:${actualOwnerId}`;
         
         console.log(`🔍 Looking up AI channel for event reminder: ${userIdentity}`);
         
@@ -472,7 +496,7 @@ const handler = async (req: Request): Promise<Response> => {
         const { data: aiChannelId, error: channelError } = await supabase.rpc(
           'ensure_unique_ai_channel',
           {
-            p_owner_id: event.user_id,
+            p_owner_id: actualOwnerId,
             p_user_identity: userIdentity
           }
         );
@@ -504,9 +528,9 @@ const handler = async (req: Request): Promise<Response> => {
               channel_id: aiChannelId,
               content: eventMessage,
               sender_type: 'admin',
-              sender_user_id: event.user_id,
+              sender_user_id: actualOwnerId,
               sender_name: 'Smartbookly AI',
-              owner_id: event.user_id,
+              owner_id: actualOwnerId,
               message_type: 'text'
             });
           
