@@ -67,9 +67,12 @@ export function useSidebarBadges(
       const cid: string | undefined = message?.channel_id;
       if (!cid) return;
 
+      // SPECIAL: Reminder alerts should always increment badge
+      const isReminderAlert = message?.message_type === 'reminder_alert';
+
       setBadges(prev => {
-        // Active channel is considered read
-        if (currentChannelId === cid) {
+        // Active channel is considered read (except for reminder alerts which should still show)
+        if (currentChannelId === cid && !isReminderAlert) {
           if ((prev[cid] || 0) !== 0) {
             return { ...prev, [cid]: 0 };
           }

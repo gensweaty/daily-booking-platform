@@ -200,9 +200,14 @@ export function useSidebarBadgeStore(opts: {
       // only channels this user participates in
       if (!userChannels.has(cid)) return;
 
-      // ignore own messages
-      if (meType === 'admin' && m?.sender_user_id && meId && m.sender_user_id === meId) return;
-      if (meType === 'sub_user' && m?.sender_sub_user_id && meId && m.sender_sub_user_id === meId) return;
+      // SPECIAL: Reminder alerts always increment badge, even if from "self"
+      const isReminderAlert = m?.message_type === 'reminder_alert';
+      
+      // ignore own messages (except reminder alerts)
+      if (!isReminderAlert) {
+        if (meType === 'admin' && m?.sender_user_id && meId && m.sender_user_id === meId) return;
+        if (meType === 'sub_user' && m?.sender_sub_user_id && meId && m.sender_sub_user_id === meId) return;
+      }
 
       const createdAt = m?.created_at ? new Date(m.created_at).getTime() : Date.now();
 
