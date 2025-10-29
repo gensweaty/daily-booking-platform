@@ -33,13 +33,12 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Request body:', body);
 
     const now = new Date();
-    // Add 30-second forward buffer to catch reminders slightly early
-    // This ensures reminders are processed and delivered on time, accounting for:
-    // - Cron job execution latency (~100-200ms)
-    // - Database query time (~50-100ms)
-    // - Email/notification sending time (~200-500ms)
-    // With +30s buffer, a 15:15:00 reminder will be processed at 15:14:30 cron run
-    const reminderCheckTime = new Date(now.getTime() + 30000);
+    // Check reminders up to 60 seconds in the future to catch them early
+    // This allows a 15:37:00 reminder to be processed at the 15:36:00 cron run
+    // Processing happens at ~15:36:00.500 → email sent by 15:36:00.800
+    // Frontend ReminderNotificationManager filters by actual time (won't show premature)
+    // Result: User receives notification ON TIME at 15:37:00 instead of 15:38:00
+    const reminderCheckTime = new Date(now.getTime() + 60000);
     
     const result: ReminderProcessingResult = {
       taskReminders: 0,
@@ -318,7 +317,7 @@ const handler = async (req: Request): Promise<Response> => {
                     sender_user_id: reminder.user_id, // Set board owner as sender
                     sender_name: 'Smartbookly AI',
                     owner_id: reminder.user_id,
-                    message_type: 'text'
+                    message_type: 'reminder_alert' // Special type to force notifications
                   });
                 
                 if (chatError) {

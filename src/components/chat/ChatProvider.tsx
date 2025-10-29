@@ -439,6 +439,25 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       const message = evt?.detail?.message;
       if (!message || !message.channel_id) return;
 
+      // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
+      const isReminderAlert = message.message_type === 'reminder_alert';
+      if (isReminderAlert) {
+        console.log('🔔 Reminder alert detected from polling - forcing notification');
+        import('@/utils/audioManager')
+          .then(({ playNotificationSound }) => playNotificationSound())
+          .catch(() => {});
+        showNotification({
+          title: 'Reminder Alert',
+          body: message.content,
+          channelId: message.channel_id,
+          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+          senderName: 'Smartbookly AI',
+        });
+        // Continue to let message show in chat
+        window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));
+        return;
+      }
+
       // Same guards as handleNewMessage
       if (boardOwnerId && message.owner_id && message.owner_id !== boardOwnerId) return;
 
@@ -503,6 +522,27 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Memoized real-time message handler to prevent re-renders
   const handleNewMessage = useCallback((message: any) => {
     console.log('📨 Enhanced realtime message received:', message);
+
+    // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
+    const isReminderAlert = message.message_type === 'reminder_alert';
+    if (isReminderAlert) {
+      console.log('🔔 Reminder alert from realtime - forcing notification');
+      import('@/utils/audioManager')
+        .then(({ playNotificationSound }) => playNotificationSound())
+        .catch(() => {});
+      showNotification({
+        title: 'Reminder Alert',
+        body: message.content,
+        channelId: message.channel_id,
+        senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+        senderName: 'Smartbookly AI',
+      });
+      // Continue to let message show in chat - broadcast and return
+      window.dispatchEvent(new CustomEvent('chat-message-received', {
+        detail: { message }
+      }));
+      return;
+    }
 
     // Handle message updates differently - don't dedupe updates
     const isUpdate = message._isUpdate;
