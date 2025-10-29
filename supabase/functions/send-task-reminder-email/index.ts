@@ -369,6 +369,65 @@ const handler = async (req: Request): Promise<Response> => {
       // Track in deduplication map
       recentlySentEmails.set(deduplicationKey, Date.now());
 
+      // Send chat message in AI channel (if exists) - only for admin users, not external users
+      if (!task.external_user_email) {
+        try {
+          // For tasks, always use admin identity (tasks are owned by admin)
+          const userIdentity = `A:${task.user_id}`;
+          
+          console.log(`🔍 Looking up AI channel for task reminder: ${userIdentity}`);
+          
+          // Use the same RPC function that frontend uses to get/create AI channel
+          const { data: aiChannelId, error: channelError } = await supabase.rpc(
+            'ensure_unique_ai_channel',
+            {
+              p_owner_id: task.user_id,
+              p_user_identity: userIdentity
+            }
+          );
+          
+          if (channelError) {
+            console.error(`❌ Error getting AI channel:`, channelError);
+            throw channelError;
+          }
+
+          if (aiChannelId) {
+            console.log(`✅ Found AI channel: ${aiChannelId}`);
+            
+            // Format task reminder message based on language
+            const taskMessage = language === 'ka' 
+              ? `📋 დავალების შეხსენება\n\n${task.title}${task.description && task.description !== task.title ? `\n\n${task.description}` : ''}\n\n🕐 ${formattedTime}`
+              : language === 'es'
+              ? `📋 Recordatorio de Tarea\n\n${task.title}${task.description && task.description !== task.title ? `\n\n${task.description}` : ''}\n\n🕐 ${formattedTime}`
+              : language === 'ru'
+              ? `📋 Напоминание о задаче\n\n${task.title}${task.description && task.description !== task.title ? `\n\n${task.description}` : ''}\n\n🕐 ${formattedTime}`
+              : `📋 Task Reminder\n\n${task.title}${task.description && task.description !== task.title ? `\n\n${task.description}` : ''}\n\n🕐 ${formattedTime}`;
+            
+            const { error: chatError } = await supabase
+              .from('chat_messages')
+              .insert({
+                channel_id: aiChannelId,
+                content: taskMessage,
+                sender_type: 'admin',
+                sender_user_id: task.user_id,
+                sender_name: 'Smartbookly AI',
+                owner_id: task.user_id,
+                message_type: 'text'
+              });
+            
+            if (chatError) {
+              console.error(`❌ Error sending chat reminder for task ${task.id}:`, chatError);
+            } else {
+              console.log(`✅ Sent task reminder chat message for ${task.id}`);
+            }
+          } else {
+            console.log(`⚠️ No AI channel found for ${userIdentity}`);
+          }
+        } catch (chatError) {
+          console.error(`⚠️ Could not send task chat message (non-critical):`, chatError);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           message: 'Task reminder email sent successfully',
@@ -378,7 +437,7 @@ const handler = async (req: Request): Promise<Response> => {
           sentToExternalUser: !!task.external_user_email
         }),
         { 
-          status: 200, 
+          status: 200,
           headers: { 'Content-Type': 'application/json', ...corsHeaders }
         }
       );

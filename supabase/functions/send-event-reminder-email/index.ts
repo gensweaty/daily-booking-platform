@@ -460,6 +460,69 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`✅ Updated event ${event.id} - marked reminder as sent and disabled future emails`);
     }
 
+    // Send chat message in AI channel (if exists and emails were sent)
+    if (emailsSent > 0) {
+      try {
+        // For events, always use admin identity (events are owned by admin)
+        const userIdentity = `A:${event.user_id}`;
+        
+        console.log(`🔍 Looking up AI channel for event reminder: ${userIdentity}`);
+        
+        // Use the same RPC function that frontend uses to get/create AI channel
+        const { data: aiChannelId, error: channelError } = await supabase.rpc(
+          'ensure_unique_ai_channel',
+          {
+            p_owner_id: event.user_id,
+            p_user_identity: userIdentity
+          }
+        );
+        
+        if (channelError) {
+          console.error(`❌ Error getting AI channel:`, channelError);
+          throw channelError;
+        }
+
+        if (aiChannelId) {
+          console.log(`✅ Found AI channel: ${aiChannelId}`);
+          
+          // Format event reminder message based on language
+          const eventTitle = event.title || event.user_surname || 'Event';
+          const formattedStartDate = formatEventTimeForLocale(event.start_date, language);
+          const formattedEndDate = event.end_date ? formatEventTimeForLocale(event.end_date, language) : null;
+          
+          const eventMessage = language === 'ka' 
+            ? `📅 ღონისძიების შეხსენება\n\n${eventTitle}\n\n🕐 დაწყება: ${formattedStartDate}${formattedEndDate ? `\n🕐 დასრულება: ${formattedEndDate}` : ''}`
+            : language === 'es'
+            ? `📅 Recordatorio de Evento\n\n${eventTitle}\n\n🕐 Inicio: ${formattedStartDate}${formattedEndDate ? `\n🕐 Fin: ${formattedEndDate}` : ''}`
+            : language === 'ru'
+            ? `📅 Напоминание о событии\n\n${eventTitle}\n\n🕐 Начало: ${formattedStartDate}${formattedEndDate ? `\n🕐 Конец: ${formattedEndDate}` : ''}`
+            : `📅 Event Reminder\n\n${eventTitle}\n\n🕐 Start: ${formattedStartDate}${formattedEndDate ? `\n🕐 End: ${formattedEndDate}` : ''}`;
+          
+          const { error: chatError } = await supabase
+            .from('chat_messages')
+            .insert({
+              channel_id: aiChannelId,
+              content: eventMessage,
+              sender_type: 'admin',
+              sender_user_id: event.user_id,
+              sender_name: 'Smartbookly AI',
+              owner_id: event.user_id,
+              message_type: 'text'
+            });
+          
+          if (chatError) {
+            console.error(`❌ Error sending chat reminder for event ${event.id}:`, chatError);
+          } else {
+            console.log(`✅ Sent event reminder chat message for ${event.id}`);
+          }
+        } else {
+          console.log(`⚠️ No AI channel found for ${userIdentity}`);
+        }
+      } catch (chatError) {
+        console.error(`⚠️ Could not send event chat message (non-critical):`, chatError);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         message: 'Event reminder emails processed',
@@ -470,7 +533,7 @@ const handler = async (req: Request): Promise<Response> => {
         businessAddress: businessAddress
       }),
       { 
-        status: 200, 
+        status: 200,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
       }
     );
