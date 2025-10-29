@@ -956,7 +956,7 @@ CRITICAL RULES:
           2. If user wants a general reminder (e.g., "remind me to call John", "set a reminder to check email"):
              - Use create_custom_reminder directly
           
-          Creates a custom reminder with BOTH dashboard and email notifications. Use offset_minutes for relative times (e.g., 'in 2 minutes').
+          Creates a custom reminder with BOTH dashboard and email notifications. Use offset_minutes for relative times (e.g., 'in 2 minutes').`,
           parameters: {
             type: "object",
             properties: {
