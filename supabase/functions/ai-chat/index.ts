@@ -129,36 +129,42 @@ serve(async (req) => {
     const words = lower.split(/\s+/);
     
     // ---- FAST-PATH FOR SIMPLE REMINDERS (runs before LLM) ----
-    // Enhanced debugging and multiple robust regex patterns
+    // CRITICAL: This fast-path MUST catch ALL "in X minute(s)" requests BEFORE the LLM
+    // The LLM has been incorrectly refusing "in 1 minute" requests - this prevents that
     
     console.log('🔍 REMINDER FAST-PATH DEBUG:');
     console.log('  → Raw prompt:', JSON.stringify(prompt));
     console.log('  → Prompt length:', prompt?.length);
-    console.log('  → Contains "in":', prompt.includes('in'));
-    console.log('  → Contains "minute":', prompt.includes('minute'));
+    console.log('  → Lowercase prompt:', prompt?.toLowerCase());
+    console.log('  → Contains "in":', prompt?.includes('in'));
+    console.log('  → Contains "minute":', prompt?.includes('minute'));
     
-    // Test multiple simple patterns instead of one complex pattern
+    // CRITICAL: Test multiple SIMPLE patterns - complex regex has failed before
+    // Each pattern must be tested independently to ensure at least one catches the request
     const patterns = {
-      // Pattern 1: "remind me in X minute(s) [about/for/to] [something]"
+      // Pattern 1: "remind me in X minute(s)"
       p1: /remind\s+me\s+in\s+(\d+)\s*minutes?\b/i,
-      // Pattern 2: "remind in X minute(s)"
+      // Pattern 2: "remind in X minute(s)" (without "me")
       p2: /remind\s+in\s+(\d+)\s*minutes?\b/i,
-      // Pattern 3: "in X minute(s) [about/for/to] [something]" (without "remind")
+      // Pattern 3: "in X minute(s)" (simplest - catches everything)
       p3: /\bin\s+(\d+)\s*minutes?\b/i,
       // Pattern 4: "set reminder in X minute(s)"
       p4: /set\s+(?:a\s+)?reminder\s+in\s+(\d+)\s*minutes?\b/i,
+      // Pattern 5: Handle typos like "in 1 minutes" (plural for 1)
+      p5: /\bin\s+(1)\s*minutes\b/i,
     };
     
     let reminderMatch = null;
     let matchedPattern = '';
     
-    // Test each pattern
+    // Test each pattern and log results for debugging
     for (const [key, pattern] of Object.entries(patterns)) {
       const match = prompt.match(pattern);
       if (match) {
         reminderMatch = match;
         matchedPattern = key;
-        console.log(`  ✅ Pattern ${key} matched:`, pattern.toString());
+        console.log(`  ✅✅✅ Pattern ${key} MATCHED:`, pattern.toString());
+        console.log(`  ✅✅✅ Captured minutes value:`, match[1]);
         break;
       } else {
         console.log(`  ❌ Pattern ${key} no match:`, pattern.toString());

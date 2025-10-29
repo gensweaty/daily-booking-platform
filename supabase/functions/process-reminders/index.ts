@@ -33,8 +33,13 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Request body:', body);
 
     const now = new Date();
-    // Check reminders that are due NOW (no future buffer to prevent early triggering)
-    const reminderCheckTime = new Date(now.getTime());
+    // Add 30-second forward buffer to catch reminders slightly early
+    // This ensures reminders are processed and delivered on time, accounting for:
+    // - Cron job execution latency (~100-200ms)
+    // - Database query time (~50-100ms)
+    // - Email/notification sending time (~200-500ms)
+    // With +30s buffer, a 15:15:00 reminder will be processed at 15:14:30 cron run
+    const reminderCheckTime = new Date(now.getTime() + 30000);
     
     const result: ReminderProcessingResult = {
       taskReminders: 0,
