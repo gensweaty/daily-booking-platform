@@ -20,6 +20,8 @@ export function useServerUnread(
   const [maps, setMaps] = useState<Maps>({ channel: {}, peer: {}, total: 0 });
   const [userChannels, setUserChannels] = useState<Set<string>>(new Set());
   const fetching = useRef(false);
+  // Track local increments to prevent server refresh from erasing them
+  const localIncrementsRef = useRef<Record<string, number>>({});
 
   const refresh = useCallback(async () => {
     if (!ownerId || !viewerType || !viewerId || fetching.current) return;
@@ -62,7 +64,12 @@ export function useServerUnread(
       const peer: Record<PeerKey, number> = {};
 
       (data ?? []).forEach((row: any) => {
-        if (row.channel_id) channel[row.channel_id] = row.channel_unread ?? 0;
+        if (row.channel_id) {
+          const serverCount = row.channel_unread ?? 0;
+          const localCount = localIncrementsRef.current[row.channel_id] ?? 0;
+          // Use the HIGHER count (server or local) to prevent flicker
+          channel[row.channel_id] = Math.max(serverCount, localCount);
+        }
         if (row.peer_id && row.peer_type) {
           const key = `${row.peer_id}_${row.peer_type}` as PeerKey;
           peer[key] = (peer[key] ?? 0) + (row.peer_unread ?? 0);
@@ -108,6 +115,11 @@ export function useServerUnread(
       }
     
     console.log('📈 Incrementing unread for channel via realtime:', b.channelId);
+    
+    // Track local increment to prevent server refresh from erasing it
+    localIncrementsRef.current[b.channelId] = 
+      (localIncrementsRef.current[b.channelId] ?? 0) + 1;
+    
     setMaps(prev => {
       const channel = { ...prev.channel, [b.channelId]: (prev.channel[b.channelId] ?? 0) + 1 };
       const peer = { ...prev.peer };
@@ -124,6 +136,9 @@ export function useServerUnread(
   }, [realtimeBump, userChannels, isExternalUser, refresh]);
 
   const clearChannel = useCallback((channelId: string) => {
+    // Clear local increment tracking when channel is opened
+    delete localIncrementsRef.current[channelId];
+    
     setMaps(prev => {
       if (!prev.channel[channelId]) return prev;
       const channel = { ...prev.channel }; delete channel[channelId];
