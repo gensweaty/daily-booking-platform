@@ -94,7 +94,7 @@ export function useServerUnread(
     return () => clearInterval(id);
   }, [refresh, isExternalUser]);
 
-  // Realtime bump (optimistic) - improved handling for custom chats and external users
+  // Realtime bump (optimistic) - SIMPLIFIED for instant badge appearance
   useEffect(() => {
     const b = realtimeBump;
     if (!b || !b.channelId || b.isSelf) return;
@@ -106,13 +106,9 @@ export function useServerUnread(
       return;
     }
     
-      // Allow realtime bumps for all channels the user participates in (including custom chats and AI)
-      // Special handling for AI messages - they should always bump unread
-      const isAIMessage = b.senderId === 'ai';
-      if (!isAIMessage && !userChannels.has(b.channelId)) {
-        console.log('⏭️ Skipping realtime bump - user is not a participant of channel:', b.channelId);
-        return;
-      }
+    // SIMPLIFIED: If we received a realtime bump, trust it and increment immediately
+    // The fact that we got the bump means the user IS a participant (or it's an AI message)
+    // Remove aggressive participation checks - they prevent instant badge appearance
     
     console.log('📈 Incrementing unread for channel via realtime:', b.channelId);
     
@@ -136,16 +132,25 @@ export function useServerUnread(
   }, [realtimeBump, userChannels, isExternalUser, refresh]);
 
   const clearChannel = useCallback((channelId: string) => {
+    console.log('🧹 Clearing channel:', channelId);
+    
     // Clear local increment tracking when channel is opened
     delete localIncrementsRef.current[channelId];
     
     setMaps(prev => {
       if (!prev.channel[channelId]) return prev;
-      const channel = { ...prev.channel }; delete channel[channelId];
+      const channel = { ...prev.channel };
+      delete channel[channelId];
       const total = Object.values(channel).reduce((s, n) => s + (n || 0), 0);
       return { ...prev, channel, total };
     });
-  }, []);
+    
+    // Immediate refresh to sync with server after clearing
+    setTimeout(() => {
+      console.log('🔄 Post-clear refresh for channel:', channelId);
+      refresh();
+    }, 100);
+  }, [refresh]);
 
   const clearPeer = useCallback((peerId: string, peerType: 'admin'|'sub_user') => {
     const key = `${peerId}_${peerType}` as PeerKey;

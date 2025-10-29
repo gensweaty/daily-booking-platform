@@ -1246,17 +1246,21 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     [channelUnreads] // Remove rtBump - it causes premature snapshot before useServerUnread updates
   );
 
-  // Build UI-facing counts (masked)
+  // Build UI-facing counts (masked) - SIMPLIFIED for instant clearing
   const uiChannelUnreads = useMemo(() => {
     const now = Date.now();
     const out: Record<string, number> = {};
 
     for (const [cid, raw] of Object.entries(channelUnreadsSnapshot)) {
+      // PRIORITY 1: Current channel is ALWAYS zero (most important rule)
+      if (cid === currentChannelId) {
+        out[cid] = 0;
+        continue;
+      }
+      
       let v = Math.max(0, raw || 0);
 
-      // 1) never show unread on the active channel
-      if (cid === currentChannelId) { out[cid] = 0; continue; }
-
+      // Other suppression rules apply only if NOT current channel
       // 2) optimistic zero during switch/open
       const until = optimisticZeroRef.current.get(cid) || 0;
       if (until > now) { out[cid] = 0; continue; }
