@@ -394,14 +394,26 @@ const handler = async (req: Request): Promise<Response> => {
           if (aiChannelId) {
             console.log(`✅ Found AI channel: ${aiChannelId}`);
             
+            // Helper function to strip HTML and check if description has actual content
+            const cleanDescription = (desc: string | null): string => {
+              if (!desc) return '';
+              // Strip HTML tags
+              const stripped = desc.replace(/<[^>]*>/g, '').trim();
+              // Return empty string if no actual content
+              return stripped.length > 0 ? stripped : '';
+            };
+            
+            const cleanDesc = cleanDescription(task.description);
+            const hasDescription = cleanDesc && cleanDesc !== task.title;
+            
             // Format task reminder message based on language
             const taskMessage = language === 'ka' 
-              ? `📋 დავალების შეხსენება\n\n${task.title}${task.description && task.description !== task.title ? `\n\n${task.description}` : ''}\n\n🕐 ${formattedTime}`
+              ? `📋 დავალების შეხსენება\n\n${task.title}${hasDescription ? `\n\n${cleanDesc}` : ''}\n\n🕐 ${formattedTime}`
               : language === 'es'
-              ? `📋 Recordatorio de Tarea\n\n${task.title}${task.description && task.description !== task.title ? `\n\n${task.description}` : ''}\n\n🕐 ${formattedTime}`
+              ? `📋 Recordatorio de Tarea\n\n${task.title}${hasDescription ? `\n\n${cleanDesc}` : ''}\n\n🕐 ${formattedTime}`
               : language === 'ru'
-              ? `📋 Напоминание о задаче\n\n${task.title}${task.description && task.description !== task.title ? `\n\n${task.description}` : ''}\n\n🕐 ${formattedTime}`
-              : `📋 Task Reminder\n\n${task.title}${task.description && task.description !== task.title ? `\n\n${task.description}` : ''}\n\n🕐 ${formattedTime}`;
+              ? `📋 Напоминание о задаче\n\n${task.title}${hasDescription ? `\n\n${cleanDesc}` : ''}\n\n🕐 ${formattedTime}`
+              : `📋 Task Reminder\n\n${task.title}${hasDescription ? `\n\n${cleanDesc}` : ''}\n\n🕐 ${formattedTime}`;
             
             const { error: chatError } = await supabase
               .from('chat_messages')
