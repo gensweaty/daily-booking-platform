@@ -94,23 +94,14 @@ export function useServerUnread(
     return () => clearInterval(id);
   }, [refresh, isExternalUser]);
 
-  // Realtime bump (optimistic) - SIMPLIFIED for instant badge appearance
+  // Realtime bump (optimistic) - INSTANT badge for ALL messages
   useEffect(() => {
     const b = realtimeBump;
     if (!b || !b.channelId || b.isSelf) return;
     
-    // For external users, always allow realtime bumps and refresh participation if needed
-    if (isExternalUser && !userChannels.has(b.channelId)) {
-      console.log('🔄 External user - refreshing participation for new channel:', b.channelId);
-      refresh(); // Refresh immediately to pick up new channel participation
-      return;
-    }
-    
-    // SIMPLIFIED: If we received a realtime bump, trust it and increment immediately
-    // The fact that we got the bump means the user IS a participant (or it's an AI message)
-    // Remove aggressive participation checks - they prevent instant badge appearance
-    
-    console.log('📈 Incrementing unread for channel via realtime:', b.channelId);
+    // CRITICAL FIX: ALWAYS increment badge immediately for ALL users (internal and external)
+    // The fact that we received a realtime bump means the message is for this user
+    console.log('📈 Incrementing unread for channel via realtime:', b.channelId, 'external:', isExternalUser);
     
     // Track local increment to prevent server refresh from erasing it
     localIncrementsRef.current[b.channelId] = 
@@ -129,6 +120,12 @@ export function useServerUnread(
       const total = Object.values(channel).reduce((s, n) => s + (n || 0), 0);
       return { channel, peer, total };
     });
+    
+    // For external users, also refresh participation in background to stay in sync
+    if (isExternalUser && !userChannels.has(b.channelId)) {
+      console.log('🔄 External user - refreshing participation in background for:', b.channelId);
+      setTimeout(() => refresh(), 500); // Non-blocking background refresh
+    }
   }, [realtimeBump, userChannels, isExternalUser, refresh]);
 
   const clearChannel = useCallback((channelId: string) => {

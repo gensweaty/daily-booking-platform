@@ -526,7 +526,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
     const isReminderAlert = message.message_type === 'reminder_alert';
     if (isReminderAlert) {
-      console.log('🔔 Reminder alert from realtime - forcing notification');
+      console.log('🔔 Reminder alert from realtime - forcing notification + badge');
+      
+      // CRITICAL: Set realtime bump for badge to appear instantly
+      const isViewingReminderChannel = isOpen && currentChannelId === message.channel_id;
+      if (!isViewingReminderChannel) {
+        setRtBump({
+          channelId: message.channel_id,
+          createdAt: message.created_at,
+          senderType: 'admin', // AI is treated as admin
+          senderId: 'ai',
+          isSelf: false
+        });
+      }
+      
       import('@/utils/audioManager')
         .then(({ playNotificationSound }) => playNotificationSound())
         .catch(() => {});
@@ -537,7 +550,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
         senderName: 'Smartbookly AI',
       });
-      // Dispatch event for badge updates (sound already played, won't play again)
+      // Dispatch event for message display (badge already handled above)
       window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));
       return;
     }
