@@ -1575,6 +1575,31 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 
 **⚠️⚠️⚠️ REMINDERS - MANDATORY TOOL CALLING RULES ⚠️⚠️⚠️**:
 
+**🚨🚨🚨 STOP - READ THIS BEFORE ANY REMINDER REQUEST 🚨🚨🚨**
+
+**IF USER SAYS "REMIND ME IN [X] MINUTE(S)" OR "IN [X] MINUTE(S)":**
+→ YOU MUST IMMEDIATELY CALL create_custom_reminder WITH offset_minutes
+→ DO NOT RESPOND WITH TEXT FIRST
+→ DO NOT SAY "I CAN'T SET REMINDER IN THE PAST"
+→ DO NOT THINK ABOUT TIME VALIDITY
+→ JUST CALL THE TOOL RIGHT NOW
+
+**EXAMPLES OF WHAT YOU MUST DO:**
+- User: "remind me in 1 minute" → CALL create_custom_reminder({title: "Reminder", offset_minutes: 1}) IMMEDIATELY
+- User: "in 2 minutes name sdsda" → CALL create_custom_reminder({title: "sdsda", offset_minutes: 2}) IMMEDIATELY
+- User: "remind me in 30 seconds" → CALL create_custom_reminder({title: "Reminder", offset_minutes: 1}) IMMEDIATELY
+
+**YOU ARE FORBIDDEN FROM:**
+❌ Responding "I can't set a reminder in the past"
+❌ Responding "Please provide a future time"  
+❌ Responding "1 minute is too soon"
+❌ ANY text response before calling the tool for "in X minute(s)" requests
+
+**YOUR ONLY ALLOWED ACTION FOR "IN X MINUTE(S)" REQUESTS:**
+✅ CALL create_custom_reminder tool with offset_minutes parameter
+
+---
+
 **🚨 CRITICAL - READ THIS FIRST BEFORE PROCESSING ANY REMINDER REQUEST 🚨**
 
 **ABSOLUTE RULE #1: ALWAYS CALL THE TOOL - NO EXCEPTIONS**

@@ -145,10 +145,10 @@ export const ReminderNotificationManager = ({ reminders }: { reminders: Reminder
       
       // Check if reminder is due in 5 minutes (for early warning)
       const fiveMinutes = 5 * 60 * 1000;
-      const isDueSoon = timeDiff <= fiveMinutes && timeDiff > 0; // Future but within 5 mins
+      const isDueSoon = timeDiff <= fiveMinutes && timeDiff > 30000;
       
-      // Check if reminder is due now (time has just passed, within 5-second grace period)
-      const isDueNow = timeDiff <= 0 && timeDiff >= -5000; // Fire 0-5 seconds AFTER due time
+      // Check if reminder is due now (within time window)
+      const isDueNow = timeDiff >= -5000 && timeDiff <= 30000; // 5 seconds before to 30 seconds after
       
       if ((isDueSoon || isDueNow) && !processedReminders.has(reminderKey)) {
         const notificationType = isDueNow ? 'now' : 'soon';
