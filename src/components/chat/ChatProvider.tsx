@@ -465,7 +465,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             channelId: message.channel_id,
             createdAt: message.created_at,
             senderType: message.sender_user_id ? 'admin' : 'sub_user',
-            senderId: message.sender_user_id || message.sender_sub_user_id,
+            senderId: message.sender_user_id || message.sender_sub_user_id || 'ai',
             isSelf: false
           });
         }
@@ -473,7 +473,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         // 2) notifications (don't redispatch event here to avoid loops)
         if (!skipBecauseOpen) {
           // FIXED: Always check channel participation, even for public boards
-          const shouldShow = userChannels.has(message.channel_id);
+          // Special handling for AI messages - they should always notify
+          const isAIMessage = message.sender_name === 'Smartbookly AI';
+          const shouldShow = isAIMessage || userChannels.has(message.channel_id);
+          
           if (shouldShow) {
             import('@/utils/audioManager')
               .then(({ playNotificationSound }) => playNotificationSound())
@@ -541,7 +544,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           channelId: message.channel_id,
           createdAt: message.created_at,
           senderType: message.sender_user_id ? 'admin' : 'sub_user',
-          senderId: message.sender_user_id || message.sender_sub_user_id,
+          senderId: message.sender_user_id || message.sender_sub_user_id || 'ai',
           isSelf: false
         });
       }
@@ -552,6 +555,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         if (isOpen && currentChannelId === message.channel_id) {
           console.log('⏭️ Skipping notification - chat is open and viewing same channel');
           return false;
+        }
+        
+        // Special handling for AI messages - they should always notify
+        const isAIMessage = message.sender_name === 'Smartbookly AI';
+        if (isAIMessage) {
+          console.log('✅ AI message - always notify');
+          return true;
         }
         
         // CRITICAL: Only show notifications if user is a participant of this channel

@@ -138,9 +138,9 @@ export const TaskReminderNotifications = () => {
         const reminderTime = new Date(task.reminder_at);
         const reminderKey = `${task.id}-${task.reminder_at}`;
         
-        // Check if reminder is due (time has passed, within 60-second grace period)
+        // Check if reminder is due (time has just passed, within 5-second grace period)
         const timeDiff = reminderTime.getTime() - now.getTime();
-        const isDue = timeDiff <= 0 && timeDiff >= -60000; // Fire 0-60 seconds AFTER due time
+        const isDue = timeDiff <= 0 && timeDiff >= -5000; // Fire 0-5 seconds AFTER due time
         
         if (isDue && !processedReminders.has(reminderKey)) {
           console.log('🔔 PROCESSING REMINDER for task:', task.title);
@@ -240,7 +240,7 @@ export const TaskReminderNotifications = () => {
 
     intervalRef.current = setInterval(() => {
       processDueReminders(tasks);
-    }, 2000); // Check every 2 seconds to reduce load
+    }, 1000); // Check every 1 second for precise timing
 
     return () => {
       if (intervalRef.current) {

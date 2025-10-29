@@ -99,11 +99,13 @@ export function useServerUnread(
       return;
     }
     
-    // Allow realtime bumps for all channels the user participates in (including custom chats)
-    if (!userChannels.has(b.channelId)) {
-      console.log('⏭️ Skipping realtime bump - user is not a participant of channel:', b.channelId);
-      return;
-    }
+      // Allow realtime bumps for all channels the user participates in (including custom chats and AI)
+      // Special handling for AI messages - they should always bump unread
+      const isAIMessage = b.senderId === 'ai';
+      if (!isAIMessage && !userChannels.has(b.channelId)) {
+        console.log('⏭️ Skipping realtime bump - user is not a participant of channel:', b.channelId);
+        return;
+      }
     
     console.log('📈 Incrementing unread for channel via realtime:', b.channelId);
     setMaps(prev => {
