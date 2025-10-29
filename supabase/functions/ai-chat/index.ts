@@ -129,27 +129,25 @@ serve(async (req) => {
     const words = lower.split(/\s+/);
     
     // ---- FAST-PATH FOR SIMPLE REMINDERS (runs before LLM) ----
-    // Detect "in X minute(s)" or "remind me in X minute(s)" patterns
+    
+    // Fast-path 1: Detect "in X minute(s)" patterns
     const reminderMatch = prompt.match(/\b(?:remind\s+(?:me\s+)?)?in\s+(\d+)\s*minute(?:s)?\b/i);
     if (reminderMatch) {
       const minutes = parseInt(reminderMatch[1], 10);
       console.log(`⚡ Reminder fast-path triggered: ${minutes} minute(s)`);
       
-      // Extract title from the prompt (everything after "name" or use default)
       const nameMatch = prompt.match(/name\s+(.+)/i);
       const title = nameMatch ? nameMatch[1].trim() : "Reminder";
       
       console.log(`📝 Creating reminder: "${title}" in ${minutes} minute(s)`);
       
       try {
-        // Calculate reminder time
         const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
         const remindAtUtc = new Date(baseNow.getTime() + minutes * 60000);
         
         console.log(`🕐 Base time: ${baseNow.toISOString()}`);
         console.log(`⏰ Remind at (UTC): ${remindAtUtc.toISOString()}`);
         
-        // Create the reminder directly
         const { data: reminderData, error: reminderError } = await supabaseAdmin
           .from('reminders')
           .insert({
@@ -168,7 +166,6 @@ serve(async (req) => {
         
         console.log('✅ Reminder created successfully:', reminderData);
         
-        // Format the confirmation message
         const reminderTimeFormatted = formatInUserZone(remindAtUtc);
         const content = userLanguage === 'ka' 
           ? `✅ შეხსენება დაყენებულია! შეგახსენებთ "${title}"-ს ${reminderTimeFormatted}-ზე. მიიღებთ როგორც ელ. ფოსტის, ასევე დაფის შეტყობინებას.`
@@ -176,7 +173,6 @@ serve(async (req) => {
           ? `✅ ¡Recordatorio establecido! Te recordaré "${title}" en ${reminderTimeFormatted}. Recibirás tanto un correo electrónico como una notificación en el panel.`
           : `✅ Reminder set! I'll remind you about "${title}" at ${reminderTimeFormatted}. You'll receive both an email and dashboard notification.`;
         
-        // Write confirmation message to chat
         await supabaseAdmin.from('chat_messages').insert({
           channel_id: channelId,
           owner_id: ownerId,
@@ -193,10 +189,83 @@ serve(async (req) => {
         
       } catch (error) {
         console.error('❌ Reminder fast-path error:', error);
-        // Fall through to LLM if fast-path fails
       }
     }
-    // ---- END REMINDER FAST-PATH ----
+    
+    // Fast-path 2: Detect "at HH:MM" or "on HH:MM" patterns
+    const timeMatch = prompt.match(/\b(?:at|on|in)\s+(\d{1,2}):(\d{2})\b/i);
+    if (timeMatch) {
+      const hours = parseInt(timeMatch[1], 10);
+      const minutes = parseInt(timeMatch[2], 10);
+      console.log(`⚡ Time reminder fast-path triggered: ${hours}:${String(minutes).padStart(2, '0')}`);
+      
+      // Extract title from the prompt (everything before "at/on/in")
+      const titleMatch = prompt.match(/remind\s+(?:me\s+)?(?:about\s+)?(.+?)\s+(?:at|on|in)\s+\d{1,2}:\d{2}/i);
+      const title = titleMatch ? titleMatch[1].trim() : "Reminder";
+      
+      console.log(`📝 Creating reminder: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
+      
+      try {
+        // Get current time in user's timezone
+        const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
+        console.log(`🕐 Current time: ${baseNow.toISOString()} (user local: ${formatInUserZone(baseNow)})`);
+        
+        // Create a date for today at the specified time in user's timezone
+        let targetTime = new Date(baseNow);
+        targetTime.setHours(hours, minutes, 0, 0);
+        
+        // If the time has already passed today, schedule for tomorrow
+        if (targetTime <= baseNow) {
+          console.log(`⏭️ Time ${hours}:${String(minutes).padStart(2, '0')} has passed today, scheduling for tomorrow`);
+          targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
+        }
+        
+        console.log(`⏰ Remind at (UTC): ${targetTime.toISOString()} (user local: ${formatInUserZone(targetTime)})`);
+        
+        const { data: reminderData, error: reminderError } = await supabaseAdmin
+          .from('reminders')
+          .insert({
+            user_id: ownerId,
+            title: title,
+            remind_at: targetTime.toISOString(),
+            message: `Reminder: ${title}`
+          })
+          .select()
+          .single();
+        
+        if (reminderError) {
+          console.error('❌ Error creating reminder:', reminderError);
+          throw reminderError;
+        }
+        
+        console.log('✅ Reminder created successfully:', reminderData);
+        
+        const reminderTimeFormatted = formatInUserZone(targetTime);
+        const content = userLanguage === 'ka' 
+          ? `✅ შეხსენება დაყენებულია! შეგახსენებთ "${title}"-ს ${reminderTimeFormatted}-ზე. მიიღებთ როგორც ელ. ფოსტის, ასევე დაფის შეტყობინებას.`
+          : userLanguage === 'es'
+          ? `✅ ¡Recordatorio establecido! Te recordaré "${title}" en ${reminderTimeFormatted}. Recibirás tanto un correo electrónico como una notificación en el panel.`
+          : `✅ Reminder set! I'll remind you about "${title}" at ${reminderTimeFormatted}. You'll receive both an email and dashboard notification.`;
+        
+        await supabaseAdmin.from('chat_messages').insert({
+          channel_id: channelId,
+          owner_id: ownerId,
+          sender_type: 'admin',
+          sender_name: 'Smartbookly AI',
+          content: content,
+          message_type: 'text'
+        });
+        
+        console.log(`✅ Time reminder fast-path completed: ${title} at ${hours}:${String(minutes).padStart(2, '0')}`);
+        
+        return new Response(JSON.stringify({ success: true, content }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        
+      } catch (error) {
+        console.error('❌ Time reminder fast-path error:', error);
+      }
+    }
+    // ---- END REMINDER FAST-PATHS ----
     
     // Check if user explicitly requests Excel generation
     const explicitExcelRequest = /\b(generate|create|make|download|export)\s+(an?\s+)?(excel|xlsx|spreadsheet)\b/.test(lower) ||
