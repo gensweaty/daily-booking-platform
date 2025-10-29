@@ -439,10 +439,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       const message = evt?.detail?.message;
       if (!message || !message.channel_id) return;
 
+      console.log('🔄 Polled message received:', { id: message.id, channel: message.channel_id, type: message.message_type });
+
       // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
       const isReminderAlert = message.message_type === 'reminder_alert';
       if (isReminderAlert) {
-        console.log('🔔 Reminder alert detected from polling - forcing notification');
+        console.log('🔔 Reminder alert detected from polling - forcing notification + badge');
+        
+        // Set rtBump for badge FIRST
+        const isViewingReminderChannel = isOpen && currentChannelId === message.channel_id;
+        if (!isViewingReminderChannel) {
+          setRtBump({
+            channelId: message.channel_id,
+            createdAt: message.created_at,
+            senderType: 'admin',
+            senderId: 'ai',
+            isSelf: false
+          });
+        }
+        
+        // Then play sound and show notification
         import('@/utils/audioManager')
           .then(({ playNotificationSound }) => playNotificationSound())
           .catch(() => {});
@@ -453,8 +469,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
           senderName: 'Smartbookly AI',
         });
-        // Dispatch event for badge updates (sound already played, won't play again)
-        window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));
         return;
       }
 
@@ -478,8 +492,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
         const skipBecauseOpen = isOpen && currentChannelId === message.channel_id;
 
-        // ⛔ NEW: Don't bump unread while the user is viewing this channel
+        // ALWAYS bump unread for incoming messages (unless viewing the channel)
         if (!skipBecauseOpen) {
+          console.log('📈 Setting rtBump for polled message:', message.channel_id);
           setRtBump({
             channelId: message.channel_id,
             createdAt: message.created_at,
@@ -489,9 +504,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           });
         }
 
-        // 2) notifications (don't redispatch event here to avoid loops)
+        // ALWAYS play sound and show notification (unless viewing the channel)
         if (!skipBecauseOpen) {
-          // FIXED: Always check channel participation, even for public boards
+          console.log('🔊 Playing sound for polled message:', message.channel_id);
           // Special handling for AI messages - they should always notify
           const isAIMessage = message.sender_name === 'Smartbookly AI';
           const shouldShow = isAIMessage || userChannels.has(message.channel_id);
@@ -521,7 +536,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Memoized real-time message handler to prevent re-renders
   const handleNewMessage = useCallback((message: any) => {
-    console.log('📨 Enhanced realtime message received:', message);
+    console.log('📨 Enhanced realtime message received:', { id: message.id, channel: message.channel_id, type: message.message_type });
 
     // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
     const isReminderAlert = message.message_type === 'reminder_alert';
@@ -531,6 +546,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       // CRITICAL: Set realtime bump for badge to appear instantly
       const isViewingReminderChannel = isOpen && currentChannelId === message.channel_id;
       if (!isViewingReminderChannel) {
+        console.log('📈 Setting rtBump for reminder alert:', message.channel_id);
         setRtBump({
           channelId: message.channel_id,
           createdAt: message.created_at,
@@ -540,6 +556,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         });
       }
       
+      console.log('🔊 Playing sound for reminder alert');
       import('@/utils/audioManager')
         .then(({ playNotificationSound }) => playNotificationSound())
         .catch(() => {});
@@ -591,6 +608,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (!isViewingThisChannel) {
         // Create realtime bump for unread tracking (only for new messages, not updates)
+        console.log('📈 Setting rtBump for realtime message:', message.channel_id);
         setRtBump({
           channelId: message.channel_id,
           createdAt: message.created_at,
@@ -652,9 +670,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('🔔 Should show notification for channel', message.channel_id, ':', shouldShow);
         if (shouldShow) {
           // Always play sound, regardless of notification permission/state
-          console.log('🔊 Playing notification sound for custom/regular chat');
+          console.log('🔊 Playing notification sound for message from:', message.sender_name);
           import('@/utils/audioManager')
-            .then(({ playNotificationSound }) => playNotificationSound())
+            .then(({ playNotificationSound }) => {
+              console.log('✅ Sound module loaded, playing...');
+              return playNotificationSound();
+            })
             .catch((error) => console.error('❌ Failed to play sound:', error));
           
           // Also attempt system notification
@@ -666,6 +687,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
             senderName: message.sender_name || 'Unknown',
           });
+        } else {
+          console.log('⏭️ Notification skipped - not a participant or viewing channel');
         }
       });
     } else if (isUpdate) {
