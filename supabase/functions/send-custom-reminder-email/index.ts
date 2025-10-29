@@ -62,6 +62,7 @@ const getEmailContent = (
   recipientName: string,
   message: string | undefined, 
   reminderTime: string,
+  isEventReminder: boolean,
   eventDetails?: {
     startDate: string;
     endDate: string;
@@ -86,12 +87,14 @@ const getEmailContent = (
     ) : '';
   
   if (language === 'ka') {
-    subject = "📅 მოვლენის შეხსენება - " + title;
+    subject = isEventReminder ? "📅 მოვლენის შეხსენება - " + title : "🔔 შეხსენება - " + title;
+    const emoji = isEventReminder ? "📅" : "🔔";
+    const headerTitle = isEventReminder ? "მოვლენის შეხსენება -" : "შეხსენება -";
     body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
         <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
-          <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
-          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">მოვლენის შეხსენება -</h1>
+          <div style="font-size: 40px; margin-bottom: 10px;">${emoji}</div>
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">${headerTitle}</h1>
           <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${title}</h2>
         </div>
         
@@ -126,12 +129,14 @@ const getEmailContent = (
       </div>
     `;
   } else if (language === 'es') {
-    subject = "📅 Recordatorio de Evento - " + title;
+    subject = isEventReminder ? "📅 Recordatorio de Evento - " + title : "🔔 Recordatorio - " + title;
+    const emoji = isEventReminder ? "📅" : "🔔";
+    const headerTitle = isEventReminder ? "Recordatorio de Evento -" : "Recordatorio -";
     body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
         <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
-          <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
-          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Recordatorio de Evento -</h1>
+          <div style="font-size: 40px; margin-bottom: 10px;">${emoji}</div>
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">${headerTitle}</h1>
           <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${title}</h2>
         </div>
         
@@ -166,12 +171,14 @@ const getEmailContent = (
       </div>
     `;
   } else if (language === 'ru') {
-    subject = "📅 Напоминание о Событии - " + title;
+    subject = isEventReminder ? "📅 Напоминание о Событии - " + title : "🔔 Напоминание - " + title;
+    const emoji = isEventReminder ? "📅" : "🔔";
+    const headerTitle = isEventReminder ? "Напоминание о Событии -" : "Напоминание -";
     body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
         <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
-          <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
-          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Напоминание о Событии -</h1>
+          <div style="font-size: 40px; margin-bottom: 10px;">${emoji}</div>
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">${headerTitle}</h1>
           <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${title}</h2>
         </div>
         
@@ -206,12 +213,14 @@ const getEmailContent = (
       </div>
     `;
   } else {
-    subject = "📅 Event Reminder - " + title;
+    subject = isEventReminder ? "📅 Event Reminder - " + title : "🔔 Reminder - " + title;
+    const emoji = isEventReminder ? "📅" : "🔔";
+    const headerTitle = isEventReminder ? "Event Reminder -" : "Reminder -";
     body = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; overflow: hidden;">
         <div style="background: linear-gradient(45deg, #667eea, #764ba2); padding: 30px; text-align: center;">
-          <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
-          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Event Reminder -</h1>
+          <div style="font-size: 40px; margin-bottom: 10px;">${emoji}</div>
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold;">${headerTitle}</h1>
           <h2 style="margin: 10px 0 0 0; font-size: 24px; opacity: 0.9;">${title}</h2>
         </div>
         
@@ -423,6 +432,7 @@ const handler = async (req: Request): Promise<Response> => {
       recipientDisplayName,
       message, 
       reminderTime,
+      !!eventId, // isEventReminder: true if eventId exists, false for custom reminders
       eventDetails
     );
 

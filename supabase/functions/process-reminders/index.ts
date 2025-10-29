@@ -33,8 +33,8 @@ const handler = async (req: Request): Promise<Response> => {
     console.log('📨 Request body:', body);
 
     const now = new Date();
-    // Use 1-minute buffer BEFORE scheduled time for much earlier delivery
-    const reminderCheckTime = new Date(now.getTime() + 60 * 1000); // 1 minute ahead for earlier checking
+    // Check reminders that are due NOW (no future buffer to prevent early triggering)
+    const reminderCheckTime = new Date(now.getTime());
     
     const result: ReminderProcessingResult = {
       taskReminders: 0,
