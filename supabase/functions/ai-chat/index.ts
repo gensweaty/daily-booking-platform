@@ -944,7 +944,19 @@ CRITICAL RULES:
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: "Creates a reminder with BOTH dashboard and email notifications. Use offset_minutes for relative times (e.g., 'in 2 minutes').",
+          description: `**CRITICAL: Check for existing tasks/events FIRST before using this tool**
+          
+          WORKFLOW FOR REMINDER REQUESTS:
+          1. If user mentions a specific task or event by name (e.g., "remind me about the meeting", "reminder for project X"):
+             - FIRST call get_all_tasks or get_all_events to search for that task/event by name
+             - If found, update that task/event with reminder_at using create_or_update_task or create_or_update_event
+             - This will trigger task/event reminder (email + AI chat notification)
+             - ONLY use create_custom_reminder if the task/event doesn't exist
+          
+          2. If user wants a general reminder (e.g., "remind me to call John", "set a reminder to check email"):
+             - Use create_custom_reminder directly
+          
+          Creates a custom reminder with BOTH dashboard and email notifications. Use offset_minutes for relative times (e.g., 'in 2 minutes').
           parameters: {
             type: "object",
             properties: {
@@ -975,6 +987,14 @@ OPTIONAL fields (if user provides):
 - payment_status: 'not_paid', 'partly_paid', or 'fully_paid'
 - payment_amount: Payment amount (number)
 - event_name: Type of event (birthday, meeting, etc)
+- reminder: ISO timestamp for event reminder (enables email + AI chat notification)
+- email_reminder: boolean (auto-enabled with reminder)
+
+SCHEDULING REMINDERS FOR EVENTS:
+- If user wants to set a reminder for an existing event by name (e.g., "remind me about the meeting")
+- FIRST search for that event using get_all_events
+- Then update it with reminder parameter to schedule the reminder
+- This triggers BOTH email AND AI chat notification at the specified time
 
 EDITING EVENTS:
 - If user mentions editing an event, FIRST use get_upcoming_events or get_all_events to find the event by name
@@ -1012,9 +1032,15 @@ OPTIONAL fields:
 - description: Task description
 - status: 'todo' | 'inprogress' | 'done' (default: todo)
 - deadline: ISO timestamp YYYY-MM-DDTHH:mm
-- reminder: ISO timestamp (before deadline, enables email auto)
+- reminder: ISO timestamp (before deadline, enables email + AI chat notification)
 - email_reminder: boolean (auto-enabled with reminder)
 - assigned_to_name: ANY name or partial name - system auto-matches (e.g., "Cau", "papex", "John", "admin")
+
+SCHEDULING REMINDERS FOR TASKS:
+- If user wants to set a reminder for an existing task by name (e.g., "remind me about project X")
+- FIRST search for that task using get_all_tasks
+- Then update it with reminder parameter to schedule the reminder
+- This triggers BOTH email AND AI chat notification at the specified time
 
 FILE ATTACHMENTS:
 - Files uploaded in chat are AUTOMATICALLY attached - no IDs or confirmation needed!
@@ -1538,6 +1564,31 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 6. **SEARCH BEFORE UPDATE** - Always fetch existing data before attempting updates
 
 **REMINDERS - SERVER-SIDE TIME MATH**:
+**CRITICAL: Intelligent Reminder Detection - Check for Existing Tasks/Events FIRST**
+
+When user asks to set a reminder that mentions a specific name (e.g., "remind me about the meeting", "set reminder for project X"):
+1. **FIRST** search for that task/event using get_all_tasks or get_all_events
+2. **IF FOUND**: 
+   - For tasks: Update the task using create_or_update_task with reminder_at and email_reminder_enabled=true
+   - For events: Update the event using create_or_update_event with reminder_at and email_reminder_enabled=true
+   - This will trigger the task/event reminder system (both email + AI chat notification)
+3. **IF NOT FOUND**: Use create_custom_reminder for a general reminder
+
+**EXAMPLES**:
+- User: "remind me about the meeting tomorrow at 3pm"
+  → Step 1: Call get_all_events to search for "meeting"
+  → Step 2a: If found, update that event with reminder_at
+  → Step 2b: If not found, use create_custom_reminder
+
+- User: "set a reminder for project X in 2 hours"
+  → Step 1: Call get_all_tasks to search for "project X"
+  → Step 2a: If found, update that task with reminder_at
+  → Step 2b: If not found, use create_custom_reminder
+
+- User: "remind me to call John tomorrow"
+  → This is a general reminder (not a task/event), use create_custom_reminder directly
+
+**TIME FORMATS**:
 For relative times ("in 10 minutes"): use offset_minutes
 For absolute times ("today at 3pm"): use absolute_local (YYYY-MM-DDTHH:mm)
 Server calculates UTC and confirms immediately (no second response needed).

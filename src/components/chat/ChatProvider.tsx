@@ -1195,7 +1195,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Create an immutable snapshot to ensure consumers re-render on bumps
   const channelUnreadsSnapshot = useMemo(
     () => ({ ...channelUnreads }),
-    [channelUnreads, rtBump]
+    [channelUnreads] // Remove rtBump - it causes premature snapshot before useServerUnread updates
   );
 
   // Build UI-facing counts (masked)
