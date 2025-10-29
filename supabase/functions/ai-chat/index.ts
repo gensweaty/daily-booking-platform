@@ -995,6 +995,10 @@ SCHEDULING REMINDERS FOR EVENTS:
 - FIRST search for that event using get_all_events
 - Then update it with reminder parameter to schedule the reminder
 - This triggers BOTH email AND AI chat notification at the specified time
+- For relative times (e.g., "in 1 minute", "in 2 hours"):
+  * MANDATORY: Call get_current_datetime FIRST to get exact current time
+  * Calculate the reminder time by adding the offset to current time
+  * Use the calculated ISO timestamp in reminder parameter
 
 EDITING EVENTS:
 - If user mentions editing an event, FIRST use get_upcoming_events or get_all_events to find the event by name
@@ -1013,7 +1017,9 @@ EDITING EVENTS:
               notes: { type: "string" },
               payment_status: { type: "string", enum: ["not_paid", "partly_paid", "fully_paid"] },
               payment_amount: { type: "number" },
-              event_name: { type: "string" }
+              event_name: { type: "string" },
+              reminder: { type: "string", description: "ISO timestamp for reminder (YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss) - triggers email + AI chat notification" },
+              email_reminder: { type: "boolean", description: "Enable email reminder (auto-enabled with reminder)" }
             },
             required: ["full_name", "start_date", "end_date"]
           }
@@ -1041,6 +1047,10 @@ SCHEDULING REMINDERS FOR TASKS:
 - FIRST search for that task using get_all_tasks
 - Then update it with reminder parameter to schedule the reminder
 - This triggers BOTH email AND AI chat notification at the specified time
+- For relative times (e.g., "in 1 minute", "in 2 hours"):
+  * MANDATORY: Call get_current_datetime FIRST to get exact current time
+  * Calculate the reminder time by adding the offset to current time
+  * Use the calculated ISO timestamp in reminder parameter
 
 FILE ATTACHMENTS:
 - Files uploaded in chat are AUTOMATICALLY attached - no IDs or confirmation needed!
@@ -1064,7 +1074,7 @@ EDITING TASKS:
               description: { type: "string" },
               status: { type: "string", enum: ["todo", "inprogress", "done"] },
               deadline: { type: "string", description: "Deadline (YYYY-MM-DDTHH:mm)" },
-              reminder: { type: "string", description: "Reminder time (before deadline)" },
+              reminder: { type: "string", description: "ISO timestamp for reminder (YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss) - triggers email + AI chat notification" },
               email_reminder: { type: "boolean", description: "Email reminder flag" },
               assigned_to_name: { type: "string", description: "Team member name for assignment" }
             },
@@ -1563,35 +1573,58 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 5. **MAINTAIN CONTEXT** - Remember what was just created to handle follow-up questions
 6. **SEARCH BEFORE UPDATE** - Always fetch existing data before attempting updates
 
-**REMINDERS - SERVER-SIDE TIME MATH**:
+**REMINDERS - CRITICAL TIME CALCULATION RULES**:
 **CRITICAL: Intelligent Reminder Detection - Check for Existing Tasks/Events FIRST**
 
 When user asks to set a reminder that mentions a specific name (e.g., "remind me about the meeting", "set reminder for project X"):
 1. **FIRST** search for that task/event using get_all_tasks or get_all_events
 2. **IF FOUND**: 
-   - For tasks: Update the task using create_or_update_task with reminder_at and email_reminder_enabled=true
-   - For events: Update the event using create_or_update_event with reminder_at and email_reminder_enabled=true
+   - For tasks: Update the task using create_or_update_task with reminder parameter (ISO timestamp) and email_reminder_enabled=true
+   - For events: Update the event using create_or_update_event with reminder parameter (ISO timestamp) and email_reminder_enabled=true
    - This will trigger the task/event reminder system (both email + AI chat notification)
 3. **IF NOT FOUND**: Use create_custom_reminder for a general reminder
 
-**EXAMPLES**:
-- User: "remind me about the meeting tomorrow at 3pm"
+**CRITICAL: HOW TO CALCULATE REMINDER TIMES FOR RELATIVE TIMES**:
+When user says "remind me about [event/task name] in X minutes/hours":
+1. **MANDATORY FIRST STEP**: Call get_current_datetime to get the EXACT current time
+2. Parse the returned currentTime (ISO format) as a Date object
+3. Add the offset (X minutes/hours) to calculate the reminder time
+4. Convert to ISO format (YYYY-MM-DDTHH:mm:ss or YYYY-MM-DDTHH:mm)
+5. Use that calculated ISO timestamp in the reminder parameter
+
+**EXAMPLE WORKFLOW**:
+User says at 14:19: "remind me about event zxczxc in 1 minute"
+
+Step 1: Call get_current_datetime → returns currentTime: "2025-10-29T14:19:00Z"
+Step 2: Parse as Date: new Date("2025-10-29T14:19:00Z")
+Step 3: Add 1 minute: new Date("2025-10-29T14:19:00Z").getTime() + (1 * 60 * 1000) = "2025-10-29T14:20:00Z"
+Step 4: Call get_all_events to find "zxczxc"
+Step 5: Call create_or_update_event with event_id + reminder="2025-10-29T14:20:00Z"
+
+**MORE EXAMPLES**:
+- "remind me about the meeting tomorrow at 3pm"
   → Step 1: Call get_all_events to search for "meeting"
-  → Step 2a: If found, update that event with reminder_at
-  → Step 2b: If not found, use create_custom_reminder
+  → Step 2a: If found, calculate tomorrow at 3pm in ISO format, update event with that reminder timestamp
+  → Step 2b: If not found, use create_custom_reminder with absolute_local
 
-- User: "set a reminder for project X in 2 hours"
-  → Step 1: Call get_all_tasks to search for "project X"
-  → Step 2a: If found, update that task with reminder_at
-  → Step 2b: If not found, use create_custom_reminder
+- "set a reminder for project X in 2 hours"
+  → Step 1: Call get_current_datetime to get current time
+  → Step 2: Add 2 hours to current time
+  → Step 3: Call get_all_tasks to search for "project X"
+  → Step 4a: If found, update task with calculated reminder timestamp
+  → Step 4b: If not found, use create_custom_reminder with offset_minutes=120
 
-- User: "remind me to call John tomorrow"
-  → This is a general reminder (not a task/event), use create_custom_reminder directly
+- "remind me to call John tomorrow"
+  → This is a general reminder (not a task/event), use create_custom_reminder directly with absolute_local
 
-**TIME FORMATS**:
-For relative times ("in 10 minutes"): use offset_minutes
-For absolute times ("today at 3pm"): use absolute_local (YYYY-MM-DDTHH:mm)
-Server calculates UTC and confirms immediately (no second response needed).
+**TIME FORMATS FOR create_custom_reminder ONLY**:
+For relative times ("in 10 minutes"): use offset_minutes parameter
+For absolute times ("today at 3pm"): use absolute_local parameter (YYYY-MM-DDTHH:mm)
+
+**TIME FORMATS FOR create_or_update_event and create_or_update_task**:
+ALWAYS use reminder parameter with ISO timestamp (YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss)
+For relative times: MUST call get_current_datetime first, then calculate the absolute timestamp
+Server validates and confirms immediately.
 
 Use display_time from tool (never UTC). No "if" statements, just confirm success.
 
