@@ -129,15 +129,70 @@ serve(async (req) => {
     const words = lower.split(/\s+/);
     
     // ---- FAST-PATH FOR SIMPLE REMINDERS (runs before LLM) ----
+    // Enhanced debugging and multiple robust regex patterns
     
-    // Fast-path 1: Detect "in X minute(s)" patterns
-    const reminderMatch = prompt.match(/\b(?:remind\s+(?:me\s+)?)?in\s+(\d+)\s*minute(?:s)?\b/i);
+    console.log('🔍 REMINDER FAST-PATH DEBUG:');
+    console.log('  → Raw prompt:', JSON.stringify(prompt));
+    console.log('  → Prompt length:', prompt?.length);
+    console.log('  → Contains "in":', prompt.includes('in'));
+    console.log('  → Contains "minute":', prompt.includes('minute'));
+    
+    // Test multiple simple patterns instead of one complex pattern
+    const patterns = {
+      // Pattern 1: "remind me in X minute(s) [about/for/to] [something]"
+      p1: /remind\s+me\s+in\s+(\d+)\s*minutes?\b/i,
+      // Pattern 2: "remind in X minute(s)"
+      p2: /remind\s+in\s+(\d+)\s*minutes?\b/i,
+      // Pattern 3: "in X minute(s) [about/for/to] [something]" (without "remind")
+      p3: /\bin\s+(\d+)\s*minutes?\b/i,
+      // Pattern 4: "set reminder in X minute(s)"
+      p4: /set\s+(?:a\s+)?reminder\s+in\s+(\d+)\s*minutes?\b/i,
+    };
+    
+    let reminderMatch = null;
+    let matchedPattern = '';
+    
+    // Test each pattern
+    for (const [key, pattern] of Object.entries(patterns)) {
+      const match = prompt.match(pattern);
+      if (match) {
+        reminderMatch = match;
+        matchedPattern = key;
+        console.log(`  ✅ Pattern ${key} matched:`, pattern.toString());
+        break;
+      } else {
+        console.log(`  ❌ Pattern ${key} no match:`, pattern.toString());
+      }
+    }
+    
     if (reminderMatch) {
       const minutes = parseInt(reminderMatch[1], 10);
-      console.log(`⚡ Reminder fast-path triggered: ${minutes} minute(s)`);
+      console.log(`⚡ Reminder fast-path TRIGGERED: ${minutes} minute(s) via pattern ${matchedPattern}`);
       
-      const nameMatch = prompt.match(/name\s+(.+)/i);
-      const title = nameMatch ? nameMatch[1].trim() : "Reminder";
+      // Enhanced title extraction - check for "about", "for", "to", or "name"
+      let title = "Reminder";
+      
+      // Try multiple title extraction patterns
+      const titlePatterns = [
+        /(?:about|for|to)\s+(.+)/i,           // "about X", "for X", "to X"
+        /name\s+(.+)/i,                       // "name X"
+        /in\s+\d+\s*minutes?\s+(.+)/i,        // "in X minutes TITLE"
+      ];
+      
+      for (const pattern of titlePatterns) {
+        const match = prompt.match(pattern);
+        if (match && match[1]) {
+          // Clean up the title - remove trailing time references
+          title = match[1]
+            .replace(/\s+(?:at|on|in)\s+\d{1,2}:\d{2}.*/i, '')  // Remove time references
+            .replace(/\s+in\s+\d+\s*minutes?.*/i, '')            // Remove "in X minutes"
+            .trim();
+          if (title) {
+            console.log(`  📝 Extracted title from pattern ${pattern}:`, title);
+            break;
+          }
+        }
+      }
       
       console.log(`📝 Creating reminder: "${title}" in ${minutes} minute(s)`);
       
@@ -145,8 +200,8 @@ serve(async (req) => {
         const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
         const remindAtUtc = new Date(baseNow.getTime() + minutes * 60000);
         
-        console.log(`🕐 Base time: ${baseNow.toISOString()}`);
-        console.log(`⏰ Remind at (UTC): ${remindAtUtc.toISOString()}`);
+        console.log(`🕐 Base time: ${baseNow.toISOString()} (local: ${formatInUserZone(baseNow)})`);
+        console.log(`⏰ Remind at (UTC): ${remindAtUtc.toISOString()} (local: ${formatInUserZone(remindAtUtc)})`);
         
         const { data: reminderData, error: reminderError } = await supabaseAdmin
           .from('reminders')
@@ -182,26 +237,33 @@ serve(async (req) => {
           message_type: 'text'
         });
         
-        console.log(`✅ Reminder fast-path completed: ${title} (${minutes} minutes)`);
+        console.log(`✅ Reminder fast-path completed successfully: ${title} (${minutes} minutes)`);
         
+        // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
         return new Response(JSON.stringify({ success: true, content }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         
       } catch (error) {
         console.error('❌ Reminder fast-path error:', error);
+        // On error, fall through to LLM
       }
+    } else {
+      console.log('  ❌ No reminder pattern matched - will use LLM');
     }
     
     // Fast-path 2: Detect "at HH:MM" or "on HH:MM" patterns
-    const timeMatch = prompt.match(/\b(?:at|on|in)\s+(\d{1,2}):(\d{2})\b/i);
+    const timeMatch = prompt.match(/\b(?:at|on)\s+(\d{1,2}):(\d{2})\b/i);
     if (timeMatch) {
       const hours = parseInt(timeMatch[1], 10);
       const minutes = parseInt(timeMatch[2], 10);
       console.log(`⚡ Time reminder fast-path triggered: ${hours}:${String(minutes).padStart(2, '0')}`);
       
-      // Extract title from the prompt (everything before "at/on/in")
-      const titleMatch = prompt.match(/remind\s+(?:me\s+)?(?:about\s+)?(.+?)\s+(?:at|on|in)\s+\d{1,2}:\d{2}/i);
-      const title = titleMatch ? titleMatch[1].trim() : "Reminder";
+      // Enhanced title extraction - check for patterns before "at/on"
+      let title = "Reminder";
+      const titleMatch = prompt.match(/(?:remind\s+(?:me\s+)?(?:about\s+)?(.+?)\s+(?:at|on)|(.+?)\s+(?:at|on))\s+\d{1,2}:\d{2}/i);
+      if (titleMatch) {
+        title = (titleMatch[1] || titleMatch[2] || "").trim();
+      }
       
       console.log(`📝 Creating reminder: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
       
@@ -258,11 +320,13 @@ serve(async (req) => {
         
         console.log(`✅ Time reminder fast-path completed: ${title} at ${hours}:${String(minutes).padStart(2, '0')}`);
         
+        // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
         return new Response(JSON.stringify({ success: true, content }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         
       } catch (error) {
         console.error('❌ Time reminder fast-path error:', error);
+        // On error, fall through to LLM
       }
     }
     // ---- END REMINDER FAST-PATHS ----
