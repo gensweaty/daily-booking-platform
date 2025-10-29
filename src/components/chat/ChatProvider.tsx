@@ -1272,7 +1272,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               <ChatIcon 
                 onClick={toggle} 
                 isOpen={isOpen} 
-                unreadCount={unreadTotal}
+                unreadCount={uiUnreadTotal}
                 isPending={false}
                 teamChatText={t('chat.teamChat')}
                 loadingText={t('chat.loading')}
