@@ -3500,9 +3500,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   break;
                 }
                 
-                // 3) Validate future time
-                const nowUtc = new Date();
-                if (sendAtUtc <= new Date(nowUtc.getTime() - 1000)) {
+                // 3) Validate future time - use baseNow for consistency
+                // Add 2-second buffer to account for network/processing delays
+                if (sendAtUtc <= new Date(baseNow.getTime() + 2000)) {
                   toolResult = { success: false, error: 'Email send time must be in the future.' };
                   break;
                 }
@@ -3730,9 +3730,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // 3) Validate future time
-              const nowUtc = new Date();
-              if (remindAtUtc <= new Date(nowUtc.getTime() - 1000)) {
+              // 3) Validate future time - use baseNow for consistency with calculation
+              // Add 2-second buffer to account for network/processing delays
+              if (remindAtUtc <= new Date(baseNow.getTime() + 2000)) {
                 toolResult = { success: false, error: 'Reminder time must be in the future.' };
                 break;
               }
