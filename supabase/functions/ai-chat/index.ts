@@ -110,10 +110,93 @@ serve(async (req) => {
       );
     }
 
+    // Detect user language from the LATEST user message BEFORE processing (needed for fast-paths)
+    const detectLanguage = (text: string): string => {
+      // Check for Cyrillic characters (Russian, etc.)
+      if (/[\u0400-\u04FF]/.test(text)) return 'ru';
+      // Check for Georgian characters
+      if (/[\u10A0-\u10FF]/.test(text)) return 'ka';
+      // Check for Spanish specific characters/words
+      if (/[áéíóúñ¿¡]/i.test(text) || /\b(el|la|los|las|un|una|de|del|en|que|es|por)\b/i.test(text)) return 'es';
+      return 'en'; // Default to English
+    };
+    const userLanguage = detectLanguage(prompt);
+    console.log('🌐 Detected user language from current message:', userLanguage);
+
     // ---- ENHANCED FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
     // Uses confidence-based pattern matching to avoid misunderstandings
     const lower = (prompt || "").toLowerCase();
     const words = lower.split(/\s+/);
+    
+    // ---- FAST-PATH FOR SIMPLE REMINDERS (runs before LLM) ----
+    // Detect "in X minute(s)" or "remind me in X minute(s)" patterns
+    const reminderMatch = prompt.match(/\b(?:remind\s+(?:me\s+)?)?in\s+(\d+)\s*minute(?:s)?\b/i);
+    if (reminderMatch) {
+      const minutes = parseInt(reminderMatch[1], 10);
+      console.log(`⚡ Reminder fast-path triggered: ${minutes} minute(s)`);
+      
+      // Extract title from the prompt (everything after "name" or use default)
+      const nameMatch = prompt.match(/name\s+(.+)/i);
+      const title = nameMatch ? nameMatch[1].trim() : "Reminder";
+      
+      console.log(`📝 Creating reminder: "${title}" in ${minutes} minute(s)`);
+      
+      try {
+        // Calculate reminder time
+        const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
+        const remindAtUtc = new Date(baseNow.getTime() + minutes * 60000);
+        
+        console.log(`🕐 Base time: ${baseNow.toISOString()}`);
+        console.log(`⏰ Remind at (UTC): ${remindAtUtc.toISOString()}`);
+        
+        // Create the reminder directly
+        const { data: reminderData, error: reminderError } = await supabaseAdmin
+          .from('reminders')
+          .insert({
+            user_id: ownerId,
+            title: title,
+            remind_at: remindAtUtc.toISOString(),
+            message: `Reminder: ${title}`
+          })
+          .select()
+          .single();
+        
+        if (reminderError) {
+          console.error('❌ Error creating reminder:', reminderError);
+          throw reminderError;
+        }
+        
+        console.log('✅ Reminder created successfully:', reminderData);
+        
+        // Format the confirmation message
+        const reminderTimeFormatted = formatInUserZone(remindAtUtc);
+        const content = userLanguage === 'ka' 
+          ? `✅ შეხსენება დაყენებულია! შეგახსენებთ "${title}"-ს ${reminderTimeFormatted}-ზე. მიიღებთ როგორც ელ. ფოსტის, ასევე დაფის შეტყობინებას.`
+          : userLanguage === 'es'
+          ? `✅ ¡Recordatorio establecido! Te recordaré "${title}" en ${reminderTimeFormatted}. Recibirás tanto un correo electrónico como una notificación en el panel.`
+          : `✅ Reminder set! I'll remind you about "${title}" at ${reminderTimeFormatted}. You'll receive both an email and dashboard notification.`;
+        
+        // Write confirmation message to chat
+        await supabaseAdmin.from('chat_messages').insert({
+          channel_id: channelId,
+          owner_id: ownerId,
+          sender_type: 'admin',
+          sender_name: 'Smartbookly AI',
+          content: content,
+          message_type: 'text'
+        });
+        
+        console.log(`✅ Reminder fast-path completed: ${title} (${minutes} minutes)`);
+        
+        return new Response(JSON.stringify({ success: true, content }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        
+      } catch (error) {
+        console.error('❌ Reminder fast-path error:', error);
+        // Fall through to LLM if fast-path fails
+      }
+    }
+    // ---- END REMINDER FAST-PATH ----
     
     // Check if user explicitly requests Excel generation
     const explicitExcelRequest = /\b(generate|create|make|download|export)\s+(an?\s+)?(excel|xlsx|spreadsheet)\b/.test(lower) ||
@@ -1136,27 +1219,12 @@ EDITING CUSTOMERS:
       );
     }
     
-    // Get current date for context
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
     const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
-    // Detect user language from the LATEST user message (most recent prompt)
-    const detectLanguage = (text: string): string => {
-      // Check for Cyrillic characters (Russian, etc.)
-      if (/[\u0400-\u04FF]/.test(text)) return 'ru';
-      // Check for Georgian characters
-      if (/[\u10A0-\u10FF]/.test(text)) return 'ka';
-      // Check for Spanish specific characters/words
-      if (/[áéíóúñ¿¡]/i.test(text) || /\b(el|la|los|las|un|una|de|del|en|que|es|por)\b/i.test(text)) return 'es';
-      return 'en'; // Default to English
-    };
-
-    // Always detect from the current prompt (latest message) to allow language switching
-    const userLanguage = detectLanguage(prompt);
-    
-    console.log('🌐 Detected user language from current message:', userLanguage);
+    // Note: userLanguage and detectLanguage already defined above before fast-paths
 
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
 
