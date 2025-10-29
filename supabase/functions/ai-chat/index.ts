@@ -210,12 +210,13 @@ serve(async (req) => {
         console.log(`⏰ Remind at (UTC): ${remindAtUtc.toISOString()} (local: ${formatInUserZone(remindAtUtc)})`);
         
         const { data: reminderData, error: reminderError } = await supabaseAdmin
-          .from('reminders')
+          .from('custom_reminders')
           .insert({
             user_id: ownerId,
             title: title,
             remind_at: remindAtUtc.toISOString(),
-            message: `Reminder: ${title}`
+            message: `Reminder: ${title}`,
+            language: userLanguage || 'en'
           })
           .select()
           .single();
@@ -291,12 +292,13 @@ serve(async (req) => {
         console.log(`⏰ Remind at (UTC): ${targetTime.toISOString()} (user local: ${formatInUserZone(targetTime)})`);
         
         const { data: reminderData, error: reminderError } = await supabaseAdmin
-          .from('reminders')
+          .from('custom_reminders')
           .insert({
             user_id: ownerId,
             title: title,
             remind_at: targetTime.toISOString(),
-            message: `Reminder: ${title}`
+            message: `Reminder: ${title}`,
+            language: userLanguage || 'en'
           })
           .select()
           .single();
