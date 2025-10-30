@@ -9,8 +9,21 @@ export const useReminderNotifications = (reminders: Reminder[]) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    audioRef.current = new Audio('/audio/notification.mp3');
-    audioRef.current.volume = 0.5; // Set volume to 50%
+    const audio = new Audio('/audio/notification.mp3');
+    audio.volume = 0.5;
+    audioRef.current = audio;
+
+    // Stop audio after 1 second to ensure it doesn't play too long
+    const stopAfterOneSecond = () => {
+      setTimeout(() => {
+        if (audio && !audio.paused) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      }, 1000);
+    };
+    
+    audio.addEventListener('play', stopAfterOneSecond);
 
     if ('Notification' in window) {
       Notification.requestPermission();
@@ -63,6 +76,7 @@ export const useReminderNotifications = (reminders: Reminder[]) => {
     const interval = setInterval(checkReminders, 30000);
     return () => {
       clearInterval(interval);
+      audio.removeEventListener('play', stopAfterOneSecond);
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;

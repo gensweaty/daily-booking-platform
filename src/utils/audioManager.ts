@@ -1,5 +1,7 @@
 let audioContext: AudioContext | null = null;
 let notificationBuffer: AudioBuffer | null = null;
+let lastSoundPlayTime = 0;
+const MIN_SOUND_INTERVAL_MS = 2000; // 2 seconds debounce - prevents duplicate sounds
 
 const initAudio = () => {
   if (!audioContext) {
@@ -30,6 +32,16 @@ const loadNotificationSound = async (): Promise<AudioBuffer | null> => {
 };
 
 export const playNotificationSound = async (): Promise<boolean> => {
+  const now = Date.now();
+  
+  // Debounce: skip if sound was played too recently
+  if (now - lastSoundPlayTime < MIN_SOUND_INTERVAL_MS) {
+    console.log('🔇 Skipping sound - played too recently (debounced)');
+    return false;
+  }
+  
+  lastSoundPlayTime = now;
+  
   try {
     const context = initAudio();
     
@@ -50,9 +62,10 @@ export const playNotificationSound = async (): Promise<boolean> => {
     source.connect(gainNode);
     gainNode.connect(context.destination);
     
-    source.start(0);
+    // Play for maximum 1 second: start(when, offset, duration)
+    source.start(0, 0, 1.0);
     
-    console.log('✅ Notification sound played');
+    console.log('✅ Notification sound played (max 1s)');
     return true;
   } catch (error) {
     console.warn('❌ Error playing notification sound:', error);

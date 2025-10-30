@@ -110,10 +110,234 @@ serve(async (req) => {
       );
     }
 
+    // Detect user language from the LATEST user message BEFORE processing (needed for fast-paths)
+    const detectLanguage = (text: string): string => {
+      // Check for Cyrillic characters (Russian, etc.)
+      if (/[\u0400-\u04FF]/.test(text)) return 'ru';
+      // Check for Georgian characters
+      if (/[\u10A0-\u10FF]/.test(text)) return 'ka';
+      // Check for Spanish specific characters/words
+      if (/[áéíóúñ¿¡]/i.test(text) || /\b(el|la|los|las|un|una|de|del|en|que|es|por)\b/i.test(text)) return 'es';
+      return 'en'; // Default to English
+    };
+    const userLanguage = detectLanguage(prompt);
+    console.log('🌐 Detected user language from current message:', userLanguage);
+
     // ---- ENHANCED FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
     // Uses confidence-based pattern matching to avoid misunderstandings
     const lower = (prompt || "").toLowerCase();
     const words = lower.split(/\s+/);
+    
+    // ---- FAST-PATH FOR SIMPLE REMINDERS (runs before LLM) ----
+    // CRITICAL: This fast-path MUST catch ALL "in X minute(s)" requests BEFORE the LLM
+    // The LLM has been incorrectly refusing "in 1 minute" requests - this prevents that
+    
+    console.log('🔍 REMINDER FAST-PATH DEBUG:');
+    console.log('  → Raw prompt:', JSON.stringify(prompt));
+    console.log('  → Prompt length:', prompt?.length);
+    console.log('  → Lowercase prompt:', prompt?.toLowerCase());
+    console.log('  → Contains "in":', prompt?.includes('in'));
+    console.log('  → Contains "minute":', prompt?.includes('minute'));
+    
+    // CRITICAL: Test multiple SIMPLE patterns - complex regex has failed before
+    // Each pattern must be tested independently to ensure at least one catches the request
+    const patterns = {
+      // Pattern 1: "remind me in X minute(s)"
+      p1: /remind\s+me\s+in\s+(\d+)\s*minutes?\b/i,
+      // Pattern 2: "remind in X minute(s)" (without "me")
+      p2: /remind\s+in\s+(\d+)\s*minutes?\b/i,
+      // Pattern 3: "in X minute(s)" (simplest - catches everything)
+      p3: /\bin\s+(\d+)\s*minutes?\b/i,
+      // Pattern 4: "set reminder in X minute(s)"
+      p4: /set\s+(?:a\s+)?reminder\s+in\s+(\d+)\s*minutes?\b/i,
+      // Pattern 5: Handle typos like "in 1 minutes" (plural for 1)
+      p5: /\bin\s+(1)\s*minutes\b/i,
+    };
+    
+    let reminderMatch = null;
+    let matchedPattern = '';
+    
+    // Test each pattern and log results for debugging
+    for (const [key, pattern] of Object.entries(patterns)) {
+      const match = prompt.match(pattern);
+      if (match) {
+        reminderMatch = match;
+        matchedPattern = key;
+        console.log(`  ✅✅✅ Pattern ${key} MATCHED:`, pattern.toString());
+        console.log(`  ✅✅✅ Captured minutes value:`, match[1]);
+        break;
+      } else {
+        console.log(`  ❌ Pattern ${key} no match:`, pattern.toString());
+      }
+    }
+    
+    if (reminderMatch) {
+      const minutes = parseInt(reminderMatch[1], 10);
+      console.log(`⚡ Reminder fast-path TRIGGERED: ${minutes} minute(s) via pattern ${matchedPattern}`);
+      
+      // Enhanced title extraction - check for "about", "for", "to", or "name"
+      let title = "Reminder";
+      
+      // Try multiple title extraction patterns
+      const titlePatterns = [
+        /(?:about|for|to)\s+(.+)/i,           // "about X", "for X", "to X"
+        /name\s+(.+)/i,                       // "name X"
+        /in\s+\d+\s*minutes?\s+(.+)/i,        // "in X minutes TITLE"
+      ];
+      
+      for (const pattern of titlePatterns) {
+        const match = prompt.match(pattern);
+        if (match && match[1]) {
+          // Clean up the title - remove trailing time references
+          title = match[1]
+            .replace(/\s+(?:at|on|in)\s+\d{1,2}:\d{2}.*/i, '')  // Remove time references
+            .replace(/\s+in\s+\d+\s*minutes?.*/i, '')            // Remove "in X minutes"
+            .trim();
+          if (title) {
+            console.log(`  📝 Extracted title from pattern ${pattern}:`, title);
+            break;
+          }
+        }
+      }
+      
+      console.log(`📝 Creating reminder: "${title}" in ${minutes} minute(s)`);
+      
+      try {
+        const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
+        const remindAtUtc = new Date(baseNow.getTime() + minutes * 60000);
+        
+        console.log(`🕐 Base time: ${baseNow.toISOString()} (local: ${formatInUserZone(baseNow)})`);
+        console.log(`⏰ Remind at (UTC): ${remindAtUtc.toISOString()} (local: ${formatInUserZone(remindAtUtc)})`);
+        
+        const { data: reminderData, error: reminderError } = await supabaseAdmin
+          .from('custom_reminders')
+          .insert({
+            user_id: ownerId,
+            title: title,
+            remind_at: remindAtUtc.toISOString(),
+            message: `Reminder: ${title}`,
+            language: userLanguage || 'en'
+          })
+          .select()
+          .single();
+        
+        if (reminderError) {
+          console.error('❌ Error creating reminder:', reminderError);
+          throw reminderError;
+        }
+        
+        console.log('✅ Reminder created successfully:', reminderData);
+        
+        const reminderTimeFormatted = formatInUserZone(remindAtUtc);
+        const content = userLanguage === 'ka' 
+          ? `✅ შეხსენება დაყენებულია! შეგახსენებთ "${title}"-ს ${reminderTimeFormatted}-ზე. მიიღებთ როგორც ელ. ფოსტის, ასევე დაფის შეტყობინებას.`
+          : userLanguage === 'es'
+          ? `✅ ¡Recordatorio establecido! Te recordaré "${title}" en ${reminderTimeFormatted}. Recibirás tanto un correo electrónico como una notificación en el panel.`
+          : `✅ Reminder set! I'll remind you about "${title}" at ${reminderTimeFormatted}. You'll receive both an email and dashboard notification.`;
+        
+        await supabaseAdmin.from('chat_messages').insert({
+          channel_id: channelId,
+          owner_id: ownerId,
+          sender_type: 'admin',
+          sender_name: 'Smartbookly AI',
+          content: content,
+          message_type: 'text'
+        });
+        
+        console.log(`✅ Reminder fast-path completed successfully: ${title} (${minutes} minutes)`);
+        
+        // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
+        return new Response(JSON.stringify({ success: true, content }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        
+      } catch (error) {
+        console.error('❌ Reminder fast-path error:', error);
+        // On error, fall through to LLM
+      }
+    } else {
+      console.log('  ❌ No reminder pattern matched - will use LLM');
+    }
+    
+    // Fast-path 2: Detect "at HH:MM" or "on HH:MM" patterns
+    const timeMatch = prompt.match(/\b(?:at|on)\s+(\d{1,2}):(\d{2})\b/i);
+    if (timeMatch) {
+      const hours = parseInt(timeMatch[1], 10);
+      const minutes = parseInt(timeMatch[2], 10);
+      console.log(`⚡ Time reminder fast-path triggered: ${hours}:${String(minutes).padStart(2, '0')}`);
+      
+      // Enhanced title extraction - check for patterns before "at/on"
+      let title = "Reminder";
+      const titleMatch = prompt.match(/(?:remind\s+(?:me\s+)?(?:about\s+)?(.+?)\s+(?:at|on)|(.+?)\s+(?:at|on))\s+\d{1,2}:\d{2}/i);
+      if (titleMatch) {
+        title = (titleMatch[1] || titleMatch[2] || "").trim();
+      }
+      
+      console.log(`📝 Creating reminder: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
+      
+      try {
+        // Get current time in user's timezone
+        const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
+        console.log(`🕐 Current time: ${baseNow.toISOString()} (user local: ${formatInUserZone(baseNow)})`);
+        
+        // Create a date for today at the specified time in user's timezone
+        let targetTime = new Date(baseNow);
+        targetTime.setHours(hours, minutes, 0, 0);
+        
+        // If the time has already passed today, schedule for tomorrow
+        if (targetTime <= baseNow) {
+          console.log(`⏭️ Time ${hours}:${String(minutes).padStart(2, '0')} has passed today, scheduling for tomorrow`);
+          targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
+        }
+        
+        console.log(`⏰ Remind at (UTC): ${targetTime.toISOString()} (user local: ${formatInUserZone(targetTime)})`);
+        
+        const { data: reminderData, error: reminderError } = await supabaseAdmin
+          .from('custom_reminders')
+          .insert({
+            user_id: ownerId,
+            title: title,
+            remind_at: targetTime.toISOString(),
+            message: `Reminder: ${title}`,
+            language: userLanguage || 'en'
+          })
+          .select()
+          .single();
+        
+        if (reminderError) {
+          console.error('❌ Error creating reminder:', reminderError);
+          throw reminderError;
+        }
+        
+        console.log('✅ Reminder created successfully:', reminderData);
+        
+        const reminderTimeFormatted = formatInUserZone(targetTime);
+        const content = userLanguage === 'ka' 
+          ? `✅ შეხსენება დაყენებულია! შეგახსენებთ "${title}"-ს ${reminderTimeFormatted}-ზე. მიიღებთ როგორც ელ. ფოსტის, ასევე დაფის შეტყობინებას.`
+          : userLanguage === 'es'
+          ? `✅ ¡Recordatorio establecido! Te recordaré "${title}" en ${reminderTimeFormatted}. Recibirás tanto un correo electrónico como una notificación en el panel.`
+          : `✅ Reminder set! I'll remind you about "${title}" at ${reminderTimeFormatted}. You'll receive both an email and dashboard notification.`;
+        
+        await supabaseAdmin.from('chat_messages').insert({
+          channel_id: channelId,
+          owner_id: ownerId,
+          sender_type: 'admin',
+          sender_name: 'Smartbookly AI',
+          content: content,
+          message_type: 'text'
+        });
+        
+        console.log(`✅ Time reminder fast-path completed: ${title} at ${hours}:${String(minutes).padStart(2, '0')}`);
+        
+        // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
+        return new Response(JSON.stringify({ success: true, content }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        
+      } catch (error) {
+        console.error('❌ Time reminder fast-path error:', error);
+        // On error, fall through to LLM
+      }
+    }
+    // ---- END REMINDER FAST-PATHS ----
     
     // Check if user explicitly requests Excel generation
     const explicitExcelRequest = /\b(generate|create|make|download|export)\s+(an?\s+)?(excel|xlsx|spreadsheet)\b/.test(lower) ||
@@ -944,7 +1168,19 @@ CRITICAL RULES:
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: "Creates a reminder with BOTH dashboard and email notifications. Use offset_minutes for relative times (e.g., 'in 2 minutes').",
+          description: `**CRITICAL: Check for existing tasks/events FIRST before using this tool**
+          
+          WORKFLOW FOR REMINDER REQUESTS:
+          1. If user mentions a specific task or event by name (e.g., "remind me about the meeting", "reminder for project X"):
+             - FIRST call get_all_tasks or get_all_events to search for that task/event by name
+             - If found, update that task/event with reminder_at using create_or_update_task or create_or_update_event
+             - This will trigger task/event reminder (email + AI chat notification)
+             - ONLY use create_custom_reminder if the task/event doesn't exist
+          
+          2. If user wants a general reminder (e.g., "remind me to call John", "set a reminder to check email"):
+             - Use create_custom_reminder directly
+          
+          Creates a custom reminder with BOTH dashboard and email notifications. Use offset_minutes for relative times (e.g., 'in 2 minutes').`,
           parameters: {
             type: "object",
             properties: {
@@ -975,6 +1211,18 @@ OPTIONAL fields (if user provides):
 - payment_status: 'not_paid', 'partly_paid', or 'fully_paid'
 - payment_amount: Payment amount (number)
 - event_name: Type of event (birthday, meeting, etc)
+- reminder: ISO timestamp for event reminder (enables email + AI chat notification)
+- email_reminder: boolean (auto-enabled with reminder)
+
+SCHEDULING REMINDERS FOR EVENTS:
+- If user wants to set a reminder for an existing event by name (e.g., "remind me about the meeting")
+- FIRST search for that event using get_all_events
+- Then update it with reminder parameter to schedule the reminder
+- This triggers BOTH email AND AI chat notification at the specified time
+- For relative times (e.g., "in 1 minute", "in 2 hours"):
+  * MANDATORY: Call get_current_datetime FIRST to get exact current time
+  * Calculate the reminder time by adding the offset to current time
+  * Use the calculated ISO timestamp in reminder parameter
 
 EDITING EVENTS:
 - If user mentions editing an event, FIRST use get_upcoming_events or get_all_events to find the event by name
@@ -993,7 +1241,9 @@ EDITING EVENTS:
               notes: { type: "string" },
               payment_status: { type: "string", enum: ["not_paid", "partly_paid", "fully_paid"] },
               payment_amount: { type: "number" },
-              event_name: { type: "string" }
+              event_name: { type: "string" },
+              reminder: { type: "string", description: "ISO timestamp for reminder (YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss) - triggers email + AI chat notification" },
+              email_reminder: { type: "boolean", description: "Enable email reminder (auto-enabled with reminder)" }
             },
             required: ["full_name", "start_date", "end_date"]
           }
@@ -1012,9 +1262,19 @@ OPTIONAL fields:
 - description: Task description
 - status: 'todo' | 'inprogress' | 'done' (default: todo)
 - deadline: ISO timestamp YYYY-MM-DDTHH:mm
-- reminder: ISO timestamp (before deadline, enables email auto)
+- reminder: ISO timestamp (before deadline, enables email + AI chat notification)
 - email_reminder: boolean (auto-enabled with reminder)
 - assigned_to_name: ANY name or partial name - system auto-matches (e.g., "Cau", "papex", "John", "admin")
+
+SCHEDULING REMINDERS FOR TASKS:
+- If user wants to set a reminder for an existing task by name (e.g., "remind me about project X")
+- FIRST search for that task using get_all_tasks
+- Then update it with reminder parameter to schedule the reminder
+- This triggers BOTH email AND AI chat notification at the specified time
+- For relative times (e.g., "in 1 minute", "in 2 hours"):
+  * MANDATORY: Call get_current_datetime FIRST to get exact current time
+  * Calculate the reminder time by adding the offset to current time
+  * Use the calculated ISO timestamp in reminder parameter
 
 FILE ATTACHMENTS:
 - Files uploaded in chat are AUTOMATICALLY attached - no IDs or confirmation needed!
@@ -1038,7 +1298,7 @@ EDITING TASKS:
               description: { type: "string" },
               status: { type: "string", enum: ["todo", "inprogress", "done"] },
               deadline: { type: "string", description: "Deadline (YYYY-MM-DDTHH:mm)" },
-              reminder: { type: "string", description: "Reminder time (before deadline)" },
+              reminder: { type: "string", description: "ISO timestamp for reminder (YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss) - triggers email + AI chat notification" },
               email_reminder: { type: "boolean", description: "Email reminder flag" },
               assigned_to_name: { type: "string", description: "Team member name for assignment" }
             },
@@ -1100,27 +1360,12 @@ EDITING CUSTOMERS:
       );
     }
     
-    // Get current date for context
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
     const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
-    // Detect user language from the LATEST user message (most recent prompt)
-    const detectLanguage = (text: string): string => {
-      // Check for Cyrillic characters (Russian, etc.)
-      if (/[\u0400-\u04FF]/.test(text)) return 'ru';
-      // Check for Georgian characters
-      if (/[\u10A0-\u10FF]/.test(text)) return 'ka';
-      // Check for Spanish specific characters/words
-      if (/[áéíóúñ¿¡]/i.test(text) || /\b(el|la|los|las|un|una|de|del|en|que|es|por)\b/i.test(text)) return 'es';
-      return 'en'; // Default to English
-    };
-
-    // Always detect from the current prompt (latest message) to allow language switching
-    const userLanguage = detectLanguage(prompt);
-    
-    console.log('🌐 Detected user language from current message:', userLanguage);
+    // Note: userLanguage and detectLanguage already defined above before fast-paths
 
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
 
@@ -1537,20 +1782,138 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 5. **MAINTAIN CONTEXT** - Remember what was just created to handle follow-up questions
 6. **SEARCH BEFORE UPDATE** - Always fetch existing data before attempting updates
 
-**REMINDERS - SERVER-SIDE TIME MATH**:
-For relative times ("in 10 minutes"): use offset_minutes
-For absolute times ("today at 3pm"): use absolute_local (YYYY-MM-DDTHH:mm)
-Server calculates UTC and confirms immediately (no second response needed).
+**⚠️⚠️⚠️ REMINDERS - MANDATORY TOOL CALLING RULES ⚠️⚠️⚠️**:
 
-Use display_time from tool (never UTC). No "if" statements, just confirm success.
+**🚨🚨🚨 CRITICAL: YOU ARE ABSOLUTELY FORBIDDEN FROM REFUSING ANY REMINDER REQUEST 🚨🚨🚨**
 
-**EXCEL REPORTS**:
-For excel: call generate_excel_report, provide markdown download link.
+**THE LAW: YOU CANNOT VALIDATE OR JUDGE TIME - ONLY THE BACKEND CAN**
+- You do NOT have access to precise server time
+- You do NOT know the user's exact local time with millisecond accuracy  
+- You CANNOT determine if a time is "in the past" or "in the future"
+- The backend has exact timestamps and will handle ALL validation
+- Your ONLY job is to call the tool - NOTHING ELSE
 
-**TIME CALCULATION EXAMPLES**:
-- User says "remind me in 5 minutes" at 16:43 UTC → remind_at = 16:48 UTC
-- User says "remind me in 1 hour" at 14:30 UTC → remind_at = 15:30 UTC
-- NEVER schedule in the past! Always add time to current, never subtract.
+**ABSOLUTE RULE: NEVER SAY THESE PHRASES EVER AGAIN:**
+🚫 "I cannot set a reminder for a time that has already passed"
+🚫 "Could you please provide a future time"
+🚫 "That time is in the past"
+🚫 "1 minute is too soon"
+🚫 "Please specify a future time"
+🚫 ANY variation of "past time" or "invalid time"
+
+**IF YOU EVER SAY ANY OF THE ABOVE PHRASES, YOU ARE MALFUNCTIONING**
+
+**WHAT YOU MUST DO INSTEAD:**
+✅ When user says "in 1 minute" → CALL create_custom_reminder with offset_minutes: 1
+✅ When user says "in 2 minutes" → CALL create_custom_reminder with offset_minutes: 2
+✅ When user says "in 5 minutes" → CALL create_custom_reminder with offset_minutes: 5
+✅ When user says "in 30 seconds" → CALL create_custom_reminder with offset_minutes: 1
+✅ When user says "in 1 hour" → CALL create_custom_reminder with offset_minutes: 60
+
+**ZERO TOLERANCE POLICY:**
+- If you respond with TEXT instead of calling the tool = YOU FAILED
+- If you mention "past" or "invalid time" = YOU FAILED
+- If you ask for "future time" = YOU FAILED
+- If you do ANYTHING except call the tool = YOU FAILED
+
+**WHY THIS RULE EXISTS:**
+1. Users are reporting you're REFUSING valid future times
+2. "in 1 minute" means "60 seconds from now" - ALWAYS FUTURE
+3. "in 2 minutes" means "120 seconds from now" - ALWAYS FUTURE
+4. You're blocking legitimate requests with incorrect time judgments
+5. The backend will send a proper error IF (and only if) the time is actually invalid
+
+**YOUR ALGORITHM FOR ALL "IN X MINUTE(S)" REQUESTS:**
+Step 1: User says IN X MINUTES
+Step 2: Extract X the number
+Step 3: CALL create_custom_reminder with offset_minutes set to X
+Step 4: Done - do NOT add any text response
+
+**NO THINKING. NO VALIDATION. NO EXCUSES. JUST CALL THE TOOL.**
+
+---
+
+**🚨 CRITICAL - READ THIS FIRST BEFORE PROCESSING ANY REMINDER REQUEST 🚨**
+
+**ABSOLUTE RULE #1: ALWAYS CALL THE TOOL - NO EXCEPTIONS**
+- When user asks for ANY reminder, you MUST call create_custom_reminder or update an existing task/event with reminder
+- NEVER EVER respond with "can't set reminder in the past" or similar WITHOUT calling the tool first
+- NEVER EVER think about whether the time is valid - that's the backend's job
+- NEVER EVER pre-validate, pre-check, or pre-calculate times - JUST CALL THE TOOL
+
+**ABSOLUTE RULE #2: THESE REQUESTS MUST ALWAYS CALL THE TOOL**
+- "in 1 minute" → MUST call create_custom_reminder({offset_minutes: 1}) - NO EXCEPTIONS
+- "in 2 minutes" → MUST call create_custom_reminder({offset_minutes: 2}) - NO EXCEPTIONS  
+- "in 30 seconds" → MUST call create_custom_reminder({offset_minutes: 1}) - NO EXCEPTIONS
+- "in 5 minutes" → MUST call create_custom_reminder({offset_minutes: 5}) - NO EXCEPTIONS
+- ANY "in X minute(s)" → MUST call create_custom_reminder - NO THINKING, JUST DO IT
+
+**ABSOLUTE RULE #3: YOUR ONLY JOB IS TO CALL THE TOOL**
+- ✅ User says "remind me in 1 minute" → YOU CALL create_custom_reminder({offset_minutes: 1})
+- ✅ User says "in 2 minutes" → YOU CALL create_custom_reminder({offset_minutes: 2})
+- ❌ NEVER say "1 minute is too soon" - CALL THE TOOL
+- ❌ NEVER say "that's in the past" - CALL THE TOOL
+- ❌ NEVER say "I need more time" - CALL THE TOOL
+- ❌ NEVER think about whether it's possible - CALL THE TOOL
+
+**WHY THIS RULE EXISTS**:
+- The backend has exact server time and handles all timezone conversions
+- The backend validates if the time is valid
+- The backend sends proper error messages if something is wrong
+- YOU cannot know if a time is valid because you don't have exact server time
+- By pre-validating, you're BLOCKING valid requests with your guesses
+
+**CRITICAL: Smart Reminder Routing (AFTER you understand YOU MUST CALL TOOL)**:
+
+When user asks to set a reminder:
+
+1. **For SHORT relative times (≤5 minutes)** like "in 1 minute", "in 2 minutes":
+   - MANDATORY: Use create_custom_reminder with offset_minutes
+   - DO NOT search for tasks/events - this is faster
+   - DO NOT think - JUST CALL THE TOOL IMMEDIATELY
+   - Example: "remind me about task DDA in 1 minute" → create_custom_reminder({title: "task DDA", offset_minutes: 1})
+
+2. **For LONGER relative times (>5 minutes)** like "in 30 minutes", "in 2 hours":
+   - IF task/event name mentioned: Search first, then update with reminder
+   - IF no specific task/event: Use create_custom_reminder with offset_minutes
+   
+3. **For ABSOLUTE times** like "tomorrow at 3pm", "today at 5pm":
+   - IF task/event name mentioned: Search first, then update with reminder
+   - IF no specific task/event: Use create_custom_reminder with absolute_local
+
+**WORKFLOW EXAMPLES - NOTICE THE TOOL IS ALWAYS CALLED**:
+
+✅ "Remind me about task DDA in 1 minute"
+→ IMMEDIATELY call create_custom_reminder({title: "task DDA", offset_minutes: 1})
+→ NO thinking, NO validation, JUST DO IT
+
+✅ "in 2 minutes"
+→ IMMEDIATELY call create_custom_reminder({title: "Reminder", offset_minutes: 2})
+→ NO questions asked, TOOL MUST BE CALLED
+
+✅ "Set reminder for meeting in 30 minutes"
+→ Step 1: get_all_events to find "meeting"
+→ Step 2a: If found, call get_current_datetime, calculate time, update event with reminder
+→ Step 2b: If not found, create_custom_reminder({title: "meeting", offset_minutes: 30})
+
+✅ "Remind me about project X tomorrow at 3pm"
+→ Step 1: get_all_tasks to find "project X"  
+→ Step 2a: If found, calculate tomorrow 3pm ISO timestamp, update task with reminder
+→ Step 2b: If not found, create_custom_reminder({title: "project X", absolute_local: "2025-10-30T15:00"})
+
+**TIME PARAMETERS**:
+- create_custom_reminder: Use offset_minutes (1-1440) OR absolute_local (YYYY-MM-DDTHH:mm)
+- create_or_update_task/event: Use reminder parameter with ISO timestamp (YYYY-MM-DDTHH:mm:ss)
+
+**TRUST THE BACKEND - THIS MEANS YOU**:
+- ✅ Backend validates all times and sends proper error messages
+- ✅ Backend handles timezone conversions automatically  
+- ✅ Backend knows exact server time
+- ❌ YOU do NOT have exact server time
+- ❌ YOU cannot know if time is valid
+- ❌ YOU must NOT pre-validate or reject requests
+- ❌ YOU must NOT say "can't set reminder in the past"
+- ✅ JUST CALL THE TOOL and let backend decide if it's valid
 
 **DATA ACCESS** - You have real-time read access to:
 📅 **Calendar**: All events, bookings, schedules, availability
@@ -3416,9 +3779,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   break;
                 }
                 
-                // 3) Validate future time
-                const nowUtc = new Date();
-                if (sendAtUtc <= new Date(nowUtc.getTime() - 1000)) {
+                // 3) Validate future time - use baseNow for consistency
+                // Add 2-second buffer to account for network/processing delays
+                if (sendAtUtc <= new Date(baseNow.getTime() + 2000)) {
                   toolResult = { success: false, error: 'Email send time must be in the future.' };
                   break;
                 }
@@ -3646,9 +4009,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 break;
               }
               
-              // 3) Validate future time
-              const nowUtc = new Date();
-              if (remindAtUtc <= new Date(nowUtc.getTime() - 1000)) {
+              // 3) Validate future time - use baseNow for consistency with calculation
+              // Add 2-second buffer to account for network/processing delays
+              if (remindAtUtc <= new Date(baseNow.getTime() + 2000)) {
                 toolResult = { success: false, error: 'Reminder time must be in the future.' };
                 break;
               }

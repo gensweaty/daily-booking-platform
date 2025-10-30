@@ -1780,10 +1780,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      _as_service_role: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      _as_service_role: { Args: never; Returns: undefined }
       activate_subscription: {
         Args: { p_subscription_type: string; p_user_id: string }
         Returns: Json
@@ -1813,32 +1810,23 @@ export type Database = {
           is_valid: boolean
         }[]
       }
-      check_subscription_status: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      check_trial_status: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      check_subscription_status: { Args: never; Returns: undefined }
+      check_trial_status: { Args: never; Returns: undefined }
       cleanup_recurring_event_conflicts: {
         Args: { p_user_id?: string }
         Returns: Json
       }
-      cleanup_recurring_event_conflicts_v2: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
+      cleanup_recurring_event_conflicts_v2: { Args: never; Returns: Json }
       consolidate_duplicate_dm_channels: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           consolidated_channels_count: number
           migrated_messages_count: number
         }[]
       }
-      create_custom_chat: {
-        Args:
-          | {
+      create_custom_chat:
+        | {
+            Args: {
               p_avatar_url?: string
               p_creator_id: string
               p_creator_type: string
@@ -1846,15 +1834,18 @@ export type Database = {
               p_owner_id: string
               p_participants: Json
             }
-          | {
+            Returns: string
+          }
+        | {
+            Args: {
               p_creator_id: string
               p_creator_type: string
               p_name: string
               p_owner_id: string
               p_participants: Json
             }
-        Returns: string
-      }
+            Returns: string
+          }
       create_subscription: {
         Args: {
           p_current_period_end: string
@@ -1916,10 +1907,7 @@ export type Database = {
           right_type: string
         }[]
       }
-      dm_sort_key: {
-        Args: { p_id: string; p_type: string }
-        Returns: string
-      }
+      dm_sort_key: { Args: { p_id: string; p_type: string }; Returns: string }
       edit_public_board_message: {
         Args: {
           p_content: string
@@ -1967,10 +1955,7 @@ export type Database = {
         }
         Returns: Json
       }
-      ensure_ai_channel: {
-        Args: { p_owner_id: string }
-        Returns: string
-      }
+      ensure_ai_channel: { Args: { p_owner_id: string }; Returns: string }
       ensure_dm_channel: {
         Args: {
           p_a_id: string
@@ -1999,10 +1984,7 @@ export type Database = {
         }
         Returns: string
       }
-      generate_code_number: {
-        Args: { n: number }
-        Returns: string
-      }
+      generate_code_number: { Args: { n: number }; Returns: string }
       generate_recurring_events: {
         Args: {
           p_end_date: string
@@ -2014,10 +1996,7 @@ export type Database = {
         }
         Returns: number
       }
-      get_admin_display_name: {
-        Args: { p_user_id: string }
-        Returns: string
-      }
+      get_admin_display_name: { Args: { p_user_id: string }; Returns: string }
       get_all_related_files: {
         Args: {
           customer_id_param?: string
@@ -2219,6 +2198,12 @@ export type Database = {
           updated_at: string | null
           user_id: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "tasks"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_public_events_by_user_id: {
         Args: { user_id_param: string }
@@ -2269,6 +2254,12 @@ export type Database = {
           user_number: string | null
           user_surname: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_sub_user_auth: {
         Args: { p_email: string; p_owner_id: string }
@@ -2368,6 +2359,12 @@ export type Database = {
           sender_user_id: string | null
           updated_at: string | null
         }[]
+        SetofOptions: {
+          from: "*"
+          to: "chat_messages"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       list_channel_messages_public_v2: {
         Args: {
@@ -2476,6 +2473,12 @@ export type Database = {
           sender_user_id: string | null
           updated_at: string | null
         }
+        SetofOptions: {
+          from: "*"
+          to: "chat_messages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       send_public_board_message: {
         Args: {
@@ -2491,22 +2494,25 @@ export type Database = {
           sender_name: string
         }[]
       }
-      start_public_board_dm: {
-        Args:
-          | {
-              p_board_owner_id: string
-              p_other_id: string
-              p_other_type: string
-              p_sender_email: string
-            }
-          | {
+      start_public_board_dm:
+        | {
+            Args: {
               p_board_owner_id: string
               p_sender_email: string
               p_target_id: string
               p_target_type: string
             }
-        Returns: string
-      }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_board_owner_id: string
+              p_other_id: string
+              p_other_type: string
+              p_sender_email: string
+            }
+            Returns: string
+          }
       unread_counters: {
         Args: { p_owner_id: string; p_viewer_id: string; p_viewer_type: string }
         Returns: {

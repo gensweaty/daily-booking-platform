@@ -20,6 +20,8 @@ export function useServerUnread(
   const [maps, setMaps] = useState<Maps>({ channel: {}, peer: {}, total: 0 });
   const [userChannels, setUserChannels] = useState<Set<string>>(new Set());
   const fetching = useRef(false);
+  // Track local increments to prevent server refresh from erasing them
+  const localIncrementsRef = useRef<Record<string, number>>({});
 
   const refresh = useCallback(async () => {
     if (!ownerId || !viewerType || !viewerId || fetching.current) return;
@@ -62,7 +64,12 @@ export function useServerUnread(
       const peer: Record<PeerKey, number> = {};
 
       (data ?? []).forEach((row: any) => {
-        if (row.channel_id) channel[row.channel_id] = row.channel_unread ?? 0;
+        if (row.channel_id) {
+          const serverCount = row.channel_unread ?? 0;
+          const localCount = localIncrementsRef.current[row.channel_id] ?? 0;
+          // Use the HIGHER count (server or local) to prevent flicker
+          channel[row.channel_id] = Math.max(serverCount, localCount);
+        }
         if (row.peer_id && row.peer_type) {
           const key = `${row.peer_id}_${row.peer_type}` as PeerKey;
           peer[key] = (peer[key] ?? 0) + (row.peer_unread ?? 0);
@@ -87,25 +94,19 @@ export function useServerUnread(
     return () => clearInterval(id);
   }, [refresh, isExternalUser]);
 
-  // Realtime bump (optimistic) - improved handling for custom chats and external users
+  // Realtime bump (optimistic) - INSTANT badge for ALL messages
   useEffect(() => {
     const b = realtimeBump;
     if (!b || !b.channelId || b.isSelf) return;
     
-    // For external users, always allow realtime bumps and refresh participation if needed
-    if (isExternalUser && !userChannels.has(b.channelId)) {
-      console.log('🔄 External user - refreshing participation for new channel:', b.channelId);
-      refresh(); // Refresh immediately to pick up new channel participation
-      return;
-    }
+    // CRITICAL FIX: ALWAYS increment badge immediately for ALL users (internal and external)
+    // The fact that we received a realtime bump means the message is for this user
+    console.log('📈 Incrementing unread for channel via realtime:', b.channelId, 'external:', isExternalUser);
     
-    // Allow realtime bumps for all channels the user participates in (including custom chats)
-    if (!userChannels.has(b.channelId)) {
-      console.log('⏭️ Skipping realtime bump - user is not a participant of channel:', b.channelId);
-      return;
-    }
+    // Track local increment to prevent server refresh from erasing it
+    localIncrementsRef.current[b.channelId] = 
+      (localIncrementsRef.current[b.channelId] ?? 0) + 1;
     
-    console.log('📈 Incrementing unread for channel via realtime:', b.channelId);
     setMaps(prev => {
       const channel = { ...prev.channel, [b.channelId]: (prev.channel[b.channelId] ?? 0) + 1 };
       const peer = { ...prev.peer };
@@ -119,16 +120,34 @@ export function useServerUnread(
       const total = Object.values(channel).reduce((s, n) => s + (n || 0), 0);
       return { channel, peer, total };
     });
+    
+    // For external users, also refresh participation in background to stay in sync
+    if (isExternalUser && !userChannels.has(b.channelId)) {
+      console.log('🔄 External user - refreshing participation in background for:', b.channelId);
+      setTimeout(() => refresh(), 500); // Non-blocking background refresh
+    }
   }, [realtimeBump, userChannels, isExternalUser, refresh]);
 
   const clearChannel = useCallback((channelId: string) => {
+    console.log('🧹 Clearing channel:', channelId);
+    
+    // Clear local increment tracking when channel is opened
+    delete localIncrementsRef.current[channelId];
+    
     setMaps(prev => {
       if (!prev.channel[channelId]) return prev;
-      const channel = { ...prev.channel }; delete channel[channelId];
+      const channel = { ...prev.channel };
+      delete channel[channelId];
       const total = Object.values(channel).reduce((s, n) => s + (n || 0), 0);
       return { ...prev, channel, total };
     });
-  }, []);
+    
+    // Immediate refresh to sync with server after clearing
+    setTimeout(() => {
+      console.log('🔄 Post-clear refresh for channel:', channelId);
+      refresh();
+    }, 100);
+  }, [refresh]);
 
   const clearPeer = useCallback((peerId: string, peerType: 'admin'|'sub_user') => {
     const key = `${peerId}_${peerType}` as PeerKey;

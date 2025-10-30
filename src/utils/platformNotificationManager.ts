@@ -166,11 +166,19 @@ class PlatformNotificationManager {
       const played = await playNotificationSound();
       
       if (!played) {
-        // Fallback to HTML Audio
+        // Fallback to HTML Audio with 1 second limit
         const audio = new Audio('/audio/notification.mp3');
         audio.volume = 0.5;
+        
+        // Stop after 1 second
+        const stopTimer = setTimeout(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        }, 1000);
+        
+        audio.addEventListener('ended', () => clearTimeout(stopTimer), { once: true });
         await audio.play();
-        console.log('✅ Notification sound played (fallback)');
+        console.log('✅ Notification sound played (fallback, max 1s)');
       }
     } catch (error) {
       console.warn('❌ Could not play notification sound:', error);
