@@ -55,6 +55,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [userProfileName, setUserProfileName] = useState<string | null>(null);
   const [teamManagementOpen, setTeamManagementOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const [previousSubscription, setPreviousSubscription] = useState<Subscription | null>(null);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -101,16 +102,19 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       console.log('Subscription status result:', statusResult);
       
       if (statusResult && statusResult.status) {
-        setSubscription({
+        const newSubscription = {
           plan_type: statusResult.planType || 'monthly',
           status: statusResult.status,
           current_period_end: statusResult.currentPeriodEnd || null,
           trial_end_date: statusResult.trialEnd || null,
           stripe_customer_id: null,
           stripe_subscription_id: statusResult.stripe_subscription_id || null
-        });
+        };
+        setSubscription(newSubscription);
+        setPreviousSubscription(newSubscription);
       } else {
         setSubscription(null);
+        setPreviousSubscription(null);
       }
     } catch (error) {
       console.error('Subscription fetch error:', error);
@@ -149,11 +153,22 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           },
           (payload) => {
             console.log('🔄 Subscription updated in real-time:', payload);
-            toast({
-              title: "Subscription Updated",
-              description: "Your subscription has been updated. Refreshing...",
-            });
-            // Clear cache and refetch with fresh data
+            
+            // Only show notification if there's a meaningful change
+            const newRecord = payload.new as any;
+            const hasStatusChange = previousSubscription && newRecord.status !== previousSubscription.status;
+            const hasPlanChange = previousSubscription && newRecord.plan_type !== previousSubscription.plan_type;
+            
+            if (hasStatusChange || hasPlanChange) {
+              toast({
+                title: "Subscription Updated",
+                description: "Your subscription has been updated. Refreshing...",
+              });
+            } else {
+              console.log('Subscription updated but no meaningful changes detected, skipping notification');
+            }
+            
+            // Always clear cache and refetch with fresh data
             fetchSubscription(true);
           }
         )
