@@ -14,6 +14,7 @@ import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useAIChannel } from "@/hooks/useAIChannel";
+import { sendChatPushNotification } from '@/utils/pushNotifications';
 
 type Me = { 
   id: string; 
@@ -522,6 +523,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
               senderName: message.sender_name || 'Unknown',
             });
+            
+            // Send push notification
+            if (boardOwnerId && me?.id) {
+              sendChatPushNotification(
+                boardOwnerId,
+                me.type === 'sub_user' ? me.id : undefined,
+                message.sender_name || 'Someone',
+                message.content,
+                message.channel_id
+              ).catch(console.error);
+            }
           }
         }
       }
@@ -687,6 +699,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
             senderName: message.sender_name || 'Unknown',
           });
+          
+          // Send push notification if user has PWA installed
+          if (boardOwnerId && me?.id) {
+            sendChatPushNotification(
+              boardOwnerId,
+              me.type === 'sub_user' ? me.id : undefined,
+              message.sender_name || 'Someone',
+              message.content,
+              message.channel_id
+            ).catch(console.error);
+          }
         } else {
           console.log('⏭️ Notification skipped - not a participant or viewing channel');
         }
