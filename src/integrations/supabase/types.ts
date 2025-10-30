@@ -1277,47 +1277,6 @@ export type Database = {
         }
         Relationships: []
       }
-      push_subscriptions: {
-        Row: {
-          created_at: string | null
-          endpoint: string
-          id: string
-          keys: Json
-          last_used_at: string | null
-          sub_user_id: string | null
-          user_agent: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          endpoint: string
-          id?: string
-          keys: Json
-          last_used_at?: string | null
-          sub_user_id?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          endpoint?: string
-          id?: string
-          keys?: Json
-          last_used_at?: string | null
-          sub_user_id?: string | null
-          user_agent?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "push_subscriptions_sub_user_id_fkey"
-            columns: ["sub_user_id"]
-            isOneToOne: false
-            referencedRelation: "sub_users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       redeem_codes: {
         Row: {
           code: string

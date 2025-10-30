@@ -20,7 +20,6 @@ import { SEOManager } from '@/components/SEOManager';
 import AdminPanel from "@/pages/AdminPanel";
 import { AdminRoute } from "@/components/admin/AdminRoute";
 import AdminPanelDashboard from "@/pages/AdminPanelDashboard";
-import { InstallPrompt } from "@/components/InstallPrompt";
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -281,7 +280,6 @@ const AppContent = () => {
                 <div />
               </ChatProvider>
               <Toaster />
-              <InstallPrompt />
             </RouteAwareWrapper>
           </RouteAwareThemeProvider>
         </PublicBoardAuthProvider>

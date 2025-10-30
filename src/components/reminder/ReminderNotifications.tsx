@@ -3,13 +3,10 @@ import { useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { Reminder } from '@/lib/types';
 import { useToast } from '@/components/ui/use-toast';
-import { sendReminderPushNotification } from '@/utils/pushNotifications';
-import { useAuth } from '@/contexts/AuthContext';
 
 export const useReminderNotifications = (reminders: Reminder[]) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
 
   useEffect(() => {
     const audio = new Audio('/audio/notification.mp3');
@@ -53,15 +50,6 @@ export const useReminderNotifications = (reminders: Reminder[]) => {
               description: `${reminder.title} is due at ${format(new Date(reminder.remind_at), 'pp')}`,
               variant: "default",
             });
-            
-            // Send push notification
-            if (user?.id) {
-              sendReminderPushNotification(
-                user.id,
-                "Reminder Due Soon!",
-                `${reminder.title} is due at ${format(new Date(reminder.remind_at), 'pp')}`
-              ).catch(console.error);
-            }
           }
         }
 
@@ -80,15 +68,6 @@ export const useReminderNotifications = (reminders: Reminder[]) => {
               description: `${reminder.title} is due now!`,
               variant: "destructive",
             });
-            
-            // Send push notification
-            if (user?.id) {
-              sendReminderPushNotification(
-                user.id,
-                "⏰ Reminder Due Now!",
-                `${reminder.title} is due now!`
-              ).catch(console.error);
-            }
           }
         }
       });
@@ -103,5 +82,5 @@ export const useReminderNotifications = (reminders: Reminder[]) => {
         audioRef.current = null;
       }
     };
-  }, [reminders, toast, user]);
+  }, [reminders, toast]);
 };
