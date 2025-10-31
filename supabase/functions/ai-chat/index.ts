@@ -5072,9 +5072,40 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const normalizedStatus = normalizeTaskStatus(status);
                 console.log(`    📊 Status: "${status}" → "${normalizedStatus}"`);
                 
-                // CRITICAL: Separate data for create vs update
-                // Base fields used for both operations
-                const baseTaskData = {
+                // CRITICAL: For updates, ONLY include fields that are being changed
+                // This preserves all existing data (description, deadlines, assignees, etc.)
+                const updateData: any = {
+                  last_edited_by_type: requesterType,
+                  last_edited_by_name: baseName,
+                  last_edited_by_ai: true,
+                  last_edited_at: new Date().toISOString()
+                };
+                
+                // Only include fields that are explicitly provided
+                if (status !== undefined) updateData.status = normalizedStatus;
+                if (description !== undefined) updateData.description = description;
+                if (deadline !== undefined) updateData.deadline_at = deadlineUTC;
+                if (reminder !== undefined) {
+                  updateData.reminder_at = reminderUTC;
+                  updateData.email_reminder_enabled = true;
+                }
+                if (email_reminder !== undefined) updateData.email_reminder_enabled = email_reminder;
+                
+                // Assignment fields - only update if provided
+                if (assigned_to_name !== undefined) {
+                  updateData.assigned_to_type = assignedToType;
+                  updateData.assigned_to_id = assignedToId;
+                  updateData.assigned_to_name = assignedToName;
+                  updateData.assigned_to_avatar_url = assignedToAvatar;
+                  updateData.assigned_at = assignedToId ? new Date().toISOString() : null;
+                  updateData.assigned_by_type = assignedToId ? requesterType : null;
+                  updateData.assigned_by_id = assignedToId ? (requesterType === 'admin' ? ownerId : requesterIdentity?.id) : null;
+                }
+                
+                console.log(`    📝 Update will change these fields:`, Object.keys(updateData).filter(k => !k.startsWith('last_edited')));
+
+                // For CREATE: include ALL fields
+                const createData = {
                   title: task_name,
                   description: description || "",
                   status: normalizedStatus,
@@ -5088,24 +5119,16 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   assigned_at: assignedToId ? new Date().toISOString() : null,
                   assigned_by_type: assignedToId ? requesterType : null,
                   assigned_by_id: assignedToId ? (requesterType === 'admin' ? ownerId : requesterIdentity?.id) : null,
+                  user_id: ownerId,
+                  position: 0,
+                  created_by_type: requesterType,
+                  created_by_name: baseName,
+                  created_by_ai: true,
                   last_edited_by_type: requesterType,
                   last_edited_by_name: baseName,
                   last_edited_by_ai: true,
                   last_edited_at: new Date().toISOString()
                 };
-
-                // For CREATE: include user_id, position, and creator metadata
-                const createData = {
-                  ...baseTaskData,
-                  user_id: ownerId,
-                  position: 0,
-                  created_by_type: requesterType,
-                  created_by_name: baseName,
-                  created_by_ai: true
-                };
-
-                // For UPDATE: exclude creator fields to preserve original creator
-                const updateData = baseTaskData;
 
                 if (effectiveTaskId) {
                   // Verify existing task and preserve creator info
