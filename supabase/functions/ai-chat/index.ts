@@ -1262,20 +1262,27 @@ EDITING EVENTS:
           name: "create_or_update_task",
           description: `Create or update tasks with FULL automatic capabilities!
 
-🔴 CRITICAL FOR UPDATES/EDITS/MOVES:
-⚠️ BEFORE updating ANY existing task, you MUST:
+🔴 CRITICAL FOR UPDATES/EDITS/MOVES/STATUS CHANGES:
+⚠️ BEFORE any operation on existing task, you MUST:
   1. Call get_all_tasks to see current real-time state
-  2. Find the task by name in the results
+  2. Find the task by name/title in the results
   3. Get the task_id from that task
   4. Then call this function with task_id + your changes
 
+🚨 WHEN USER SAYS "MOVE", "CHANGE STATUS", "UPDATE", "EDIT" - IT'S AN UPDATE NOT CREATE!
+❌ NEVER create a new task when user asks to move/change/update existing task
 ❌ NEVER assume task status or existence
 ❌ NEVER say "already done" without checking first
-✅ ALWAYS check current state with get_all_tasks first
+✅ ALWAYS use get_all_tasks → find task → update with task_id
 
-Examples of CORRECT workflow:
-- "move task X to done" → get_all_tasks → find X → create_or_update_task(task_id, status="done")
-- "change task Y to inprogress" → get_all_tasks → find Y → create_or_update_task(task_id, status="inprogress")
+CORRECT workflow examples:
+- "move task X to done" → get_all_tasks → find X by title → create_or_update_task(task_id=X.id, status="done")
+- "move task Y from todo to inprogress" → get_all_tasks → find Y → create_or_update_task(task_id=Y.id, status="inprogress")
+- "change task Z to done" → get_all_tasks → find Z → create_or_update_task(task_id=Z.id, status="done")
+- "update task A" → get_all_tasks → find A → create_or_update_task(task_id=A.id, changes...)
+
+⚠️ KEY WORDS THAT MEAN UPDATE (NOT CREATE):
+move, change, update, edit, set status, mark as, switch to, transfer to
 
 MANDATORY fields:
 - task_name: Task title/name
@@ -1406,21 +1413,37 @@ When users ask about what AI model you are, which AI you use, what AI bot you ar
 5. When asked to create/add/make/update something, you MUST call the appropriate tool immediately
 
 🔴 **CRITICAL TASK UPDATE RULE - MANDATORY FOR ALL TASK CHANGES**:
-⚠️ BEFORE updating, moving, editing, or changing ANY task:
+
+🚨🚨🚨 WHEN USER SAYS TO MOVE/CHANGE/UPDATE A TASK - IT'S AN UPDATE, NOT A CREATE! 🚨🚨🚨
+
+⚠️ BEFORE updating, moving, editing, or changing ANY task status or properties:
   1. ALWAYS call get_all_tasks FIRST to see current real-time state
-  2. Find the task by name/title in the results
+  2. Find the task by name/title in the results (search in ALL statuses: todo, inprogress, done)
   3. Extract the task_id from that task
   4. ONLY THEN call create_or_update_task with task_id + changes
   
+  ❌ FORBIDDEN: Creating new task when user asks to MOVE existing task
+  ❌ FORBIDDEN: Creating new task when user asks to CHANGE status of existing task
   ❌ FORBIDDEN: Making assumptions about task status or existence
   ❌ FORBIDDEN: Saying "task is already done" without checking first
   ❌ FORBIDDEN: Saying "can't find task" without checking first
-  ✅ REQUIRED: ALWAYS check current state with get_all_tasks before ANY task update
+  ✅ REQUIRED: ALWAYS check current state with get_all_tasks before ANY task operation
 
-Examples:
-- "move task X to done" → get_all_tasks → find X → create_or_update_task(task_id, status="done")
-- "change task Y status" → get_all_tasks → find Y → create_or_update_task(task_id, new_status)
-- "edit task Z" → get_all_tasks → find Z → create_or_update_task(task_id, changes)
+🔑 KEY PHRASES THAT MEAN UPDATE EXISTING TASK (NOT CREATE NEW):
+- "move task [name] to [status]"
+- "move task [name] from [old_status] to [new_status]"
+- "change task [name] to [status]"
+- "update task [name]"
+- "edit task [name]"
+- "set task [name] status to [status]"
+- "mark task [name] as [status]"
+- "switch task [name] to [status]"
+
+CORRECT workflow examples:
+- "move task X to done" → get_all_tasks → find "X" by title → create_or_update_task(task_id=X.id, status="done")
+- "move task Y from todo to inprogress" → get_all_tasks → find "Y" → create_or_update_task(task_id=Y.id, status="inprogress")
+- "change task Z to done" → get_all_tasks → find "Z" → create_or_update_task(task_id=Z.id, status="done")
+- "update task A description" → get_all_tasks → find "A" → create_or_update_task(task_id=A.id, description=new_description)
 
 💬 **RESPONSE FORMATTING RULES**:
 - BE PROFESSIONAL AND FRIENDLY, but keep responses SHORT and RELEVANT
