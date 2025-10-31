@@ -158,7 +158,17 @@ export const checkSubscriptionStatus = async () => {
     }
     
     // For non-ultimate users, use the sync function to check status
+    // Get current session to ensure we have valid auth
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.log('No valid session found for sync call');
+      return { success: false, status: 'not_authenticated' };
+    }
+    
     const response = await supabase.functions.invoke('sync-stripe-subscription', {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`
+      },
       body: { 
         user_id: userData.user.id
       }
