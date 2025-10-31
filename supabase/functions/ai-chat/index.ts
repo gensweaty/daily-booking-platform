@@ -1268,18 +1268,24 @@ EDITING EVENTS:
 ✅ No need to call get_all_tasks first for most operations
 ✅ For best performance: still provide task_id if you already know it
 
-🔴 WHEN USER SAYS "MOVE", "CHANGE STATUS", "UPDATE", "EDIT" - IT'S AN UPDATE NOT CREATE!
+🔴 CRITICAL STATUS CHANGE PATTERNS - These ALL mean UPDATE, NOT CREATE:
 ❌ NEVER create duplicate tasks when user asks to move/change/update
 ✅ Just call create_or_update_task with task_name and new status - auto-search handles the rest!
 
-CORRECT workflow (SIMPLIFIED):
-- "move task X to done" → create_or_update_task(task_name="X", status="done")
-- "move task Y from todo to inprogress" → create_or_update_task(task_name="Y", status="inprogress")
-- "change task Z status to done" → create_or_update_task(task_name="Z", status="done")
-- "update task A description" → create_or_update_task(task_name="A", description="new text")
+📋 EXPLICIT STATUS CHANGE EXAMPLES (ALL ARE UPDATES):
+- "move [task] from [status] to [status]" → UPDATE
+- "move [task] to [status]" → UPDATE
+- "change status of [task] to [status]" → UPDATE
+- "edit [task], change status to [status]" → UPDATE
+- "mark [task] as [status]" → UPDATE
+- "set [task] to [status]" → UPDATE
+- "[task] is now [status]" → UPDATE
+- "update [task] status to [status]" → UPDATE
+- "complete [task]" / "finish [task]" → UPDATE (status=done)
+- "start [task]" / "begin [task]" → UPDATE (status=inprogress)
 
-⚠️ KEY WORDS THAT MEAN UPDATE (NOT CREATE):
-move, change, update, edit, set status, mark as, switch to, transfer to, complete, finish
+⚠️ ALL THESE WORDS MEAN UPDATE (NOT CREATE):
+move, change, update, edit, set, mark, switch, transfer, complete, finish, start, begin
 
 MANDATORY fields:
 - task_name: Task title/name (used for auto-search if task_id not provided)
@@ -1413,21 +1419,43 @@ When users ask about what AI model you are, which AI you use, what AI bot you ar
 
 🚨🚨🚨 WHEN USER SAYS TO MOVE/CHANGE/UPDATE A TASK - IT'S AN UPDATE, NOT A CREATE! 🚨🚨🚨
 
-⚠️ BEFORE updating, moving, editing, or changing ANY task status or properties:
-  1. ALWAYS call get_all_tasks FIRST to see current real-time state
-  2. Find the task by name/title in the results (search in ALL statuses: todo, inprogress, done)
-  3. Extract the task_id from that task
-  4. ONLY THEN call create_or_update_task with task_id + changes
+⚠️ STATUS CHANGE WORKFLOW (CHOOSE ONE):
   
-  ❌ FORBIDDEN: Creating new task when user asks to MOVE existing task
-  ❌ FORBIDDEN: Creating new task when user asks to CHANGE status of existing task
-  ❌ FORBIDDEN: Making assumptions about task status or existence
-  ❌ FORBIDDEN: Saying "task is already done" without checking first
-  ❌ FORBIDDEN: Saying "can't find task" without checking first
-  ✅ REQUIRED: ALWAYS check current state with get_all_tasks before ANY task operation
+  OPTION A - RECOMMENDED (Use auto-search):
+  1. User says "move [task] to [status]" or "change [task] status to [status]"
+  2. IMMEDIATELY call create_or_update_task(task_name="[task]", status="[status]")
+  3. Tool will automatically search for existing task and UPDATE it
+  4. DO NOT call get_all_tasks first - auto-search handles it
+  
+  OPTION B - Manual (When you need to verify first):
+  1. Call get_all_tasks FIRST to see current state
+  2. Find the task by name/title (search in ALL statuses)
+  3. Extract the task_id from that task
+  4. Call create_or_update_task with task_id + changes
+  
+  ❌ FORBIDDEN PATTERNS:
+  - Creating new task when user asks to MOVE existing task
+  - Creating new task when user asks to CHANGE status of existing task
+  - Responding "I've updated" without actually calling the tool
+  - Making assumptions about task status or existence
+  - Saying "task is already done" without checking first
+  
+  ✅ REQUIRED PATTERNS:
+  - ALWAYS call the tool when user requests task changes
+  - Use auto-search feature (just provide task_name)
+  - Preserve all task metadata (reminders, assignments, etc.)
 
-🔑 KEY PHRASES THAT MEAN UPDATE EXISTING TASK (NOT CREATE NEW):
+🔑 COMPLETE LIST OF PHRASES THAT MEAN UPDATE (NOT CREATE):
 - "move task [name] to [status]"
+- "move [name] from [status] to [status]"
+- "change status of [name] to [status]"
+- "edit task [name], change status to [status]"
+- "mark [name] as [status]"
+- "set [name] to [status]"
+- "[name] is now [status]"
+- "update [name] status"
+- "complete [name]" / "finish [name]"
+- "start [name]" / "begin [name]"
 - "move task [name] from [old_status] to [new_status]"
 - "change task [name] to [status]"
 - "update task [name]"
@@ -5022,12 +5050,12 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const normalizedStatus = normalizeTaskStatus(status);
                 console.log(`    📊 Status: "${status}" → "${normalizedStatus}"`);
                 
-                const taskData = {
+                // CRITICAL: Separate data for create vs update
+                // Base fields used for both operations
+                const baseTaskData = {
                   title: task_name,
                   description: description || "",
                   status: normalizedStatus,
-                  user_id: ownerId,
-                  position: 0,
                   deadline_at: deadlineUTC,
                   reminder_at: reminderUTC,
                   email_reminder_enabled: reminder ? true : (email_reminder || false),
@@ -5038,20 +5066,42 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   assigned_at: assignedToId ? new Date().toISOString() : null,
                   assigned_by_type: assignedToId ? requesterType : null,
                   assigned_by_id: assignedToId ? (requesterType === 'admin' ? ownerId : requesterIdentity?.id) : null,
-                  created_by_type: requesterType,
-                  created_by_name: baseName,  // ← Use clean name without "(AI)"
-                  created_by_ai: true,        // ← Boolean flag for AI creation
                   last_edited_by_type: requesterType,
-                  last_edited_by_name: baseName,  // ← Use clean name without "(AI)"
-                  last_edited_by_ai: true,        // ← Boolean flag for AI edit
+                  last_edited_by_name: baseName,
+                  last_edited_by_ai: true,
                   last_edited_at: new Date().toISOString()
                 };
 
+                // For CREATE: include user_id, position, and creator metadata
+                const createData = {
+                  ...baseTaskData,
+                  user_id: ownerId,
+                  position: 0,
+                  created_by_type: requesterType,
+                  created_by_name: baseName,
+                  created_by_ai: true
+                };
+
+                // For UPDATE: exclude creator fields to preserve original creator
+                const updateData = baseTaskData;
+
                 if (effectiveTaskId) {
-                  // Update existing task
+                  // Verify existing task and preserve creator info
+                  const { data: existingTask } = await supabaseAdmin
+                    .from('tasks')
+                    .select('id, title, created_by_name, created_by_type, created_by_ai')
+                    .eq('id', effectiveTaskId)
+                    .eq('user_id', ownerId)
+                    .single();
+                  
+                  if (existingTask) {
+                    console.log(`    📝 Preserving original creator: ${existingTask.created_by_name || 'Unknown'} (${existingTask.created_by_type}, AI: ${existingTask.created_by_ai})`);
+                  }
+                  
+                  // Update existing task (without overwriting creator fields)
                   const { error: updateError } = await supabaseAdmin
                     .from('tasks')
-                    .update(taskData)
+                    .update(updateData)
                     .eq('id', effectiveTaskId)
                     .eq('user_id', ownerId);
                   
@@ -5083,10 +5133,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     console.log(`    ✅ Task updated in database: ${effectiveTaskId}`);
                   }
                 } else {
-                  // Create new task
+                  // Create new task (with creator metadata)
                   const { data: newTask, error: createError } = await supabaseAdmin
                     .from('tasks')
-                    .insert(taskData)
+                    .insert(createData)
                     .select()
                     .single();
                   
