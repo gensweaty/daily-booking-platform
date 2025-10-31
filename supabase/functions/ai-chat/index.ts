@@ -175,6 +175,9 @@ serve(async (req) => {
       const minutes = parseInt(reminderMatch[1], 10);
       console.log(`⚡ Reminder fast-path TRIGGERED: ${minutes} minute(s) via pattern ${matchedPattern}`);
       
+      // NOTE: User message is already saved in MessageInput.tsx before this function is called
+      // No need to save it again here to avoid duplicates
+      
       // Enhanced title extraction - check for "about", "for", "to", or "name"
       let title = "Reminder";
       
@@ -264,6 +267,9 @@ serve(async (req) => {
       const hours = parseInt(timeMatch[1], 10);
       const minutes = parseInt(timeMatch[2], 10);
       console.log(`⚡ Time reminder fast-path triggered: ${hours}:${String(minutes).padStart(2, '0')}`);
+      
+      // NOTE: User message is already saved in MessageInput.tsx before this function is called
+      // No need to save it again here to avoid duplicates
       
       // Enhanced title extraction - check for patterns before "at/on"
       let title = "Reminder";
@@ -440,6 +446,8 @@ serve(async (req) => {
         console.log('  ⚠️ Low confidence - falling back to LLM for better understanding');
         // Continue to LLM processing instead of using fast-path
       } else {
+        // NOTE: User message is already saved in MessageInput.tsx before this function is called
+        // No need to save it again here to avoid duplicates
 
         const { data: excelData, error: excelError } = await supabaseAdmin.functions.invoke(
           "generate-excel-report",
