@@ -38,6 +38,8 @@ interface Subscription {
   trial_end_date: string | null;
   stripe_customer_id?: string | null;
   stripe_subscription_id?: string | null;
+  subscription_start_date?: string | null;
+  subscription_end_date?: string | null;
 }
 
 export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
@@ -114,7 +116,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           current_period_end: statusResult.currentPeriodEnd || null,
           trial_end_date: statusResult.trialEnd || null,
           stripe_customer_id: null,
-          stripe_subscription_id: statusResult.stripe_subscription_id || null
+          stripe_subscription_id: statusResult.stripe_subscription_id || null,
+          subscription_start_date: statusResult.subscription_start_date || null,
+          subscription_end_date: statusResult.subscription_end_date || null
         });
       } else {
         setSubscription(null);
@@ -172,15 +176,26 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             const hasPlanChange = oldRecord?.plan_type !== newRecord?.plan_type;
             const hasEndDateChange = oldRecord?.subscription_end_date !== newRecord?.subscription_end_date;
             
+            // CRITICAL FIX: Update state directly from payload instead of refetching
+            // This prevents the infinite loop where refetch -> edge function -> DB update -> real-time trigger -> refetch
             if (hasStatusChange || hasPlanChange || hasEndDateChange) {
               toast({
                 title: "Subscription Updated",
-                description: "Your subscription has been updated. Refreshing...",
+                description: "Your subscription has been updated.",
+              });
+              
+              // Update local state directly from the database payload
+              setSubscription({
+                plan_type: newRecord.plan_type || 'monthly',
+                status: newRecord.status,
+                current_period_end: newRecord.current_period_end || null,
+                trial_end_date: newRecord.trial_end_date || null,
+                stripe_customer_id: newRecord.stripe_customer_id || null,
+                stripe_subscription_id: newRecord.stripe_subscription_id || null,
+                subscription_start_date: newRecord.subscription_start_date || null,
+                subscription_end_date: newRecord.subscription_end_date || null
               });
             }
-            
-            // Clear cache and refetch with fresh data
-            fetchSubscription(true);
           }
         )
         .subscribe();
@@ -538,6 +553,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                               status={subscription.status as 'trial' | 'active'}
                               currentPeriodEnd={subscription.current_period_end}
                               trialEnd={subscription.trial_end_date}
+                              subscription_end_date={subscription.subscription_end_date}
                               planType={subscription.plan_type as 'monthly' | 'yearly'}
                             />
                           </div>
