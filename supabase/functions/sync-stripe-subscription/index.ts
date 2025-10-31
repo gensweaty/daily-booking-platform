@@ -217,16 +217,22 @@ async function handleActiveSubscriptionDates(supabase: any, userId: string, plan
     // User already has valid dates, keep them unless Stripe has newer data
     const stripeStartDate = extractTimestampFromStripe(stripeSubscription, "existing_subscription");
     
-    if (stripeStartDate && new Date(stripeStartDate) > new Date(existingSubscription.subscription_start_date)) {
+    if (stripeStartDate && existingSubscription?.subscription_start_date && 
+        new Date(stripeStartDate) > new Date(existingSubscription.subscription_start_date)) {
       // Stripe has newer data, use it
       subscription_start_date = stripeStartDate;
       subscription_end_date = calculateSubscriptionEndDate(subscription_start_date, planType);
       logStep("Updated with newer Stripe timestamp", { subscription_start_date, subscription_end_date });
-    } else {
+    } else if (existingSubscription?.subscription_start_date && existingSubscription?.subscription_end_date) {
       // Keep existing dates
       subscription_start_date = existingSubscription.subscription_start_date;
       subscription_end_date = existingSubscription.subscription_end_date;
       logStep("Keeping existing subscription dates", { subscription_start_date, subscription_end_date });
+    } else {
+      // No existing dates, use Stripe or current time
+      subscription_start_date = stripeStartDate || new Date().toISOString();
+      subscription_end_date = calculateSubscriptionEndDate(subscription_start_date, planType);
+      logStep("No existing dates, creating new dates", { subscription_start_date, subscription_end_date });
     }
   }
 
@@ -240,9 +246,9 @@ async function handleActiveSubscriptionDates(supabase: any, userId: string, plan
   if (hasChanges) {
     logStep("Dates or status changed, updating subscription", {
       old: {
-        start: existingSubscription.subscription_start_date,
-        end: existingSubscription.subscription_end_date,
-        status: existingSubscription.status
+        start: existingSubscription?.subscription_start_date || null,
+        end: existingSubscription?.subscription_end_date || null,
+        status: existingSubscription?.status || null
       },
       new: {
         start: subscription_start_date,
