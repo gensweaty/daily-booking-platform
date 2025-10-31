@@ -677,12 +677,9 @@ serve(async (req) => {
       status?: string, created_after?: string, created_before?: string
     }) {
       const combos = [
-        { ownerCol: "user_id",   archivedCol: "archived_at" },
-        { ownerCol: "owner_id",  archivedCol: "archived_at" },
-        { ownerCol: "board_owner_id", archivedCol: "archived_at" },
-        { ownerCol: "user_id",   archivedCol: null },
-        { ownerCol: "owner_id",  archivedCol: null },
-        { ownerCol: "board_owner_id", archivedCol: null },
+        { ownerCol: "user_id" },
+        { ownerCol: "owner_id" },
+        { ownerCol: "board_owner_id" },
       ];
       const out = { tasks: [] as any[], meta: {} as any };
 
@@ -690,7 +687,9 @@ serve(async (req) => {
         try {
           let q = client.from("tasks").select("*").eq(c.ownerCol as any, ownerId);
 
-          if (c.archivedCol) q = q.is(c.archivedCol as any, null);
+          // Filter non-archived tasks - use archived boolean field, not archived_at
+          q = q.or("archived.is.null,archived.eq.false");
+          
           if (filters.created_after)  q = q.gte("created_at", filters.created_after);
           if (filters.created_before) q = q.lte("created_at", filters.created_before);
           if (filters.status) {
