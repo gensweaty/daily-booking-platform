@@ -1262,11 +1262,27 @@ EDITING EVENTS:
         function: {
           name: "create_or_update_task",
           description: `Create or update tasks with FULL automatic capabilities!
-          
+
+🔴 CRITICAL FOR UPDATES/EDITS/MOVES:
+⚠️ BEFORE updating ANY existing task, you MUST:
+  1. Call get_all_tasks to see current real-time state
+  2. Find the task by name in the results
+  3. Get the task_id from that task
+  4. Then call this function with task_id + your changes
+
+❌ NEVER assume task status or existence
+❌ NEVER say "already done" without checking first
+✅ ALWAYS check current state with get_all_tasks first
+
+Examples of CORRECT workflow:
+- "move task X to done" → get_all_tasks → find X → create_or_update_task(task_id, status="done")
+- "change task Y to inprogress" → get_all_tasks → find Y → create_or_update_task(task_id, status="inprogress")
+
 MANDATORY fields:
 - task_name: Task title/name
 
 OPTIONAL fields:
+- task_id: REQUIRED for updates (get from get_all_tasks)
 - description: Task description
 - status: 'todo' | 'inprogress' | 'done' (default: todo)
 - deadline: ISO timestamp YYYY-MM-DDTHH:mm
@@ -1291,26 +1307,7 @@ TEAM ASSIGNMENT (FULLY AUTOMATIC):
 - Just use ANY name user mentions in assigned_to_name - no need to verify!
 - System automatically finds closest matching team member via fuzzy matching
 - Examples: "Cau" → finds "Cau", "papex" → finds "Papex Grigolia", "admin" → assigns to owner
-- NEVER ask which team member - just use the name provided and let system handle it!
-
-EDITING TASKS (CRITICAL - MUST FOLLOW):
-- ⚠️ ALWAYS call get_all_tasks FIRST to find the task by name
-- Extract the task_id from the results
-- THEN call create_or_update_task with the task_id parameter
-- NEVER update without task_id - it will fail!
-
-Examples:
-- "move task buy groceries to done" → 
-  1. Call get_all_tasks (filter by status="inprogress" if known)
-  2. Find task with title matching "buy groceries"
-  3. Call create_or_update_task with task_id + status="done"
-  
-- "edit task KAKA" → 
-  1. Call get_all_tasks
-  2. Find "KAKA"  
-  3. Call create_or_update_task with task_id
-  
-- Files uploaded during editing will be added to the task`,
+- NEVER ask which team member - just use the name provided and let system handle it!`,
           parameters: {
             type: "object",
             properties: {
@@ -1408,6 +1405,23 @@ When users ask about what AI model you are, which AI you use, what AI bot you ar
 3. If you claim something is done without calling a tool, you are LYING to the user
 4. You can ONLY confirm an action AFTER the tool returns a success response
 5. When asked to create/add/make/update something, you MUST call the appropriate tool immediately
+
+🔴 **CRITICAL TASK UPDATE RULE - MANDATORY FOR ALL TASK CHANGES**:
+⚠️ BEFORE updating, moving, editing, or changing ANY task:
+  1. ALWAYS call get_all_tasks FIRST to see current real-time state
+  2. Find the task by name/title in the results
+  3. Extract the task_id from that task
+  4. ONLY THEN call create_or_update_task with task_id + changes
+  
+  ❌ FORBIDDEN: Making assumptions about task status or existence
+  ❌ FORBIDDEN: Saying "task is already done" without checking first
+  ❌ FORBIDDEN: Saying "can't find task" without checking first
+  ✅ REQUIRED: ALWAYS check current state with get_all_tasks before ANY task update
+
+Examples:
+- "move task X to done" → get_all_tasks → find X → create_or_update_task(task_id, status="done")
+- "change task Y status" → get_all_tasks → find Y → create_or_update_task(task_id, new_status)
+- "edit task Z" → get_all_tasks → find Z → create_or_update_task(task_id, changes)
 
 💬 **RESPONSE FORMATTING RULES**:
 - BE PROFESSIONAL AND FRIENDLY, but keep responses SHORT and RELEVANT
@@ -1646,7 +1660,30 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 2. **✅ CREATE/EDIT TASKS** (Full Capabilities + Team Assignment)
    - Tool: create_or_update_task
    
-   **CRITICAL: JUST CREATE THE TASK - NO QUESTIONS ASKED!**
+   **🔴 CRITICAL: ALWAYS CHECK CURRENT STATE FIRST!**
+   
+   ⚠️ FOR ANY TASK UPDATE/MOVE/EDIT:
+   1. FIRST call get_all_tasks to see real-time current state
+   2. Find the task by name in results
+   3. Get the task_id
+   4. THEN call create_or_update_task with task_id + changes
+   
+   ❌ NEVER say "task is already X" without calling get_all_tasks first
+   ❌ NEVER say "can't find task" without calling get_all_tasks first
+   ✅ ALWAYS verify current state before updating
+   
+   **Examples of CORRECT workflow:**
+   - User: "move buy groceries to done"
+     1. Call get_all_tasks
+     2. Find "buy groceries" (might be in todo OR inprogress)
+     3. Call create_or_update_task(task_id="found_id", status="done")
+   
+   - User: "change drink water status to done"
+     1. Call get_all_tasks
+     2. Find "drink water" in results
+     3. Call create_or_update_task(task_id="found_id", status="done")
+   
+   **CREATING NEW TASKS:**
    
    **Required Fields:**
    - task_name: Task name/title (required)
