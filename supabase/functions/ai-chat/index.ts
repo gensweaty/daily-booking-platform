@@ -780,28 +780,40 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_all_tasks",
-          description: `**MANDATORY - USE THIS FOR CONVERSATIONAL DATA QUESTIONS ABOUT TASKS**
+          description: `🚨 CRITICAL FIRST STEP - CALL THIS BEFORE ANY TASK CONVERSATION! 🚨
 
-          Use this IMMEDIATELY when user asks data questions (NOT Excel export):
-          - "how many tasks this month?", "what tasks did we add?"
-          - "show me tasks", "list tasks created last week"
-          - "tasks for this month", "tasks added today"
-          - ANY question asking about task DATA, COUNTS, LISTS, or STATISTICS
-          
-          **CRITICAL**: This is for ANSWERING QUESTIONS, not Excel generation!
-          
-          Time Range Examples:
-          - "tasks this month" → created_after: first day of current month, created_before: last day of current month
-          - "tasks last week" → created_after: last Monday, created_before: last Sunday
-          - "tasks added today" → created_after: today at 00:00, created_before: today at 23:59
-          - "tasks this year" → created_after: Jan 1 of current year, created_before: today
-          
-          Retrieves ALL tasks with optional filters:
-          - Status filter (todo/inprogress/done)
-          - Date range filter (created_after, created_before)
-          - Returns complete task details including created_by info (shows who created each task: admin or sub-user name)
-          
-          After calling this tool, provide a conversational answer with the data (counts, lists, insights).`,
+**MANDATORY USAGE - NO EXCEPTIONS**:
+❌ NEVER mention task names without calling this first
+❌ NEVER say "task doesn't exist" without calling this first  
+❌ NEVER answer task questions from memory/history - GET FRESH DATA
+❌ NEVER assume task status - ALWAYS check with this tool first
+
+✅ ALWAYS call this tool IMMEDIATELY when:
+- User mentions ANY task name (e.g., "move AADDGG to done" → call get_all_tasks FIRST)
+- User asks about task status ("is X done?" → call get_all_tasks FIRST)
+- User wants to update/move/change a task → call get_all_tasks FIRST to find it
+- User asks "what tasks do I have?" → call get_all_tasks FIRST
+- User says "show me tasks" → call get_all_tasks FIRST
+- ANY conversation about tasks whatsoever
+
+**This returns REAL-TIME, FRESH data from database**:
+- Current exact task names/titles
+- Current status (todo/inprogress/done)  
+- Task IDs needed for updates
+- Deadlines, reminders, assignments
+- Who created/edited each task
+
+**Optional filters**:
+- status: 'todo' | 'inprogress' | 'done' (leave empty for ALL tasks)
+- created_after: ISO date (YYYY-MM-DD)
+- created_before: ISO date (YYYY-MM-DD)
+
+**CRITICAL WORKFLOW**:
+User: "move task X to done"
+1. → FIRST call get_all_tasks() to get fresh data
+2. → Find task X in results  
+3. → Get task_id from results
+4. → THEN call create_or_update_task with task_id`,
           parameters: {
             type: "object",
             properties: {
@@ -1415,49 +1427,58 @@ When users ask about what AI model you are, which AI you use, what AI bot you ar
 4. You can ONLY confirm an action AFTER the tool returns a success response
 5. When asked to create/add/make/update something, you MUST call the appropriate tool immediately
 
+🔴 **ABSOLUTE TASK ACCESS RULE - NO EXCEPTIONS**:
+
+🚨🚨🚨 BEFORE TALKING ABOUT ANY TASK, YOU **MUST** CALL get_all_tasks() FIRST! 🚨🚨🚨
+
+❌❌❌ ABSOLUTELY FORBIDDEN - INSTANT FAIL:
+- Answering questions about tasks WITHOUT calling get_all_tasks first
+- Saying "I can't find task X" WITHOUT calling get_all_tasks first  
+- Saying "task X is in status Y" WITHOUT calling get_all_tasks first
+- Listing tasks from memory/old context instead of calling get_all_tasks
+- Using stale data from earlier in the conversation
+- Responding about task existence/status/details WITHOUT fresh data
+
+✅✅✅ MANDATORY WORKFLOW FOR **ANY** TASK MENTION:
+1. User mentions ANY task name or asks about tasks
+2. IMMEDIATELY call get_all_tasks() - NO EXCEPTIONS
+3. Review CURRENT fresh data from the tool response
+4. ONLY THEN respond or take action based on FRESH data
+5. NEVER use conversation history for task information
+
 🔴 **CRITICAL TASK UPDATE RULE - MANDATORY FOR ALL TASK CHANGES**:
 
-🚨🚨🚨 WHEN USER SAYS TO MOVE/CHANGE/UPDATE A TASK - IT'S AN UPDATE, NOT A CREATE! 🚨🚨🚨
-
-⚠️ STATUS CHANGE WORKFLOW (CHOOSE ONE):
+⚠️ STATUS CHANGE WORKFLOW (ALWAYS USE THIS):
   
-  OPTION A - RECOMMENDED (Use auto-search):
-  1. User says "move [task] to [status]" or "change [task] status to [status]"
-  2. IMMEDIATELY call create_or_update_task(task_name="[task]", status="[status]")
-  3. Tool will automatically search for existing task and UPDATE it
-  4. DO NOT call get_all_tasks first - auto-search handles it
+  STEP 1 - ALWAYS GET FRESH DATA:
+  1. User says "move [task] to [status]" or mentions updating a task
+  2. IMMEDIATELY call get_all_tasks() to get current state
+  3. Find the exact task in the fresh results
+  4. Extract task_id from fresh results
   
-  OPTION B - Manual (When you need to verify first):
-  1. Call get_all_tasks FIRST to see current state
-  2. Find the task by name/title (search in ALL statuses)
-  3. Extract the task_id from that task
-  4. Call create_or_update_task with task_id + changes
+  STEP 2 - PERFORM UPDATE:
+  5. Call create_or_update_task(task_id="[id]", task_name="[task]", status="[status]")
+  6. Wait for success response
+  7. Only then confirm to user
   
   ❌ FORBIDDEN PATTERNS:
+  - Responding "I can't find that task" WITHOUT calling get_all_tasks first
   - Creating new task when user asks to MOVE existing task
-  - Creating new task when user asks to CHANGE status of existing task
-  - Responding "I've updated" without actually calling the tool
-  - Making assumptions about task status or existence
-  - Saying "task is already done" without checking first
+  - Saying "task already in that status" WITHOUT checking fresh data
+  - Using old/stale/cached information about tasks
   
   ✅ REQUIRED PATTERNS:
-  - ALWAYS call the tool when user requests task changes
-  - Use auto-search feature (just provide task_name)
-  - Preserve all task metadata (reminders, assignments, etc.)
+  - ALWAYS get_all_tasks() before ANY task operation
+  - ALWAYS use fresh data from tool responses
+  - NEVER trust conversation history for task state
 
-🔑 COMPLETE LIST OF PHRASES THAT MEAN UPDATE (NOT CREATE):
-- "move task [name] to [status]"
-- "move [name] from [status] to [status]"
-- "change status of [name] to [status]"
-- "edit task [name], change status to [status]"
-- "mark [name] as [status]"
-- "set [name] to [status]"
-- "[name] is now [status]"
-- "update [name] status"
-- "complete [name]" / "finish [name]"
-- "start [name]" / "begin [name]"
-- "move task [name] from [old_status] to [new_status]"
-- "change task [name] to [status]"
+🔑 COMPLETE LIST OF PHRASES THAT MEAN "GET FRESH DATA FIRST":
+- ANY mention of a task name (must call get_all_tasks first)
+- "move task [name]" (call get_all_tasks, find it, then update)
+- "change [name]" (call get_all_tasks, find it, then update)
+- "where is task [name]" (call get_all_tasks, find it, then respond)
+- "is [name] done?" (call get_all_tasks, check it, then respond)
+- "what tasks do I have?" (call get_all_tasks, then list them)
 - "update task [name]"
 - "edit task [name]"
 - "set task [name] status to [status]"
@@ -2735,6 +2756,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'get_all_tasks': {
+              console.log('    🔍 GET_ALL_TASKS: Fetching FRESH task data from database...');
               const filters = {
                 status: args.status,
                 created_after: args.created_after,
@@ -2749,6 +2771,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const s = unifyStatus(t.status);
                 breakdown[s] = (breakdown[s] || 0) + 1;
               }
+              
+              console.log(`    ✅ FRESH DATA: Found ${res.tasks.length} tasks - ${JSON.stringify(breakdown)}`);
+              console.log(`    📋 Task names: ${res.tasks.map(t => t.title).join(', ')}`);
 
               toolResult = {
                 tasks: res.tasks,
