@@ -149,10 +149,22 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           },
           (payload) => {
             console.log('🔄 Subscription updated in real-time:', payload);
-            toast({
-              title: "Subscription Updated",
-              description: "Your subscription has been updated. Refreshing...",
-            });
+            
+            // Only show toast if there's a meaningful change (status or plan_type change)
+            const oldRecord = payload.old as any;
+            const newRecord = payload.new as any;
+            
+            const hasStatusChange = oldRecord?.status !== newRecord?.status;
+            const hasPlanChange = oldRecord?.plan_type !== newRecord?.plan_type;
+            const hasEndDateChange = oldRecord?.subscription_end_date !== newRecord?.subscription_end_date;
+            
+            if (hasStatusChange || hasPlanChange || hasEndDateChange) {
+              toast({
+                title: "Subscription Updated",
+                description: "Your subscription has been updated. Refreshing...",
+              });
+            }
+            
             // Clear cache and refetch with fresh data
             fetchSubscription(true);
           }
