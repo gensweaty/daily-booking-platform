@@ -179,7 +179,10 @@ export const MessageInput = ({
         messageRef.current = '';
         setAttachments([]);
         
-        // Get current user info with proper name resolution
+        // ⚠️ NOTE: User message is already saved via onSendMessage above (line 177)
+        // DO NOT save it again here to avoid duplicates
+        
+        // Resolve sender identity for AI context
         const { data: { user } } = await supabase.auth.getUser();
         let senderName = 'User';
         let senderType: 'admin' | 'sub_user' = 'admin';

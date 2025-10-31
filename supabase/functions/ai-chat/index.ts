@@ -175,6 +175,9 @@ serve(async (req) => {
       const minutes = parseInt(reminderMatch[1], 10);
       console.log(`⚡ Reminder fast-path TRIGGERED: ${minutes} minute(s) via pattern ${matchedPattern}`);
       
+      // NOTE: User message is already saved in MessageInput.tsx before this function is called
+      // No need to save it again here to avoid duplicates
+      
       // Enhanced title extraction - check for "about", "for", "to", or "name"
       let title = "Reminder";
       
@@ -264,6 +267,9 @@ serve(async (req) => {
       const hours = parseInt(timeMatch[1], 10);
       const minutes = parseInt(timeMatch[2], 10);
       console.log(`⚡ Time reminder fast-path triggered: ${hours}:${String(minutes).padStart(2, '0')}`);
+      
+      // NOTE: User message is already saved in MessageInput.tsx before this function is called
+      // No need to save it again here to avoid duplicates
       
       // Enhanced title extraction - check for patterns before "at/on"
       let title = "Reminder";
@@ -440,6 +446,8 @@ serve(async (req) => {
         console.log('  ⚠️ Low confidence - falling back to LLM for better understanding');
         // Continue to LLM processing instead of using fast-path
       } else {
+        // NOTE: User message is already saved in MessageInput.tsx before this function is called
+        // No need to save it again here to avoid duplicates
 
         const { data: excelData, error: excelError } = await supabaseAdmin.functions.invoke(
           "generate-excel-report",
@@ -669,12 +677,9 @@ serve(async (req) => {
       status?: string, created_after?: string, created_before?: string
     }) {
       const combos = [
-        { ownerCol: "user_id",   archivedCol: "archived_at" },
-        { ownerCol: "owner_id",  archivedCol: "archived_at" },
-        { ownerCol: "board_owner_id", archivedCol: "archived_at" },
-        { ownerCol: "user_id",   archivedCol: null },
-        { ownerCol: "owner_id",  archivedCol: null },
-        { ownerCol: "board_owner_id", archivedCol: null },
+        { ownerCol: "user_id" },
+        { ownerCol: "owner_id" },
+        { ownerCol: "board_owner_id" },
       ];
       const out = { tasks: [] as any[], meta: {} as any };
 
@@ -682,7 +687,9 @@ serve(async (req) => {
         try {
           let q = client.from("tasks").select("*").eq(c.ownerCol as any, ownerId);
 
-          if (c.archivedCol) q = q.is(c.archivedCol as any, null);
+          // Filter non-archived tasks - use archived boolean field, not archived_at
+          q = q.or("archived.is.null,archived.eq.false");
+          
           if (filters.created_after)  q = q.gte("created_at", filters.created_after);
           if (filters.created_before) q = q.lte("created_at", filters.created_before);
           if (filters.status) {
@@ -773,28 +780,40 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_all_tasks",
-          description: `**MANDATORY - USE THIS FOR CONVERSATIONAL DATA QUESTIONS ABOUT TASKS**
+          description: `🚨 CRITICAL FIRST STEP - CALL THIS BEFORE ANY TASK CONVERSATION! 🚨
 
-          Use this IMMEDIATELY when user asks data questions (NOT Excel export):
-          - "how many tasks this month?", "what tasks did we add?"
-          - "show me tasks", "list tasks created last week"
-          - "tasks for this month", "tasks added today"
-          - ANY question asking about task DATA, COUNTS, LISTS, or STATISTICS
-          
-          **CRITICAL**: This is for ANSWERING QUESTIONS, not Excel generation!
-          
-          Time Range Examples:
-          - "tasks this month" → created_after: first day of current month, created_before: last day of current month
-          - "tasks last week" → created_after: last Monday, created_before: last Sunday
-          - "tasks added today" → created_after: today at 00:00, created_before: today at 23:59
-          - "tasks this year" → created_after: Jan 1 of current year, created_before: today
-          
-          Retrieves ALL tasks with optional filters:
-          - Status filter (todo/inprogress/done)
-          - Date range filter (created_after, created_before)
-          - Returns complete task details including created_by info (shows who created each task: admin or sub-user name)
-          
-          After calling this tool, provide a conversational answer with the data (counts, lists, insights).`,
+**MANDATORY USAGE - NO EXCEPTIONS**:
+❌ NEVER mention task names without calling this first
+❌ NEVER say "task doesn't exist" without calling this first  
+❌ NEVER answer task questions from memory/history - GET FRESH DATA
+❌ NEVER assume task status - ALWAYS check with this tool first
+
+✅ ALWAYS call this tool IMMEDIATELY when:
+- User mentions ANY task name (e.g., "move AADDGG to done" → call get_all_tasks FIRST)
+- User asks about task status ("is X done?" → call get_all_tasks FIRST)
+- User wants to update/move/change a task → call get_all_tasks FIRST to find it
+- User asks "what tasks do I have?" → call get_all_tasks FIRST
+- User says "show me tasks" → call get_all_tasks FIRST
+- ANY conversation about tasks whatsoever
+
+**This returns REAL-TIME, FRESH data from database**:
+- Current exact task names/titles
+- Current status (todo/inprogress/done)  
+- Task IDs needed for updates
+- Deadlines, reminders, assignments
+- Who created/edited each task
+
+**Optional filters**:
+- status: 'todo' | 'inprogress' | 'done' (leave empty for ALL tasks)
+- created_after: ISO date (YYYY-MM-DD)
+- created_before: ISO date (YYYY-MM-DD)
+
+**CRITICAL WORKFLOW**:
+User: "move task X to done"
+1. → FIRST call get_all_tasks() to get fresh data
+2. → Find task X in results  
+3. → Get task_id from results
+4. → THEN call create_or_update_task with task_id`,
           parameters: {
             type: "object",
             properties: {
@@ -1253,28 +1272,47 @@ EDITING EVENTS:
         type: "function",
         function: {
           name: "create_or_update_task",
-          description: `Create or update tasks with FULL automatic capabilities!
-          
+          description: `Create or update tasks - with AUTOMATIC task search built-in!
+
+🎯 AUTO-SEARCH FEATURE (CRITICAL):
+✅ Just provide task_name - tool AUTOMATICALLY finds existing task and updates it!
+✅ If task exists → UPDATE it
+✅ If task doesn't exist → CREATE new one
+✅ NO need to call get_all_tasks() first - this tool handles everything!
+
+🚨 FOR STATUS CHANGES - ALWAYS USE THIS TOOL DIRECTLY:
+When user says "move task X to done", "change Y to in progress", etc:
+→ IMMEDIATELY call this tool with task_name and new status
+→ DO NOT call get_all_tasks() first (unnecessary!)
+→ This tool's auto-search will find and update the task
+
+📋 EXAMPLE USAGE FOR STATUS CHANGES:
+User: "move task AADDGG to done"
+→ Call: create_or_update_task(task_name="AADDGG", status="done")
+→ Tool auto-finds AADDGG and updates its status
+→ Respond: "✅ Task updated: AADDGG"
+
+User: "change drink water to in progress"
+→ Call: create_or_update_task(task_name="drink water", status="inprogress")
+→ Respond: "✅ Task updated: drink water"
+
+🔴 CRITICAL RULES:
+- For "move/change/update/mark/set" task → call THIS tool DIRECTLY
+- DO NOT call get_all_tasks() before calling this tool
+- The auto-search handles finding the task by name
+- All existing task data (description, files, comments, reminders, deadlines, assignees) is preserved
+
 MANDATORY fields:
-- task_name: Task title/name
+- task_name: Task title/name (used for auto-search if task_id not provided)
 
 OPTIONAL fields:
-- description: Task description
+- task_id: Task ID for direct update (if you already have it)
+- description: Task description  
 - status: 'todo' | 'inprogress' | 'done' (default: todo)
 - deadline: ISO timestamp YYYY-MM-DDTHH:mm
 - reminder: ISO timestamp (before deadline, enables email + AI chat notification)
 - email_reminder: boolean (auto-enabled with reminder)
 - assigned_to_name: ANY name or partial name - system auto-matches (e.g., "Cau", "papex", "John", "admin")
-
-SCHEDULING REMINDERS FOR TASKS:
-- If user wants to set a reminder for an existing task by name (e.g., "remind me about project X")
-- FIRST search for that task using get_all_tasks
-- Then update it with reminder parameter to schedule the reminder
-- This triggers BOTH email AND AI chat notification at the specified time
-- For relative times (e.g., "in 1 minute", "in 2 hours"):
-  * MANDATORY: Call get_current_datetime FIRST to get exact current time
-  * Calculate the reminder time by adding the offset to current time
-  * Use the calculated ISO timestamp in reminder parameter
 
 FILE ATTACHMENTS:
 - Files uploaded in chat are AUTOMATICALLY attached - no IDs or confirmation needed!
@@ -1282,14 +1320,7 @@ FILE ATTACHMENTS:
 TEAM ASSIGNMENT (FULLY AUTOMATIC):
 - Just use ANY name user mentions in assigned_to_name - no need to verify!
 - System automatically finds closest matching team member via fuzzy matching
-- Examples: "Cau" → finds "Cau", "papex" → finds "Papex Grigolia", "admin" → assigns to owner
-- NEVER ask which team member - just use the name provided and let system handle it!
-
-EDITING TASKS:
-- If user mentions editing a task, FIRST use get_all_tasks to find the task by name
-- Then include the task_id parameter to update it
-- Files uploaded during editing will be added to the task
-- Example: "edit task KAKA" → call get_all_tasks, find "KAKA", then call with task_id`,
+- Examples: "Cau" → finds "Cau", "papex" → finds "Papex Grigolia", "admin" → assigns to owner`,
           parameters: {
             type: "object",
             properties: {
@@ -1369,6 +1400,36 @@ EDITING CUSTOMERS:
 
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
 
+⛔⛔⛔ ABSOLUTE TOOL USAGE ENFORCEMENT - TOP PRIORITY ⛔⛔⛔
+
+🚨 ZERO TOLERANCE RULE FOR TASK STATUS CHANGES:
+IF user asks to "move", "change", "update", "mark", "set" a task status:
+THEN you MUST:
+1. IMMEDIATELY call create_or_update_task with task_name and new status
+2. The tool has built-in AUTO-SEARCH that finds the task automatically
+3. NO need to call get_all_tasks() first - the tool handles it!
+
+✅ CORRECT PATTERN FOR STATUS CHANGES:
+User: "move task AADDGG to done"
+You: [IMMEDIATELY call create_or_update_task(task_name="AADDGG", status="done")]
+You: "✅ Task updated: AADDGG"
+
+User: "change drink water to in progress"  
+You: [IMMEDIATELY call create_or_update_task(task_name="drink water", status="inprogress")]
+You: "✅ Task updated: drink water"
+
+❌ WRONG PATTERN (STOP DOING THIS):
+User: "move task AADDGG to done"
+You: [Call get_all_tasks()] → [Get results but don't call update] → "Task updated"
+THIS IS LYING - YOU DIDN'T UPDATE ANYTHING!
+
+❌ FORBIDDEN RESPONSES:
+- Saying "Task updated" WITHOUT calling create_or_update_task
+- Calling get_all_tasks() but NOT calling create_or_update_task afterwards
+- Responding with confirmation messages without actually performing the action
+
+🚨 IF YOU SAY "UPDATED" WITHOUT CALLING create_or_update_task, YOU ARE LYING! 🚨
+
 🤖 **AI IDENTITY RULES**:
 When users ask about what AI model you are, which AI you use, what AI bot you are, or any similar question about your technical foundation:
 - ALWAYS respond: "I'm Smartbookly AI, specially trained for this platform to make your life easier."
@@ -1387,6 +1448,45 @@ When users ask about what AI model you are, which AI you use, what AI bot you ar
 3. If you claim something is done without calling a tool, you are LYING to the user
 4. You can ONLY confirm an action AFTER the tool returns a success response
 5. When asked to create/add/make/update something, you MUST call the appropriate tool immediately
+
+🔴 **TASK OPERATION RULES - SIMPLE AND DIRECT**:
+
+🎯 FOR TASK STATUS CHANGES (move/change/update):
+✅ DIRECTLY call create_or_update_task(task_name="X", status="Y")
+✅ The tool has AUTO-SEARCH - it finds the task automatically!
+✅ NO need to call get_all_tasks() first
+✅ After tool succeeds, confirm with user
+
+📋 FOR LISTING/CHECKING TASKS:
+✅ Call get_all_tasks() to see what tasks exist
+✅ Use this when user asks "what tasks do I have?" or "show my tasks"
+
+🔑 COMPLETE LIST OF OPERATION PATTERNS:
+
+**STATUS CHANGES** (use create_or_update_task directly):
+- "move task [name] to [status]" → create_or_update_task(task_name="[name]", status="[status]")
+- "change [name] to [status]" → create_or_update_task(task_name="[name]", status="[status]")
+- "mark [name] as [status]" → create_or_update_task(task_name="[name]", status="[status]")
+- "set [name] status to [status]" → create_or_update_task(task_name="[name]", status="[status]")
+- "update [name] description" → create_or_update_task(task_name="[name]", description="...")
+- "complete [name]" → create_or_update_task(task_name="[name]", status="done")
+- "start [name]" → create_or_update_task(task_name="[name]", status="inprogress")
+
+**LISTING/VIEWING** (use get_all_tasks):
+- "what tasks do I have?" → get_all_tasks()
+- "show my tasks" → get_all_tasks()
+- "list all tasks" → get_all_tasks()
+- "which tasks are done?" → get_all_tasks() then filter
+
+✅ CORRECT workflow examples:
+- "move task AADDGG to done" → DIRECTLY call create_or_update_task(task_name="AADDGG", status="done")
+- "change drink water to in progress" → DIRECTLY call create_or_update_task(task_name="drink water", status="inprogress")
+- "what tasks do I have?" → call get_all_tasks() to list them
+
+❌ FORBIDDEN PATTERNS:
+- Calling get_all_tasks() before status changes (unnecessary - tool has auto-search!)
+- Saying "updated" without calling create_or_update_task
+- Creating new task when user wants to update existing task
 
 💬 **RESPONSE FORMATTING RULES**:
 - BE PROFESSIONAL AND FRIENDLY, but keep responses SHORT and RELEVANT
@@ -1625,7 +1725,30 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 2. **✅ CREATE/EDIT TASKS** (Full Capabilities + Team Assignment)
    - Tool: create_or_update_task
    
-   **CRITICAL: JUST CREATE THE TASK - NO QUESTIONS ASKED!**
+   **🔴 CRITICAL: ALWAYS CHECK CURRENT STATE FIRST!**
+   
+   ⚠️ FOR ANY TASK UPDATE/MOVE/EDIT:
+   1. FIRST call get_all_tasks to see real-time current state
+   2. Find the task by name in results
+   3. Get the task_id
+   4. THEN call create_or_update_task with task_id + changes
+   
+   ❌ NEVER say "task is already X" without calling get_all_tasks first
+   ❌ NEVER say "can't find task" without calling get_all_tasks first
+   ✅ ALWAYS verify current state before updating
+   
+   **Examples of CORRECT workflow:**
+   - User: "move buy groceries to done"
+     1. Call get_all_tasks
+     2. Find "buy groceries" (might be in todo OR inprogress)
+     3. Call create_or_update_task(task_id="found_id", status="done")
+   
+   - User: "change drink water status to done"
+     1. Call get_all_tasks
+     2. Find "drink water" in results
+     3. Call create_or_update_task(task_id="found_id", status="done")
+   
+   **CREATING NEW TASKS:**
    
    **Required Fields:**
    - task_name: Task name/title (required)
@@ -2630,6 +2753,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'get_all_tasks': {
+              console.log('    🔍 GET_ALL_TASKS: Fetching FRESH task data from database...');
               const filters = {
                 status: args.status,
                 created_after: args.created_after,
@@ -2644,6 +2768,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const s = unifyStatus(t.status);
                 breakdown[s] = (breakdown[s] || 0) + 1;
               }
+              
+              console.log(`    ✅ FRESH DATA: Found ${res.tasks.length} tasks - ${JSON.stringify(breakdown)}`);
+              console.log(`    📋 Task names: ${res.tasks.map(t => t.title).join(', ')}`);
 
               toolResult = {
                 tasks: res.tasks,
@@ -4768,7 +4895,60 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             case 'create_or_update_task': {
               const { task_id, task_name, description, status, deadline, reminder, email_reminder, assigned_to_name } = args;
               
-              console.log(`    ✅ ${task_id ? 'Updating' : 'Creating'} task: ${task_name}`, { 
+              let effectiveTaskId = task_id; // Start with provided task_id
+              
+              // 🔍 AUTO-SEARCH: If no task_id provided, search for existing task by name
+              if (!effectiveTaskId && task_name) {
+                console.log(`🔍 AUTO-SEARCH TRIGGERED for task_name: "${task_name}"`);
+                console.log(`🔍 task_id provided: ${task_id}, effectiveTaskId: ${effectiveTaskId}`);
+                
+                try {
+                  const { tasks, error: fetchError } = await fetchTasksFlexible(supabaseClient, ownerId, {});
+                  
+                  if (fetchError) {
+                    console.error(`❌ Error fetching tasks for search:`, fetchError);
+                  } else {
+                    console.log(`📋 Fetched ${tasks.length} total tasks to search through`);
+                    console.log(`📋 Task titles:`, tasks.map(t => t.title));
+                    
+                    const normalizedSearchName = task_name.toLowerCase().trim();
+                    console.log(`🔍 Normalized search name: "${normalizedSearchName}"`);
+                    
+                    // Try exact match first
+                    let matchedTask = tasks.find(t => 
+                      t.title?.toLowerCase().trim() === normalizedSearchName
+                    );
+                    
+                    console.log(`🔍 Exact match result:`, matchedTask ? `Found: "${matchedTask.title}" (${matchedTask.id})` : 'Not found');
+                    
+                    // If no exact match, try partial match (one contains the other)
+                    if (!matchedTask) {
+                      matchedTask = tasks.find(t => {
+                        const taskTitle = (t.title || '').toLowerCase().trim();
+                        return taskTitle.includes(normalizedSearchName) || 
+                               normalizedSearchName.includes(taskTitle);
+                      });
+                      console.log(`🔍 Partial match result:`, matchedTask ? `Found: "${matchedTask.title}" (${matchedTask.id})` : 'Not found');
+                    }
+                    
+                    if (matchedTask) {
+                      effectiveTaskId = matchedTask.id;
+                      console.log(`✅ MATCH FOUND! Will UPDATE task: "${matchedTask.title}" (${matchedTask.id})`);
+                      console.log(`✅ effectiveTaskId set to: ${effectiveTaskId}`);
+                    } else {
+                      console.log(`➕ NO MATCH FOUND - will CREATE new task "${task_name}"`);
+                    }
+                  }
+                } catch (searchError) {
+                  console.error(`❌ Exception during task search:`, searchError);
+                  console.log(`➕ Falling back to CREATE mode due to search error`);
+                }
+              } else {
+                console.log(`⏭️ SKIP AUTO-SEARCH: task_id=${task_id}, task_name=${task_name}`);
+              }
+              
+              console.log(`${effectiveTaskId ? '🔄 UPDATE MODE' : '➕ CREATE MODE'}: ${task_name}`, { 
+                task_id: effectiveTaskId,
                 status,
                 assigned_to_name,
                 deadline,
@@ -4892,12 +5072,43 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const normalizedStatus = normalizeTaskStatus(status);
                 console.log(`    📊 Status: "${status}" → "${normalizedStatus}"`);
                 
-                const taskData = {
+                // CRITICAL: For updates, ONLY include fields that are being changed
+                // This preserves all existing data (description, deadlines, assignees, etc.)
+                const updateData: any = {
+                  last_edited_by_type: requesterType,
+                  last_edited_by_name: baseName,
+                  last_edited_by_ai: true,
+                  last_edited_at: new Date().toISOString()
+                };
+                
+                // Only include fields that are explicitly provided
+                if (status !== undefined) updateData.status = normalizedStatus;
+                if (description !== undefined) updateData.description = description;
+                if (deadline !== undefined) updateData.deadline_at = deadlineUTC;
+                if (reminder !== undefined) {
+                  updateData.reminder_at = reminderUTC;
+                  updateData.email_reminder_enabled = true;
+                }
+                if (email_reminder !== undefined) updateData.email_reminder_enabled = email_reminder;
+                
+                // Assignment fields - only update if provided
+                if (assigned_to_name !== undefined) {
+                  updateData.assigned_to_type = assignedToType;
+                  updateData.assigned_to_id = assignedToId;
+                  updateData.assigned_to_name = assignedToName;
+                  updateData.assigned_to_avatar_url = assignedToAvatar;
+                  updateData.assigned_at = assignedToId ? new Date().toISOString() : null;
+                  updateData.assigned_by_type = assignedToId ? requesterType : null;
+                  updateData.assigned_by_id = assignedToId ? (requesterType === 'admin' ? ownerId : requesterIdentity?.id) : null;
+                }
+                
+                console.log(`    📝 Update will change these fields:`, Object.keys(updateData).filter(k => !k.startsWith('last_edited')));
+
+                // For CREATE: include ALL fields
+                const createData = {
                   title: task_name,
                   description: description || "",
                   status: normalizedStatus,
-                  user_id: ownerId,
-                  position: 0,
                   deadline_at: deadlineUTC,
                   reminder_at: reminderUTC,
                   email_reminder_enabled: reminder ? true : (email_reminder || false),
@@ -4908,21 +5119,35 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   assigned_at: assignedToId ? new Date().toISOString() : null,
                   assigned_by_type: assignedToId ? requesterType : null,
                   assigned_by_id: assignedToId ? (requesterType === 'admin' ? ownerId : requesterIdentity?.id) : null,
+                  user_id: ownerId,
+                  position: 0,
                   created_by_type: requesterType,
-                  created_by_name: baseName,  // ← Use clean name without "(AI)"
-                  created_by_ai: true,        // ← Boolean flag for AI creation
+                  created_by_name: baseName,
+                  created_by_ai: true,
                   last_edited_by_type: requesterType,
-                  last_edited_by_name: baseName,  // ← Use clean name without "(AI)"
-                  last_edited_by_ai: true,        // ← Boolean flag for AI edit
+                  last_edited_by_name: baseName,
+                  last_edited_by_ai: true,
                   last_edited_at: new Date().toISOString()
                 };
 
-                if (task_id) {
-                  // Update existing task
+                if (effectiveTaskId) {
+                  // Verify existing task and preserve creator info
+                  const { data: existingTask } = await supabaseAdmin
+                    .from('tasks')
+                    .select('id, title, created_by_name, created_by_type, created_by_ai')
+                    .eq('id', effectiveTaskId)
+                    .eq('user_id', ownerId)
+                    .single();
+                  
+                  if (existingTask) {
+                    console.log(`    📝 Preserving original creator: ${existingTask.created_by_name || 'Unknown'} (${existingTask.created_by_type}, AI: ${existingTask.created_by_ai})`);
+                  }
+                  
+                  // Update existing task (without overwriting creator fields)
                   const { error: updateError } = await supabaseAdmin
                     .from('tasks')
-                    .update(taskData)
-                    .eq('id', task_id)
+                    .update(updateData)
+                    .eq('id', effectiveTaskId)
                     .eq('user_id', ownerId);
                   
                   if (updateError) {
@@ -4935,14 +5160,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       for (const file of uploadedFileRecords) {
                         await supabaseAdmin
                           .from('files')
-                          .update({ task_id: task_id, parent_type: 'task' })
+                          .update({ task_id: effectiveTaskId, parent_type: 'task' })
                           .eq('id', file.id);
                       }
                     }
                     
                     toolResult = { 
                       success: true, 
-                      task_id: task_id,
+                      task_id: effectiveTaskId,
                       action: 'updated',
                       files_attached: uploadedFileRecords.length,
                       assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
@@ -4950,13 +5175,13 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     };
                     
                     // Task update complete - frontend will pick it up via postgres_changes listener
-                    console.log(`    ✅ Task updated in database: ${task_id}`);
+                    console.log(`    ✅ Task updated in database: ${effectiveTaskId}`);
                   }
                 } else {
-                  // Create new task
+                  // Create new task (with creator metadata)
                   const { data: newTask, error: createError } = await supabaseAdmin
                     .from('tasks')
-                    .insert(taskData)
+                    .insert(createData)
                     .select()
                     .single();
                   

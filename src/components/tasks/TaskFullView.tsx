@@ -388,50 +388,50 @@ export const TaskFullView = ({
               </>
             )}
           </div>
+          
+          {/* Delete Confirmation Dialog - Rendered inside Dialog for proper z-index */}
+          <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+            <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-sm sm:text-base">
+                  <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
+                  {t("tasks.deleteTaskConfirmTitle")}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-xs sm:text-sm">
+                  {t("common.deleteConfirmMessage")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                <AlertDialogCancel className="text-xs sm:text-sm">{t("common.cancel")}</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm">
+                  {t("common.delete")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Archive Confirmation Dialog - Rendered inside Dialog for proper z-index */}
+          <AlertDialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
+            <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="flex items-center gap-2 text-sm sm:text-base">
+                  <Archive className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
+                  {t("tasks.archiveTask")}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-xs sm:text-sm">
+                  {t("tasks.archiveTaskConfirm")}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                <AlertDialogCancel className="text-xs sm:text-sm">{t("common.cancel")}</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmArchive} className="bg-amber-600 text-white hover:bg-amber-700 text-xs sm:text-sm">
+                  {t("tasks.archive")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
-        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-sm sm:text-base">
-              <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive" />
-              {t("tasks.deleteTaskConfirmTitle")}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs sm:text-sm">
-              {t("common.deleteConfirmMessage")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <AlertDialogCancel className="text-xs sm:text-sm">{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-xs sm:text-sm">
-              {t("common.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Archive Confirmation Dialog */}
-      <AlertDialog open={isArchiveConfirmOpen} onOpenChange={setIsArchiveConfirmOpen}>
-        <AlertDialogContent className="w-[85vw] max-w-md sm:w-auto sm:max-w-lg">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-sm sm:text-base">
-              <Archive className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
-              {t("tasks.archiveTask")}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs sm:text-sm">
-              {t("tasks.archiveTaskConfirm")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <AlertDialogCancel className="text-xs sm:text-sm">{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmArchive} className="bg-amber-600 text-white hover:bg-amber-700 text-xs sm:text-sm">
-              {t("tasks.archive")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </TooltipProvider>
   );
 };
