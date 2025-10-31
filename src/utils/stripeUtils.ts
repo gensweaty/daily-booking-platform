@@ -169,6 +169,15 @@ export const checkSubscriptionStatus = async () => {
     
     if (error) {
       console.error('Error checking subscription status:', error);
+      
+      // If auth error (session expired), return not_authenticated
+      if (error.message?.includes('Authentication error') || 
+          error.message?.includes('Auth session missing') ||
+          error.message?.includes('invalid claim')) {
+        return { success: false, status: 'not_authenticated' };
+      }
+      
+      // For other errors, return trial_expired
       return { success: false, status: 'trial_expired' };
     }
     
@@ -220,6 +229,14 @@ export const manualSyncSubscription = async () => {
     
     if (error) {
       console.error('Error in manual sync:', error);
+      
+      // Handle auth errors specifically
+      if (error.message?.includes('Authentication error') || 
+          error.message?.includes('Auth session missing') ||
+          error.message?.includes('invalid claim')) {
+        throw new Error('Your session has expired. Please log in again.');
+      }
+      
       throw new Error(error.message || 'Manual sync failed');
     }
     
@@ -266,6 +283,14 @@ export const verifySession = async (sessionId: string) => {
     
     if (error) {
       console.error('Error verifying session:', error);
+      
+      // Handle auth errors specifically
+      if (error.message?.includes('Authentication error') || 
+          error.message?.includes('Auth session missing') ||
+          error.message?.includes('invalid claim')) {
+        return { success: false, error: 'Your session has expired. Please log in again.' };
+      }
+      
       return { success: false, error: error.message || 'Verification failed' };
     }
     

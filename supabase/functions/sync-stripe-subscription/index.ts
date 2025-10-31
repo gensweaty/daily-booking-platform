@@ -301,11 +301,32 @@ serve(async (req) => {
     logStep("Function started");
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) {
+      logStep("No authorization header provided");
+      return new Response(JSON.stringify({ 
+        success: false, 
+        status: 'not_authenticated',
+        error: "No authorization header provided" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
 
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabase.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    
+    if (userError || !userData?.user) {
+      logStep("Authentication failed", { error: userError?.message });
+      return new Response(JSON.stringify({ 
+        success: false, 
+        status: 'not_authenticated',
+        error: `Authentication error: ${userError?.message || 'User not found'}` 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
     
     const user = userData.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");

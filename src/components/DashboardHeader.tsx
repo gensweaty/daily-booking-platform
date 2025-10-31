@@ -100,6 +100,13 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       const statusResult = await checkSubscriptionStatus();
       console.log('Subscription status result:', statusResult);
       
+      // If user is not authenticated (session expired), don't update subscription state
+      if (statusResult?.status === 'not_authenticated') {
+        console.log('User session expired, skipping subscription update');
+        setIsLoading(false);
+        return;
+      }
+      
       if (statusResult && statusResult.status) {
         setSubscription({
           plan_type: statusResult.planType || 'monthly',
@@ -147,8 +154,15 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             table: 'subscriptions',
             filter: `user_id=eq.${user.id}`
           },
-          (payload) => {
+          async (payload) => {
             console.log('🔄 Subscription updated in real-time:', payload);
+            
+            // CRITICAL: Verify user is still authenticated before processing
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+              console.log('User session expired, ignoring subscription update');
+              return;
+            }
             
             // Only show toast if there's a meaningful change (status or plan_type change)
             const oldRecord = payload.old as any;
