@@ -6,7 +6,7 @@ import { subscriptionCache } from "./subscriptionCache";
 
 // Update the Stripe price IDs to match your actual Stripe account
 const STRIPE_PRICES = {
-  monthly: 'prod_SM0gHgA0G0cQN3',
+  monthly: 'price_1RRIfK2MNASmq1vOrdsjIrYn',
   yearly: 'price_1RRIZ52MNASmq1vOm0iaPvzH',
 };
 
