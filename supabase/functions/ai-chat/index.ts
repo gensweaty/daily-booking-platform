@@ -1293,11 +1293,24 @@ TEAM ASSIGNMENT (FULLY AUTOMATIC):
 - Examples: "Cau" → finds "Cau", "papex" → finds "Papex Grigolia", "admin" → assigns to owner
 - NEVER ask which team member - just use the name provided and let system handle it!
 
-EDITING TASKS:
-- If user mentions editing a task, FIRST use get_all_tasks to find the task by name
-- Then include the task_id parameter to update it
-- Files uploaded during editing will be added to the task
-- Example: "edit task KAKA" → call get_all_tasks, find "KAKA", then call with task_id`,
+EDITING TASKS (CRITICAL - MUST FOLLOW):
+- ⚠️ ALWAYS call get_all_tasks FIRST to find the task by name
+- Extract the task_id from the results
+- THEN call create_or_update_task with the task_id parameter
+- NEVER update without task_id - it will fail!
+
+Examples:
+- "move task buy groceries to done" → 
+  1. Call get_all_tasks (filter by status="inprogress" if known)
+  2. Find task with title matching "buy groceries"
+  3. Call create_or_update_task with task_id + status="done"
+  
+- "edit task KAKA" → 
+  1. Call get_all_tasks
+  2. Find "KAKA"  
+  3. Call create_or_update_task with task_id
+  
+- Files uploaded during editing will be added to the task`,
           parameters: {
             type: "object",
             properties: {

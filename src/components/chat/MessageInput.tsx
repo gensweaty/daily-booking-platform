@@ -179,9 +179,10 @@ export const MessageInput = ({
         messageRef.current = '';
         setAttachments([]);
         
-        // ⚠️ CRITICAL: Save user message to database IMMEDIATELY before AI processing
-        // This ensures the message is never lost, even if AI fast-paths return early
-        console.log('💾 Saving user message to database (safety net)...');
+        // ⚠️ NOTE: User message is already saved via onSendMessage above (line 177)
+        // DO NOT save it again here to avoid duplicates
+        
+        // Resolve sender identity for AI context
         const { data: { user } } = await supabase.auth.getUser();
         let senderName = 'User';
         let senderType: 'admin' | 'sub_user' = 'admin';
@@ -264,31 +265,6 @@ export const MessageInput = ({
             }
             senderType = 'admin';
           }
-        }
-        
-        // Save user message to database NOW (before AI processing)
-        try {
-          const { error: saveError } = await supabase
-            .from('chat_messages')
-            .insert({
-              channel_id: currentChannelId,
-              owner_id: effectiveBoardOwnerId,
-              sender_type: senderType,
-              sender_name: senderName,
-              content: userMessage,
-              message_type: 'text',
-              created_at: new Date().toISOString()
-            });
-          
-          if (saveError) {
-            console.error('❌ Failed to save user message:', saveError);
-            // Continue anyway - AI might still save it
-          } else {
-            console.log('✅ User message saved to database');
-          }
-        } catch (saveError) {
-          console.error('❌ Exception saving user message:', saveError);
-          // Continue anyway - don't break the flow
         }
         
         // Get recent conversation history (last 20 messages)
