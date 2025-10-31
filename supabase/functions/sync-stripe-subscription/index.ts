@@ -232,6 +232,7 @@ async function handleActiveSubscriptionDates(supabase: any, userId: string, plan
 
   // Only update if dates have actually changed or if status needs updating
   const hasChanges = 
+    !existingSubscription ||
     existingSubscription.subscription_start_date !== subscription_start_date ||
     existingSubscription.subscription_end_date !== subscription_end_date ||
     existingSubscription.status !== 'active';
