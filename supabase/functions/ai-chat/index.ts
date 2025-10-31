@@ -4849,35 +4849,55 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               
               // 🔍 AUTO-SEARCH: If no task_id provided, search for existing task by name
               if (!effectiveTaskId && task_name) {
-                console.log(`    🔍 No task_id provided - auto-searching for existing task: "${task_name}"`);
+                console.log(`🔍 AUTO-SEARCH TRIGGERED for task_name: "${task_name}"`);
+                console.log(`🔍 task_id provided: ${task_id}, effectiveTaskId: ${effectiveTaskId}`);
                 
-                const { tasks } = await fetchTasksFlexible(supabaseClient, ownerId, {});
-                const normalizedSearchName = task_name.toLowerCase().trim();
-                
-                // Try exact match first
-                let matchedTask = tasks.find(t => 
-                  t.title?.toLowerCase().trim() === normalizedSearchName
-                );
-                
-                // If no exact match, try partial match (one contains the other)
-                if (!matchedTask) {
-                  matchedTask = tasks.find(t => {
-                    const taskTitle = (t.title || '').toLowerCase().trim();
-                    return taskTitle.includes(normalizedSearchName) || 
-                           normalizedSearchName.includes(taskTitle);
-                  });
+                try {
+                  const { tasks, error: fetchError } = await fetchTasksFlexible(supabaseClient, ownerId, {});
+                  
+                  if (fetchError) {
+                    console.error(`❌ Error fetching tasks for search:`, fetchError);
+                  } else {
+                    console.log(`📋 Fetched ${tasks.length} total tasks to search through`);
+                    console.log(`📋 Task titles:`, tasks.map(t => t.title));
+                    
+                    const normalizedSearchName = task_name.toLowerCase().trim();
+                    console.log(`🔍 Normalized search name: "${normalizedSearchName}"`);
+                    
+                    // Try exact match first
+                    let matchedTask = tasks.find(t => 
+                      t.title?.toLowerCase().trim() === normalizedSearchName
+                    );
+                    
+                    console.log(`🔍 Exact match result:`, matchedTask ? `Found: "${matchedTask.title}" (${matchedTask.id})` : 'Not found');
+                    
+                    // If no exact match, try partial match (one contains the other)
+                    if (!matchedTask) {
+                      matchedTask = tasks.find(t => {
+                        const taskTitle = (t.title || '').toLowerCase().trim();
+                        return taskTitle.includes(normalizedSearchName) || 
+                               normalizedSearchName.includes(taskTitle);
+                      });
+                      console.log(`🔍 Partial match result:`, matchedTask ? `Found: "${matchedTask.title}" (${matchedTask.id})` : 'Not found');
+                    }
+                    
+                    if (matchedTask) {
+                      effectiveTaskId = matchedTask.id;
+                      console.log(`✅ MATCH FOUND! Will UPDATE task: "${matchedTask.title}" (${matchedTask.id})`);
+                      console.log(`✅ effectiveTaskId set to: ${effectiveTaskId}`);
+                    } else {
+                      console.log(`➕ NO MATCH FOUND - will CREATE new task "${task_name}"`);
+                    }
+                  }
+                } catch (searchError) {
+                  console.error(`❌ Exception during task search:`, searchError);
+                  console.log(`➕ Falling back to CREATE mode due to search error`);
                 }
-                
-                if (matchedTask) {
-                  effectiveTaskId = matchedTask.id;
-                  console.log(`    ✅ Found existing task: "${matchedTask.title}" (${matchedTask.id})`);
-                  console.log(`    🔄 Will UPDATE this task instead of creating new one`);
-                } else {
-                  console.log(`    ➕ No existing task found matching "${task_name}" - will CREATE new task`);
-                }
+              } else {
+                console.log(`⏭️ SKIP AUTO-SEARCH: task_id=${task_id}, task_name=${task_name}`);
               }
               
-              console.log(`    ✅ ${effectiveTaskId ? 'Updating' : 'Creating'} task: ${task_name}`, { 
+              console.log(`${effectiveTaskId ? '🔄 UPDATE MODE' : '➕ CREATE MODE'}: ${task_name}`, { 
                 task_id: effectiveTaskId,
                 status,
                 assigned_to_name,
