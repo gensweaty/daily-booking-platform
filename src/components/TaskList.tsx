@@ -156,6 +156,10 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     setIsDeleteConfirmOpen(true);
   };
 
+  const handleDeleteTask = (id: string) => {
+    deleteTaskMutation.mutate(id);
+  };
+
   const handleArchiveClick = (id: string) => {
     archiveTaskMutation.mutate(id);
   };
@@ -341,7 +345,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
               tasks={statusTasks}
               onEdit={setEditingTask}
               onView={setViewingTask}
-              onDelete={handleDeleteClick}
+              onDelete={handleDeleteTask}
             />
           ))}
         </div>
@@ -373,8 +377,8 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
           task={viewingTask}
           isOpen={!!viewingTask}
           onClose={() => setViewingTask(null)}
-          // Admin can edit/delete ALL tasks (including sub-user AI-created ones)
-          onDelete={handleDeleteClick}
+          // Pass direct delete function to avoid double confirmation
+          onDelete={handleDeleteTask}
           onEdit={handleEditFromView}
           onArchive={handleArchiveClick}
         />
@@ -392,7 +396,10 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => {
+              setIsDeleteConfirmOpen(false);
+              setTaskToDelete(null);
+            }}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t("common.delete")}
             </AlertDialogAction>
