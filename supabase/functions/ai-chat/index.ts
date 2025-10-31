@@ -1262,33 +1262,30 @@ EDITING EVENTS:
           name: "create_or_update_task",
           description: `Create or update tasks with FULL automatic capabilities!
 
-🔴 CRITICAL FOR UPDATES/EDITS/MOVES/STATUS CHANGES:
-⚠️ BEFORE any operation on existing task, you MUST:
-  1. Call get_all_tasks to see current real-time state
-  2. Find the task by name/title in the results
-  3. Get the task_id from that task
-  4. Then call this function with task_id + your changes
+🎯 AUTO-SEARCH FEATURE (NEW):
+✅ Tool now AUTOMATICALLY searches for existing tasks by name!
+✅ Just provide task_name - tool will UPDATE if found, CREATE if not found
+✅ No need to call get_all_tasks first for most operations
+✅ For best performance: still provide task_id if you already know it
 
-🚨 WHEN USER SAYS "MOVE", "CHANGE STATUS", "UPDATE", "EDIT" - IT'S AN UPDATE NOT CREATE!
-❌ NEVER create a new task when user asks to move/change/update existing task
-❌ NEVER assume task status or existence
-❌ NEVER say "already done" without checking first
-✅ ALWAYS use get_all_tasks → find task → update with task_id
+🔴 WHEN USER SAYS "MOVE", "CHANGE STATUS", "UPDATE", "EDIT" - IT'S AN UPDATE NOT CREATE!
+❌ NEVER create duplicate tasks when user asks to move/change/update
+✅ Just call create_or_update_task with task_name and new status - auto-search handles the rest!
 
-CORRECT workflow examples:
-- "move task X to done" → get_all_tasks → find X by title → create_or_update_task(task_id=X.id, status="done")
-- "move task Y from todo to inprogress" → get_all_tasks → find Y → create_or_update_task(task_id=Y.id, status="inprogress")
-- "change task Z to done" → get_all_tasks → find Z → create_or_update_task(task_id=Z.id, status="done")
-- "update task A" → get_all_tasks → find A → create_or_update_task(task_id=A.id, changes...)
+CORRECT workflow (SIMPLIFIED):
+- "move task X to done" → create_or_update_task(task_name="X", status="done")
+- "move task Y from todo to inprogress" → create_or_update_task(task_name="Y", status="inprogress")
+- "change task Z status to done" → create_or_update_task(task_name="Z", status="done")
+- "update task A description" → create_or_update_task(task_name="A", description="new text")
 
 ⚠️ KEY WORDS THAT MEAN UPDATE (NOT CREATE):
-move, change, update, edit, set status, mark as, switch to, transfer to
+move, change, update, edit, set status, mark as, switch to, transfer to, complete, finish
 
 MANDATORY fields:
-- task_name: Task title/name
+- task_name: Task title/name (used for auto-search if task_id not provided)
 
 OPTIONAL fields:
-- task_id: REQUIRED for updates (get from get_all_tasks)
+- task_id: Task ID for direct update (if you already have it)
 - description: Task description
 - status: 'todo' | 'inprogress' | 'done' (default: todo)
 - deadline: ISO timestamp YYYY-MM-DDTHH:mm
@@ -4848,7 +4845,40 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             case 'create_or_update_task': {
               const { task_id, task_name, description, status, deadline, reminder, email_reminder, assigned_to_name } = args;
               
-              console.log(`    ✅ ${task_id ? 'Updating' : 'Creating'} task: ${task_name}`, { 
+              let effectiveTaskId = task_id; // Start with provided task_id
+              
+              // 🔍 AUTO-SEARCH: If no task_id provided, search for existing task by name
+              if (!effectiveTaskId && task_name) {
+                console.log(`    🔍 No task_id provided - auto-searching for existing task: "${task_name}"`);
+                
+                const { tasks } = await fetchTasksFlexible(supabaseClient, ownerId, {});
+                const normalizedSearchName = task_name.toLowerCase().trim();
+                
+                // Try exact match first
+                let matchedTask = tasks.find(t => 
+                  t.title?.toLowerCase().trim() === normalizedSearchName
+                );
+                
+                // If no exact match, try partial match (one contains the other)
+                if (!matchedTask) {
+                  matchedTask = tasks.find(t => {
+                    const taskTitle = (t.title || '').toLowerCase().trim();
+                    return taskTitle.includes(normalizedSearchName) || 
+                           normalizedSearchName.includes(taskTitle);
+                  });
+                }
+                
+                if (matchedTask) {
+                  effectiveTaskId = matchedTask.id;
+                  console.log(`    ✅ Found existing task: "${matchedTask.title}" (${matchedTask.id})`);
+                  console.log(`    🔄 Will UPDATE this task instead of creating new one`);
+                } else {
+                  console.log(`    ➕ No existing task found matching "${task_name}" - will CREATE new task`);
+                }
+              }
+              
+              console.log(`    ✅ ${effectiveTaskId ? 'Updating' : 'Creating'} task: ${task_name}`, { 
+                task_id: effectiveTaskId,
                 status,
                 assigned_to_name,
                 deadline,
@@ -4997,12 +5027,12 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   last_edited_at: new Date().toISOString()
                 };
 
-                if (task_id) {
+                if (effectiveTaskId) {
                   // Update existing task
                   const { error: updateError } = await supabaseAdmin
                     .from('tasks')
                     .update(taskData)
-                    .eq('id', task_id)
+                    .eq('id', effectiveTaskId)
                     .eq('user_id', ownerId);
                   
                   if (updateError) {
@@ -5015,14 +5045,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       for (const file of uploadedFileRecords) {
                         await supabaseAdmin
                           .from('files')
-                          .update({ task_id: task_id, parent_type: 'task' })
+                          .update({ task_id: effectiveTaskId, parent_type: 'task' })
                           .eq('id', file.id);
                       }
                     }
                     
                     toolResult = { 
                       success: true, 
-                      task_id: task_id,
+                      task_id: effectiveTaskId,
                       action: 'updated',
                       files_attached: uploadedFileRecords.length,
                       assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
@@ -5030,7 +5060,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     };
                     
                     // Task update complete - frontend will pick it up via postgres_changes listener
-                    console.log(`    ✅ Task updated in database: ${task_id}`);
+                    console.log(`    ✅ Task updated in database: ${effectiveTaskId}`);
                   }
                 } else {
                   // Create new task
