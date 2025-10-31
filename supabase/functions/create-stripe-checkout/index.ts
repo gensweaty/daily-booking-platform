@@ -73,7 +73,7 @@ serve(async (req) => {
 
     logStep("✅ YEARLY DEBUG: User found", { userId: user_id, email: userData.user.email, planType: plan_type });
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripe = new Stripe(Deno.env.get("STRIPE_API_KEY") || "", {
       apiVersion: "2023-10-16",
     });
 

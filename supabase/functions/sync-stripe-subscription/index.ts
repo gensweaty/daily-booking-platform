@@ -230,26 +230,51 @@ async function handleActiveSubscriptionDates(supabase: any, userId: string, plan
     }
   }
 
-  // Update the subscription with the calculated dates
-  const { error: updateError } = await supabase
-    .from('subscriptions')
-    .update({
-      subscription_start_date,
-      subscription_end_date,
-      current_period_start: subscription_start_date,
-      current_period_end: subscription_end_date,
-      status: 'active',
-      updated_at: new Date().toISOString()
-    })
-    .eq('user_id', userId);
+  // Only update if dates have actually changed or if status needs updating
+  const hasChanges = 
+    existingSubscription.subscription_start_date !== subscription_start_date ||
+    existingSubscription.subscription_end_date !== subscription_end_date ||
+    existingSubscription.status !== 'active';
 
-  if (updateError) {
-    logStep("Error updating subscription dates", updateError);
+  if (hasChanges) {
+    logStep("Dates or status changed, updating subscription", {
+      old: {
+        start: existingSubscription.subscription_start_date,
+        end: existingSubscription.subscription_end_date,
+        status: existingSubscription.status
+      },
+      new: {
+        start: subscription_start_date,
+        end: subscription_end_date,
+        status: 'active'
+      }
+    });
+
+    const { error: updateError } = await supabase
+      .from('subscriptions')
+      .update({
+        subscription_start_date,
+        subscription_end_date,
+        current_period_start: subscription_start_date,
+        current_period_end: subscription_end_date,
+        status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+
+    if (updateError) {
+      logStep("Error updating subscription dates", updateError);
+    } else {
+      logStep("Successfully updated subscription with dates", {
+        subscription_start_date,
+        subscription_end_date,
+        daysRemaining: Math.ceil((new Date(subscription_end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      });
+    }
   } else {
-    logStep("Successfully updated subscription with dates", {
+    logStep("No changes detected, skipping database update", {
       subscription_start_date,
-      subscription_end_date,
-      daysRemaining: Math.ceil((new Date(subscription_end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      subscription_end_date
     });
   }
 
@@ -337,15 +362,19 @@ serve(async (req) => {
             status: 200,
           });
         } else {
-          // Subscription has expired, update status
-          logStep("Active subscription has expired, updating status");
-          await supabase
-            .from('subscriptions')
-            .update({
-              status: 'expired',
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id);
+          // Subscription has expired, update status only if not already expired
+          if (existingSubscription.status !== 'expired') {
+            logStep("Active subscription has expired, updating status");
+            await supabase
+              .from('subscriptions')
+              .update({
+                status: 'expired',
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id);
+          } else {
+            logStep("Subscription already expired, skipping update");
+          }
 
           return new Response(JSON.stringify({
             success: true,
@@ -376,15 +405,19 @@ serve(async (req) => {
           logStep("Trial still valid, checking Stripe for payment");
         } else {
           // Trial has expired, update status with proper constraint handling
-          logStep("Trial has expired, updating status");
-          await supabase
-            .from('subscriptions')
-            .update({
-              status: 'trial_expired',
-              subscription_end_date: existingSubscription.trial_end_date, // Set end date to satisfy constraint
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', user.id);
+          if (existingSubscription.status !== 'trial_expired') {
+            logStep("Trial has expired, updating status");
+            await supabase
+              .from('subscriptions')
+              .update({
+                status: 'trial_expired',
+                subscription_end_date: existingSubscription.trial_end_date, // Set end date to satisfy constraint
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id);
+          } else {
+            logStep("Trial already expired, skipping update");
+          }
 
           return new Response(JSON.stringify({
             success: true,
@@ -646,17 +679,22 @@ serve(async (req) => {
         }
         
         // Trial has expired or user has no valid subscription, update with proper constraint handling
-        const { error: upsertError } = await supabase
-          .from('subscriptions')
-          .update({
-            status: 'trial_expired',
-            subscription_end_date: existingSubscription.trial_end_date || new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('email', user.email);
+        if (existingSubscription.status !== 'trial_expired') {
+          logStep("Updating subscription to trial_expired");
+          const { error: upsertError } = await supabase
+            .from('subscriptions')
+            .update({
+              status: 'trial_expired',
+              subscription_end_date: existingSubscription.trial_end_date || new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('email', user.email);
 
-        if (upsertError) {
-          logStep("Error updating subscription to expired", upsertError);
+          if (upsertError) {
+            logStep("Error updating subscription to expired", upsertError);
+          }
+        } else {
+          logStep("Subscription already in trial_expired status, skipping update");
         }
       }
 
