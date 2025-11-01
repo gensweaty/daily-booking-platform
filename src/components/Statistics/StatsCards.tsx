@@ -18,6 +18,7 @@ interface StatsCardsProps {
     completed: number;
     inProgress: number;
     todo: number;
+    previousPeriod?: { total: number };
   };
   eventStats: {
     total: number;
@@ -26,16 +27,30 @@ interface StatsCardsProps {
     totalIncome: number | string | null | undefined;
     eventIncome?: number;
     standaloneCustomerIncome?: number;
+    previousPeriod?: { total: number; totalIncome: number };
   };
   customerStats: {
     total: number;
     withBooking: number;
     withoutBooking: number;
+    previousPeriod?: { total: number };
   };
 }
 
 export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsProps) => {
   const { t, language } = useLanguage();
+  
+  // Calculate dynamic trends
+  const calculateTrend = (current: number, previous: number | undefined): string => {
+    if (!previous || previous === 0) return '+0%';
+    const change = ((current - previous) / previous) * 100;
+    return `${change > 0 ? '+' : ''}${Math.round(change)}%`;
+  };
+
+  const taskTrend = taskStats?.previousPeriod ? calculateTrend(taskStats.total, taskStats.previousPeriod.total) : '+0%';
+  const customerTrend = customerStats?.previousPeriod ? calculateTrend(customerStats.total, customerStats.previousPeriod.total) : '+0%';
+  const eventTrend = eventStats?.previousPeriod ? calculateTrend(eventStats.total, eventStats.previousPeriod.total) : '+0%';
+  const incomeTrend = eventStats?.previousPeriod ? calculateTrend(parseFloat(String(eventStats.totalIncome || 0)), eventStats.previousPeriod.totalIncome) : '+0%';
   
   // Early return with warning if eventStats is missing entirely
   if (!eventStats) {
@@ -107,7 +122,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         description={taskDetailsText}
         icon={CheckCircle2}
         color="purple"
-        trend="+12%"
+        trend={taskTrend}
       />
       <StatCard
         title={t("dashboard.totalCustomers")}
@@ -115,7 +130,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         description={customerDetailsText}
         icon={Users}
         color="orange"
-        trend="+8%"
+        trend={customerTrend}
         trendLabel={t("dashboard.currentMonth")}
       />
       <StatCard
@@ -124,7 +139,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}, ${notPaidCount} ${t("dashboard.notPaid")}`}
         icon={CalendarCheck}
         color="green"
-        trend="+23%"
+        trend={eventTrend}
         trendLabel={t("dashboard.currentMonth")}
       />
       <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 border-blue-200/50 dark:border-blue-800/50">
@@ -177,7 +192,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
           )}
           
           <div className="flex items-center gap-2 mt-3 text-xs">
-            <span className="text-green-600 dark:text-green-400 font-medium">+15%</span>
+            <span className="text-green-600 dark:text-green-400 font-medium">{incomeTrend}</span>
             <span className="text-muted-foreground">{t("dashboard.currentMonth")}</span>
           </div>
         </CardContent>
