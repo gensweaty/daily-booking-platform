@@ -18,6 +18,8 @@ interface StatsCardsProps {
     completed: number;
     inProgress: number;
     todo: number;
+    currentPeriod?: { total: number };
+    previousPeriod?: { total: number };
   };
   eventStats: {
     total: number;
@@ -26,16 +28,45 @@ interface StatsCardsProps {
     totalIncome: number | string | null | undefined;
     eventIncome?: number;
     standaloneCustomerIncome?: number;
+    currentPeriod?: { total: number; totalIncome: number };
+    previousPeriod?: { total: number; totalIncome: number };
   };
   customerStats: {
     total: number;
     withBooking: number;
     withoutBooking: number;
+    currentPeriod?: { total: number };
+    previousPeriod?: { total: number };
   };
 }
 
 export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsProps) => {
   const { t, language } = useLanguage();
+  
+  // Calculate dynamic trends comparing current period (month-to-date) vs previous period (same days last month)
+  const calculateTrend = (current: number, previous: number | undefined): string => {
+    if (previous === undefined) return '+0%';
+    if (previous === 0) {
+      // If previous was 0 and current is not 0, show as 100% increase
+      return current > 0 ? '+100%' : '+0%';
+    }
+    const change = ((current - previous) / previous) * 100;
+    return `${change > 0 ? '+' : ''}${Math.round(change)}%`;
+  };
+
+  // Use currentPeriod vs previousPeriod for accurate month-to-date comparison
+  const taskTrend = (taskStats?.currentPeriod && taskStats?.previousPeriod) 
+    ? calculateTrend(taskStats.currentPeriod.total, taskStats.previousPeriod.total) 
+    : '+0%';
+  const customerTrend = (customerStats?.currentPeriod && customerStats?.previousPeriod) 
+    ? calculateTrend(customerStats.currentPeriod.total, customerStats.previousPeriod.total) 
+    : '+0%';
+  const eventTrend = (eventStats?.currentPeriod && eventStats?.previousPeriod) 
+    ? calculateTrend(eventStats.currentPeriod.total, eventStats.previousPeriod.total) 
+    : '+0%';
+  const incomeTrend = (eventStats?.currentPeriod && eventStats?.previousPeriod) 
+    ? calculateTrend(eventStats.currentPeriod.totalIncome, eventStats.previousPeriod.totalIncome) 
+    : '+0%';
   
   // Early return with warning if eventStats is missing entirely
   if (!eventStats) {
@@ -107,7 +138,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         description={taskDetailsText}
         icon={CheckCircle2}
         color="purple"
-        trend="+12%"
+        trend={taskTrend}
       />
       <StatCard
         title={t("dashboard.totalCustomers")}
@@ -115,7 +146,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         description={customerDetailsText}
         icon={Users}
         color="orange"
-        trend="+8%"
+        trend={customerTrend}
         trendLabel={t("dashboard.currentMonth")}
       />
       <StatCard
@@ -124,7 +155,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
         description={`${eventStats.partlyPaid} ${t("dashboard.partlyPaid")}, ${eventStats.fullyPaid} ${t("dashboard.fullyPaid")}, ${notPaidCount} ${t("dashboard.notPaid")}`}
         icon={CalendarCheck}
         color="green"
-        trend="+23%"
+        trend={eventTrend}
         trendLabel={t("dashboard.currentMonth")}
       />
       <Card className="relative overflow-hidden group hover:shadow-lg transition-all duration-300 border-blue-200/50 dark:border-blue-800/50">
@@ -177,7 +208,7 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
           )}
           
           <div className="flex items-center gap-2 mt-3 text-xs">
-            <span className="text-green-600 dark:text-green-400 font-medium">+15%</span>
+            <span className="text-green-600 dark:text-green-400 font-medium">{incomeTrend}</span>
             <span className="text-muted-foreground">{t("dashboard.currentMonth")}</span>
           </div>
         </CardContent>

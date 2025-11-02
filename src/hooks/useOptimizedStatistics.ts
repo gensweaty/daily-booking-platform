@@ -8,6 +8,12 @@ interface OptimizedTaskStats {
   completed: number;
   inProgress: number;
   todo: number;
+  currentPeriod?: {
+    total: number;
+  };
+  previousPeriod?: {
+    total: number;
+  };
 }
 
 interface OptimizedEventStats {
@@ -21,12 +27,30 @@ interface OptimizedEventStats {
   threeMonthIncome: Array<{ month: string; income: number }>;
   dailyStats: Array<{ day: string; date: Date; month: string; bookings: number }>;
   events: Array<any>;
+  currentPeriod?: {
+    total: number;
+    partlyPaid: number;
+    fullyPaid: number;
+    totalIncome: number;
+  };
+  previousPeriod?: {
+    total: number;
+    partlyPaid: number;
+    fullyPaid: number;
+    totalIncome: number;
+  };
 }
 
 interface OptimizedCustomerStats {
   total: number;
   withBooking: number;
   withoutBooking: number;
+  currentPeriod?: {
+    total: number;
+  };
+  previousPeriod?: {
+    total: number;
+  };
 }
 
 export const useOptimizedStatistics = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
@@ -71,7 +95,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       // Fallback to direct aggregation query (exclude archived tasks)
       const { data: tasks, error } = await supabase
         .from('tasks')
-        .select('status')
+        .select('status, created_at')
         .eq('user_id', userId)
         .eq('archived', false)
         .is('archived_at', null);
@@ -84,16 +108,67 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const completed = tasks?.filter(t => t.status === 'done').length || 0;
       const inProgress = tasks?.filter(t => t.status === 'inprogress').length || 0;
       const todo = tasks?.filter(t => t.status === 'todo').length || 0;
+      const currentTotal = completed + inProgress + todo;
 
-      const stats = {
-        total: completed + inProgress + todo, // ensure total matches board-visible columns only
+      // Calculate current and previous period for month-to-date comparison
+      // Always compare current month (1st to today) vs previous month (1st to same day)
+      const now = new Date();
+      const currentDay = now.getDate();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      // Current period: 1st of current month to today
+      const currentPeriodStart = new Date(currentYear, currentMonth, 1);
+      const currentPeriodEnd = new Date(currentYear, currentMonth, currentDay, 23, 59, 59, 999);
+
+      const currStartStr = currentPeriodStart.toISOString();
+      const currEndStr = currentPeriodEnd.toISOString();
+
+      // Get current period tasks (month-to-date)
+      const { data: currTasks } = await supabase
+        .from('tasks')
+        .select('status')
+        .eq('user_id', userId)
+        .eq('archived', false)
+        .is('archived_at', null)
+        .gte('created_at', currStartStr)
+        .lte('created_at', currEndStr);
+      
+      const currTotal = currTasks?.length || 0;
+      
+      // Previous period: 1st of previous month to same day (or last day if previous month is shorter)
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const prevPeriodStart = new Date(prevYear, prevMonth, 1);
+      
+      // Get the last day of the previous month to handle edge cases
+      const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+      const prevDay = Math.min(currentDay, lastDayOfPrevMonth);
+      const prevPeriodEnd = new Date(prevYear, prevMonth, prevDay, 23, 59, 59, 999);
+
+      const prevStartStr = prevPeriodStart.toISOString();
+      const prevEndStr = prevPeriodEnd.toISOString();
+
+      // Get previous period tasks for comparison (same duration)
+      const { data: prevTasks } = await supabase
+        .from('tasks')
+        .select('status')
+        .eq('user_id', userId)
+        .eq('archived', false)
+        .is('archived_at', null)
+        .gte('created_at', prevStartStr)
+        .lte('created_at', prevEndStr);
+      
+      const prevTotal = prevTasks?.length || 0;
+
+      return {
+        total: currentTotal,
         completed,
         inProgress,
-        todo
+        todo,
+        currentPeriod: { total: currTotal },
+        previousPeriod: { total: prevTotal }
       };
-
-      console.log('Direct query task stats:', stats);
-      return stats;
     },
     enabled: !!userId,
     staleTime: 10 * 60 * 1000, // 10 minutes - optimized for performance
@@ -119,8 +194,13 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
 
       console.log('Fetching event stats for user:', userId, 'date range:', dateRange);
 
+      // CRITICAL FIX: Ensure end date includes the entire day (23:59:59.999)
       const startDateStr = dateRange.start.toISOString();
-      const endDateStr = dateRange.end.toISOString();
+      const endOfDayDate = new Date(dateRange.end);
+      endOfDayDate.setHours(23, 59, 59, 999);
+      const endDateStr = endOfDayDate.toISOString();
+      
+      console.log(`📅 Date range: ${startDateStr} to ${endDateStr}`);
 
       // Get regular events from events table (filter by start_date for events happening in the selected period)
       // CRITICAL FIX: Only fetch non-recurring events OR parent recurring events (not child instances)
@@ -200,6 +280,51 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         event_notes: booking.description
       }));
 
+      // Count payment status for booking requests
+      transformedBookingRequests.forEach(booking => {
+        const paymentStatus = booking.payment_status || '';
+        
+        // CRITICAL FIX: Count booking requests payment status
+        if (paymentStatus === 'partly_paid' || paymentStatus.includes('partly')) {
+          partlyPaid++;
+        } else if (paymentStatus === 'fully_paid' || paymentStatus.includes('fully')) {
+          fullyPaid++;
+        }
+
+        // Count income from booking requests
+        if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && booking.payment_amount) {
+          const amount = typeof booking.payment_amount === 'number' 
+            ? booking.payment_amount 
+            : parseFloat(String(booking.payment_amount));
+          if (!isNaN(amount) && amount > 0) {
+            totalIncome += amount;
+            eventIncome += amount;
+          }
+        }
+
+        // Daily stats for booking requests
+        if (booking.start_date) {
+          try {
+            const bookingDate = parseISO(booking.start_date);
+            const day = format(bookingDate, 'yyyy-MM-dd');
+            dailyBookings.set(day, (dailyBookings.get(day) || 0) + 1);
+
+            // Monthly income aggregation
+            const month = format(bookingDate, 'MMM yyyy');
+            if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && booking.payment_amount) {
+              const amount = typeof booking.payment_amount === 'number' 
+                ? booking.payment_amount 
+                : parseFloat(String(booking.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                monthlyIncomeMap.set(month, (monthlyIncomeMap.get(month) || 0) + amount);
+              }
+            }
+          } catch (dateError) {
+            console.warn('Invalid date in booking request:', booking.start_date);
+          }
+        }
+      });
+
       // Combine both types of events (no double counting now)
       const allEvents = [
         ...(regularEvents || []),
@@ -210,16 +335,13 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
 
       console.log(`Found ${regularEvents?.length || 0} regular events and ${bookingRequests?.length || 0} approved booking requests in date range`);
 
-      // Get additional persons for ALL parent events that have instances in the date range
-      // This includes both parent events directly in range AND parents of child instances in range
+      // PERFORMANCE: Batch fetch additional persons for all parent events
       const parentEventIds = new Set<string>();
       
       regularEvents?.forEach(event => {
         if (!event.parent_event_id) {
-          // This is a parent event
           parentEventIds.add(event.id);
         } else {
-          // This is a child instance - include its parent
           parentEventIds.add(event.parent_event_id);
         }
       });
@@ -228,7 +350,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       if (parentEventIds.size > 0) {
         const { data: customers, error: customersError } = await supabase
           .from('customers')
-          .select('*')
+          .select('id, event_id, payment_status, payment_amount, start_date, type')
           .in('event_id', Array.from(parentEventIds))
           .eq('type', 'customer')
           .is('deleted_at', null);
@@ -271,10 +393,11 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       nonRecurringEvents.forEach(event => {
         const paymentStatus = event.payment_status || '';
         
-        if (paymentStatus.includes('partly')) {
+        // CRITICAL FIX: Check for exact status to avoid double counting
+        // "fully_paid" should only count as fully paid, not partly paid
+        if (paymentStatus === 'partly_paid' || paymentStatus.includes('partly')) {
           partlyPaid++;
-        }
-        if (paymentStatus.includes('fully')) {
+        } else if (paymentStatus === 'fully_paid' || paymentStatus.includes('fully')) {
           fullyPaid++;
         }
 
@@ -320,10 +443,10 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       recurringEvents.forEach(event => {
         const paymentStatus = event.payment_status || '';
         
-        if (paymentStatus.includes('partly')) {
+        // CRITICAL FIX: Check for exact status to avoid double counting
+        if (paymentStatus === 'partly_paid' || paymentStatus.includes('partly')) {
           partlyPaid++;
-        }
-        if (paymentStatus.includes('fully')) {
+        } else if (paymentStatus === 'fully_paid' || paymentStatus.includes('fully')) {
           fullyPaid++;
         }
 
@@ -438,9 +561,10 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       });
 
       // Get standalone customers income (customers without events)
+      // PERFORMANCE: Select only needed fields
       const { data: standaloneCustomers, error: standaloneError } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, payment_status, payment_amount, created_at')
         .eq('user_id', userId)
         .is('event_id', null)
         .gte('created_at', startDateStr)
@@ -493,22 +617,27 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         let monthEventIncome = 0;
         let monthCustomerIncome = 0;
         
-        // Query events for this specific month
+        // Query events for this specific month with optimized field selection
+        const monthStartStr = monthStart.toISOString();
+        const monthEndOfDay = new Date(monthEnd);
+        monthEndOfDay.setHours(23, 59, 59, 999);
+        const monthEndStr = monthEndOfDay.toISOString();
+        
         const { data: monthEvents, error: monthEventsError } = await supabase
           .from('events')
-          .select('*')
+          .select('id, user_id, payment_status, payment_amount, start_date, is_recurring, parent_event_id')
           .eq('user_id', userId)
-          .gte('start_date', monthStart.toISOString())
-          .lte('start_date', monthEnd.toISOString())
+          .gte('start_date', monthStartStr)
+          .lte('start_date', monthEndStr)
           .is('deleted_at', null);
 
-        // Query booking requests for this specific month  
+        // Query booking requests for this specific month with optimized field selection
         const { data: monthBookingRequests, error: monthBookingError } = await supabase
           .from('booking_requests')
-          .select('*')
+          .select('id, user_id, payment_status, payment_amount, start_date')
           .eq('user_id', userId)
-          .gte('start_date', monthStart.toISOString())
-          .lte('start_date', monthEnd.toISOString())
+          .gte('start_date', monthStartStr)
+          .lte('start_date', monthEndStr)
           .eq('status', 'approved')
           .is('deleted_at', null);
 
@@ -574,7 +703,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
             }
           }
 
-          // Get additional persons (customers) for events in this month (same as main logic)
+          // Get additional persons (customers) for events in this month (optimized)
           const monthParentEventIds = monthEvents
             ?.filter(event => !event.parent_event_id)
             .map(event => event.id) || [];
@@ -582,7 +711,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           if (monthParentEventIds.length > 0) {
             const { data: monthCustomers, error: monthCustomersError } = await supabase
               .from('customers')
-              .select('*')
+              .select('id, event_id, payment_status, payment_amount')
               .in('event_id', monthParentEventIds)
               .eq('type', 'customer')
               .is('deleted_at', null);
@@ -629,14 +758,14 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           }
         }
 
-        // Query standalone customers for this month
+        // Query standalone customers for this month with optimized field selection
         const { data: monthStandaloneCustomers, error: monthStandaloneError } = await supabase
           .from('customers')
-          .select('*')
+          .select('id, payment_status, payment_amount')
           .eq('user_id', userId)
           .is('event_id', null)
-          .gte('created_at', monthStart.toISOString())
-          .lte('created_at', monthEnd.toISOString())
+          .gte('created_at', monthStartStr)
+          .lte('created_at', monthEndStr)
           .is('deleted_at', null);
 
         if (!monthStandaloneError && monthStandaloneCustomers) {
@@ -663,6 +792,117 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       }
 
 
+      // Calculate period stats for month-to-date comparison
+      // Always compare current month (1st to today) vs previous month (1st to same day)
+      const now = new Date();
+      const currentDay = now.getDate();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      // Current period: 1st of current month to today
+      const currentPeriodStart = new Date(currentYear, currentMonth, 1);
+      const currentPeriodEnd = new Date(currentYear, currentMonth, currentDay, 23, 59, 59, 999);
+      
+      // Previous period: 1st of previous month to same day (or last day if previous month is shorter)
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const prevPeriodStart = new Date(prevYear, prevMonth, 1);
+      
+      // Get the last day of the previous month to handle edge cases
+      const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+      const prevDay = Math.min(currentDay, lastDayOfPrevMonth);
+      const prevPeriodEnd = new Date(prevYear, prevMonth, prevDay, 23, 59, 59, 999);
+
+      // Fetch current period events (month-to-date)
+      const currStartStr = currentPeriodStart.toISOString();
+      const currEndStr = currentPeriodEnd.toISOString();
+
+      const { data: currEvents } = await supabase
+        .from('events')
+        .select('id, payment_status, payment_amount, booking_request_id')
+        .eq('user_id', userId)
+        .gte('start_date', currStartStr)
+        .lte('start_date', currEndStr)
+        .is('deleted_at', null)
+        .or('is_recurring.is.null,is_recurring.eq.false,and(is_recurring.eq.true,parent_event_id.is.null)');
+
+      const { data: currBookings } = await supabase
+        .from('booking_requests')
+        .select('id, payment_status, payment_amount')
+        .eq('user_id', userId)
+        .eq('status', 'approved')
+        .gte('start_date', currStartStr)
+        .lte('start_date', currEndStr)
+        .is('deleted_at', null);
+
+      const currBookingIdsInEvents = new Set(
+        (currEvents || []).filter(e => e.booking_request_id).map(e => e.booking_request_id)
+      );
+      const currUnconvertedBookings = (currBookings || []).filter(b => !currBookingIdsInEvents.has(b.id));
+
+      let currTotal = (currEvents?.length || 0) + currUnconvertedBookings.length;
+      let currPartlyPaid = 0;
+      let currFullyPaid = 0;
+      let currTotalIncome = 0;
+
+      [...(currEvents || []), ...currUnconvertedBookings].forEach(item => {
+        const status = item.payment_status || '';
+        if (status === 'partly_paid' || status.includes('partly')) {
+          currPartlyPaid++;
+        } else if (status === 'fully_paid' || status.includes('fully')) {
+          currFullyPaid++;
+        }
+        if ((status.includes('partly') || status.includes('fully')) && item.payment_amount) {
+          const amt = parsePaymentAmount(item.payment_amount);
+          if (amt > 0) currTotalIncome += amt;
+        }
+      });
+
+      // Fetch previous period events for comparison
+      const prevStartStr = prevPeriodStart.toISOString();
+      const prevEndStr = prevPeriodEnd.toISOString();
+
+      const { data: prevEvents } = await supabase
+        .from('events')
+        .select('id, payment_status, payment_amount, booking_request_id')
+        .eq('user_id', userId)
+        .gte('start_date', prevStartStr)
+        .lte('start_date', prevEndStr)
+        .is('deleted_at', null)
+        .or('is_recurring.is.null,is_recurring.eq.false,and(is_recurring.eq.true,parent_event_id.is.null)');
+
+      const { data: prevBookings } = await supabase
+        .from('booking_requests')
+        .select('id, payment_status, payment_amount')
+        .eq('user_id', userId)
+        .eq('status', 'approved')
+        .gte('start_date', prevStartStr)
+        .lte('start_date', prevEndStr)
+        .is('deleted_at', null);
+
+      const prevBookingIdsInEvents = new Set(
+        (prevEvents || []).filter(e => e.booking_request_id).map(e => e.booking_request_id)
+      );
+      const prevUnconvertedBookings = (prevBookings || []).filter(b => !prevBookingIdsInEvents.has(b.id));
+
+      let prevTotal = (prevEvents?.length || 0) + prevUnconvertedBookings.length;
+      let prevPartlyPaid = 0;
+      let prevFullyPaid = 0;
+      let prevTotalIncome = 0;
+
+      [...(prevEvents || []), ...prevUnconvertedBookings].forEach(item => {
+        const status = item.payment_status || '';
+        if (status === 'partly_paid' || status.includes('partly')) {
+          prevPartlyPaid++;
+        } else if (status === 'fully_paid' || status.includes('fully')) {
+          prevFullyPaid++;
+        }
+        if ((status.includes('partly') || status.includes('fully')) && item.payment_amount) {
+          const amt = parsePaymentAmount(item.payment_amount);
+          if (amt > 0) prevTotalIncome += amt;
+        }
+      });
+
       const result = {
         total: totalEvents,
         partlyPaid,
@@ -673,7 +913,19 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         monthlyIncome,
         threeMonthIncome,
         dailyStats,
-        events: allEvents || []
+        events: allEvents || [],
+        currentPeriod: {
+          total: currTotal,
+          partlyPaid: currPartlyPaid,
+          fullyPaid: currFullyPaid,
+          totalIncome: currTotalIncome
+        },
+        previousPeriod: {
+          total: prevTotal,
+          partlyPaid: prevPartlyPaid,
+          fullyPaid: prevFullyPaid,
+          totalIncome: prevTotalIncome
+        }
       };
 
       console.log('🔧 Event stats result with booking requests included:', {
@@ -693,8 +945,10 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       return result;
     },
     enabled: !!userId,
-    staleTime: 8 * 60 * 1000, // Increased for better performance
-    gcTime: 20 * 60 * 1000, // Increased for memory optimization
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    gcTime: 15 * 60 * 1000, // 15 minutes garbage collection
+    refetchOnMount: false, // Performance: Don't refetch on mount if data is fresh
+    refetchOnWindowFocus: false, // Performance: Don't refetch on window focus
   });
 
   // Fixed customer stats query to properly count booking request customers - filter by start_date
@@ -820,10 +1074,63 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         withoutBooking
       });
 
+      // Calculate current and previous period for month-to-date comparison
+      // Always compare current month (1st to today) vs previous month (1st to same day)
+      const now = new Date();
+      const currentDay = now.getDate();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      // Current period: 1st of current month to today
+      const currentPeriodStart = new Date(currentYear, currentMonth, 1);
+      const currentPeriodEnd = new Date(currentYear, currentMonth, currentDay, 23, 59, 59, 999);
+      
+      const currStartStr = currentPeriodStart.toISOString();
+      const currEndStr = currentPeriodEnd.toISOString();
+
+      // Fetch current period customers
+      const { data: currCustEvents } = await supabase.from('events').select('social_network_link, user_number, user_surname').eq('user_id', userId).gte('start_date', currStartStr).lte('start_date', currEndStr).is('deleted_at', null).is('parent_event_id', null);
+      const { data: currBookingReqs } = await supabase.from('booking_requests').select('requester_name, requester_phone, requester_email').eq('user_id', userId).eq('status', 'approved').gte('start_date', currStartStr).lte('start_date', currEndStr).is('deleted_at', null);
+      const { data: currCrmCustomers } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).not('event_id', 'is', null).gte('created_at', currStartStr).lte('created_at', currEndStr).is('deleted_at', null);
+      const { data: currStandaloneCrm } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', currStartStr).lte('created_at', currEndStr).is('deleted_at', null);
+      
+      const currCustSet = new Set<string>();
+      currCustEvents?.forEach(e => currCustSet.add(`${e.social_network_link || 'no-email'}_${e.user_number || 'no-phone'}_${e.user_surname || 'no-name'}`));
+      currBookingReqs?.forEach(b => currCustSet.add(`${b.requester_email || 'no-email'}_${b.requester_phone || 'no-phone'}_${b.requester_name || 'no-name'}`));
+      currCrmCustomers?.forEach(c => currCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
+      currStandaloneCrm?.forEach(c => currCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
+      
+      // Previous period: 1st of previous month to same day (or last day if previous month is shorter)
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const prevPeriodStart = new Date(prevYear, prevMonth, 1);
+      
+      // Get the last day of the previous month to handle edge cases
+      const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+      const prevDay = Math.min(currentDay, lastDayOfPrevMonth);
+      const prevPeriodEnd = new Date(prevYear, prevMonth, prevDay, 23, 59, 59, 999);
+
+      const prevStartStr = prevPeriodStart.toISOString();
+      const prevEndStr = prevPeriodEnd.toISOString();
+
+      // Fetch previous period customers
+      const { data: prevCustEvents } = await supabase.from('events').select('social_network_link, user_number, user_surname').eq('user_id', userId).gte('start_date', prevStartStr).lte('start_date', prevEndStr).is('deleted_at', null).is('parent_event_id', null);
+      const { data: prevBookingReqs } = await supabase.from('booking_requests').select('requester_name, requester_phone, requester_email').eq('user_id', userId).eq('status', 'approved').gte('start_date', prevStartStr).lte('start_date', prevEndStr).is('deleted_at', null);
+      const { data: prevCrmCustomers } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).not('event_id', 'is', null).gte('created_at', prevStartStr).lte('created_at', prevEndStr).is('deleted_at', null);
+      const { data: prevStandaloneCrm } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', prevStartStr).lte('created_at', prevEndStr).is('deleted_at', null);
+      
+      const prevCustSet = new Set<string>();
+      prevCustEvents?.forEach(e => prevCustSet.add(`${e.social_network_link || 'no-email'}_${e.user_number || 'no-phone'}_${e.user_surname || 'no-name'}`));
+      prevBookingReqs?.forEach(b => prevCustSet.add(`${b.requester_email || 'no-email'}_${b.requester_phone || 'no-phone'}_${b.requester_name || 'no-name'}`));
+      prevCrmCustomers?.forEach(c => prevCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
+      prevStandaloneCrm?.forEach(c => prevCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
+
       return {
         total: totalCustomers,
         withBooking,
-        withoutBooking
+        withoutBooking,
+        currentPeriod: { total: currCustSet.size },
+        previousPeriod: { total: prevCustSet.size }
       };
     },
     enabled: !!userId,

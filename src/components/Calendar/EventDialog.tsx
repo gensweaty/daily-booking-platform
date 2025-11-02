@@ -387,6 +387,12 @@ export const EventDialog = ({
   const loadedEventRef = React.useRef<string | null>(null);
   
   useEffect(() => {
+    // CRITICAL: Clear the ref when dialog closes to ensure fresh data on next open
+    if (!open) {
+      loadedEventRef.current = null;
+      return;
+    }
+    
     // CRITICAL: Don't reset dialog states if they're currently open
     // This prevents the dialogs from closing when real-time updates occur
     if (!showEditDialog && !showDeleteDialog) {
@@ -401,8 +407,8 @@ export const EventDialog = ({
         if (initialData || eventId) {
           const targetEventId = eventId || initialData?.id;
           
-          // CRITICAL FIX: Only load if we haven't loaded this event yet or if event ID changed
-          if (loadedEventRef.current === targetEventId) {
+          // CRITICAL FIX: Always reload if event ID changed or if ref is null
+          if (loadedEventRef.current === targetEventId && loadedEventRef.current !== null) {
             console.log('🔒 Skipping reload - event already loaded:', targetEventId);
             return;
           }
@@ -509,10 +515,30 @@ export const EventDialog = ({
     loadAndSetEventData();
   }, [open, selectedDate, eventId, initialData?.id]); // CRITICAL FIX: Watch eventId and initialData.id, not full initialData object
   
-  // Reset the loaded event ref when dialog closes
+  // Reset the loaded event ref and form fields when dialog closes
   useEffect(() => {
     if (!open) {
       loadedEventRef.current = null;
+      // Reset form to clean state for next open
+      setAdditionalPersons([]);
+      setTitle("");
+      setUserSurname("");
+      setUserNumber("");
+      setSocialNetworkLink("");
+      setEventNotes("");
+      setEventName("");
+      setPaymentStatus("");
+      setPaymentAmount("");
+      setStartDate("");
+      setEndDate("");
+      setIsRecurring(false);
+      setRepeatPattern("");
+      setRepeatUntil("");
+      setFiles([]);
+      setExistingFiles([]);
+      setReminderAt("");
+      setEmailReminderEnabled(false);
+      setCurrentEventData(null);
     }
   }, [open]);
 
