@@ -83,7 +83,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       // Fallback to direct aggregation query (exclude archived tasks)
       const { data: tasks, error } = await supabase
         .from('tasks')
-        .select('status')
+        .select('status, created_at')
         .eq('user_id', userId)
         .eq('archived', false)
         .is('archived_at', null);
@@ -98,8 +98,36 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const todo = tasks?.filter(t => t.status === 'todo').length || 0;
       const currentTotal = completed + inProgress + todo;
 
+      // Calculate previous period for month-to-date comparison
+      // Always compare current month (1st to today) vs previous month (1st to same day)
+      const now = new Date();
+      const currentDay = now.getDate();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      // Previous period: 1st of previous month to same day (or last day if previous month is shorter)
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const prevPeriodStart = new Date(prevYear, prevMonth, 1);
+      
+      // Get the last day of the previous month to handle edge cases
+      const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+      const prevDay = Math.min(currentDay, lastDayOfPrevMonth);
+      const prevPeriodEnd = new Date(prevYear, prevMonth, prevDay, 23, 59, 59, 999);
+
+      const prevStartStr = prevPeriodStart.toISOString();
+      const prevEndStr = prevPeriodEnd.toISOString();
+
       // Get previous period tasks for comparison (same duration)
-      const { data: prevTasks } = await supabase.from('tasks').select('status').eq('user_id', userId).eq('archived', false).is('archived_at', null);
+      const { data: prevTasks } = await supabase
+        .from('tasks')
+        .select('status')
+        .eq('user_id', userId)
+        .eq('archived', false)
+        .is('archived_at', null)
+        .gte('created_at', prevStartStr)
+        .lte('created_at', prevEndStr);
+      
       const prevTotal = prevTasks?.length || 0;
 
       return {
@@ -732,18 +760,30 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       }
 
 
-      // Calculate previous period stats for comparison
-      const periodDuration = Math.floor((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24));
-      const prevStart = new Date(dateRange.start);
-      prevStart.setDate(prevStart.getDate() - periodDuration - 1);
-      const prevEnd = new Date(dateRange.start);
-      prevEnd.setDate(prevEnd.getDate() - 1);
+      // Calculate previous period stats for month-to-date comparison
+      // Always compare current month (1st to today) vs previous month (1st to same day)
+      const now = new Date();
+      const currentDay = now.getDate();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      // Current period: 1st of current month to today
+      const currentPeriodStart = new Date(currentYear, currentMonth, 1);
+      const currentPeriodEnd = new Date(currentYear, currentMonth, currentDay, 23, 59, 59, 999);
+      
+      // Previous period: 1st of previous month to same day (or last day if previous month is shorter)
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const prevPeriodStart = new Date(prevYear, prevMonth, 1);
+      
+      // Get the last day of the previous month to handle edge cases
+      const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+      const prevDay = Math.min(currentDay, lastDayOfPrevMonth);
+      const prevPeriodEnd = new Date(prevYear, prevMonth, prevDay, 23, 59, 59, 999);
 
       // Fetch previous period events for comparison
-      const prevStartStr = prevStart.toISOString();
-      const prevEndOfDayDate = endOfDay(prevEnd);
-      prevEndOfDayDate.setHours(23, 59, 59, 999);
-      const prevEndStr = prevEndOfDayDate.toISOString();
+      const prevStartStr = prevPeriodStart.toISOString();
+      const prevEndStr = prevPeriodEnd.toISOString();
 
       const { data: prevEvents } = await supabase
         .from('events')
@@ -951,20 +991,37 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         withoutBooking
       });
 
-      // Calculate previous period for comparison
-      const periodDuration = Math.floor((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24));
-      const prevStart = new Date(dateRange.start);
-      prevStart.setDate(prevStart.getDate() - periodDuration - 1);
-      const prevEnd = new Date(dateRange.start);
-      prevEnd.setDate(prevEnd.getDate() - 1);
+      // Calculate previous period for month-to-date comparison
+      // Always compare current month (1st to today) vs previous month (1st to same day)
+      const now = new Date();
+      const currentDay = now.getDate();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      // Previous period: 1st of previous month to same day (or last day if previous month is shorter)
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const prevPeriodStart = new Date(prevYear, prevMonth, 1);
+      
+      // Get the last day of the previous month to handle edge cases
+      const lastDayOfPrevMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+      const prevDay = Math.min(currentDay, lastDayOfPrevMonth);
+      const prevPeriodEnd = new Date(prevYear, prevMonth, prevDay, 23, 59, 59, 999);
 
-      const prevStartStr = prevStart.toISOString();
-      const prevEndStr = prevEnd.toISOString();
+      const prevStartStr = prevPeriodStart.toISOString();
+      const prevEndStr = prevPeriodEnd.toISOString();
 
       // Fetch previous period customers
       const { data: prevCustEvents } = await supabase.from('events').select('social_network_link, user_number, user_surname').eq('user_id', userId).gte('start_date', prevStartStr).lte('start_date', prevEndStr).is('deleted_at', null).is('parent_event_id', null);
+      const { data: prevBookingReqs } = await supabase.from('booking_requests').select('social_network_link, user_number, user_surname').eq('user_id', userId).eq('status', 'approved').gte('start_date', prevStartStr).lte('start_date', prevEndStr).is('deleted_at', null);
+      const { data: prevCrmCustomers } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).not('event_id', 'is', null).gte('created_at', prevStartStr).lte('created_at', prevEndStr).is('deleted_at', null);
+      const { data: prevStandaloneCrm } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', prevStartStr).lte('created_at', prevEndStr).is('deleted_at', null);
+      
       const prevCustSet = new Set<string>();
-      prevCustEvents?.forEach(e => prevCustSet.add(`${e.social_network_link}_${e.user_number}_${e.user_surname}`));
+      prevCustEvents?.forEach(e => prevCustSet.add(`${e.social_network_link || 'no-email'}_${e.user_number || 'no-phone'}_${e.user_surname || 'no-name'}`));
+      prevBookingReqs?.forEach(b => prevCustSet.add(`${b.social_network_link || 'no-email'}_${b.user_number || 'no-phone'}_${b.user_surname || 'no-name'}`));
+      prevCrmCustomers?.forEach(c => prevCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
+      prevStandaloneCrm?.forEach(c => prevCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
 
       return {
         total: totalCustomers,
