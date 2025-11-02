@@ -18,6 +18,7 @@ interface StatsCardsProps {
     completed: number;
     inProgress: number;
     todo: number;
+    currentPeriod?: { total: number };
     previousPeriod?: { total: number };
   };
   eventStats: {
@@ -27,12 +28,14 @@ interface StatsCardsProps {
     totalIncome: number | string | null | undefined;
     eventIncome?: number;
     standaloneCustomerIncome?: number;
+    currentPeriod?: { total: number; totalIncome: number };
     previousPeriod?: { total: number; totalIncome: number };
   };
   customerStats: {
     total: number;
     withBooking: number;
     withoutBooking: number;
+    currentPeriod?: { total: number };
     previousPeriod?: { total: number };
   };
 }
@@ -40,17 +43,30 @@ interface StatsCardsProps {
 export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsProps) => {
   const { t, language } = useLanguage();
   
-  // Calculate dynamic trends
+  // Calculate dynamic trends comparing current period (month-to-date) vs previous period (same days last month)
   const calculateTrend = (current: number, previous: number | undefined): string => {
-    if (!previous || previous === 0) return '+0%';
+    if (previous === undefined) return '+0%';
+    if (previous === 0) {
+      // If previous was 0 and current is not 0, show as 100% increase
+      return current > 0 ? '+100%' : '+0%';
+    }
     const change = ((current - previous) / previous) * 100;
     return `${change > 0 ? '+' : ''}${Math.round(change)}%`;
   };
 
-  const taskTrend = taskStats?.previousPeriod ? calculateTrend(taskStats.total, taskStats.previousPeriod.total) : '+0%';
-  const customerTrend = customerStats?.previousPeriod ? calculateTrend(customerStats.total, customerStats.previousPeriod.total) : '+0%';
-  const eventTrend = eventStats?.previousPeriod ? calculateTrend(eventStats.total, eventStats.previousPeriod.total) : '+0%';
-  const incomeTrend = eventStats?.previousPeriod ? calculateTrend(parseFloat(String(eventStats.totalIncome || 0)), eventStats.previousPeriod.totalIncome) : '+0%';
+  // Use currentPeriod vs previousPeriod for accurate month-to-date comparison
+  const taskTrend = (taskStats?.currentPeriod && taskStats?.previousPeriod) 
+    ? calculateTrend(taskStats.currentPeriod.total, taskStats.previousPeriod.total) 
+    : '+0%';
+  const customerTrend = (customerStats?.currentPeriod && customerStats?.previousPeriod) 
+    ? calculateTrend(customerStats.currentPeriod.total, customerStats.previousPeriod.total) 
+    : '+0%';
+  const eventTrend = (eventStats?.currentPeriod && eventStats?.previousPeriod) 
+    ? calculateTrend(eventStats.currentPeriod.total, eventStats.previousPeriod.total) 
+    : '+0%';
+  const incomeTrend = (eventStats?.currentPeriod && eventStats?.previousPeriod) 
+    ? calculateTrend(eventStats.currentPeriod.totalIncome, eventStats.previousPeriod.totalIncome) 
+    : '+0%';
   
   // Early return with warning if eventStats is missing entirely
   if (!eventStats) {
