@@ -36,16 +36,26 @@ export const PublicStatisticsList = ({
     end: endOfMonth(currentDate)
   });
 
-  // Fetch task statistics
+  // Fetch task statistics with month-to-date comparison
   const { data: taskStats, isLoading: isLoadingTasks } = useQuery({
     queryKey: ['publicTaskStats', boardUserId],
     queryFn: async () => {
       console.log('Fetching public task stats for user:', boardUserId);
       
-      // Use direct query instead of RPC to match internal dashboard logic
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentDay = now.getDate();
+      
+      // Previous month calculation with edge case handling
+      const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+      const prevMonthDay = Math.min(currentDay, prevMonthLastDay);
+      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59);
+      
+      // Fetch all tasks
       const { data: tasks, error } = await supabase
         .from('tasks')
-        .select('status')
+        .select('status, created_at')
         .eq('user_id', boardUserId)
         .eq('archived', false)
         .is('archived_at', null);
@@ -59,11 +69,27 @@ export const PublicStatisticsList = ({
       const inProgress = tasks?.filter(t => t.status === 'inprogress').length || 0;
       const todo = tasks?.filter(t => t.status === 'todo').length || 0;
 
+      // Calculate current period (month-to-date)
+      const currTasks = tasks?.filter(t => {
+        const createdAt = new Date(t.created_at);
+        return createdAt >= currentMonthStart && createdAt <= now;
+      }) || [];
+      const currTotal = currTasks.length;
+
+      // Calculate previous period (same days last month)
+      const prevTasks = tasks?.filter(t => {
+        const createdAt = new Date(t.created_at);
+        return createdAt >= prevMonthDate && createdAt <= prevMonthEnd;
+      }) || [];
+      const prevTotal = prevTasks.length;
+
       const stats = {
         total: completed + inProgress + todo,
         completed,
-        inProgress, // camelCase to match StatsCards interface
-        todo
+        inProgress,
+        todo,
+        currentPeriod: { total: currTotal },
+        previousPeriod: { total: prevTotal }
       };
 
       console.log('Public task stats calculated:', stats);
@@ -170,14 +196,14 @@ export const PublicStatisticsList = ({
       const dailyBookings = new Map<string, number>();
       const monthlyIncomeMap = new Map<string, number>();
 
-      // Process non-recurring events
+      // Process non-recurring events with exact payment status matching
       nonRecurringEvents.forEach(event => {
         const paymentStatus = event.payment_status || '';
-        if (paymentStatus.includes('partly')) partlyPaid++;
-        if (paymentStatus.includes('fully')) fullyPaid++;
+        if (paymentStatus === 'partly_paid') partlyPaid++;
+        if (paymentStatus === 'fully_paid') fullyPaid++;
 
         // Calculate income from main event
-        if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && event.payment_amount) {
+        if ((paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && event.payment_amount) {
           const amount = typeof event.payment_amount === 'number' 
             ? event.payment_amount 
             : parseFloat(String(event.payment_amount));
@@ -194,7 +220,7 @@ export const PublicStatisticsList = ({
         }
       });
 
-      // Process recurring series (count payment once per series)
+      // Process recurring series (count payment once per series) with exact matching
       for (const [seriesId, seriesEvents] of recurringSeriesMap) {
         let hasPartlyPaid = false;
         let hasFullyPaid = false;
@@ -203,8 +229,8 @@ export const PublicStatisticsList = ({
         
         seriesEvents.forEach(instance => {
           const paymentStatus = instance.payment_status || '';
-          if (paymentStatus.includes('partly')) hasPartlyPaid = true;
-          if (paymentStatus.includes('fully')) hasFullyPaid = true;
+          if (paymentStatus === 'partly_paid') hasPartlyPaid = true;
+          if (paymentStatus === 'fully_paid') hasFullyPaid = true;
 
           // Count each instance for daily stats
           if (instance.start_date) {
@@ -218,8 +244,8 @@ export const PublicStatisticsList = ({
         if (hasFullyPaid) fullyPaid++;
 
         // Add income only once per series
-        if ((firstInstance.payment_status?.includes('partly') || 
-             firstInstance.payment_status?.includes('fully')) && 
+        if ((firstInstance.payment_status === 'partly_paid' || 
+             firstInstance.payment_status === 'fully_paid') && 
             firstInstance.payment_amount) {
           const amount = typeof firstInstance.payment_amount === 'number' 
             ? firstInstance.payment_amount 
@@ -236,7 +262,7 @@ export const PublicStatisticsList = ({
 
         seriesAdditionalPersons.forEach(person => {
           const personPaymentStatus = person.payment_status || '';
-          if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+          if ((personPaymentStatus === 'partly_paid' || personPaymentStatus === 'fully_paid') && person.payment_amount) {
             const amount = typeof person.payment_amount === 'number' 
               ? person.payment_amount 
               : parseFloat(String(person.payment_amount));
@@ -254,7 +280,7 @@ export const PublicStatisticsList = ({
 
       nonRecurringAdditionalPersons.forEach(person => {
         const personPaymentStatus = person.payment_status || '';
-        if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+        if ((personPaymentStatus === 'partly_paid' || personPaymentStatus === 'fully_paid') && person.payment_amount) {
           const amount = typeof person.payment_amount === 'number' 
             ? person.payment_amount 
             : parseFloat(String(person.payment_amount));
@@ -278,7 +304,7 @@ export const PublicStatisticsList = ({
       if (!standaloneError && standaloneCustomers) {
         standaloneCustomers.forEach(customer => {
           const paymentStatus = customer.payment_status || '';
-          if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && customer.payment_amount) {
+          if ((paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && customer.payment_amount) {
             const amount = typeof customer.payment_amount === 'number' 
               ? customer.payment_amount 
               : parseFloat(String(customer.payment_amount));
@@ -290,6 +316,113 @@ export const PublicStatisticsList = ({
       }
 
       const totalIncome = eventIncome + standaloneCustomerIncome;
+
+      // Calculate month-to-date comparison for trends
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentDay = now.getDate();
+      
+      // Previous month calculation with edge case handling
+      const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+      const prevMonthDay = Math.min(currentDay, prevMonthLastDay);
+      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59);
+
+      // Fetch current period events
+      const { data: currEvents } = await supabase
+        .from('events')
+        .select('payment_status, payment_amount, is_recurring, parent_event_id, id')
+        .eq('user_id', boardUserId)
+        .is('deleted_at', null)
+        .gte('start_date', currentMonthStart.toISOString())
+        .lte('start_date', now.toISOString());
+
+      const { data: currBookings } = await supabase
+        .from('booking_requests')
+        .select('payment_status, payment_amount')
+        .eq('user_id', boardUserId)
+        .eq('status', 'approved')
+        .is('deleted_at', null)
+        .gte('start_date', currentMonthStart.toISOString())
+        .lte('start_date', now.toISOString());
+
+      // Calculate current period stats
+      let currTotal = (currEvents?.length || 0) + (currBookings?.length || 0);
+      let currTotalIncome = 0;
+
+      // Process current period events
+      (currEvents || []).forEach(event => {
+        const paymentStatus = event.payment_status || '';
+        if ((paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && event.payment_amount) {
+          const amount = typeof event.payment_amount === 'number' 
+            ? event.payment_amount 
+            : parseFloat(String(event.payment_amount));
+          if (!isNaN(amount) && amount > 0) {
+            currTotalIncome += amount;
+          }
+        }
+      });
+
+      // Process current period bookings
+      (currBookings || []).forEach(booking => {
+        const paymentStatus = booking.payment_status || '';
+        if ((paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && booking.payment_amount) {
+          const amount = typeof booking.payment_amount === 'number' 
+            ? booking.payment_amount 
+            : parseFloat(String(booking.payment_amount));
+          if (!isNaN(amount) && amount > 0) {
+            currTotalIncome += amount;
+          }
+        }
+      });
+
+      // Fetch previous period events
+      const { data: prevEvents } = await supabase
+        .from('events')
+        .select('payment_status, payment_amount, is_recurring, parent_event_id, id')
+        .eq('user_id', boardUserId)
+        .is('deleted_at', null)
+        .gte('start_date', prevMonthDate.toISOString())
+        .lte('start_date', prevMonthEnd.toISOString());
+
+      const { data: prevBookings } = await supabase
+        .from('booking_requests')
+        .select('payment_status, payment_amount')
+        .eq('user_id', boardUserId)
+        .eq('status', 'approved')
+        .is('deleted_at', null)
+        .gte('start_date', prevMonthDate.toISOString())
+        .lte('start_date', prevMonthEnd.toISOString());
+
+      // Calculate previous period stats
+      let prevTotal = (prevEvents?.length || 0) + (prevBookings?.length || 0);
+      let prevTotalIncome = 0;
+
+      // Process previous period events
+      (prevEvents || []).forEach(event => {
+        const paymentStatus = event.payment_status || '';
+        if ((paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && event.payment_amount) {
+          const amount = typeof event.payment_amount === 'number' 
+            ? event.payment_amount 
+            : parseFloat(String(event.payment_amount));
+          if (!isNaN(amount) && amount > 0) {
+            prevTotalIncome += amount;
+          }
+        }
+      });
+
+      // Process previous period bookings
+      (prevBookings || []).forEach(booking => {
+        const paymentStatus = booking.payment_status || '';
+        if ((paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && booking.payment_amount) {
+          const amount = typeof booking.payment_amount === 'number' 
+            ? booking.payment_amount 
+            : parseFloat(String(booking.payment_amount));
+          if (!isNaN(amount) && amount > 0) {
+            prevTotalIncome += amount;
+          }
+        }
+      });
 
       // Convert daily bookings to array
       const dailyStats = Array.from(dailyBookings.entries()).map(([day, bookings]) => {
@@ -309,7 +442,9 @@ export const PublicStatisticsList = ({
         eventIncome,
         standaloneCustomerIncome,
         totalIncome,
-        dailyStatsCount: dailyStats.length
+        dailyStatsCount: dailyStats.length,
+        currentPeriod: { total: currTotal, totalIncome: currTotalIncome },
+        previousPeriod: { total: prevTotal, totalIncome: prevTotalIncome }
       });
       
       return {
@@ -321,7 +456,9 @@ export const PublicStatisticsList = ({
         standaloneCustomerIncome,
         dailyStats,
         monthlyIncome: [], // Will be filled by 3-month query
-        events: allEvents || []
+        events: allEvents || [],
+        currentPeriod: { total: currTotal, totalIncome: currTotalIncome },
+        previousPeriod: { total: prevTotal, totalIncome: prevTotalIncome }
       };
     },
     enabled: !!boardUserId,
@@ -397,9 +534,9 @@ export const PublicStatisticsList = ({
             }
           });
 
-          // Process non-recurring events
+          // Process non-recurring events with exact matching
           monthNonRecurringEvents.forEach(event => {
-            if ((event.payment_status?.includes('partly') || event.payment_status?.includes('fully')) && event.payment_amount) {
+            if ((event.payment_status === 'partly_paid' || event.payment_status === 'fully_paid') && event.payment_amount) {
               const amount = typeof event.payment_amount === 'number' 
                 ? event.payment_amount 
                 : parseFloat(String(event.payment_amount));
@@ -409,10 +546,10 @@ export const PublicStatisticsList = ({
             }
           });
 
-          // Process recurring series (count once per series)
+          // Process recurring series (count once per series) with exact matching
           for (const [seriesId, seriesEvents] of monthRecurringSeriesMap) {
             const firstInstance = seriesEvents[0];
-            if ((firstInstance.payment_status?.includes('partly') || firstInstance.payment_status?.includes('fully')) && firstInstance.payment_amount) {
+            if ((firstInstance.payment_status === 'partly_paid' || firstInstance.payment_status === 'fully_paid') && firstInstance.payment_amount) {
               const amount = typeof firstInstance.payment_amount === 'number' 
                 ? firstInstance.payment_amount 
                 : parseFloat(String(firstInstance.payment_amount));
@@ -444,7 +581,7 @@ export const PublicStatisticsList = ({
 
                 seriesAdditionalPersons.forEach(person => {
                   const personPaymentStatus = person.payment_status || '';
-                  if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+                  if ((personPaymentStatus === 'partly_paid' || personPaymentStatus === 'fully_paid') && person.payment_amount) {
                     const amount = typeof person.payment_amount === 'number' 
                       ? person.payment_amount 
                       : parseFloat(String(person.payment_amount));
@@ -455,14 +592,14 @@ export const PublicStatisticsList = ({
                 });
               }
 
-              // Process customers for non-recurring events
+              // Process customers for non-recurring events with exact matching
               const nonRecurringAdditionalPersons = monthCustomers.filter(person => 
                 !monthRecurringSeriesMap.has(person.event_id || '')
               );
 
               nonRecurringAdditionalPersons.forEach(person => {
                 const personPaymentStatus = person.payment_status || '';
-                if ((personPaymentStatus.includes('partly') || personPaymentStatus.includes('fully')) && person.payment_amount) {
+                if ((personPaymentStatus === 'partly_paid' || personPaymentStatus === 'fully_paid') && person.payment_amount) {
                   const amount = typeof person.payment_amount === 'number' 
                     ? person.payment_amount 
                     : parseFloat(String(person.payment_amount));
@@ -488,7 +625,7 @@ export const PublicStatisticsList = ({
         if (monthStandaloneCustomers) {
           monthStandaloneCustomers.forEach(customer => {
             const paymentStatus = customer.payment_status || '';
-            if ((paymentStatus.includes('partly') || paymentStatus.includes('fully')) && customer.payment_amount) {
+            if ((paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && customer.payment_amount) {
               const amount = typeof customer.payment_amount === 'number' 
                 ? customer.payment_amount 
                 : parseFloat(String(customer.payment_amount));
@@ -518,7 +655,7 @@ export const PublicStatisticsList = ({
     refetchInterval: false,
   });
 
-  // Fetch customer statistics with date range filtering (matching internal dashboard logic EXACTLY)
+  // Fetch customer statistics with date range filtering and month-to-date comparison
   const { data: customerStats, isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['publicCustomerStats', boardUserId, dateRange],
     queryFn: async () => {
@@ -526,6 +663,17 @@ export const PublicStatisticsList = ({
       
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
+
+      // Calculate month-to-date comparison for trends
+      const now = new Date();
+      const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const currentDay = now.getDate();
+      
+      // Previous month calculation with edge case handling
+      const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+      const prevMonthDay = Math.min(currentDay, prevMonthLastDay);
+      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59);
 
       // Track unique customers with Set to avoid duplicates (same logic as internal dashboard)
       const uniqueCustomers = new Set<string>();
@@ -618,6 +766,118 @@ export const PublicStatisticsList = ({
       const totalCustomers = uniqueCustomers.size;
       const withBooking = withBookingSet.size;
       const withoutBooking = withoutBookingSet.size;
+
+      // Calculate current period (month-to-date)
+      const currCustSet = new Set<string>();
+      
+      const { data: currCustEvents } = await supabase
+        .from('events')
+        .select('id, social_network_link, user_number, user_surname')
+        .eq('user_id', boardUserId)
+        .is('parent_event_id', null)
+        .is('deleted_at', null)
+        .gte('start_date', currentMonthStart.toISOString())
+        .lte('start_date', now.toISOString());
+
+      (currCustEvents || []).forEach(event => {
+        const key = `${event.social_network_link || 'no-email'}_${event.user_number || 'no-phone'}_${event.user_surname || 'no-name'}`;
+        currCustSet.add(key);
+      });
+
+      const { data: currBookingReqs } = await supabase
+        .from('booking_requests')
+        .select('social_network_link, user_number, user_surname')
+        .eq('user_id', boardUserId)
+        .eq('status', 'approved')
+        .is('deleted_at', null)
+        .gte('start_date', currentMonthStart.toISOString())
+        .lte('start_date', now.toISOString());
+
+      const currEventIds = (currCustEvents || []).map(e => e.id);
+      if (currEventIds.length > 0) {
+        const { data: currCrmCustomers } = await supabase
+          .from('customers')
+          .select('social_network_link, user_number, user_surname, title')
+          .eq('user_id', boardUserId)
+          .eq('type', 'customer')
+          .in('event_id', currEventIds)
+          .is('deleted_at', null);
+
+        (currCrmCustomers || []).forEach(customer => {
+          const key = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
+          currCustSet.add(key);
+        });
+      }
+
+      const { data: currStandaloneCrm } = await supabase
+        .from('customers')
+        .select('social_network_link, user_number, user_surname, title')
+        .eq('user_id', boardUserId)
+        .is('event_id', null)
+        .is('deleted_at', null)
+        .gte('created_at', currentMonthStart.toISOString())
+        .lte('created_at', now.toISOString());
+
+      (currStandaloneCrm || []).forEach(customer => {
+        const key = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
+        currCustSet.add(key);
+      });
+
+      // Calculate previous period (same days last month)
+      const prevCustSet = new Set<string>();
+
+      const { data: prevCustEvents } = await supabase
+        .from('events')
+        .select('id, social_network_link, user_number, user_surname')
+        .eq('user_id', boardUserId)
+        .is('parent_event_id', null)
+        .is('deleted_at', null)
+        .gte('start_date', prevMonthDate.toISOString())
+        .lte('start_date', prevMonthEnd.toISOString());
+
+      (prevCustEvents || []).forEach(event => {
+        const key = `${event.social_network_link || 'no-email'}_${event.user_number || 'no-phone'}_${event.user_surname || 'no-name'}`;
+        prevCustSet.add(key);
+      });
+
+      const { data: prevBookingReqs } = await supabase
+        .from('booking_requests')
+        .select('social_network_link, user_number, user_surname')
+        .eq('user_id', boardUserId)
+        .eq('status', 'approved')
+        .is('deleted_at', null)
+        .gte('start_date', prevMonthDate.toISOString())
+        .lte('start_date', prevMonthEnd.toISOString());
+
+      const prevEventIds = (prevCustEvents || []).map(e => e.id);
+      if (prevEventIds.length > 0) {
+        const { data: prevCrmCustomers } = await supabase
+          .from('customers')
+          .select('social_network_link, user_number, user_surname, title')
+          .eq('user_id', boardUserId)
+          .eq('type', 'customer')
+          .in('event_id', prevEventIds)
+          .is('deleted_at', null);
+
+        (prevCrmCustomers || []).forEach(customer => {
+          const key = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
+          prevCustSet.add(key);
+        });
+      }
+
+      const { data: prevStandaloneCrm } = await supabase
+        .from('customers')
+        .select('social_network_link, user_number, user_surname, title')
+        .eq('user_id', boardUserId)
+        .is('event_id', null)
+        .is('deleted_at', null)
+        .gte('created_at', prevMonthDate.toISOString())
+        .lte('created_at', prevMonthEnd.toISOString());
+
+      (prevStandaloneCrm || []).forEach(customer => {
+        const key = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
+        prevCustSet.add(key);
+      });
       
       console.log('Public customer stats (matching internal logic):', { 
         totalCustomers, 
@@ -626,13 +886,17 @@ export const PublicStatisticsList = ({
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
         crmCustomersCount: eventIdsInRange.length,
-        standaloneCrmCustomersCount: standaloneCrmCustomers?.length || 0
+        standaloneCrmCustomersCount: standaloneCrmCustomers?.length || 0,
+        currentPeriod: { total: currCustSet.size },
+        previousPeriod: { total: prevCustSet.size }
       });
       
       return {
         total: totalCustomers,
         withBooking,
-        withoutBooking
+        withoutBooking,
+        currentPeriod: { total: currCustSet.size },
+        previousPeriod: { total: prevCustSet.size }
       };
     },
     enabled: !!boardUserId,
