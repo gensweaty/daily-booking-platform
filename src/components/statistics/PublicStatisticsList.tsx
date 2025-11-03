@@ -45,12 +45,13 @@ export const PublicStatisticsList = ({
       const now = new Date();
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const currentDay = now.getDate();
+      const currentDayEnd = new Date(now.getFullYear(), now.getMonth(), currentDay, 23, 59, 59, 999);
       
       // Previous month calculation with edge case handling
       const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
       const prevMonthDay = Math.min(currentDay, prevMonthLastDay);
-      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59);
+      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59, 999);
       
       // Fetch all tasks
       const { data: tasks, error } = await supabase
@@ -72,7 +73,7 @@ export const PublicStatisticsList = ({
       // Calculate current period (month-to-date)
       const currTasks = tasks?.filter(t => {
         const createdAt = new Date(t.created_at);
-        return createdAt >= currentMonthStart && createdAt <= now;
+        return createdAt >= currentMonthStart && createdAt <= currentDayEnd;
       }) || [];
       const currTotal = currTasks.length;
 
@@ -321,12 +322,13 @@ export const PublicStatisticsList = ({
       const now = new Date();
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const currentDay = now.getDate();
+      const currentDayEnd = new Date(now.getFullYear(), now.getMonth(), currentDay, 23, 59, 59, 999);
       
       // Previous month calculation with edge case handling
       const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
       const prevMonthDay = Math.min(currentDay, prevMonthLastDay);
-      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59);
+      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59, 999);
 
       // Fetch current period events
       const { data: currEvents } = await supabase
@@ -335,7 +337,7 @@ export const PublicStatisticsList = ({
         .eq('user_id', boardUserId)
         .is('deleted_at', null)
         .gte('start_date', currentMonthStart.toISOString())
-        .lte('start_date', now.toISOString());
+        .lte('start_date', currentDayEnd.toISOString());
 
       const { data: currBookings } = await supabase
         .from('booking_requests')
@@ -344,7 +346,7 @@ export const PublicStatisticsList = ({
         .eq('status', 'approved')
         .is('deleted_at', null)
         .gte('start_date', currentMonthStart.toISOString())
-        .lte('start_date', now.toISOString());
+        .lte('start_date', currentDayEnd.toISOString());
 
       // Calculate current period stats
       let currTotal = (currEvents?.length || 0) + (currBookings?.length || 0);
@@ -668,12 +670,13 @@ export const PublicStatisticsList = ({
       const now = new Date();
       const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       const currentDay = now.getDate();
+      const currentDayEnd = new Date(now.getFullYear(), now.getMonth(), currentDay, 23, 59, 59, 999);
       
       // Previous month calculation with edge case handling
       const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const prevMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0).getDate();
       const prevMonthDay = Math.min(currentDay, prevMonthLastDay);
-      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59);
+      const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59, 999);
 
       // Track unique customers with Set to avoid duplicates (same logic as internal dashboard)
       const uniqueCustomers = new Set<string>();
@@ -777,7 +780,7 @@ export const PublicStatisticsList = ({
         .is('parent_event_id', null)
         .is('deleted_at', null)
         .gte('start_date', currentMonthStart.toISOString())
-        .lte('start_date', now.toISOString());
+        .lte('start_date', currentDayEnd.toISOString());
 
       (currCustEvents || []).forEach(event => {
         const key = `${event.social_network_link || 'no-email'}_${event.user_number || 'no-phone'}_${event.user_surname || 'no-name'}`;
@@ -791,7 +794,7 @@ export const PublicStatisticsList = ({
         .eq('status', 'approved')
         .is('deleted_at', null)
         .gte('start_date', currentMonthStart.toISOString())
-        .lte('start_date', now.toISOString());
+        .lte('start_date', currentDayEnd.toISOString());
 
       const currEventIds = (currCustEvents || []).map(e => e.id);
       if (currEventIds.length > 0) {
@@ -816,7 +819,7 @@ export const PublicStatisticsList = ({
         .is('event_id', null)
         .is('deleted_at', null)
         .gte('created_at', currentMonthStart.toISOString())
-        .lte('created_at', now.toISOString());
+        .lte('created_at', currentDayEnd.toISOString());
 
       (currStandaloneCrm || []).forEach(customer => {
         const key = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
