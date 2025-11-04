@@ -330,6 +330,19 @@ export const PublicStatisticsList = ({
       const prevMonthDay = Math.min(currentDay, prevMonthLastDay);
       const prevMonthEnd = new Date(now.getFullYear(), now.getMonth() - 1, prevMonthDay, 23, 59, 59, 999);
 
+      console.log('📊 PUBLIC EVENT STATS - Period Calculation:', {
+        today: now.toISOString(),
+        currentDay,
+        currentPeriod: {
+          start: currentMonthStart.toISOString(),
+          end: currentDayEnd.toISOString()
+        },
+        previousPeriod: {
+          start: prevMonthDate.toISOString(),
+          end: prevMonthEnd.toISOString()
+        }
+      });
+
       // Fetch current period events
       const { data: currEvents } = await supabase
         .from('events')
@@ -477,6 +490,23 @@ export const PublicStatisticsList = ({
           });
         }
       }
+
+      console.log('📊 PUBLIC EVENT STATS - Period Comparison Results:', {
+        currentPeriod: {
+          total: currTotal,
+          events: currEvents?.length,
+          bookings: currBookings?.length,
+          customers: currTotal - (currEvents?.length || 0) - (currBookings?.length || 0),
+          totalIncome: currTotalIncome
+        },
+        previousPeriod: {
+          total: prevTotal,
+          events: prevEvents?.length,
+          bookings: prevBookings?.length,
+          customers: prevTotal - (prevEvents?.length || 0) - (prevBookings?.length || 0),
+          totalIncome: prevTotalIncome
+        }
+      });
 
       // Convert daily bookings to array
       const dailyStats = Array.from(dailyBookings.entries()).map(([day, bookings]) => {
@@ -934,7 +964,24 @@ export const PublicStatisticsList = ({
         prevCustSet.add(key);
       });
       
-      console.log('Public customer stats (matching internal logic):', { 
+      console.log('📊 PUBLIC CUSTOMER STATS - Period Comparison Results:', {
+        currentPeriod: {
+          total: currCustSet.size,
+          events: currCustEvents?.length,
+          bookings: currBookingReqs?.length,
+          crmCustomers: currEventIds.length,
+          standalone: currStandaloneCrm?.length
+        },
+        previousPeriod: {
+          total: prevCustSet.size,
+          events: prevCustEvents?.length,
+          bookings: prevBookingReqs?.length,
+          crmCustomers: prevEventIds.length,
+          standalone: prevStandaloneCrm?.length
+        }
+      });
+      
+      console.log('Public customer stats (matching internal logic):', {
         totalCustomers, 
         withBooking, 
         withoutBooking,

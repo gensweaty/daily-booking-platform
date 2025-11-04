@@ -813,6 +813,19 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const prevDay = Math.min(currentDay, lastDayOfPrevMonth);
       const prevPeriodEnd = new Date(prevYear, prevMonth, prevDay, 23, 59, 59, 999);
 
+      console.log('📊 EVENT STATS - Period Calculation:', {
+        today: now.toISOString(),
+        currentDay,
+        currentPeriod: {
+          start: currentPeriodStart.toISOString(),
+          end: currentPeriodEnd.toISOString()
+        },
+        previousPeriod: {
+          start: prevPeriodStart.toISOString(),
+          end: prevPeriodEnd.toISOString()
+        }
+      });
+
       // Fetch current period events (month-to-date)
       const currStartStr = currentPeriodStart.toISOString();
       const currEndStr = currentPeriodEnd.toISOString();
@@ -956,6 +969,23 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           });
         }
       }
+
+      console.log('📊 EVENT STATS - Period Comparison Results:', {
+        currentPeriod: {
+          total: currTotal,
+          events: currEvents?.length,
+          bookings: currUnconvertedBookings.length,
+          customers: currTotal - (currEvents?.length || 0) - currUnconvertedBookings.length,
+          totalIncome: currTotalIncome
+        },
+        previousPeriod: {
+          total: prevTotal,
+          events: prevEvents?.length,
+          bookings: prevUnconvertedBookings.length,
+          customers: prevTotal - (prevEvents?.length || 0) - prevUnconvertedBookings.length,
+          totalIncome: prevTotalIncome
+        }
+      });
 
       const result = {
         total: totalEvents,
@@ -1149,7 +1179,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       // For customers linked to events, filter by event start_date not customer created_at
       const currEventIds = (currCustEvents || []).map(e => e.id);
       const { data: currCrmCustomers } = currEventIds.length > 0 
-        ? await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).in('event_id', currEventIds).is('deleted_at', null)
+        ? await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).eq('type', 'customer').in('event_id', currEventIds).is('deleted_at', null)
         : { data: [] };
       
       const { data: currStandaloneCrm } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', currStartStr).lte('created_at', currEndStr).is('deleted_at', null);
@@ -1180,7 +1210,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       // For customers linked to events, filter by event start_date not customer created_at
       const prevEventIds = (prevCustEvents || []).map(e => e.id);
       const { data: prevCrmCustomers } = prevEventIds.length > 0
-        ? await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).in('event_id', prevEventIds).is('deleted_at', null)
+        ? await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).eq('type', 'customer').in('event_id', prevEventIds).is('deleted_at', null)
         : { data: [] };
       
       const { data: prevStandaloneCrm } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', prevStartStr).lte('created_at', prevEndStr).is('deleted_at', null);
@@ -1190,6 +1220,23 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       prevBookingReqs?.forEach(b => prevCustSet.add(`${b.requester_email || 'no-email'}_${b.requester_phone || 'no-phone'}_${b.requester_name || 'no-name'}`));
       prevCrmCustomers?.forEach(c => prevCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
       prevStandaloneCrm?.forEach(c => prevCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
+
+      console.log('📊 CUSTOMER STATS - Period Comparison Results:', {
+        currentPeriod: {
+          total: currCustSet.size,
+          events: currCustEvents?.length,
+          bookings: currBookingReqs?.length,
+          crmCustomers: currCrmCustomers?.length,
+          standalone: currStandaloneCrm?.length
+        },
+        previousPeriod: {
+          total: prevCustSet.size,
+          events: prevCustEvents?.length,
+          bookings: prevBookingReqs?.length,
+          crmCustomers: prevCrmCustomers?.length,
+          standalone: prevStandaloneCrm?.length
+        }
+      });
 
       return {
         total: totalCustomers,
