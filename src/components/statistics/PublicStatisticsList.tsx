@@ -378,6 +378,32 @@ export const PublicStatisticsList = ({
         }
       });
 
+      // Fetch customers associated with current period events (by event start_date)
+      const currEventIds = (currEvents || []).map(e => e.id);
+      if (currEventIds.length > 0) {
+        const { data: currCustomers } = await supabase
+          .from('customers')
+          .select('id, event_id, payment_status, payment_amount')
+          .in('event_id', currEventIds)
+          .eq('type', 'customer')
+          .is('deleted_at', null);
+
+        if (currCustomers) {
+          currTotal += currCustomers.length;
+          currCustomers.forEach(customer => {
+            const paymentStatus = customer.payment_status || '';
+            if ((paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && customer.payment_amount) {
+              const amount = typeof customer.payment_amount === 'number' 
+                ? customer.payment_amount 
+                : parseFloat(String(customer.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                currTotalIncome += amount;
+              }
+            }
+          });
+        }
+      }
+
       // Fetch previous period events
       const { data: prevEvents } = await supabase
         .from('events')
@@ -425,6 +451,32 @@ export const PublicStatisticsList = ({
           }
         }
       });
+
+      // Fetch customers associated with previous period events (by event start_date)
+      const prevEventIds = (prevEvents || []).map(e => e.id);
+      if (prevEventIds.length > 0) {
+        const { data: prevCustomers } = await supabase
+          .from('customers')
+          .select('id, event_id, payment_status, payment_amount')
+          .in('event_id', prevEventIds)
+          .eq('type', 'customer')
+          .is('deleted_at', null);
+
+        if (prevCustomers) {
+          prevTotal += prevCustomers.length;
+          prevCustomers.forEach(customer => {
+            const paymentStatus = customer.payment_status || '';
+            if ((paymentStatus === 'partly_paid' || paymentStatus === 'fully_paid') && customer.payment_amount) {
+              const amount = typeof customer.payment_amount === 'number' 
+                ? customer.payment_amount 
+                : parseFloat(String(customer.payment_amount));
+              if (!isNaN(amount) && amount > 0) {
+                prevTotalIncome += amount;
+              }
+            }
+          });
+        }
+      }
 
       // Convert daily bookings to array
       const dailyStats = Array.from(dailyBookings.entries()).map(([day, bookings]) => {

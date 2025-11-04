@@ -858,6 +858,33 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         }
       });
 
+      // Fetch customers associated with current period events (by event start_date)
+      const currEventIds = (currEvents || []).filter(e => !e.booking_request_id).map(e => e.id);
+      if (currEventIds.length > 0) {
+        const { data: currCustomers } = await supabase
+          .from('customers')
+          .select('id, event_id, payment_status, payment_amount')
+          .in('event_id', currEventIds)
+          .eq('type', 'customer')
+          .is('deleted_at', null);
+
+        if (currCustomers) {
+          currTotal += currCustomers.length;
+          currCustomers.forEach(customer => {
+            const status = customer.payment_status || '';
+            if (status === 'partly_paid' || status.includes('partly')) {
+              currPartlyPaid++;
+            } else if (status === 'fully_paid' || status.includes('fully')) {
+              currFullyPaid++;
+            }
+            if ((status.includes('partly') || status.includes('fully')) && customer.payment_amount) {
+              const amt = parsePaymentAmount(customer.payment_amount);
+              if (amt > 0) currTotalIncome += amt;
+            }
+          });
+        }
+      }
+
       // Fetch previous period events for comparison
       const prevStartStr = prevPeriodStart.toISOString();
       const prevEndStr = prevPeriodEnd.toISOString();
@@ -902,6 +929,33 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
           if (amt > 0) prevTotalIncome += amt;
         }
       });
+
+      // Fetch customers associated with previous period events (by event start_date)
+      const prevEventIds = (prevEvents || []).filter(e => !e.booking_request_id).map(e => e.id);
+      if (prevEventIds.length > 0) {
+        const { data: prevCustomers } = await supabase
+          .from('customers')
+          .select('id, event_id, payment_status, payment_amount')
+          .in('event_id', prevEventIds)
+          .eq('type', 'customer')
+          .is('deleted_at', null);
+
+        if (prevCustomers) {
+          prevTotal += prevCustomers.length;
+          prevCustomers.forEach(customer => {
+            const status = customer.payment_status || '';
+            if (status === 'partly_paid' || status.includes('partly')) {
+              prevPartlyPaid++;
+            } else if (status === 'fully_paid' || status.includes('fully')) {
+              prevFullyPaid++;
+            }
+            if ((status.includes('partly') || status.includes('fully')) && customer.payment_amount) {
+              const amt = parsePaymentAmount(customer.payment_amount);
+              if (amt > 0) prevTotalIncome += amt;
+            }
+          });
+        }
+      }
 
       const result = {
         total: totalEvents,
@@ -1089,9 +1143,15 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const currEndStr = currentPeriodEnd.toISOString();
 
       // Fetch current period customers
-      const { data: currCustEvents } = await supabase.from('events').select('social_network_link, user_number, user_surname').eq('user_id', userId).gte('start_date', currStartStr).lte('start_date', currEndStr).is('deleted_at', null).is('parent_event_id', null);
+      const { data: currCustEvents } = await supabase.from('events').select('id, social_network_link, user_number, user_surname').eq('user_id', userId).gte('start_date', currStartStr).lte('start_date', currEndStr).is('deleted_at', null).is('parent_event_id', null);
       const { data: currBookingReqs } = await supabase.from('booking_requests').select('requester_name, requester_phone, requester_email').eq('user_id', userId).eq('status', 'approved').gte('start_date', currStartStr).lte('start_date', currEndStr).is('deleted_at', null);
-      const { data: currCrmCustomers } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).not('event_id', 'is', null).gte('created_at', currStartStr).lte('created_at', currEndStr).is('deleted_at', null);
+      
+      // For customers linked to events, filter by event start_date not customer created_at
+      const currEventIds = (currCustEvents || []).map(e => e.id);
+      const { data: currCrmCustomers } = currEventIds.length > 0 
+        ? await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).in('event_id', currEventIds).is('deleted_at', null)
+        : { data: [] };
+      
       const { data: currStandaloneCrm } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', currStartStr).lte('created_at', currEndStr).is('deleted_at', null);
       
       const currCustSet = new Set<string>();
@@ -1114,9 +1174,15 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       const prevEndStr = prevPeriodEnd.toISOString();
 
       // Fetch previous period customers
-      const { data: prevCustEvents } = await supabase.from('events').select('social_network_link, user_number, user_surname').eq('user_id', userId).gte('start_date', prevStartStr).lte('start_date', prevEndStr).is('deleted_at', null).is('parent_event_id', null);
+      const { data: prevCustEvents } = await supabase.from('events').select('id, social_network_link, user_number, user_surname').eq('user_id', userId).gte('start_date', prevStartStr).lte('start_date', prevEndStr).is('deleted_at', null).is('parent_event_id', null);
       const { data: prevBookingReqs } = await supabase.from('booking_requests').select('requester_name, requester_phone, requester_email').eq('user_id', userId).eq('status', 'approved').gte('start_date', prevStartStr).lte('start_date', prevEndStr).is('deleted_at', null);
-      const { data: prevCrmCustomers } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).not('event_id', 'is', null).gte('created_at', prevStartStr).lte('created_at', prevEndStr).is('deleted_at', null);
+      
+      // For customers linked to events, filter by event start_date not customer created_at
+      const prevEventIds = (prevCustEvents || []).map(e => e.id);
+      const { data: prevCrmCustomers } = prevEventIds.length > 0
+        ? await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).in('event_id', prevEventIds).is('deleted_at', null)
+        : { data: [] };
+      
       const { data: prevStandaloneCrm } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', prevStartStr).lte('created_at', prevEndStr).is('deleted_at', null);
       
       const prevCustSet = new Set<string>();

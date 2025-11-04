@@ -64,8 +64,13 @@ export const StatsCards = ({ taskStats, eventStats, customerStats }: StatsCardsP
   const eventTrend = (eventStats?.currentPeriod && eventStats?.previousPeriod) 
     ? calculateTrend(eventStats.currentPeriod.total, eventStats.previousPeriod.total) 
     : '+0%';
+  // Income trend uses full month comparison (totalIncome from selected date range)
+  // This compares the displayed total income vs previous period  
   const incomeTrend = (eventStats?.currentPeriod && eventStats?.previousPeriod) 
-    ? calculateTrend(eventStats.currentPeriod.totalIncome, eventStats.previousPeriod.totalIncome) 
+    ? calculateTrend(
+        typeof eventStats.totalIncome === 'string' ? parsePaymentAmount(eventStats.totalIncome) : (eventStats.totalIncome || 0),
+        eventStats.previousPeriod.totalIncome
+      )
     : '+0%';
   
   // Early return with warning if eventStats is missing entirely
