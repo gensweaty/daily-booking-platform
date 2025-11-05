@@ -261,7 +261,7 @@ serve(async (req) => {
       console.log('  ❌ No reminder pattern matched - will use LLM');
     }
     
-    // Fast-path 2: Detect "at HH:MM" or "on HH:MM" patterns
+    // Fast-path 2: Detect "at HH:MM" or "on HH:MM" patterns, with optional TODAY/TOMORROW
     const timeMatch = prompt.match(/\b(?:at|on)\s+(\d{1,2}):(\d{2})\b/i);
     if (timeMatch) {
       const hours = parseInt(timeMatch[1], 10);
@@ -271,26 +271,67 @@ serve(async (req) => {
       // NOTE: User message is already saved in MessageInput.tsx before this function is called
       // No need to save it again here to avoid duplicates
       
-      // Enhanced title extraction - check for patterns before "at/on"
+      // Enhanced title extraction - extract everything AFTER the time, not before
+      // This prevents "TODAY" from becoming part of the title
       let title = "Reminder";
-      const titleMatch = prompt.match(/(?:remind\s+(?:me\s+)?(?:about\s+)?(.+?)\s+(?:at|on)|(.+?)\s+(?:at|on))\s+\d{1,2}:\d{2}/i);
-      if (titleMatch) {
-        title = (titleMatch[1] || titleMatch[2] || "").trim();
+      
+      // Pattern 1: Extract text after "at/on HH:MM" (e.g., "at 21:00 to verify identity")
+      const afterTimeMatch = prompt.match(/(?:at|on)\s+\d{1,2}:\d{2}\s+(?:to\s+)?(.+)/i);
+      if (afterTimeMatch && afterTimeMatch[1]) {
+        title = afterTimeMatch[1].trim();
+        console.log(`📝 Extracted title AFTER time: "${title}"`);
+      } else {
+        // Pattern 2: Extract text before time, but remove time indicators like "today", "tomorrow"
+        const beforeTimeMatch = prompt.match(/(?:remind\s+(?:me\s+)?(?:about\s+)?)?(.+?)\s+(?:today|tomorrow|at|on)\s+\d{1,2}:\d{2}/i);
+        if (beforeTimeMatch && beforeTimeMatch[1]) {
+          title = beforeTimeMatch[1]
+            .replace(/^\s*(?:today|tomorrow|at|on)\s+/i, '')  // Remove leading time words
+            .replace(/\s+(?:today|tomorrow|at|on)\s*$/i, '')  // Remove trailing time words
+            .trim();
+          if (title) {
+            console.log(`📝 Extracted title BEFORE time (cleaned): "${title}"`);
+          }
+        }
       }
       
-      console.log(`📝 Creating reminder: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
+      // If still just "Reminder", try to get something meaningful
+      if (title === "Reminder") {
+        const simpleMatch = prompt.match(/remind(?:\s+me)?\s+(.+?)\s+(?:today|tomorrow|at|on)/i);
+        if (simpleMatch && simpleMatch[1]) {
+          title = simpleMatch[1].trim();
+          console.log(`📝 Extracted simple title: "${title}"`);
+        }
+      }
+      
+      console.log(`📝 Final title: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
       
       try {
         // Get current time in user's timezone
         const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
         console.log(`🕐 Current time: ${baseNow.toISOString()} (user local: ${formatInUserZone(baseNow)})`);
         
-        // Create a date for today at the specified time in user's timezone
+        // Check if user explicitly said "TODAY" or "TOMORROW"
+        const hasToday = /\btoday\b/i.test(prompt);
+        const hasTomorrow = /\btomorrow\b/i.test(prompt);
+        
+        console.log(`📅 Date context: TODAY=${hasToday}, TOMORROW=${hasTomorrow}`);
+        
+        // Create a date for the specified time
         let targetTime = new Date(baseNow);
         targetTime.setHours(hours, minutes, 0, 0);
         
-        // If the time has already passed today, schedule for tomorrow
-        if (targetTime <= baseNow) {
+        // If user said "tomorrow", always schedule for tomorrow
+        if (hasTomorrow) {
+          targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
+          console.log(`📅 User said TOMORROW - scheduling for next day`);
+        }
+        // If user said "today", keep it today even if time has passed (let backend validate)
+        else if (hasToday) {
+          console.log(`📅 User said TODAY - keeping for today: ${formatInUserZone(targetTime)}`);
+          // Don't move to tomorrow even if passed - let the backend handle validation
+        }
+        // If neither specified, use smart logic: if time passed, move to tomorrow
+        else if (targetTime <= baseNow) {
           console.log(`⏭️ Time ${hours}:${String(minutes).padStart(2, '0')} has passed today, scheduling for tomorrow`);
           targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
         }
