@@ -306,9 +306,9 @@ serve(async (req) => {
       console.log(`📝 Final title: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
       
       try {
-        // Get current time in user's timezone
+        // Get current time in user's timezone using currentLocalTime parameter
         const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
-        console.log(`🕐 Current time: ${baseNow.toISOString()} (user local: ${formatInUserZone(baseNow)})`);
+        console.log(`🕐 Current time (user local): ${baseNow.toISOString()}`);
         
         // Check if user explicitly said "TODAY" or "TOMORROW"
         const hasToday = /\btoday\b/i.test(prompt);
@@ -316,24 +316,28 @@ serve(async (req) => {
         
         console.log(`📅 Date context: TODAY=${hasToday}, TOMORROW=${hasTomorrow}`);
         
-        // Create a date for the specified time
+        // Create target time in user's local timezone (which is already passed via currentLocalTime)
+        // The baseNow is already in user's timezone, so setHours will work correctly
         let targetTime = new Date(baseNow);
         targetTime.setHours(hours, minutes, 0, 0);
+        
+        console.log(`🎯 Target time created (user local): ${targetTime.toISOString()}, which is ${formatInUserZone(targetTime)}`);
         
         // If user said "tomorrow", always schedule for tomorrow
         if (hasTomorrow) {
           targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
-          console.log(`📅 User said TOMORROW - scheduling for next day`);
+          console.log(`📅 User said TOMORROW - scheduling for next day: ${formatInUserZone(targetTime)}`);
         }
-        // If user said "today", keep it today even if time has passed (let backend validate)
+        // If user said "today", keep it for today (don't auto-adjust even if time passed)
         else if (hasToday) {
           console.log(`📅 User said TODAY - keeping for today: ${formatInUserZone(targetTime)}`);
-          // Don't move to tomorrow even if passed - let the backend handle validation
+          // targetTime stays as is - backend will validate if it's in the future
         }
         // If neither specified, use smart logic: if time passed, move to tomorrow
         else if (targetTime <= baseNow) {
           console.log(`⏭️ Time ${hours}:${String(minutes).padStart(2, '0')} has passed today, scheduling for tomorrow`);
           targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
+          console.log(`📅 Moved to tomorrow: ${formatInUserZone(targetTime)}`);
         }
         
         console.log(`⏰ Remind at (UTC): ${targetTime.toISOString()} (user local: ${formatInUserZone(targetTime)})`);
