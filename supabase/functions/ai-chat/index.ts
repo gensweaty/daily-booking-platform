@@ -316,31 +316,47 @@ serve(async (req) => {
         
         console.log(`📅 Date context: TODAY=${hasToday}, TOMORROW=${hasTomorrow}`);
         
-        // Create target time in user's local timezone (which is already passed via currentLocalTime)
-        // The baseNow is already in user's timezone, so setHours will work correctly
-        let targetTime = new Date(baseNow);
-        targetTime.setHours(hours, minutes, 0, 0);
+        // CRITICAL FIX: We need to preserve the user's local date/time intention
+        // When user says "TODAY at 21:00" in UTC+4, they mean 21:00 local time
+        // We can't use setHours() because it works in UTC, not the user's timezone
         
-        console.log(`🎯 Target time created (user local): ${targetTime.toISOString()}, which is ${formatInUserZone(targetTime)}`);
+        // Extract current local components from the baseNow (which represents user's current local time)
+        const currentYear = baseNow.getUTCFullYear();
+        const currentMonth = baseNow.getUTCMonth();
+        const currentDate = baseNow.getUTCDate();
+        const currentHour = baseNow.getUTCHours();
+        const currentMinute = baseNow.getUTCMinutes();
+        
+        console.log(`📅 Current local: ${currentYear}-${currentMonth+1}-${currentDate} ${currentHour}:${currentMinute}`);
+        console.log(`🎯 Target local: ${hours}:${minutes}`);
+        
+        // Build target time by preserving the date and replacing only hours/minutes
+        // This keeps us in the same timezone as baseNow
+        let targetTime = new Date(Date.UTC(currentYear, currentMonth, currentDate, hours, minutes, 0, 0));
+        
+        console.log(`🎯 Initial target (UTC): ${targetTime.toISOString()}, which is ${formatInUserZone(targetTime)}`);
+        
+        // Check if this time has already passed TODAY
+        const targetHasPassed = (hours < currentHour) || (hours === currentHour && minutes <= currentMinute);
         
         // If user said "tomorrow", always schedule for tomorrow
         if (hasTomorrow) {
           targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
           console.log(`📅 User said TOMORROW - scheduling for next day: ${formatInUserZone(targetTime)}`);
         }
-        // If user said "today", keep it for today (don't auto-adjust even if time passed)
+        // If user said "today", keep it for today
         else if (hasToday) {
           console.log(`📅 User said TODAY - keeping for today: ${formatInUserZone(targetTime)}`);
-          // targetTime stays as is - backend will validate if it's in the future
+          // targetTime stays as is
         }
-        // If neither specified, use smart logic: if time passed, move to tomorrow
-        else if (targetTime <= baseNow) {
-          console.log(`⏭️ Time ${hours}:${String(minutes).padStart(2, '0')} has passed today, scheduling for tomorrow`);
+        // If neither specified and time has passed, move to tomorrow
+        else if (targetHasPassed) {
+          console.log(`⏭️ Time ${hours}:${String(minutes).padStart(2, '0')} has passed, scheduling for tomorrow`);
           targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
           console.log(`📅 Moved to tomorrow: ${formatInUserZone(targetTime)}`);
         }
         
-        console.log(`⏰ Remind at (UTC): ${targetTime.toISOString()} (user local: ${formatInUserZone(targetTime)})`);
+        console.log(`⏰ Final remind at (UTC): ${targetTime.toISOString()} (user local: ${formatInUserZone(targetTime)})`);
         
         const { data: reminderData, error: reminderError } = await supabaseAdmin
           .from('custom_reminders')
