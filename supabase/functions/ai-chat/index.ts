@@ -275,29 +275,38 @@ serve(async (req) => {
       // This prevents "TODAY" from becoming part of the title
       let title = "Reminder";
       
-      // Pattern 1: Extract text after "at/on HH:MM to/for" (e.g., "at 21:00 to verify identity")
+      console.log(`🔍 Title extraction - Full prompt: "${prompt}"`);
+      
+      // Pattern 1: Extract text after "at/on HH:MM to/for" (e.g., "at 22:00 to verify identity")
       const afterTimeMatch = prompt.match(/(?:at|on)\s+\d{1,2}:\d{2}\s+(?:to|for)\s+(.+)/i);
+      console.log(`🔍 Pattern 1 test - Match result:`, afterTimeMatch);
+      
       if (afterTimeMatch && afterTimeMatch[1]) {
         title = afterTimeMatch[1].trim();
-        console.log(`📝 Extracted title AFTER time with 'to/for': "${title}"`);
+        console.log(`📝 ✅ Extracted title AFTER time with 'to/for': "${title}"`);
       } else {
-        // Pattern 2: Extract text after "at/on HH:MM" without 'to/for' (e.g., "at 21:00 verify identity")
+        // Pattern 2: Extract text after "at/on HH:MM" without 'to/for' (e.g., "at 22:00 verify identity")
         const afterTimeNoPrep = prompt.match(/(?:at|on)\s+\d{1,2}:\d{2}\s+(?!today|tomorrow)(.+)/i);
+        console.log(`🔍 Pattern 2 test - Match result:`, afterTimeNoPrep);
+        
         if (afterTimeNoPrep && afterTimeNoPrep[1]) {
           title = afterTimeNoPrep[1].trim();
-          console.log(`📝 Extracted title AFTER time: "${title}"`);
+          console.log(`📝 ✅ Extracted title AFTER time: "${title}"`);
         } else {
           // Pattern 3: Extract text between "remind me" and time, clean time keywords
           const beforeTimeMatch = prompt.match(/remind\s+me\s+(.+?)\s+(?:today|tomorrow|at|on)/i);
+          console.log(`🔍 Pattern 3 test - Match result:`, beforeTimeMatch);
+          
           if (beforeTimeMatch && beforeTimeMatch[1]) {
             title = beforeTimeMatch[1]
               .replace(/^\s*(?:today|tomorrow|at|on|to|about)\s+/i, '')
               .replace(/\s+(?:today|tomorrow|at|on|to|about)\s*$/i, '')
               .trim();
-            if (title && title !== "me") {
-              console.log(`📝 Extracted title BEFORE time (cleaned): "${title}"`);
+            if (title && title !== "me" && title.length > 0) {
+              console.log(`📝 ✅ Extracted title BEFORE time (cleaned): "${title}"`);
             } else {
               title = "Reminder"; // Reset if we only got "me" or empty
+              console.log(`📝 ⚠️ Cleaned title was empty/invalid, reset to "Reminder"`);
             }
           }
         }
@@ -306,11 +315,13 @@ serve(async (req) => {
       // If still just "Reminder", try broader patterns
       if (title === "Reminder") {
         const broadMatch = prompt.match(/remind(?:\s+me)?\s+(?:to|about)?\s*(.+?)\s+(?:today|tomorrow|at)/i);
+        console.log(`🔍 Broad pattern test - Match result:`, broadMatch);
+        
         if (broadMatch && broadMatch[1]) {
           const extracted = broadMatch[1].trim();
-          if (extracted && extracted !== "me") {
+          if (extracted && extracted !== "me" && extracted.length > 0) {
             title = extracted;
-            console.log(`📝 Extracted title (broad match): "${title}"`);
+            console.log(`📝 ✅ Extracted title (broad match): "${title}"`);
           }
         }
       }
@@ -318,13 +329,15 @@ serve(async (req) => {
       console.log(`📝 Final title: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
       
       try {
-        // CRITICAL: Correctly interpret user's local timezone
-        // currentLocalTime is the user's ACTUAL current time in their timezone
-        // userTimezone tells us what timezone they're in (e.g., "Asia/Dubai" = UTC+4)
+        // CRITICAL FIX: Simple and correct timezone conversion
+        // tzOffsetMinutes is already provided and tells us the offset
+        // For UTC+4: offset = -240 minutes (negative because ahead of UTC)
+        // Formula: UTC = Local Time - offset (i.e., UTC = Local - (-240) = Local + 240)
         
         const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
-        console.log(`🕐 Current time received: ${baseNow.toISOString()}`);
+        console.log(`🕐 Current time (UTC): ${baseNow.toISOString()}`);
         console.log(`🌍 User timezone: ${userTimezone || 'Not provided'}`);
+        console.log(`🌍 Timezone offset minutes: ${tzOffsetMinutes}`);
         
         // Check if user explicitly said "TODAY" or "TOMORROW"
         const hasToday = /\btoday\b/i.test(prompt);
@@ -332,116 +345,53 @@ serve(async (req) => {
         
         console.log(`📅 Date context: TODAY=${hasToday}, TOMORROW=${hasTomorrow}`);
         
-        // SOLUTION: Calculate the timezone offset from the userTimezone parameter
-        // This tells us how many hours to adjust between UTC and user's local time
-        let timezoneOffsetMinutes = 0;
-        if (userTimezone) {
-          try {
-            // Get the offset by comparing UTC time with the same moment in user's timezone
-            const formatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: userTimezone,
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false
-            });
-            
-            const parts = formatter.formatToParts(baseNow);
-            const localYear = parseInt(parts.find(p => p.type === 'year')?.value || '0');
-            const localMonth = parseInt(parts.find(p => p.type === 'month')?.value || '1') - 1;
-            const localDay = parseInt(parts.find(p => p.type === 'day')?.value || '1');
-            const localHour = parseInt(parts.find(p => p.type === 'hour')?.value || '0');
-            const localMinute = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
-            
-            console.log(`📅 User's local date/time: ${localYear}-${localMonth+1}-${localDay} ${localHour}:${localMinute}`);
-            
-            // Build the target datetime in the user's local timezone
-            // User says "TODAY at 22:00" - they mean 22:00 in THEIR timezone
-            let localTargetDate = new Date(localYear, localMonth, localDay, hours, minutes, 0, 0);
-            
-            console.log(`🎯 Target in local timezone: ${localTargetDate.toString()}`);
-            
-            // Check if this time has already passed TODAY in the user's timezone
-            const currentLocalHour = localHour;
-            const currentLocalMinute = localMinute;
-            const targetHasPassed = (hours < currentLocalHour) || (hours === currentLocalHour && minutes <= currentLocalMinute);
-            
-            console.log(`⏰ Time check: target=${hours}:${minutes}, current=${currentLocalHour}:${currentLocalMinute}, passed=${targetHasPassed}`);
-            
-            // Apply TODAY/TOMORROW logic
-            if (hasTomorrow) {
-              localTargetDate = new Date(localTargetDate.getTime() + 24 * 60 * 60 * 1000);
-              console.log(`📅 User said TOMORROW - adding 24h`);
-            } else if (hasToday) {
-              console.log(`📅 User said TODAY - keeping same day`);
-              // Keep as is
-            } else if (targetHasPassed) {
-              localTargetDate = new Date(localTargetDate.getTime() + 24 * 60 * 60 * 1000);
-              console.log(`⏭️ Time has passed, moving to tomorrow`);
-            }
-            
-            console.log(`🎯 Final local target: ${localTargetDate.toString()}`);
-            
-            // Convert the local datetime back to UTC for storage
-            // Create a UTC date with the SAME components, then convert to the user's timezone string
-            const localDateStr = `${localTargetDate.getFullYear()}-${String(localTargetDate.getMonth()+1).padStart(2,'0')}-${String(localTargetDate.getDate()).padStart(2,'0')}T${String(localTargetDate.getHours()).padStart(2,'0')}:${String(localTargetDate.getMinutes()).padStart(2,'0')}:00`;
-            
-            // Parse this as if it were in the user's timezone
-            const targetTimeUTC = new Date(localDateStr);
-            
-            // Now we need to adjust for the timezone offset
-            // Get the offset for the target date (it might differ due to DST)
-            const targetFormatter = new Intl.DateTimeFormat('en-US', {
-              timeZone: userTimezone,
-              year: 'numeric',
-              month: '2-digit',
-              day: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false
-            });
-            
-            const targetParts = targetFormatter.formatToParts(targetTimeUTC);
-            const targetLocalHour = parseInt(targetParts.find(p => p.type === 'hour')?.value || '0');
-            
-            // Calculate the actual offset (difference between what we set and what the timezone shows)
-            const offsetHours = targetTimeUTC.getUTCHours() - targetLocalHour;
-            
-            // Build the final UTC timestamp
-            const finalYear = localTargetDate.getFullYear();
-            const finalMonth = localTargetDate.getMonth();
-            const finalDay = localTargetDate.getDate();
-            const finalHours = localTargetDate.getHours();
-            const finalMinutes = localTargetDate.getMinutes();
-            
-            // Subtract the timezone offset to get the correct UTC time
-            var targetTime = new Date(Date.UTC(
-              finalYear,
-              finalMonth,
-              finalDay,
-              finalHours - offsetHours,
-              finalMinutes,
-              0,
-              0
-            ));
-            
-            console.log(`⏰ Final UTC time for storage: ${targetTime.toISOString()}`);
-            console.log(`📍 Verification - this should show as ${formatInUserZone(targetTime)}`);
-            
-          } catch (tzError) {
-            console.error('❌ Timezone calculation error:', tzError);
-            // Fallback to simpler method
-            var targetTime = new Date(baseNow);
-            targetTime.setHours(hours, minutes, 0, 0);
-            if (hasTomorrow || (!hasToday && targetTime <= baseNow)) {
-              targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
-            }
+        if (typeof tzOffsetMinutes === 'number') {
+          // STEP 1: Convert current UTC time to user's local time
+          // Subtract offset because it's negative for UTC+X timezones
+          const localNow = new Date(baseNow.getTime() - tzOffsetMinutes * 60000);
+          
+          const localYear = localNow.getUTCFullYear();
+          const localMonth = localNow.getUTCMonth();
+          const localDay = localNow.getUTCDate();
+          const currentLocalHour = localNow.getUTCHours();
+          const currentLocalMinute = localNow.getUTCMinutes();
+          
+          console.log(`📅 User's current LOCAL time: ${localYear}-${localMonth+1}-${localDay} ${currentLocalHour}:${currentLocalMinute}`);
+          console.log(`🎯 User wants reminder at: ${hours}:${minutes} (LOCAL time)`);
+          
+          // STEP 2: Build target time in user's local timezone
+          // Start with today's date + user's requested time
+          let localTargetDate = new Date(Date.UTC(localYear, localMonth, localDay, hours, minutes, 0, 0));
+          
+          // STEP 3: Check if time has passed in user's local timezone
+          const targetHasPassed = (hours < currentLocalHour) || (hours === currentLocalHour && minutes <= currentLocalMinute);
+          
+          console.log(`⏰ Time check: target=${hours}:${minutes}, current=${currentLocalHour}:${currentLocalMinute}, passed=${targetHasPassed}`);
+          
+          // STEP 4: Apply TODAY/TOMORROW logic
+          if (hasTomorrow) {
+            localTargetDate = new Date(localTargetDate.getTime() + 24 * 60 * 60 * 1000);
+            console.log(`📅 User said TOMORROW - adding 24 hours`);
+          } else if (hasToday) {
+            console.log(`📅 User said TODAY - keeping same day (even if time passed)`);
+            // Keep as is - user explicitly said TODAY
+          } else if (targetHasPassed) {
+            localTargetDate = new Date(localTargetDate.getTime() + 24 * 60 * 60 * 1000);
+            console.log(`⏭️ Time ${hours}:${minutes} has passed, moving to tomorrow`);
           }
+          
+          console.log(`🎯 Target in LOCAL timezone: ${localTargetDate.toISOString()} (this represents local time)`);
+          
+          // STEP 5: Convert local time back to UTC
+          // Add offset (subtract because offset is negative for UTC+X)
+          // For UTC+4: localTime + 240 min = UTC
+          var targetTime = new Date(localTargetDate.getTime() + tzOffsetMinutes * 60000);
+          
+          console.log(`⏰ Final UTC time for storage: ${targetTime.toISOString()}`);
+          console.log(`📍 Verification in user's timezone: ${formatInUserZone(targetTime)}`);
+          
         } else {
-          console.warn('⚠️ No userTimezone provided, using fallback method');
+          console.warn('⚠️ No tzOffsetMinutes provided, using fallback');
           // Fallback method
           var targetTime = new Date(baseNow);
           targetTime.setHours(hours, minutes, 0, 0);
@@ -453,7 +403,7 @@ serve(async (req) => {
           }
         }
         
-        console.log(`⏰ Final remind_at (UTC): ${targetTime.toISOString()} (user local: ${formatInUserZone(targetTime)})`);
+        console.log(`⏰ FINAL remind_at (UTC): ${targetTime.toISOString()}`);
         
         const { data: reminderData, error: reminderError } = await supabaseAdmin
           .from('custom_reminders')
