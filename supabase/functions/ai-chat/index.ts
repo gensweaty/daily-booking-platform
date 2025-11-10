@@ -2936,44 +2936,65 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               
               // Convert UTC times to user's local timezone using Intl.DateTimeFormat (same as reminders)
               const eventsWithLocalTimes = (events || []).map(event => {
-                const startUTC = new Date(event.start_date);
-                const endUTC = new Date(event.end_date);
-                
-                console.log(`  📅 Converting event time: UTC ${event.start_date} to ${effectiveTZ || 'local'}`);
-                
-                // ✅ CORRECT: Use Intl.DateTimeFormat with user's timezone (same reliable method as reminders)
-                const formatInTimezone = (date: Date) => {
-                  if (!effectiveTZ) {
-                    // Fallback if no timezone
-                    const pad = (n: number) => String(n).padStart(2, '0');
-                    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-                  }
+                try {
+                  const startUTC = new Date(event.start_date);
+                  const endUTC = new Date(event.end_date);
                   
-                  const parts = new Intl.DateTimeFormat('en-CA', {
-                    timeZone: effectiveTZ,
-                    hour12: false,
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                  }).formatToParts(date).reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                  console.log(`  📅 Converting event: ${event.title || event.user_surname} - UTC ${event.start_date}`);
                   
-                  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
-                };
-                
-                const convertedStart = formatInTimezone(startUTC);
-                const convertedEnd = formatInTimezone(endUTC);
-                
-                console.log(`  ✅ Converted to local: ${convertedStart} to ${convertedEnd}`);
-                
-                return {
-                  ...event,
-                  start_date: convertedStart,
-                  end_date: convertedEnd,
-                  timezone_note: `Times shown in ${effectiveTZ || 'your local timezone'}`
-                };
+                  // ✅ CORRECT: Use Intl.DateTimeFormat with user's timezone (same reliable method as reminders)
+                  const formatInTimezone = (date: Date): string => {
+                    try {
+                      if (!effectiveTZ || effectiveTZ === 'UTC') {
+                        // Fallback: keep as UTC
+                        const pad = (n: number) => String(n).padStart(2, '0');
+                        return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+                      }
+                      
+                      const parts: Record<string, string> = {};
+                      new Intl.DateTimeFormat('en-CA', {
+                        timeZone: effectiveTZ,
+                        hour12: false,
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      }).formatToParts(date).forEach(p => {
+                        if (p.type !== 'literal') parts[p.type] = p.value;
+                      });
+                      
+                      return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+                    } catch (err) {
+                      console.error('Format error:', err);
+                      // Fallback to UTC
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+                    }
+                  };
+                  
+                  const convertedStart = formatInTimezone(startUTC);
+                  const convertedEnd = formatInTimezone(endUTC);
+                  
+                  console.log(`  ✅ Converted to ${effectiveTZ}: ${convertedStart} to ${convertedEnd}`);
+                  
+                  return {
+                    id: event.id,
+                    title: event.title,
+                    user_surname: event.user_surname,
+                    user_number: event.user_number,
+                    event_notes: event.event_notes,
+                    payment_status: event.payment_status,
+                    payment_amount: event.payment_amount,
+                    start_date: convertedStart,
+                    end_date: convertedEnd
+                  };
+                } catch (error) {
+                  console.error(`  ❌ Error converting event ${event.id}:`, error);
+                  // Return event with original times if conversion fails
+                  return event;
+                }
               });
               
               toolResult = { date: today, events: eventsWithLocalTimes };
@@ -2999,39 +3020,51 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               
               // Convert UTC times to user's local timezone using Intl.DateTimeFormat (same as reminders)
               const eventsWithLocalTimes = (events || []).map(event => {
-                const startUTC = new Date(event.start_date);
-                const endUTC = new Date(event.end_date);
-                
-                // ✅ CORRECT: Use Intl.DateTimeFormat with user's timezone (same reliable method as reminders)
-                const formatInTimezone = (date: Date) => {
-                  if (!effectiveTZ) {
-                    const pad = (n: number) => String(n).padStart(2, '0');
-                    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-                  }
+                try {
+                  const startUTC = new Date(event.start_date);
+                  const endUTC = new Date(event.end_date);
                   
-                  const parts = new Intl.DateTimeFormat('en-CA', {
-                    timeZone: effectiveTZ,
-                    hour12: false,
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                  }).formatToParts(date).reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                  const formatInTimezone = (date: Date): string => {
+                    try {
+                      if (!effectiveTZ || effectiveTZ === 'UTC') {
+                        const pad = (n: number) => String(n).padStart(2, '0');
+                        return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+                      }
+                      
+                      const parts: Record<string, string> = {};
+                      new Intl.DateTimeFormat('en-CA', {
+                        timeZone: effectiveTZ,
+                        hour12: false,
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      }).formatToParts(date).forEach(p => {
+                        if (p.type !== 'literal') parts[p.type] = p.value;
+                      });
+                      
+                      return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+                    } catch (err) {
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+                    }
+                  };
                   
-                  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
-                };
-                
-                const convertedStart = formatInTimezone(startUTC);
-                const convertedEnd = formatInTimezone(endUTC);
-                
-                return {
-                  ...event,
-                  start_date: convertedStart,
-                  end_date: convertedEnd,
-                  timezone_note: `Times shown in ${effectiveTZ || 'your local timezone'}`
-                };
+                  return {
+                    id: event.id,
+                    title: event.title,
+                    user_surname: event.user_surname,
+                    user_number: event.user_number,
+                    payment_status: event.payment_status,
+                    payment_amount: event.payment_amount,
+                    start_date: formatInTimezone(startUTC),
+                    end_date: formatInTimezone(endUTC)
+                  };
+                } catch (error) {
+                  return event;
+                }
               });
               
               toolResult = { 
@@ -3055,43 +3088,60 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               
               // Convert UTC times to user's local timezone using Intl.DateTimeFormat (same as reminders)
               const eventsWithLocalTimes = (events || []).map(event => {
-                const startUTC = new Date(event.start_date);
-                const endUTC = new Date(event.end_date);
-                
-                // ✅ CORRECT: Use Intl.DateTimeFormat with user's timezone (same reliable method as reminders)
-                const formatInTimezone = (date: Date) => {
-                  if (!effectiveTZ) {
-                    const pad = (n: number) => String(n).padStart(2, '0');
-                    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-                  }
+                try {
+                  const startUTC = new Date(event.start_date);
+                  const endUTC = new Date(event.end_date);
                   
-                  const parts = new Intl.DateTimeFormat('en-CA', {
-                    timeZone: effectiveTZ,
-                    hour12: false,
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                  }).formatToParts(date).reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                  const formatInTimezone = (date: Date): string => {
+                    try {
+                      if (!effectiveTZ || effectiveTZ === 'UTC') {
+                        const pad = (n: number) => String(n).padStart(2, '0');
+                        return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+                      }
+                      
+                      const parts: Record<string, string> = {};
+                      new Intl.DateTimeFormat('en-CA', {
+                        timeZone: effectiveTZ,
+                        hour12: false,
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                      }).formatToParts(date).forEach(p => {
+                        if (p.type !== 'literal') parts[p.type] = p.value;
+                      });
+                      
+                      return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+                    } catch (err) {
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+                    }
+                  };
                   
-                  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
-                };
-                
-                const convertedStart = formatInTimezone(startUTC);
-                const convertedEnd = formatInTimezone(endUTC);
-                
-                return {
-                  ...event,
-                  start_date: convertedStart,
-                  end_date: convertedEnd,
-                  timezone_note: `Times shown in ${effectiveTZ || 'your local timezone'}`
-                };
+                  return {
+                    id: event.id,
+                    title: event.title,
+                    user_surname: event.user_surname,
+                    user_number: event.user_number,
+                    event_notes: event.event_notes,
+                    payment_status: event.payment_status,
+                    payment_amount: event.payment_amount,
+                    start_date: formatInTimezone(startUTC),
+                    end_date: formatInTimezone(endUTC)
+                  };
+                } catch (error) {
+                  return event;
+                }
               });
               
-              toolResult = eventsWithLocalTimes;
-              console.log(`    ✓ Found ${toolResult.length} events (times converted to ${effectiveTZ})`);
+              toolResult = { 
+                from: args.from,
+                to: args.to,
+                events: eventsWithLocalTimes
+              };
+              console.log(`    ✓ Found ${toolResult.events.length} events in range (times converted to ${effectiveTZ})`);
               break;
             }
 
