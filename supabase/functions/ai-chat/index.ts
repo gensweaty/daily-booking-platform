@@ -4831,6 +4831,39 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               });
               
               try {
+                // 🎯 AUTO-SEARCH: If no event_id provided, search for existing event by full_name
+                let finalEventId = event_id;
+                let preservedStartDate = start_date;
+                let preservedEndDate = end_date;
+                
+                if (!finalEventId && full_name) {
+                  console.log(`    🔍 Auto-searching for existing event with name: ${full_name}`);
+                  const { data: existingEvents } = await supabaseAdmin
+                    .from('events')
+                    .select('id, title, user_surname, start_date, end_date')
+                    .eq('user_id', ownerId)
+                    .is('deleted_at', null)
+                    .or(`title.ilike.%${full_name}%,user_surname.ilike.%${full_name}%`)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                  
+                  if (existingEvents && existingEvents.length > 0) {
+                    finalEventId = existingEvents[0].id;
+                    
+                    // ✅ CRITICAL: If dates weren't provided, preserve original event times
+                    if (!start_date || !end_date) {
+                      preservedStartDate = existingEvents[0].start_date;
+                      preservedEndDate = existingEvents[0].end_date;
+                      console.log(`    📅 PRESERVING original event times: ${preservedStartDate} to ${preservedEndDate}`);
+                    }
+                    
+                    console.log(`    ✅ Found existing event: ${existingEvents[0].user_surname || existingEvents[0].title} (ID: ${finalEventId})`);
+                    console.log(`    📝 This will be an UPDATE, not a new creation`);
+                  } else {
+                    console.log(`    ℹ️ No existing event found with name "${full_name}" - will create new one`);
+                  }
+                }
+                
                 // CRITICAL: Convert local datetime to UTC using same logic as reminders
                 const convertLocalToUTC = (localDateTimeStr: string): string => {
                   if (!localDateTimeStr) return new Date().toISOString();
@@ -4894,39 +4927,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   tzOffsetMinutes,
                   preserved: !start_date || !end_date
                 });
-                
-                // 🎯 AUTO-SEARCH: If no event_id provided, search for existing event by full_name
-                let finalEventId = event_id;
-                let preservedStartDate = start_date;
-                let preservedEndDate = end_date;
-                
-                if (!finalEventId && full_name) {
-                  console.log(`    🔍 Auto-searching for existing event with name: ${full_name}`);
-                  const { data: existingEvents } = await supabaseAdmin
-                    .from('events')
-                    .select('id, title, user_surname, start_date, end_date')
-                    .eq('user_id', ownerId)
-                    .is('deleted_at', null)
-                    .or(`title.ilike.%${full_name}%,user_surname.ilike.%${full_name}%`)
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-                  
-                  if (existingEvents && existingEvents.length > 0) {
-                    finalEventId = existingEvents[0].id;
-                    
-                    // ✅ CRITICAL: If dates weren't provided, preserve original event times
-                    if (!start_date || !end_date) {
-                      preservedStartDate = existingEvents[0].start_date;
-                      preservedEndDate = existingEvents[0].end_date;
-                      console.log(`    📅 PRESERVING original event times: ${preservedStartDate} to ${preservedEndDate}`);
-                    }
-                    
-                    console.log(`    ✅ Found existing event: ${existingEvents[0].user_surname || existingEvents[0].title} (ID: ${finalEventId})`);
-                    console.log(`    📝 This will be an UPDATE, not a new creation`);
-                  } else {
-                    console.log(`    ℹ️ No existing event found with name "${full_name}" - will create new one`);
-                  }
-                }
                 
                 // Check for time conflicts BEFORE creating (only for new events)
                 if (!finalEventId) {
