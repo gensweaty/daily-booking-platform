@@ -2934,22 +2934,37 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
               
-              // Convert UTC times to user's local timezone for accurate display
+              // Convert UTC times to user's local timezone using Intl.DateTimeFormat (same as reminders)
               const eventsWithLocalTimes = (events || []).map(event => {
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                console.log(`  📅 Converting event time: UTC ${event.start_date} (offset: ${tzOffsetMinutes})`);
+                console.log(`  📅 Converting event time: UTC ${event.start_date} to ${effectiveTZ || 'local'}`);
                 
-                // CORRECT: Subtract negative offset (which adds time for UTC+)
-                // tzOffsetMinutes is -240 for UTC+4, so -(- 240) = +240 minutes
-                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
-                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                // ✅ CORRECT: Use Intl.DateTimeFormat with user's timezone (same reliable method as reminders)
+                const formatInTimezone = (date: Date) => {
+                  if (!effectiveTZ) {
+                    // Fallback if no timezone
+                    const pad = (n: number) => String(n).padStart(2, '0');
+                    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+                  }
+                  
+                  const parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: effectiveTZ,
+                    hour12: false,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  }).formatToParts(date).reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                  
+                  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+                };
                 
-                // ✅ FIX: Format local time directly without toISOString() (which converts back to UTC)
-                const pad = (n: number) => String(n).padStart(2, '0');
-                const convertedStart = `${startLocal.getFullYear()}-${pad(startLocal.getMonth() + 1)}-${pad(startLocal.getDate())}T${pad(startLocal.getHours())}:${pad(startLocal.getMinutes())}:${pad(startLocal.getSeconds())}`;
-                const convertedEnd = `${endLocal.getFullYear()}-${pad(endLocal.getMonth() + 1)}-${pad(endLocal.getDate())}T${pad(endLocal.getHours())}:${pad(endLocal.getMinutes())}:${pad(endLocal.getSeconds())}`;
+                const convertedStart = formatInTimezone(startUTC);
+                const convertedEnd = formatInTimezone(endUTC);
                 
                 console.log(`  ✅ Converted to local: ${convertedStart} to ${convertedEnd}`);
                 
@@ -2982,19 +2997,34 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .order('start_date', { ascending: true })
                 .limit(20);
               
-              // Convert UTC times to user's local timezone for accurate display
+              // Convert UTC times to user's local timezone using Intl.DateTimeFormat (same as reminders)
               const eventsWithLocalTimes = (events || []).map(event => {
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                // CORRECT: Subtract negative offset (which adds time for UTC+)
-                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
-                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                // ✅ CORRECT: Use Intl.DateTimeFormat with user's timezone (same reliable method as reminders)
+                const formatInTimezone = (date: Date) => {
+                  if (!effectiveTZ) {
+                    const pad = (n: number) => String(n).padStart(2, '0');
+                    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+                  }
+                  
+                  const parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: effectiveTZ,
+                    hour12: false,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  }).formatToParts(date).reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                  
+                  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+                };
                 
-                // ✅ FIX: Format local time directly
-                const pad = (n: number) => String(n).padStart(2, '0');
-                const convertedStart = `${startLocal.getFullYear()}-${pad(startLocal.getMonth() + 1)}-${pad(startLocal.getDate())}T${pad(startLocal.getHours())}:${pad(startLocal.getMinutes())}:${pad(startLocal.getSeconds())}`;
-                const convertedEnd = `${endLocal.getFullYear()}-${pad(endLocal.getMonth() + 1)}-${pad(endLocal.getDate())}T${pad(endLocal.getHours())}:${pad(endLocal.getMinutes())}:${pad(endLocal.getSeconds())}`;
+                const convertedStart = formatInTimezone(startUTC);
+                const convertedEnd = formatInTimezone(endUTC);
                 
                 return {
                   ...event,
@@ -3023,19 +3053,34 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
               
-              // Convert UTC times to user's local timezone for accurate display
+              // Convert UTC times to user's local timezone using Intl.DateTimeFormat (same as reminders)
               const eventsWithLocalTimes = (events || []).map(event => {
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                // CORRECT: Subtract negative offset
-                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
-                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                // ✅ CORRECT: Use Intl.DateTimeFormat with user's timezone (same reliable method as reminders)
+                const formatInTimezone = (date: Date) => {
+                  if (!effectiveTZ) {
+                    const pad = (n: number) => String(n).padStart(2, '0');
+                    return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
+                  }
+                  
+                  const parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: effectiveTZ,
+                    hour12: false,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                  }).formatToParts(date).reduce((a, p) => { a[p.type] = p.value; return a; }, {} as any);
+                  
+                  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
+                };
                 
-                // ✅ FIX: Format local time directly
-                const pad = (n: number) => String(n).padStart(2, '0');
-                const convertedStart = `${startLocal.getFullYear()}-${pad(startLocal.getMonth() + 1)}-${pad(startLocal.getDate())}T${pad(startLocal.getHours())}:${pad(startLocal.getMinutes())}:${pad(startLocal.getSeconds())}`;
-                const convertedEnd = `${endLocal.getFullYear()}-${pad(endLocal.getMonth() + 1)}-${pad(endLocal.getDate())}T${pad(endLocal.getHours())}:${pad(endLocal.getMinutes())}:${pad(endLocal.getSeconds())}`;
+                const convertedStart = formatInTimezone(startUTC);
+                const convertedEnd = formatInTimezone(endUTC);
                 
                 return {
                   ...event,
@@ -4851,11 +4896,21 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               });
               
               try {
-                // 🎯 AUTO-SEARCH: If no event_id provided, search for existing event by full_name
-                let finalEventId = event_id;
+                // 🎯 AUTO-SEARCH: Validate event_id format and search for existing event by full_name
+                let finalEventId = null;
                 let preservedStartDate = start_date;
                 let preservedEndDate = end_date;
                 
+                // ✅ FIX: Validate UUID format - if invalid, treat as null and search by name
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (event_id && uuidRegex.test(event_id)) {
+                  finalEventId = event_id;
+                  console.log(`    ✅ Valid event_id provided: ${finalEventId}`);
+                } else if (event_id) {
+                  console.log(`    ⚠️ Invalid event_id format: ${event_id} - will search by name instead`);
+                }
+                
+                // Search by name if no valid event_id
                 if (!finalEventId && full_name) {
                   console.log(`    🔍 Auto-searching for existing event with name: ${full_name}`);
                   const { data: existingEvents } = await supabaseAdmin
@@ -4868,7 +4923,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     .limit(5);
                   
                   if (existingEvents && existingEvents.length > 0) {
-                    // Return the actual event data to LLM for confirmation
                     finalEventId = existingEvents[0].id;
                     console.log(`    ✅ Found existing event ID (UUID): ${finalEventId}`);
                     
