@@ -2939,15 +2939,22 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                // CORRECT: Add offset to UTC (tzOffsetMinutes is negative for ahead of UTC)
-                // Example: UTC+4 has tzOffsetMinutes=-240, so we ADD 240 minutes
-                const startLocal = new Date(startUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
-                const endLocal = new Date(endUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
+                console.log(`  📅 Converting event time: UTC ${event.start_date} (offset: ${tzOffsetMinutes})`);
+                
+                // CORRECT: Subtract negative offset (which adds time for UTC+)
+                // tzOffsetMinutes is -240 for UTC+4, so -(- 240) = +240 minutes
+                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
+                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                
+                const convertedStart = startLocal.toISOString().slice(0, 19);
+                const convertedEnd = endLocal.toISOString().slice(0, 19);
+                
+                console.log(`  ✅ Converted to local: ${convertedStart} to ${convertedEnd}`);
                 
                 return {
                   ...event,
-                  start_date: startLocal.toISOString().slice(0, 19),
-                  end_date: endLocal.toISOString().slice(0, 19),
+                  start_date: convertedStart,
+                  end_date: convertedEnd,
                   timezone_note: `Times shown in ${effectiveTZ || 'your local timezone'}`
                 };
               });
@@ -2978,9 +2985,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                // CORRECT: Add offset to UTC (tzOffsetMinutes is negative for ahead of UTC)
-                const startLocal = new Date(startUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
-                const endLocal = new Date(endUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
+                // CORRECT: Subtract negative offset (which adds time for UTC+)
+                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
+                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
                 
                 return {
                   ...event,
@@ -3014,9 +3021,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                // CORRECT: Add offset to UTC
-                const startLocal = new Date(startUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
-                const endLocal = new Date(endUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
+                // CORRECT: Subtract negative offset
+                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
+                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
                 
                 return {
                   ...event,
