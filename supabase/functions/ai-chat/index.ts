@@ -2946,8 +2946,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
                 const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
                 
-                const convertedStart = startLocal.toISOString().slice(0, 19);
-                const convertedEnd = endLocal.toISOString().slice(0, 19);
+                // ✅ FIX: Format local time directly without toISOString() (which converts back to UTC)
+                const pad = (n: number) => String(n).padStart(2, '0');
+                const convertedStart = `${startLocal.getFullYear()}-${pad(startLocal.getMonth() + 1)}-${pad(startLocal.getDate())}T${pad(startLocal.getHours())}:${pad(startLocal.getMinutes())}:${pad(startLocal.getSeconds())}`;
+                const convertedEnd = `${endLocal.getFullYear()}-${pad(endLocal.getMonth() + 1)}-${pad(endLocal.getDate())}T${pad(endLocal.getHours())}:${pad(endLocal.getMinutes())}:${pad(endLocal.getSeconds())}`;
                 
                 console.log(`  ✅ Converted to local: ${convertedStart} to ${convertedEnd}`);
                 
@@ -2989,10 +2991,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
                 const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
                 
+                // ✅ FIX: Format local time directly
+                const pad = (n: number) => String(n).padStart(2, '0');
+                const convertedStart = `${startLocal.getFullYear()}-${pad(startLocal.getMonth() + 1)}-${pad(startLocal.getDate())}T${pad(startLocal.getHours())}:${pad(startLocal.getMinutes())}:${pad(startLocal.getSeconds())}`;
+                const convertedEnd = `${endLocal.getFullYear()}-${pad(endLocal.getMonth() + 1)}-${pad(endLocal.getDate())}T${pad(endLocal.getHours())}:${pad(endLocal.getMinutes())}:${pad(endLocal.getSeconds())}`;
+                
                 return {
                   ...event,
-                  start_date: startLocal.toISOString().slice(0, 19),
-                  end_date: endLocal.toISOString().slice(0, 19),
+                  start_date: convertedStart,
+                  end_date: convertedEnd,
                   timezone_note: `Times shown in ${effectiveTZ || 'your local timezone'}`
                 };
               });
@@ -3025,10 +3032,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
                 const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
                 
+                // ✅ FIX: Format local time directly
+                const pad = (n: number) => String(n).padStart(2, '0');
+                const convertedStart = `${startLocal.getFullYear()}-${pad(startLocal.getMonth() + 1)}-${pad(startLocal.getDate())}T${pad(startLocal.getHours())}:${pad(startLocal.getMinutes())}:${pad(startLocal.getSeconds())}`;
+                const convertedEnd = `${endLocal.getFullYear()}-${pad(endLocal.getMonth() + 1)}-${pad(endLocal.getDate())}T${pad(endLocal.getHours())}:${pad(endLocal.getMinutes())}:${pad(endLocal.getSeconds())}`;
+                
                 return {
                   ...event,
-                  start_date: startLocal.toISOString().slice(0, 19),
-                  end_date: endLocal.toISOString().slice(0, 19),
+                  start_date: convertedStart,
+                  end_date: convertedEnd,
                   timezone_note: `Times shown in ${effectiveTZ || 'your local timezone'}`
                 };
               });
@@ -4975,22 +4987,25 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   paymentAmount: person.paymentAmount || person.payment_amount || ""
                 }));
 
-                const eventData = {
+                // ✅ FIX: Only include fields that were explicitly provided to avoid overwriting existing data
+                const eventData: any = {
                   title: full_name,
                   user_surname: full_name,
-                  user_number: phone_number || "",
-                  social_network_link: social_media || "",
-                  event_notes: notes || "",
-                  event_name: event_name || "",
                   start_date: startDateUTC,
                   end_date: endDateUTC,
-                  payment_status: payment_status || "not_paid",
-                  payment_amount: payment_amount ? payment_amount.toString() : "",
-                  type: "event",
-                  is_recurring: is_recurring || false,
-                  repeat_pattern: repeat_pattern || null,
-                  repeat_until: repeat_until || null
+                  type: "event"
                 };
+                
+                // Only add optional fields if they were actually provided
+                if (phone_number !== undefined) eventData.user_number = phone_number;
+                if (social_media !== undefined) eventData.social_network_link = social_media;
+                if (notes !== undefined) eventData.event_notes = notes;
+                if (event_name !== undefined) eventData.event_name = event_name;
+                if (payment_status !== undefined) eventData.payment_status = payment_status;
+                if (payment_amount !== undefined) eventData.payment_amount = payment_amount.toString();
+                if (is_recurring !== undefined) eventData.is_recurring = is_recurring;
+                if (repeat_pattern !== undefined) eventData.repeat_pattern = repeat_pattern;
+                if (repeat_until !== undefined) eventData.repeat_until = repeat_until;
 
                 if (finalEventId) {
                   // Update existing event
