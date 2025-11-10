@@ -865,12 +865,30 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_schedule",
-          description: "Get calendar events for a specific date range",
+          description: `**🔴 MANDATORY - ALWAYS USE THIS FOR SPECIFIC DATE QUERIES 🔴**
+          
+          ⚠️ CRITICAL: When user asks about events on ANY specific date, you MUST call this tool. NO EXCEPTIONS.
+          
+          **ALWAYS use this when user says:**
+          - "do I have event on [date]?" → MUST call with from=[date], to=[date]
+          - "what's on [date]?" → MUST call with from=[date], to=[date]
+          - "show events for [date]" → MUST call with from=[date], to=[date]
+          - "tell me if i have event on [date]" → MUST call with from=[date], to=[date]
+          - "events on [specific date]" → MUST call with from=[date], to=[date]
+          
+          **DATE PARSING**:
+          - "November 12" or "november 12" → from="2025-11-12", to="2025-11-12"
+          - "18th November" or "18 november" → from="2025-11-18", to="2025-11-18"
+          - "24th this month" → from="2025-11-24", to="2025-11-24"
+          
+          **NEVER say "unable to retrieve" without calling this tool first!**
+          
+          Returns: Calendar events with payment details, customer info, and times converted to user's timezone.`,
           parameters: {
             type: "object",
             properties: {
-              from: { type: "string", description: "Start date (YYYY-MM-DD)" },
-              to: { type: "string", description: "End date (YYYY-MM-DD)" }
+              from: { type: "string", description: "Start date (YYYY-MM-DD) - REQUIRED" },
+              to: { type: "string", description: "End date (YYYY-MM-DD) - REQUIRED" }
             },
             required: ["from", "to"]
           }
