@@ -2082,31 +2082,39 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 - **CRITICAL WORKFLOW FOR ALL EDITS**:
   1. User mentions "edit event aaa" / "update task XYZ" / "edit customer John" / "add to that event"
   2. OPTION A (SIMPLE - RECOMMENDED): Just call create_or_update_* with the name - auto-search handles it!
-     - For EVENTS: Call create_or_update_event(full_name="aaa", ...) - finds event "aaa" automatically
-     - For TASKS: Call create_or_update_task(task_name="XYZ", ...) - finds task "XYZ" automatically  
-     - For CUSTOMERS: Call create_or_update_customer(full_name="John", ...) - finds "John" automatically
+     - For EVENTS: Call create_or_update_event(full_name="aaa", notes="new note") - finds event "aaa" automatically
+     - For TASKS: Call create_or_update_task(task_name="XYZ", status="done") - finds task "XYZ" automatically  
+     - For CUSTOMERS: Call create_or_update_customer(full_name="John", payment_amount=100) - finds "John" automatically
   3. OPTION B (IF YOU WANT TO SHOW INFO FIRST): Search first, then update
-     - For EVENTS: Call get_all_events to find event, then create_or_update_event with event_id
+     - For EVENTS: Call get_upcoming_events to find event, then create_or_update_event with event_id
      - For TASKS: Call get_all_tasks to find task, then create_or_update_task with task_id
      - For CUSTOMERS: Just use full_name (no search needed)
   
-- **EVENTS EDITING EXAMPLE (SIMPLIFIED WITH AUTO-SEARCH)**:
-  - User: "add description to that event with text: aaa"
-  - AI: Remembers recent event was "fadfda"
-  - AI: ✅ Calls create_or_update_event(full_name="fadfda", notes="aaa", start_date=same, end_date=same)
-  - Tool: Auto-finds "fadfda" event and UPDATES it (no duplicate created!)
-  - AI: Responds "✅ Event updated: fadfda"
+- **🔥 CRITICAL: PRESERVE ORIGINAL DATA WHEN EDITING 🔥**:
+  - ❌ DO NOT include start_date/end_date parameters when editing events UNLESS the user specifically asks to change the time
+  - ❌ DO NOT include deadline when editing tasks UNLESS the user asks to change the deadline
+  - ✅ ONLY include parameters for fields the user explicitly wants to change
+  - Example: "edit event BBAA and add note sad" → ONLY pass full_name="BBAA" and notes="sad" (NO start_date, NO end_date)
+  - Example: "change event BBAA time to 3pm" → Pass full_name="BBAA", start_date="2025-11-11T15:00:00", end_date="2025-11-11T16:00:00"
+  - The system will automatically preserve all other fields (times, payments, files, etc.)
+
+- **EVENTS EDITING EXAMPLE (CORRECT - PRESERVES TIMES)**:
+  - User: "edit that event and add note sad"
+  - AI: Remembers recent event was "BBAA"
+  - AI: ✅ Calls create_or_update_event(full_name="BBAA", notes="sad")  // NO start_date, NO end_date!
+  - Tool: Auto-finds "BBAA" event, preserves original times (9:00-10:00), updates notes only
+  - AI: Responds "✅ Event updated: BBAA (note added, original time 9:00-10:00 preserved)"
   
-- **TASKS EDITING EXAMPLE (SIMPLIFIED WITH AUTO-SEARCH)**:
+- **TASKS EDITING EXAMPLE (CORRECT - PRESERVES DATA)**:
   - User: "move task KAKA to done status"
-  - AI: ✅ Calls create_or_update_task(task_name="KAKA", status="done")
-  - Tool: Auto-finds "KAKA" task and updates status
-  - AI: Responds "✅ Task updated: KAKA"
+  - AI: ✅ Calls create_or_update_task(task_name="KAKA", status="done")  // Only status, nothing else!
+  - Tool: Auto-finds "KAKA" task, preserves description/deadline/files, updates status only
+  - AI: Responds "✅ Task updated: KAKA → done"
   
-- **CUSTOMERS EDITING EXAMPLE (SIMPLIFIED WITH AUTO-SEARCH)**:
+- **CUSTOMERS EDITING EXAMPLE (CORRECT - PRESERVES DATA)**:
   - User: "edit customer BAS and add payment 10$"
-  - AI: ✅ Calls create_or_update_customer(full_name="BAS", payment_amount=10)
-  - Tool: Auto-finds "BAS" customer and updates payment
+  - AI: ✅ Calls create_or_update_customer(full_name="BAS", payment_amount=10)  // Only payment!
+  - Tool: Auto-finds "BAS" customer, preserves phone/email/notes, updates payment only
   - Files uploaded during edit attach automatically!
   
 - **FILE ATTACHMENTS DURING EDITING**:
@@ -2118,10 +2126,12 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 - **CRITICAL RULES FOR EDITING**:
   - ✅ When user says "edit X" or "that item" → Use the EXACT name from conversation context
   - ✅ Auto-search finds items by name - NO manual searching needed (but you can if you want to show info)
-  - ✅ ALL existing data is preserved (files, payments, notes, etc.) - only update what user mentions
+  - ✅ ALL existing data is preserved (files, payments, notes, times, etc.) - ONLY update what user explicitly mentions
+  - ✅ DO NOT pass start_date/end_date unless user explicitly wants to change the time
+  - ✅ DO NOT pass deadline unless user explicitly wants to change the deadline
   - ❌ NEVER create NEW items when user says "edit", "update", "add to", "change"
   - ❌ NEVER ask user for IDs - tools handle finding by name automatically
-  - ✅ ALWAYS just use full_name from conversation - system finds automatically
+  - ✅ ALWAYS just use full_name from conversation - system finds automatically and preserves data
   - The system searches by exact name and updates the most recent match
 
 **IMPORTANT PRINCIPLES:**
@@ -2923,8 +2933,26 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .lte('start_date', `${today}T23:59:59`)
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
-              toolResult = { date: today, events: events || [] };
-              console.log(`    ✓ Found ${toolResult.events.length} events today`);
+              
+              // Convert UTC times to user's local timezone for accurate display
+              const eventsWithLocalTimes = (events || []).map(event => {
+                const startUTC = new Date(event.start_date);
+                const endUTC = new Date(event.end_date);
+                
+                // Convert to local time (subtract offset because UTC is ahead)
+                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
+                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                
+                return {
+                  ...event,
+                  start_date: startLocal.toISOString().slice(0, 19),
+                  end_date: endLocal.toISOString().slice(0, 19),
+                  timezone_note: `Times shown in ${effectiveTZ || 'your local timezone'}`
+                };
+              });
+              
+              toolResult = { date: today, events: eventsWithLocalTimes };
+              console.log(`    ✓ Found ${toolResult.events.length} events today (times converted to ${effectiveTZ})`);
               break;
             }
 
@@ -2944,12 +2972,29 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .order('start_date', { ascending: true })
                 .limit(20);
               
+              // Convert UTC times to user's local timezone for accurate display
+              const eventsWithLocalTimes = (events || []).map(event => {
+                const startUTC = new Date(event.start_date);
+                const endUTC = new Date(event.end_date);
+                
+                // Convert to local time (subtract offset because UTC is ahead)
+                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
+                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                
+                return {
+                  ...event,
+                  start_date: startLocal.toISOString().slice(0, 19),
+                  end_date: endLocal.toISOString().slice(0, 19),
+                  timezone_note: `Times shown in ${effectiveTZ || 'your local timezone'}`
+                };
+              });
+              
               toolResult = { 
                 from: startDate.toISOString().split('T')[0],
                 to: endDate.toISOString().split('T')[0],
-                events: events || [] 
+                events: eventsWithLocalTimes
               };
-              console.log(`    ✓ Found ${toolResult.events.length} upcoming events`);
+              console.log(`    ✓ Found ${toolResult.events.length} upcoming events (times converted to ${effectiveTZ})`);
               break;
             }
 
@@ -2962,8 +3007,26 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .lte('end_date', args.to)
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
-              toolResult = events || [];
-              console.log(`    ✓ Found ${toolResult.length} events`);
+              
+              // Convert UTC times to user's local timezone for accurate display
+              const eventsWithLocalTimes = (events || []).map(event => {
+                const startUTC = new Date(event.start_date);
+                const endUTC = new Date(event.end_date);
+                
+                // Convert to local time (subtract offset because UTC is ahead)
+                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
+                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                
+                return {
+                  ...event,
+                  start_date: startLocal.toISOString().slice(0, 19),
+                  end_date: endLocal.toISOString().slice(0, 19),
+                  timezone_note: `Times shown in ${effectiveTZ || 'your local timezone'}`
+                };
+              });
+              
+              toolResult = eventsWithLocalTimes;
+              console.log(`    ✓ Found ${toolResult.length} events (times converted to ${effectiveTZ})`);
               break;
             }
 
@@ -4818,21 +4881,25 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   return guess.toISOString();
                 };
                 
-                // Convert start and end dates to UTC
-                const startDateUTC = convertLocalToUTC(start_date);
-                const endDateUTC = convertLocalToUTC(end_date);
+                // Convert start and end dates to UTC (using preserved dates if editing without new times)
+                const startDateUTC = preservedStartDate ? (preservedStartDate.includes('Z') || preservedStartDate.includes('+') ? preservedStartDate : convertLocalToUTC(preservedStartDate)) : convertLocalToUTC(start_date);
+                const endDateUTC = preservedEndDate ? (preservedEndDate.includes('Z') || preservedEndDate.includes('+') ? preservedEndDate : convertLocalToUTC(preservedEndDate)) : convertLocalToUTC(end_date);
                 
                 console.log('🕐 Timezone conversion:', {
-                  localStart: start_date,
+                  localStart: preservedStartDate || start_date,
                   utcStart: startDateUTC,
-                  localEnd: end_date,
+                  localEnd: preservedEndDate || end_date,
                   utcEnd: endDateUTC,
                   effectiveTZ,
-                  tzOffsetMinutes
+                  tzOffsetMinutes,
+                  preserved: !start_date || !end_date
                 });
                 
                 // 🎯 AUTO-SEARCH: If no event_id provided, search for existing event by full_name
                 let finalEventId = event_id;
+                let preservedStartDate = start_date;
+                let preservedEndDate = end_date;
+                
                 if (!finalEventId && full_name) {
                   console.log(`    🔍 Auto-searching for existing event with name: ${full_name}`);
                   const { data: existingEvents } = await supabaseAdmin
@@ -4846,6 +4913,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   
                   if (existingEvents && existingEvents.length > 0) {
                     finalEventId = existingEvents[0].id;
+                    
+                    // ✅ CRITICAL: If dates weren't provided, preserve original event times
+                    if (!start_date || !end_date) {
+                      preservedStartDate = existingEvents[0].start_date;
+                      preservedEndDate = existingEvents[0].end_date;
+                      console.log(`    📅 PRESERVING original event times: ${preservedStartDate} to ${preservedEndDate}`);
+                    }
+                    
                     console.log(`    ✅ Found existing event: ${existingEvents[0].user_surname || existingEvents[0].title} (ID: ${finalEventId})`);
                     console.log(`    📝 This will be an UPDATE, not a new creation`);
                   } else {
