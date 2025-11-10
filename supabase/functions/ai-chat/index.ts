@@ -2939,9 +2939,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                // Convert to local time (subtract offset because UTC is ahead)
-                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
-                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                // CORRECT: Add offset to UTC (tzOffsetMinutes is negative for ahead of UTC)
+                // Example: UTC+4 has tzOffsetMinutes=-240, so we ADD 240 minutes
+                const startLocal = new Date(startUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
+                const endLocal = new Date(endUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
                 
                 return {
                   ...event,
@@ -2977,9 +2978,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                // Convert to local time (subtract offset because UTC is ahead)
-                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
-                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                // CORRECT: Add offset to UTC (tzOffsetMinutes is negative for ahead of UTC)
+                const startLocal = new Date(startUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
+                const endLocal = new Date(endUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
                 
                 return {
                   ...event,
@@ -3013,9 +3014,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                // Convert to local time (subtract offset because UTC is ahead)
-                const startLocal = new Date(startUTC.getTime() - (tzOffsetMinutes * 60000));
-                const endLocal = new Date(endUTC.getTime() - (tzOffsetMinutes * 60000));
+                // CORRECT: Add offset to UTC
+                const startLocal = new Date(startUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
+                const endLocal = new Date(endUTC.getTime() + (Math.abs(tzOffsetMinutes) * 60000));
                 
                 return {
                   ...event,
@@ -4845,10 +4846,12 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     .is('deleted_at', null)
                     .or(`title.ilike.%${full_name}%,user_surname.ilike.%${full_name}%`)
                     .order('created_at', { ascending: false })
-                    .limit(1);
+                    .limit(5);
                   
                   if (existingEvents && existingEvents.length > 0) {
+                    // Return the actual event data to LLM for confirmation
                     finalEventId = existingEvents[0].id;
+                    console.log(`    ✅ Found existing event ID (UUID): ${finalEventId}`);
                     
                     // ✅ CRITICAL: If dates weren't provided, preserve original event times
                     if (!start_date || !end_date) {
