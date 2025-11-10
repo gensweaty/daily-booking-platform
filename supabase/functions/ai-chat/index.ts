@@ -1352,14 +1352,42 @@ CRITICAL RULES:
         type: "function",
         function: {
           name: "create_or_update_event",
-          description: `Create or update calendar events/appointments/bookings.
-          
-MANDATORY fields:
-- full_name: Customer/client full name
+          description: `Create or update calendar events/appointments/bookings - with AUTOMATIC event search built-in!
+
+🎯 AUTO-SEARCH FEATURE (CRITICAL FOR EDITING):
+✅ Just provide event_name or full_name - tool AUTOMATICALLY finds existing event and updates it!
+✅ If event exists → UPDATE it (preserves ALL existing data)
+✅ If event doesn't exist → CREATE new one
+✅ NO need to call get_upcoming_events() first for simple edits - this tool handles everything!
+
+🚨 FOR EDITING EVENTS - UNDERSTAND CONTEXT:
+When user says:
+- "add description to that event" → Use the SAME full_name from the event just created/discussed
+- "edit event fadfda and add notes" → Use full_name="fadfda" (tool auto-finds it)
+- "update the event with payment info" → Use the full_name from recent conversation context
+
+📋 EXAMPLE USAGE FOR EDITING:
+User creates: "create event for fadfda from 5am to 6am"
+→ AI creates event with full_name="fadfda"
+User: "add description to that event with text: aaa"
+→ Call: create_or_update_event(full_name="fadfda", notes="aaa", start_date="2025-11-10T05:00:00", end_date="2025-11-10T06:00:00")
+→ Tool auto-finds "fadfda" event and UPDATES it (not creates new one!)
+→ Respond: "✅ Event updated: fadfda"
+
+🔴 CRITICAL RULES FOR EDITING:
+- User says "edit that event" or "add to that event" → Reuse the SAME full_name from previous context
+- DO NOT create new events when user says "edit", "update", "add to", "change"
+- The auto-search finds events by full_name and updates them
+- ALL existing event data is preserved (phone, email, payment status, files, etc.)
+- ONLY update the fields user explicitly mentions
+
+MANDATORY fields for NEW events:
+- full_name: Customer/client full name (ALSO used for auto-search when editing)
 - start_date: Event start date/time (ISO format YYYY-MM-DDTHH:mm or user timezone)
 - end_date: Event end date/time (ISO format YYYY-MM-DDTHH:mm or user timezone)
 
 OPTIONAL fields (if user provides):
+- event_id: Event ID for direct update (auto-found if not provided)
 - phone_number: Contact phone
 - social_media: Email or social network link  
 - notes: Event notes or description
@@ -1367,23 +1395,7 @@ OPTIONAL fields (if user provides):
 - payment_amount: Payment amount (number)
 - event_name: Type of event (birthday, meeting, etc)
 - reminder: ISO timestamp for event reminder (enables email + AI chat notification)
-- email_reminder: boolean (auto-enabled with reminder)
-
-SCHEDULING REMINDERS FOR EVENTS:
-- If user wants to set a reminder for an existing event by name (e.g., "remind me about the meeting")
-- FIRST search for that event using get_all_events
-- Then update it with reminder parameter to schedule the reminder
-- This triggers BOTH email AND AI chat notification at the specified time
-- For relative times (e.g., "in 1 minute", "in 2 hours"):
-  * MANDATORY: Call get_current_datetime FIRST to get exact current time
-  * Calculate the reminder time by adding the offset to current time
-  * Use the calculated ISO timestamp in reminder parameter
-
-EDITING EVENTS:
-- If user mentions editing an event, FIRST use get_upcoming_events or get_all_events to find the event by name
-- Then include the event_id parameter to update it
-- Files uploaded during editing will be added to the event
-- Example: "edit event aaa" → call get_upcoming_events, find "aaa", then call with event_id`,
+- email_reminder: boolean (auto-enabled with reminder)`,
           parameters: {
             type: "object",
             properties: {
@@ -2045,47 +2057,70 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 - If they want to create event too → ask for event dates
 - Payment details are OPTIONAL - only include if provided
 
+
 **FOR EDITING/UPDATING:**
+- **🎯 CONVERSATION CONTEXT TRACKING (CRITICAL FOR "THAT" REFERENCES)**:
+  * When you CREATE an event/task/customer, REMEMBER its name for the next few messages
+  * When user says "that event", "this task", "the customer", "add to it", "edit that one":
+    → USE THE SAME NAME from the most recent creation/discussion
+  * Example conversation flow:
+    - User: "create event for fadfda from 5am to 6am"
+    - AI: Creates event with full_name="fadfda"
+    - User: "add description to that event with text: aaa"
+    - AI: ✅ Calls create_or_update_event(full_name="fadfda", notes="aaa", start_date=same, end_date=same)
+    - AI: ❌ NEVER creates a NEW event - auto-search finds "fadfda" and UPDATES it
+  * This applies to ALL entity types: events, tasks, customers
+  * ALWAYS reuse the exact name when user references "that" or "this"
+
+- **🔍 AUTO-SEARCH FEATURE (NEW - NO MORE MANUAL SEARCHING!):**
+  * ✅ Events: Just provide full_name - tool auto-finds and updates existing event
+  * ✅ Tasks: Just provide task_name - tool auto-finds and updates existing task
+  * ✅ Customers: Just provide full_name - tool auto-finds and updates existing customer
+  * ❌ NO need to call get_all_* before editing anymore (but you CAN if you want to show info first)
+  * The tools are smart - they search automatically by name!
+
 - **CRITICAL WORKFLOW FOR ALL EDITS**:
-  1. User mentions "edit event aaa" / "update task XYZ" / "edit customer John" / "change that event"
-  2. YOU MUST FIRST search for the item to get its ID:
-     - For EVENTS: Call get_all_events or get_upcoming_events to find the event by name/title
-     - For TASKS: Call get_all_tasks to find the task by name/title
-     - For CUSTOMERS: Just use the full_name - system automatically finds by exact name match
-  3. Then call create_or_update_* with the found ID (except customers)
+  1. User mentions "edit event aaa" / "update task XYZ" / "edit customer John" / "add to that event"
+  2. OPTION A (SIMPLE - RECOMMENDED): Just call create_or_update_* with the name - auto-search handles it!
+     - For EVENTS: Call create_or_update_event(full_name="aaa", ...) - finds event "aaa" automatically
+     - For TASKS: Call create_or_update_task(task_name="XYZ", ...) - finds task "XYZ" automatically  
+     - For CUSTOMERS: Call create_or_update_customer(full_name="John", ...) - finds "John" automatically
+  3. OPTION B (IF YOU WANT TO SHOW INFO FIRST): Search first, then update
+     - For EVENTS: Call get_all_events to find event, then create_or_update_event with event_id
+     - For TASKS: Call get_all_tasks to find task, then create_or_update_task with task_id
+     - For CUSTOMERS: Just use full_name (no search needed)
   
-- **EVENTS EDITING EXAMPLE**:
-  - User: "edit event aaa and add this document"
-  - Step 1: Call get_all_events or get_upcoming_events
-  - Step 2: Find event with title matching "aaa", get its event_id
-  - Step 3: Call create_or_update_event with event_id + new data + attachments (files auto-link!)
+- **EVENTS EDITING EXAMPLE (SIMPLIFIED WITH AUTO-SEARCH)**:
+  - User: "add description to that event with text: aaa"
+  - AI: Remembers recent event was "fadfda"
+  - AI: ✅ Calls create_or_update_event(full_name="fadfda", notes="aaa", start_date=same, end_date=same)
+  - Tool: Auto-finds "fadfda" event and UPDATES it (no duplicate created!)
+  - AI: Responds "✅ Event updated: fadfda"
   
-- **TASKS EDITING EXAMPLE**:
-  - User: "edit task KAKA to done status"
-  - Step 1: Call get_all_tasks
-  - Step 2: Find task with title matching "KAKA", get its task_id
-  - Step 3: Call create_or_update_task with task_id and status="done"
+- **TASKS EDITING EXAMPLE (SIMPLIFIED WITH AUTO-SEARCH)**:
+  - User: "move task KAKA to done status"
+  - AI: ✅ Calls create_or_update_task(task_name="KAKA", status="done")
+  - Tool: Auto-finds "KAKA" task and updates status
+  - AI: Responds "✅ Task updated: KAKA"
   
-- **CUSTOMERS EDITING EXAMPLE** (DIFFERENT - NO SEARCH NEEDED):
+- **CUSTOMERS EDITING EXAMPLE (SIMPLIFIED WITH AUTO-SEARCH)**:
   - User: "edit customer BAS and add payment 10$"
-  - Step 1: Just call create_or_update_customer with full_name="BAS", payment_amount=10
-  - NO need to search first - system auto-finds by exact name
-  - Files uploaded during edit will be attached automatically!
+  - AI: ✅ Calls create_or_update_customer(full_name="BAS", payment_amount=10)
+  - Tool: Auto-finds "BAS" customer and updates payment
+  - Files uploaded during edit attach automatically!
   
 - **FILE ATTACHMENTS DURING EDITING**:
   - ✅ Files uploaded with edit requests are AUTOMATICALLY attached
   - ✅ Works for ALL types: events, tasks, customers
-  - ✅ NO extra parameters needed - just call the edit function with ID
+  - ✅ NO extra parameters needed - just call the tool with the name
   - Example: "edit event aaa and attach this document" → Files auto-link to event aaa
   
-- **CRITICAL: SEARCH FIRST FOR EVENTS/TASKS**:
-  - ❌ NEVER call create_or_update_event/task without event_id/task_id when user says "edit"
-  - ✅ ALWAYS search first using get_all_* tools to find the ID
-  - ❌ NEVER ask user for IDs - YOU must find them via search tools
-  
-- **CUSTOMERS ARE EXCEPTION**:
-  - ❌ NEVER search for customers before editing
-  - ❌ NEVER provide customer_id parameter
+- **CRITICAL RULES FOR EDITING**:
+  - ✅ When user says "edit X" or "that item" → Use the EXACT name from conversation context
+  - ✅ Auto-search finds items by name - NO manual searching needed (but you can if you want to show info)
+  - ✅ ALL existing data is preserved (files, payments, notes, etc.) - only update what user mentions
+  - ❌ NEVER create NEW items when user says "edit", "update", "add to", "change"
+  - ❌ NEVER ask user for IDs - tools handle finding by name automatically
   - ✅ ALWAYS just use full_name from conversation - system finds automatically
   - The system searches by exact name and updates the most recent match
 
@@ -4796,8 +4831,30 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   tzOffsetMinutes
                 });
                 
+                // 🎯 AUTO-SEARCH: If no event_id provided, search for existing event by full_name
+                let finalEventId = event_id;
+                if (!finalEventId && full_name) {
+                  console.log(`    🔍 Auto-searching for existing event with name: ${full_name}`);
+                  const { data: existingEvents } = await supabaseAdmin
+                    .from('events')
+                    .select('id, title, user_surname, start_date, end_date')
+                    .eq('user_id', ownerId)
+                    .is('deleted_at', null)
+                    .or(`title.ilike.%${full_name}%,user_surname.ilike.%${full_name}%`)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                  
+                  if (existingEvents && existingEvents.length > 0) {
+                    finalEventId = existingEvents[0].id;
+                    console.log(`    ✅ Found existing event: ${existingEvents[0].user_surname || existingEvents[0].title} (ID: ${finalEventId})`);
+                    console.log(`    📝 This will be an UPDATE, not a new creation`);
+                  } else {
+                    console.log(`    ℹ️ No existing event found with name "${full_name}" - will create new one`);
+                  }
+                }
+                
                 // Check for time conflicts BEFORE creating (only for new events)
-                if (!event_id) {
+                if (!finalEventId) {
                   const { data: conflicts } = await supabaseAdmin
                     .from('events')
                     .select('id, title, start_date, end_date, user_surname')
@@ -4850,13 +4907,13 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   repeat_until: repeat_until || null
                 };
 
-                if (event_id) {
+                if (finalEventId) {
                   // Update existing event
                   const { data: result, error: updateError } = await supabaseAdmin.rpc('save_event_with_persons', {
                     p_event_data: eventData,
                     p_additional_persons: formattedAdditionalPersons,
                     p_user_id: ownerId,
-                    p_event_id: event_id,
+                    p_event_id: finalEventId,
                     p_created_by_type: requesterType,
                     p_created_by_name: baseName,  // ← Use clean name without "(AI)"
                     p_created_by_ai: true,        // ← Boolean flag for AI creation
@@ -4874,14 +4931,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     // Link chat attachment files to event without re-uploading
                     let uploadedFiles = [];
                     if (attachments && attachments.length > 0) {
-                      console.log(`    📎 Linking ${attachments.length} file attachments to event ${event_id}`);
+                      console.log(`    📎 Linking ${attachments.length} file attachments to event ${finalEventId}`);
                       for (const attachment of attachments) {
                         try {
                           console.log(`    → Linking ${attachment.filename} from chat_attachments`);
                           
                           // Create event_files record pointing to chat_attachments file
                           const { error: dbError } = await supabaseAdmin.from('event_files').insert({
-                            event_id: event_id,
+                            event_id: finalEventId,
                             user_id: ownerId,
                             filename: attachment.filename,
                             file_path: attachment.file_path.startsWith('chat_attachments/') ? attachment.file_path : `chat_attachments/${attachment.file_path}`,
@@ -4904,7 +4961,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     
                     toolResult = { 
                       success: true, 
-                      event_id: result || event_id,
+                      event_id: result || finalEventId,
                       action: 'updated',
                       message: `Event updated: ${full_name}`,
                       uploaded_files: uploadedFiles,
