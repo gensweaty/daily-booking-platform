@@ -3106,23 +3106,38 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'get_schedule': {
-              // ✅ CRITICAL FIX: Validate parameters and use proper interval overlap logic
-              // Handle potential typos in parameter names (from1_ → from)
-              const fromParam = args.from || (args as any).from1_ || (args as any).from_;
-              const toParam = args.to || (args as any).to1_ || (args as any).to_;
+              // ✅ BULLETPROOF FIX: Handle all parameter variations and validate types
+              console.log('🔍 get_schedule called with args:', JSON.stringify(args));
               
-              if (!fromParam || !toParam) {
-                console.error('❌ get_schedule: Missing required parameters', { args });
+              // Check all possible parameter name variations
+              let fromParam = args.from || (args as any).from1_ || (args as any).from_ || (args as any).start || null;
+              let toParam = args.to || (args as any).to1_ || (args as any).to_ || (args as any).end || null;
+              
+              // Type validation and sanitization
+              if (fromParam && typeof fromParam !== 'string') {
+                fromParam = String(fromParam);
+              }
+              if (toParam && typeof toParam !== 'string') {
+                toParam = String(toParam);
+              }
+              
+              // Final validation
+              if (!fromParam || !toParam || fromParam.trim() === '' || toParam.trim() === '') {
+                console.error('❌ get_schedule: Invalid parameters after normalization', { 
+                  original: args,
+                  normalized: { fromParam, toParam }
+                });
                 toolResult = {
                   success: false,
-                  error: 'Missing required date parameters',
-                  received: Object.keys(args)
+                  error: 'Invalid date parameters. Please provide valid from and to dates in YYYY-MM-DD format.',
+                  hint: 'Example: from: "2025-11-18", to: "2025-11-18"',
+                  received: args
                 };
                 break;
               }
               
-              const fromDate = fromParam.includes('T') ? fromParam : `${fromParam}T00:00:00`;
-              const toDate = toParam.includes('T') ? toParam : `${toParam}T23:59:59`;
+              const fromDate = (typeof fromParam === 'string' && fromParam.includes('T')) ? fromParam : `${fromParam}T00:00:00`;
+              const toDate = (typeof toParam === 'string' && toParam.includes('T')) ? toParam : `${toParam}T23:59:59`;
               
               console.log(`🔍 get_schedule: Finding events that overlap ${fromDate} to ${toDate}`);
               
