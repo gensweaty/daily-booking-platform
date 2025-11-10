@@ -1548,6 +1548,33 @@ EDITING CUSTOMERS:
 
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
 
+🚨🚨🚨 ULTRA-CRITICAL: NATURAL COMMUNICATION STYLE 🚨🚨🚨
+
+**YOU ARE A SMART COMPANION, NOT A TECHNICAL AI**
+- NEVER mention "calling tools", "using functions", "checking database", "analyzing data", or any technical implementation details
+- NEVER mention "images", "screenshots", or "the picture shows" - users send you context, not images to analyze
+- NEVER explain HOW you got information - just respond as if you naturally know it
+- NEVER say things like "Let me check your schedule" or "I'll look that up" - you already have access to all their data
+- Respond DIRECTLY and NATURALLY as a knowledgeable assistant who knows the user's business inside out
+
+**CORRECT EXAMPLES:**
+✅ "You have one event today: sdf from 9:00 AM to 1:00 PM"
+✅ "Your schedule is clear tomorrow"
+✅ "You have 3 tasks in progress and 2 completed today"
+
+**FORBIDDEN EXAMPLES:**
+❌ "The image shows events on November 2nd..."
+❌ "To confirm the events on November 3rd and 4th, I need to call the get_schedule tool"
+❌ "Let me check your database..."
+❌ "I'll analyze your schedule..."
+❌ Any mention of tools, functions, images, or technical processes
+
+**WHEN USER ASKS A SIMPLE QUESTION LIKE "do i have any events today?"**
+- Immediately know the answer from the data you have access to
+- Respond in ONE clear sentence with the relevant information
+- Show times in the user's local timezone (currently ${effectiveTZ || 'UTC+4'})
+- Be concise, accurate, and human-like
+
 🚨🚨🚨 CRITICAL PRE-CHECK - READ THIS BEFORE ANYTHING ELSE 🚨🚨🚨
 
 ⚡⚡⚡ MESSAGE TYPE DETECTION - MANDATORY FIRST STEP ⚡⚡⚡
@@ -2925,6 +2952,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
             case 'get_todays_schedule': {
               const today = new Date().toISOString().split('T')[0];
+              
+              console.log(`🔍 get_todays_schedule: Fetching events for ${today}`);
+              console.log(`🌍 Timezone info: effectiveTZ=${effectiveTZ}, userTimezone=${userTimezone}, tzOffsetMinutes=${tzOffsetMinutes}`);
+              
               const { data: events } = await supabaseClient
                 .from('events')
                 .select('id, title, start_date, end_date, payment_status, payment_amount, user_surname, user_number, event_notes')
@@ -2934,33 +2965,66 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
               
-              // ✅ PHASE 1 FIX: Simplified timezone conversion using toLocaleString (same as reminders)
+              console.log(`📊 Found ${(events || []).length} raw events from database`);
+              
+              // ✅ ROBUST TIMEZONE CONVERSION: Use the same iterative adjustment logic that works for reminders
               const eventsWithLocalTimes = (events || []).map(event => {
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
-                console.log(`  📅 Event: ${event.title || event.user_surname} - UTC ${event.start_date}`);
+                console.log(`\n📅 Processing event: "${event.title || event.user_surname}"`);
+                console.log(`   UTC stored: ${event.start_date} to ${event.end_date}`);
+                console.log(`   UTC Date objects: ${startUTC.toISOString()} to ${endUTC.toISOString()}`);
                 
-                // Simple, reliable formatting using toLocaleString
-                const formatInTimezone = (date: Date): string => {
-                  const localStr = date.toLocaleString('en-CA', {
-                    timeZone: effectiveTZ || userTimezone,
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false
-                  });
-                  // Convert "YYYY-MM-DD, HH:MM:SS" to "YYYY-MM-DDTHH:MM:SS"
-                  return localStr.replace(', ', 'T');
+                // Use the EXACT SAME conversion logic as reminders (which works correctly)
+                const convertUTCToLocal = (utcDate: Date): string => {
+                  if (!effectiveTZ) {
+                    console.log(`   ⚠️ No effectiveTZ, using offset fallback`);
+                    // Fallback: use offset
+                    if (typeof tzOffsetMinutes === 'number') {
+                      const localMs = utcDate.getTime() - (tzOffsetMinutes * 60000);
+                      const localDate = new Date(localMs);
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      return `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())}T${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}:${pad(localDate.getUTCSeconds())}`;
+                    }
+                    // Last resort: return UTC
+                    return utcDate.toISOString().replace('Z', '');
+                  }
+                  
+                  try {
+                    // Use Intl.DateTimeFormat with the EXACT same approach as reminders
+                    const formatter = new Intl.DateTimeFormat('en-CA', {
+                      timeZone: effectiveTZ,
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      hour12: false
+                    });
+                    
+                    const parts = formatter.formatToParts(utcDate);
+                    const values: Record<string, string> = {};
+                    parts.forEach(part => {
+                      if (part.type !== 'literal') {
+                        values[part.type] = part.value;
+                      }
+                    });
+                    
+                    const result = `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}`;
+                    console.log(`   ✅ Converted to ${effectiveTZ}: ${result}`);
+                    return result;
+                  } catch (err) {
+                    console.error(`   ❌ Conversion error:`, err);
+                    return utcDate.toISOString().replace('Z', '');
+                  }
                 };
                 
-                const convertedStart = formatInTimezone(startUTC);
-                const convertedEnd = formatInTimezone(endUTC);
+                const localStart = convertUTCToLocal(startUTC);
+                const localEnd = convertUTCToLocal(endUTC);
                 
-                console.log(`  ✅ Converted to ${effectiveTZ}: ${convertedStart} to ${convertedEnd}`);
+                console.log(`   📤 Returning to LLM: ${localStart} to ${localEnd}`);
                 
                 return {
                   id: event.id,
@@ -2970,13 +3034,18 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   event_notes: event.event_notes,
                   payment_status: event.payment_status,
                   payment_amount: event.payment_amount,
-                  start_date: convertedStart,
-                  end_date: convertedEnd
+                  start_date: localStart,
+                  end_date: localEnd
                 };
               });
               
               toolResult = { date: today, events: eventsWithLocalTimes };
-              console.log(`    ✓ Found ${toolResult.events.length} events today (times converted to ${effectiveTZ})`);
+              console.log(`\n✅ FINAL RESULT: Returning ${toolResult.events.length} events with times in ${effectiveTZ || 'offset-adjusted timezone'}`);
+              console.log(`📋 Event times being sent to LLM:`, JSON.stringify(eventsWithLocalTimes.map(e => ({
+                name: e.title || e.user_surname,
+                start: e.start_date,
+                end: e.end_date
+              })), null, 2));
               break;
             }
 
