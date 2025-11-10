@@ -3106,13 +3106,23 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'get_schedule': {
-              // ✅ CRITICAL FIX: Use proper interval overlap logic to find events in date range
-              // An event overlaps with the range if:
-              // - It starts before or during the range (start_date <= range_end)
-              // - AND it ends after or during the range (end_date >= range_start)
+              // ✅ CRITICAL FIX: Validate parameters and use proper interval overlap logic
+              // Handle potential typos in parameter names (from1_ → from)
+              const fromParam = args.from || (args as any).from1_ || (args as any).from_;
+              const toParam = args.to || (args as any).to1_ || (args as any).to_;
               
-              const fromDate = args.from.includes('T') ? args.from : `${args.from}T00:00:00`;
-              const toDate = args.to.includes('T') ? args.to : `${args.to}T23:59:59`;
+              if (!fromParam || !toParam) {
+                console.error('❌ get_schedule: Missing required parameters', { args });
+                toolResult = {
+                  success: false,
+                  error: 'Missing required date parameters',
+                  received: Object.keys(args)
+                };
+                break;
+              }
+              
+              const fromDate = fromParam.includes('T') ? fromParam : `${fromParam}T00:00:00`;
+              const toDate = toParam.includes('T') ? toParam : `${toParam}T23:59:59`;
               
               console.log(`🔍 get_schedule: Finding events that overlap ${fromDate} to ${toDate}`);
               
