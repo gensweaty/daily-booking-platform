@@ -123,6 +123,71 @@ serve(async (req) => {
     const userLanguage = detectLanguage(prompt);
     console.log('🌐 Detected user language from current message:', userLanguage);
 
+    // 🔥 PRE-FETCH CALENDAR DATA FOR CURRENT MONTH (gives AI direct access to events)
+    let preloadedCalendarContext = '';
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const { data: monthEvents } = await supabaseClient
+        .from('events')
+        .select('id, title, user_surname, start_date, end_date, payment_status, payment_amount')
+        .eq('user_id', ownerId)
+        .gte('start_date', startOfMonth.toISOString())
+        .lte('start_date', endOfMonth.toISOString())
+        .is('deleted_at', null)
+        .order('start_date', { ascending: true });
+      
+      if (monthEvents && monthEvents.length > 0) {
+        preloadedCalendarContext = `\n\n📅 **CURRENT MONTH CALENDAR DATA (${startOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}):**\n`;
+        preloadedCalendarContext += `You have ${monthEvents.length} events this month:\n\n`;
+        
+        monthEvents.forEach(event => {
+          const startDate = new Date(event.start_date);
+          const endDate = new Date(event.end_date);
+          const dayNum = startDate.getDate();
+          const displayName = event.title || event.user_surname;
+          
+          // Convert to user timezone
+          let localStart = startDate.toISOString();
+          let localEnd = endDate.toISOString();
+          
+          if (effectiveTZ) {
+            try {
+              localStart = startDate.toLocaleString('en-US', { 
+                timeZone: effectiveTZ, 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false 
+              });
+              localEnd = endDate.toLocaleString('en-US', { 
+                timeZone: effectiveTZ,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false 
+              });
+            } catch {}
+          }
+          
+          preloadedCalendarContext += `• ${displayName} - ${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (Day ${dayNum}) at ${localStart} to ${localEnd}\n`;
+          if (event.payment_status) preloadedCalendarContext += `  Payment: ${event.payment_status}${event.payment_amount ? ` ($${event.payment_amount})` : ''}\n`;
+        });
+        
+        preloadedCalendarContext += `\n⚠️ CRITICAL: Use this data to answer questions about events this month. When user asks "do I have event on [date]?", check this list FIRST before saying no events exist.\n`;
+        console.log('✅ Preloaded calendar context with', monthEvents.length, 'events');
+      } else {
+        preloadedCalendarContext = `\n\n📅 **CURRENT MONTH CALENDAR:** No events scheduled for ${startOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.\n`;
+        console.log('ℹ️ No events found for current month');
+      }
+    } catch (err) {
+      console.error('⚠️ Failed to preload calendar data:', err);
+      preloadedCalendarContext = '\n\n⚠️ Calendar data temporarily unavailable - use get_schedule tool if user asks about specific dates.\n';
+    }
+
     // ---- ENHANCED FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
     // Uses confidence-based pattern matching to avoid misunderstandings
     const lower = (prompt || "").toLowerCase();
@@ -1592,6 +1657,8 @@ EDITING CUSTOMERS:
 - Respond in ONE clear sentence with the relevant information
 - Show times in the user's local timezone (currently ${effectiveTZ || 'UTC+4'})
 - Be concise, accurate, and human-like
+
+${preloadedCalendarContext}
 
 🚨🚨🚨 CRITICAL PRE-CHECK - READ THIS BEFORE ANYTHING ELSE 🚨🚨🚨
 
