@@ -3106,32 +3106,76 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'get_schedule': {
+              // ✅ CRITICAL FIX: Use proper interval overlap logic to find events in date range
+              // An event overlaps with the range if:
+              // - It starts before or during the range (start_date <= range_end)
+              // - AND it ends after or during the range (end_date >= range_start)
+              
+              const fromDate = args.from.includes('T') ? args.from : `${args.from}T00:00:00`;
+              const toDate = args.to.includes('T') ? args.to : `${args.to}T23:59:59`;
+              
+              console.log(`🔍 get_schedule: Finding events that overlap ${fromDate} to ${toDate}`);
+              
               const { data: events } = await supabaseClient
                 .from('events')
                 .select('id, title, start_date, end_date, payment_status, payment_amount, user_surname, user_number, event_notes')
                 .eq('user_id', ownerId)
-                .gte('start_date', args.from)
-                .lte('end_date', args.to)
+                .lte('start_date', toDate)     // Event starts before or during the range
+                .gte('end_date', fromDate)     // Event ends after or during the range
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
+              
+              console.log(`📊 Raw query result: ${(events || []).length} events found`);
               
               // ✅ PHASE 1 FIX: Simplified timezone conversion using toLocaleString
               const eventsWithLocalTimes = (events || []).map(event => {
                 const startUTC = new Date(event.start_date);
                 const endUTC = new Date(event.end_date);
                 
+                console.log(`\n📅 Event: "${event.title || event.user_surname}"`);
+                console.log(`   UTC: ${event.start_date} to ${event.end_date}`);
+                
                 const formatInTimezone = (date: Date): string => {
-                  const localStr = date.toLocaleString('en-CA', {
-                    timeZone: effectiveTZ || userTimezone,
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false
-                  });
-                  return localStr.replace(', ', 'T');
+                  if (!effectiveTZ) {
+                    // Fallback: use offset
+                    if (typeof tzOffsetMinutes === 'number') {
+                      const localMs = date.getTime() - (tzOffsetMinutes * 60000);
+                      const localDate = new Date(localMs);
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      const result = `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())}T${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}:${pad(localDate.getUTCSeconds())}`;
+                      console.log(`   Offset-adjusted: ${result}`);
+                      return result;
+                    }
+                    return date.toISOString().replace('Z', '');
+                  }
+                  
+                  try {
+                    const formatter = new Intl.DateTimeFormat('en-CA', {
+                      timeZone: effectiveTZ,
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      hour12: false
+                    });
+                    
+                    const parts = formatter.formatToParts(date);
+                    const values: Record<string, string> = {};
+                    parts.forEach(part => {
+                      if (part.type !== 'literal') {
+                        values[part.type] = part.value;
+                      }
+                    });
+                    
+                    const result = `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}`;
+                    console.log(`   Converted to ${effectiveTZ}: ${result}`);
+                    return result;
+                  } catch (err) {
+                    console.error(`   Conversion error:`, err);
+                    return date.toISOString().replace('Z', '');
+                  }
                 };
                 
                 return {
@@ -3152,7 +3196,12 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 to: args.to,
                 events: eventsWithLocalTimes
               };
-              console.log(`    ✓ Found ${toolResult.events.length} events in range (times converted to ${effectiveTZ})`);
+              console.log(`\n✅ FINAL: Returning ${toolResult.events.length} events for ${args.from} to ${args.to}`);
+              console.log(`📋 Events being sent to LLM:`, JSON.stringify(eventsWithLocalTimes.map(e => ({
+                name: e.title || e.user_surname,
+                start: e.start_date,
+                end: e.end_date
+              })), null, 2));
               break;
             }
 
