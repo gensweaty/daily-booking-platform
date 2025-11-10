@@ -3202,11 +3202,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               });
               
               toolResult = { 
-                from: args.from,
-                to: args.to,
+                from: fromParam,
+                to: toParam,
                 events: eventsWithLocalTimes
               };
-              console.log(`\n✅ FINAL: Returning ${toolResult.events.length} events for ${args.from} to ${args.to}`);
+              console.log(`\n✅ FINAL: Returning ${toolResult.events.length} events for ${fromParam} to ${toParam}`);
               console.log(`📋 Events being sent to LLM:`, JSON.stringify(eventsWithLocalTimes.map(e => ({
                 name: e.title || e.user_surname,
                 start: e.start_date,
