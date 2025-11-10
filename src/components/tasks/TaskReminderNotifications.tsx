@@ -175,17 +175,19 @@ export const TaskReminderNotifications = () => {
             console.error('❌ System notification failed:', result.error);
           }
           
-          // Send email reminder if enabled - CRITICAL: This should work regardless of status
-          if (task.email_reminder_enabled) {
-            console.log('📧 Attempting to send email reminder for task:', task.title, 'Status:', task.status);
+          // CRITICAL: Always attempt to send email if reminder_at is set
+          // Backend edge function handles deduplication and marking as sent
+          // Don't check email_reminder_enabled here - it gets disabled AFTER first send
+          if (task.reminder_at && !task.reminder_sent_at) {
+            console.log('📧 Sending email reminder for task:', task.title, 'Status:', task.status);
             await sendEmailReminder(task);
-          } else {
-            console.log('📧 Email reminder disabled for task:', task.title);
+          } else if (task.reminder_sent_at) {
+            console.log('📧 Email already sent for task:', task.title, 'at:', task.reminder_sent_at);
           }
           
           console.log('📊 Dashboard notification: ✅ Sent');
           console.log('🔔 System notification:', result.success ? '✅ Sent' : '❌ Failed');
-          console.log('📧 Email reminder:', task.email_reminder_enabled ? '✅ Enabled' : '❌ Disabled');
+          console.log('📧 Email reminder:', task.reminder_sent_at ? '✅ Already sent' : '✅ Sending...');
           
           notificationsTriggered++;
         }

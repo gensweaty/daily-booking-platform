@@ -123,6 +123,71 @@ serve(async (req) => {
     const userLanguage = detectLanguage(prompt);
     console.log('🌐 Detected user language from current message:', userLanguage);
 
+    // 🔥 PRE-FETCH CALENDAR DATA FOR CURRENT MONTH (gives AI direct access to events)
+    let preloadedCalendarContext = '';
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const { data: monthEvents } = await supabaseClient
+        .from('events')
+        .select('id, title, user_surname, start_date, end_date, payment_status, payment_amount')
+        .eq('user_id', ownerId)
+        .gte('start_date', startOfMonth.toISOString())
+        .lte('start_date', endOfMonth.toISOString())
+        .is('deleted_at', null)
+        .order('start_date', { ascending: true });
+      
+      if (monthEvents && monthEvents.length > 0) {
+        preloadedCalendarContext = `\n\n📅 **CURRENT MONTH CALENDAR DATA (${startOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}):**\n`;
+        preloadedCalendarContext += `You have ${monthEvents.length} events this month:\n\n`;
+        
+        monthEvents.forEach(event => {
+          const startDate = new Date(event.start_date);
+          const endDate = new Date(event.end_date);
+          const dayNum = startDate.getDate();
+          const displayName = event.title || event.user_surname;
+          
+          // Convert to user timezone
+          let localStart = startDate.toISOString();
+          let localEnd = endDate.toISOString();
+          
+          if (effectiveTZ) {
+            try {
+              localStart = startDate.toLocaleString('en-US', { 
+                timeZone: effectiveTZ, 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false 
+              });
+              localEnd = endDate.toLocaleString('en-US', { 
+                timeZone: effectiveTZ,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false 
+              });
+            } catch {}
+          }
+          
+          preloadedCalendarContext += `• ${displayName} - ${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (Day ${dayNum}) at ${localStart} to ${localEnd}\n`;
+          if (event.payment_status) preloadedCalendarContext += `  Payment: ${event.payment_status}${event.payment_amount ? ` ($${event.payment_amount})` : ''}\n`;
+        });
+        
+        preloadedCalendarContext += `\n⚠️ CRITICAL: Use this data to answer questions about events this month. When user asks "do I have event on [date]?", check this list FIRST before saying no events exist.\n`;
+        console.log('✅ Preloaded calendar context with', monthEvents.length, 'events');
+      } else {
+        preloadedCalendarContext = `\n\n📅 **CURRENT MONTH CALENDAR:** No events scheduled for ${startOfMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}.\n`;
+        console.log('ℹ️ No events found for current month');
+      }
+    } catch (err) {
+      console.error('⚠️ Failed to preload calendar data:', err);
+      preloadedCalendarContext = '\n\n⚠️ Calendar data temporarily unavailable - use get_schedule tool if user asks about specific dates.\n';
+    }
+
     // ---- ENHANCED FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
     // Uses confidence-based pattern matching to avoid misunderstandings
     const lower = (prompt || "").toLowerCase();
@@ -261,7 +326,7 @@ serve(async (req) => {
       console.log('  ❌ No reminder pattern matched - will use LLM');
     }
     
-    // Fast-path 2: Detect "at HH:MM" or "on HH:MM" patterns
+    // Fast-path 2: Detect "at HH:MM" or "on HH:MM" patterns, with optional TODAY/TOMORROW
     const timeMatch = prompt.match(/\b(?:at|on)\s+(\d{1,2}):(\d{2})\b/i);
     if (timeMatch) {
       const hours = parseInt(timeMatch[1], 10);
@@ -271,31 +336,139 @@ serve(async (req) => {
       // NOTE: User message is already saved in MessageInput.tsx before this function is called
       // No need to save it again here to avoid duplicates
       
-      // Enhanced title extraction - check for patterns before "at/on"
+      // Enhanced title extraction - extract everything AFTER the time, not before
+      // This prevents "TODAY" from becoming part of the title
       let title = "Reminder";
-      const titleMatch = prompt.match(/(?:remind\s+(?:me\s+)?(?:about\s+)?(.+?)\s+(?:at|on)|(.+?)\s+(?:at|on))\s+\d{1,2}:\d{2}/i);
-      if (titleMatch) {
-        title = (titleMatch[1] || titleMatch[2] || "").trim();
+      
+      console.log(`🔍 Title extraction - Full prompt: "${prompt}"`);
+      
+      // Pattern 1: Extract text after "at/on HH:MM to/for" (e.g., "at 22:00 to verify identity")
+      const afterTimeMatch = prompt.match(/(?:at|on)\s+\d{1,2}:\d{2}\s+(?:to|for)\s+(.+)/i);
+      console.log(`🔍 Pattern 1 test - Match result:`, afterTimeMatch);
+      
+      if (afterTimeMatch && afterTimeMatch[1]) {
+        title = afterTimeMatch[1].trim();
+        console.log(`📝 ✅ Extracted title AFTER time with 'to/for': "${title}"`);
+      } else {
+        // Pattern 2: Extract text after "at/on HH:MM" without 'to/for' (e.g., "at 22:00 verify identity")
+        const afterTimeNoPrep = prompt.match(/(?:at|on)\s+\d{1,2}:\d{2}\s+(?!today|tomorrow)(.+)/i);
+        console.log(`🔍 Pattern 2 test - Match result:`, afterTimeNoPrep);
+        
+        if (afterTimeNoPrep && afterTimeNoPrep[1]) {
+          title = afterTimeNoPrep[1].trim();
+          console.log(`📝 ✅ Extracted title AFTER time: "${title}"`);
+        } else {
+          // Pattern 3: Extract text between "remind me" and time, clean time keywords
+          const beforeTimeMatch = prompt.match(/remind\s+me\s+(.+?)\s+(?:today|tomorrow|at|on)/i);
+          console.log(`🔍 Pattern 3 test - Match result:`, beforeTimeMatch);
+          
+          if (beforeTimeMatch && beforeTimeMatch[1]) {
+            title = beforeTimeMatch[1]
+              .replace(/^\s*(?:today|tomorrow|at|on|to|about)\s+/i, '')
+              .replace(/\s+(?:today|tomorrow|at|on|to|about)\s*$/i, '')
+              .trim();
+            if (title && title !== "me" && title.length > 0) {
+              console.log(`📝 ✅ Extracted title BEFORE time (cleaned): "${title}"`);
+            } else {
+              title = "Reminder"; // Reset if we only got "me" or empty
+              console.log(`📝 ⚠️ Cleaned title was empty/invalid, reset to "Reminder"`);
+            }
+          }
+        }
       }
       
-      console.log(`📝 Creating reminder: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
+      // If still just "Reminder", try broader patterns
+      if (title === "Reminder") {
+        const broadMatch = prompt.match(/remind(?:\s+me)?\s+(?:to|about)?\s*(.+?)\s+(?:today|tomorrow|at)/i);
+        console.log(`🔍 Broad pattern test - Match result:`, broadMatch);
+        
+        if (broadMatch && broadMatch[1]) {
+          const extracted = broadMatch[1].trim();
+          if (extracted && extracted !== "me" && extracted.length > 0) {
+            title = extracted;
+            console.log(`📝 ✅ Extracted title (broad match): "${title}"`);
+          }
+        }
+      }
+      
+      console.log(`📝 Final title: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
       
       try {
-        // Get current time in user's timezone
+        // CRITICAL FIX: Simple and correct timezone conversion
+        // tzOffsetMinutes is already provided and tells us the offset
+        // For UTC+4: offset = -240 minutes (negative because ahead of UTC)
+        // Formula: UTC = Local Time - offset (i.e., UTC = Local - (-240) = Local + 240)
+        
         const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
-        console.log(`🕐 Current time: ${baseNow.toISOString()} (user local: ${formatInUserZone(baseNow)})`);
+        console.log(`🕐 Current time (UTC): ${baseNow.toISOString()}`);
+        console.log(`🌍 User timezone: ${userTimezone || 'Not provided'}`);
+        console.log(`🌍 Timezone offset minutes: ${tzOffsetMinutes}`);
         
-        // Create a date for today at the specified time in user's timezone
-        let targetTime = new Date(baseNow);
-        targetTime.setHours(hours, minutes, 0, 0);
+        // Check if user explicitly said "TODAY" or "TOMORROW"
+        const hasToday = /\btoday\b/i.test(prompt);
+        const hasTomorrow = /\btomorrow\b/i.test(prompt);
         
-        // If the time has already passed today, schedule for tomorrow
-        if (targetTime <= baseNow) {
-          console.log(`⏭️ Time ${hours}:${String(minutes).padStart(2, '0')} has passed today, scheduling for tomorrow`);
-          targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
+        console.log(`📅 Date context: TODAY=${hasToday}, TOMORROW=${hasTomorrow}`);
+        
+        if (typeof tzOffsetMinutes === 'number') {
+          // STEP 1: Convert current UTC time to user's local time
+          // Subtract offset because it's negative for UTC+X timezones
+          const localNow = new Date(baseNow.getTime() - tzOffsetMinutes * 60000);
+          
+          const localYear = localNow.getUTCFullYear();
+          const localMonth = localNow.getUTCMonth();
+          const localDay = localNow.getUTCDate();
+          const currentLocalHour = localNow.getUTCHours();
+          const currentLocalMinute = localNow.getUTCMinutes();
+          
+          console.log(`📅 User's current LOCAL time: ${localYear}-${localMonth+1}-${localDay} ${currentLocalHour}:${currentLocalMinute}`);
+          console.log(`🎯 User wants reminder at: ${hours}:${minutes} (LOCAL time)`);
+          
+          // STEP 2: Build target time in user's local timezone
+          // Start with today's date + user's requested time
+          let localTargetDate = new Date(Date.UTC(localYear, localMonth, localDay, hours, minutes, 0, 0));
+          
+          // STEP 3: Check if time has passed in user's local timezone
+          const targetHasPassed = (hours < currentLocalHour) || (hours === currentLocalHour && minutes <= currentLocalMinute);
+          
+          console.log(`⏰ Time check: target=${hours}:${minutes}, current=${currentLocalHour}:${currentLocalMinute}, passed=${targetHasPassed}`);
+          
+          // STEP 4: Apply TODAY/TOMORROW logic
+          if (hasTomorrow) {
+            localTargetDate = new Date(localTargetDate.getTime() + 24 * 60 * 60 * 1000);
+            console.log(`📅 User said TOMORROW - adding 24 hours`);
+          } else if (hasToday) {
+            console.log(`📅 User said TODAY - keeping same day (even if time passed)`);
+            // Keep as is - user explicitly said TODAY
+          } else if (targetHasPassed) {
+            localTargetDate = new Date(localTargetDate.getTime() + 24 * 60 * 60 * 1000);
+            console.log(`⏭️ Time ${hours}:${minutes} has passed, moving to tomorrow`);
+          }
+          
+          console.log(`🎯 Target in LOCAL timezone: ${localTargetDate.toISOString()} (this represents local time)`);
+          
+          // STEP 5: Convert local time back to UTC
+          // Add offset (subtract because offset is negative for UTC+X)
+          // For UTC+4: localTime + 240 min = UTC
+          var targetTime = new Date(localTargetDate.getTime() + tzOffsetMinutes * 60000);
+          
+          console.log(`⏰ Final UTC time for storage: ${targetTime.toISOString()}`);
+          console.log(`📍 Verification in user's timezone: ${formatInUserZone(targetTime)}`);
+          
+        } else {
+          console.warn('⚠️ No tzOffsetMinutes provided, using fallback');
+          // Fallback method
+          var targetTime = new Date(baseNow);
+          targetTime.setHours(hours, minutes, 0, 0);
+          
+          if (hasTomorrow) {
+            targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
+          } else if (!hasToday && targetTime <= baseNow) {
+            targetTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);
+          }
         }
         
-        console.log(`⏰ Remind at (UTC): ${targetTime.toISOString()} (user local: ${formatInUserZone(targetTime)})`);
+        console.log(`⏰ FINAL remind_at (UTC): ${targetTime.toISOString()}`);
         
         const { data: reminderData, error: reminderError } = await supabaseAdmin
           .from('custom_reminders')
@@ -757,12 +930,30 @@ serve(async (req) => {
         type: "function",
         function: {
           name: "get_schedule",
-          description: "Get calendar events for a specific date range",
+          description: `**🔴 MANDATORY - ALWAYS USE THIS FOR SPECIFIC DATE QUERIES 🔴**
+          
+          ⚠️ CRITICAL: When user asks about events on ANY specific date, you MUST call this tool. NO EXCEPTIONS.
+          
+          **ALWAYS use this when user says:**
+          - "do I have event on [date]?" → MUST call with from=[date], to=[date]
+          - "what's on [date]?" → MUST call with from=[date], to=[date]
+          - "show events for [date]" → MUST call with from=[date], to=[date]
+          - "tell me if i have event on [date]" → MUST call with from=[date], to=[date]
+          - "events on [specific date]" → MUST call with from=[date], to=[date]
+          
+          **DATE PARSING**:
+          - "November 12" or "november 12" → from="2025-11-12", to="2025-11-12"
+          - "18th November" or "18 november" → from="2025-11-18", to="2025-11-18"
+          - "24th this month" → from="2025-11-24", to="2025-11-24"
+          
+          **NEVER say "unable to retrieve" without calling this tool first!**
+          
+          Returns: Calendar events with payment details, customer info, and times converted to user's timezone.`,
           parameters: {
             type: "object",
             properties: {
-              from: { type: "string", description: "Start date (YYYY-MM-DD)" },
-              to: { type: "string", description: "End date (YYYY-MM-DD)" }
+              from: { type: "string", description: "Start date (YYYY-MM-DD) - REQUIRED" },
+              to: { type: "string", description: "End date (YYYY-MM-DD) - REQUIRED" }
             },
             required: ["from", "to"]
           }
@@ -1187,7 +1378,35 @@ CRITICAL RULES:
         type: "function",
         function: {
           name: "create_custom_reminder",
-          description: `**CRITICAL: Check for existing tasks/events FIRST before using this tool**
+          description: `🚨 ULTRA STRICT USAGE RULE - READ BEFORE CALLING 🚨
+          
+          **PRE-VALIDATION CHECK (MANDATORY):**
+          Before even considering this tool, verify the message contains AT LEAST ONE of:
+          - The word "remind"
+          - The word "reminder"  
+          - The word "alert"
+          - The word "notify"
+          
+          If NONE of these words are present → DO NOT call this tool, respond conversationally instead.
+          
+          ✅ ONLY call this tool when user EXPLICITLY says:
+          - "remind me [to do X]"
+          - "set a reminder [for X]"
+          - "create reminder [about X]"
+          - "reminder in [X minutes]"
+          - "alert me [when X]"
+          
+          ❌ NEVER EVER call this tool for:
+          - Greetings like "hello", "hi", "hey", "good morning"
+          - Questions like "what can you do?", "how are you?", "help"
+          - Acknowledgments like "ok", "thanks", "yes", "no"
+          - Any message that doesn't contain reminder keywords
+          
+          🔴 EXAMPLES OF WHEN NOT TO USE:
+          - User: "hello" → Respond conversationally, DO NOT call tool
+          - User: "hi there" → Respond conversationally, DO NOT call tool
+          - User: "what can you do?" → Respond conversationally, DO NOT call tool
+          - User: "thanks" → Respond conversationally, DO NOT call tool
           
           WORKFLOW FOR REMINDER REQUESTS:
           1. If user mentions a specific task or event by name (e.g., "remind me about the meeting", "reminder for project X"):
@@ -1216,14 +1435,42 @@ CRITICAL RULES:
         type: "function",
         function: {
           name: "create_or_update_event",
-          description: `Create or update calendar events/appointments/bookings.
-          
-MANDATORY fields:
-- full_name: Customer/client full name
+          description: `Create or update calendar events/appointments/bookings - with AUTOMATIC event search built-in!
+
+🎯 AUTO-SEARCH FEATURE (CRITICAL FOR EDITING):
+✅ Just provide event_name or full_name - tool AUTOMATICALLY finds existing event and updates it!
+✅ If event exists → UPDATE it (preserves ALL existing data)
+✅ If event doesn't exist → CREATE new one
+✅ NO need to call get_upcoming_events() first for simple edits - this tool handles everything!
+
+🚨 FOR EDITING EVENTS - UNDERSTAND CONTEXT:
+When user says:
+- "add description to that event" → Use the SAME full_name from the event just created/discussed
+- "edit event fadfda and add notes" → Use full_name="fadfda" (tool auto-finds it)
+- "update the event with payment info" → Use the full_name from recent conversation context
+
+📋 EXAMPLE USAGE FOR EDITING:
+User creates: "create event for fadfda from 5am to 6am"
+→ AI creates event with full_name="fadfda"
+User: "add description to that event with text: aaa"
+→ Call: create_or_update_event(full_name="fadfda", notes="aaa", start_date="2025-11-10T05:00:00", end_date="2025-11-10T06:00:00")
+→ Tool auto-finds "fadfda" event and UPDATES it (not creates new one!)
+→ Respond: "✅ Event updated: fadfda"
+
+🔴 CRITICAL RULES FOR EDITING:
+- User says "edit that event" or "add to that event" → Reuse the SAME full_name from previous context
+- DO NOT create new events when user says "edit", "update", "add to", "change"
+- The auto-search finds events by full_name and updates them
+- ALL existing event data is preserved (phone, email, payment status, files, etc.)
+- ONLY update the fields user explicitly mentions
+
+MANDATORY fields for NEW events:
+- full_name: Customer/client full name (ALSO used for auto-search when editing)
 - start_date: Event start date/time (ISO format YYYY-MM-DDTHH:mm or user timezone)
 - end_date: Event end date/time (ISO format YYYY-MM-DDTHH:mm or user timezone)
 
 OPTIONAL fields (if user provides):
+- event_id: Event ID for direct update (auto-found if not provided)
 - phone_number: Contact phone
 - social_media: Email or social network link  
 - notes: Event notes or description
@@ -1231,23 +1478,7 @@ OPTIONAL fields (if user provides):
 - payment_amount: Payment amount (number)
 - event_name: Type of event (birthday, meeting, etc)
 - reminder: ISO timestamp for event reminder (enables email + AI chat notification)
-- email_reminder: boolean (auto-enabled with reminder)
-
-SCHEDULING REMINDERS FOR EVENTS:
-- If user wants to set a reminder for an existing event by name (e.g., "remind me about the meeting")
-- FIRST search for that event using get_all_events
-- Then update it with reminder parameter to schedule the reminder
-- This triggers BOTH email AND AI chat notification at the specified time
-- For relative times (e.g., "in 1 minute", "in 2 hours"):
-  * MANDATORY: Call get_current_datetime FIRST to get exact current time
-  * Calculate the reminder time by adding the offset to current time
-  * Use the calculated ISO timestamp in reminder parameter
-
-EDITING EVENTS:
-- If user mentions editing an event, FIRST use get_upcoming_events or get_all_events to find the event by name
-- Then include the event_id parameter to update it
-- Files uploaded during editing will be added to the event
-- Example: "edit event aaa" → call get_upcoming_events, find "aaa", then call with event_id`,
+- email_reminder: boolean (auto-enabled with reminder)`,
           parameters: {
             type: "object",
             properties: {
@@ -1399,6 +1630,91 @@ EDITING CUSTOMERS:
     // Note: userLanguage and detectLanguage already defined above before fast-paths
 
     const systemPrompt = `You are Smartbookly AI, an intelligent business assistant with deep integration into the user's business management platform.
+
+🚨🚨🚨 ULTRA-CRITICAL: NATURAL COMMUNICATION STYLE 🚨🚨🚨
+
+**YOU ARE A SMART COMPANION, NOT A TECHNICAL AI**
+- NEVER mention "calling tools", "using functions", "checking database", "analyzing data", or any technical implementation details
+- NEVER mention "images", "screenshots", or "the picture shows" - users send you context, not images to analyze
+- NEVER explain HOW you got information - just respond as if you naturally know it
+- NEVER say things like "Let me check your schedule" or "I'll look that up" - you already have access to all their data
+- Respond DIRECTLY and NATURALLY as a knowledgeable assistant who knows the user's business inside out
+
+**CORRECT EXAMPLES:**
+✅ "You have one event today: sdf from 9:00 AM to 1:00 PM"
+✅ "Your schedule is clear tomorrow"
+✅ "You have 3 tasks in progress and 2 completed today"
+
+**FORBIDDEN EXAMPLES:**
+❌ "The image shows events on November 2nd..."
+❌ "To confirm the events on November 3rd and 4th, I need to call the get_schedule tool"
+❌ "Let me check your database..."
+❌ "I'll analyze your schedule..."
+❌ Any mention of tools, functions, images, or technical processes
+
+**WHEN USER ASKS A SIMPLE QUESTION LIKE "do i have any events today?"**
+- Immediately know the answer from the data you have access to
+- Respond in ONE clear sentence with the relevant information
+- Show times in the user's local timezone (currently ${effectiveTZ || 'UTC+4'})
+- Be concise, accurate, and human-like
+
+${preloadedCalendarContext}
+
+🚨🚨🚨 CRITICAL PRE-CHECK - READ THIS BEFORE ANYTHING ELSE 🚨🚨🚨
+
+⚡⚡⚡ MESSAGE TYPE DETECTION - MANDATORY FIRST STEP ⚡⚡⚡
+
+BEFORE processing ANY message, you MUST determine if it's a GREETING/QUESTION or an ACTION REQUEST:
+
+**GREETINGS & QUESTIONS → NO TOOLS ALLOWED:**
+If the message is ANY of these, respond conversationally WITHOUT calling tools:
+- "hello", "hi", "hey", "good morning", "good afternoon", "good evening", "what's up"
+- "how are you?", "what can you do?", "help", "explain", "who are you?"
+- "ok", "okay", "thanks", "thank you", "yes", "no", "sure", "alright"
+- Single words: "hello", "hi", "hey", "thanks", "ok"
+- Questions about capabilities or features
+
+**ACTION REQUESTS → TOOLS REQUIRED:**
+ONLY call tools when user EXPLICITLY requests an action with verbs like:
+- "add", "create", "make", "set" → Use CREATE tools
+- "update", "change", "edit", "move" → Use UPDATE tools
+- "delete", "remove", "archive" → Use DELETE tools
+- "send", "generate", "export" → Use SEND tools
+
+🔴🔴🔴 REMINDER TOOL - ULTRA STRICT RULES 🔴🔴🔴
+
+**create_custom_reminder can ONLY be called when message contains:**
+✅ The word "remind" + action → "remind me to..."
+✅ The phrase "set reminder" → "set a reminder for..."
+✅ The word "reminder" + time → "reminder in 5 minutes"
+✅ The word "alert" + context → "alert me when..."
+
+**create_custom_reminder MUST NOT be called for:**
+❌ ANY greeting: "hello", "hi", "hey", "good morning"
+❌ ANY question: "what can you do?", "how are you?", "help"
+❌ ANY acknowledgment: "ok", "thanks", "yes", "no"
+❌ ANY message without the words "remind/reminder/alert/notify"
+
+🔴 VALIDATION RULE: Before calling create_custom_reminder, check:
+1. Does the message contain "remind" OR "reminder" OR "alert" OR "notify"?
+2. If NO → DO NOT call create_custom_reminder, respond conversationally
+3. If YES → Proceed with tool call
+
+⚡ EXAMPLES - MEMORIZE THESE ⚡
+
+❌ BAD - User says: "hello"
+   Wrong: [calls create_custom_reminder]
+   ✅ Right: "Hello! How can I help you today?"
+
+❌ BAD - User says: "what can you do?"
+   Wrong: [calls create_custom_reminder]
+   ✅ Right: "I can help with tasks, events, customers, reminders, and reports. What do you need?"
+
+✅ GOOD - User says: "remind me in 5 minutes"
+   ✅ Right: [calls create_custom_reminder with offset_minutes: 5]
+
+✅ GOOD - User says: "set reminder for tomorrow"
+   ✅ Right: [calls create_custom_reminder with absolute time]
 
 ⛔⛔⛔ ABSOLUTE TOOL USAGE ENFORCEMENT - TOP PRIORITY ⛔⛔⛔
 
@@ -1853,48 +2169,81 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 - If they want to create event too → ask for event dates
 - Payment details are OPTIONAL - only include if provided
 
+
 **FOR EDITING/UPDATING:**
+- **🎯 CONVERSATION CONTEXT TRACKING (CRITICAL FOR "THAT" REFERENCES)**:
+  * When you CREATE an event/task/customer, REMEMBER its name for the next few messages
+  * When user says "that event", "this task", "the customer", "add to it", "edit that one":
+    → USE THE SAME NAME from the most recent creation/discussion
+  * Example conversation flow:
+    - User: "create event for fadfda from 5am to 6am"
+    - AI: Creates event with full_name="fadfda"
+    - User: "add description to that event with text: aaa"
+    - AI: ✅ Calls create_or_update_event(full_name="fadfda", notes="aaa", start_date=same, end_date=same)
+    - AI: ❌ NEVER creates a NEW event - auto-search finds "fadfda" and UPDATES it
+  * This applies to ALL entity types: events, tasks, customers
+  * ALWAYS reuse the exact name when user references "that" or "this"
+
+- **🔍 AUTO-SEARCH FEATURE (NEW - NO MORE MANUAL SEARCHING!):**
+  * ✅ Events: Just provide full_name - tool auto-finds and updates existing event
+  * ✅ Tasks: Just provide task_name - tool auto-finds and updates existing task
+  * ✅ Customers: Just provide full_name - tool auto-finds and updates existing customer
+  * ❌ NO need to call get_all_* before editing anymore (but you CAN if you want to show info first)
+  * The tools are smart - they search automatically by name!
+
 - **CRITICAL WORKFLOW FOR ALL EDITS**:
-  1. User mentions "edit event aaa" / "update task XYZ" / "edit customer John" / "change that event"
-  2. YOU MUST FIRST search for the item to get its ID:
-     - For EVENTS: Call get_all_events or get_upcoming_events to find the event by name/title
-     - For TASKS: Call get_all_tasks to find the task by name/title
-     - For CUSTOMERS: Just use the full_name - system automatically finds by exact name match
-  3. Then call create_or_update_* with the found ID (except customers)
+  1. User mentions "edit event aaa" / "update task XYZ" / "edit customer John" / "add to that event"
+  2. OPTION A (SIMPLE - RECOMMENDED): Just call create_or_update_* with the name - auto-search handles it!
+     - For EVENTS: Call create_or_update_event(full_name="aaa", notes="new note") - finds event "aaa" automatically
+     - For TASKS: Call create_or_update_task(task_name="XYZ", status="done") - finds task "XYZ" automatically  
+     - For CUSTOMERS: Call create_or_update_customer(full_name="John", payment_amount=100) - finds "John" automatically
+  3. OPTION B (IF YOU WANT TO SHOW INFO FIRST): Search first, then update
+     - For EVENTS: Call get_upcoming_events to find event, then create_or_update_event with event_id
+     - For TASKS: Call get_all_tasks to find task, then create_or_update_task with task_id
+     - For CUSTOMERS: Just use full_name (no search needed)
   
-- **EVENTS EDITING EXAMPLE**:
-  - User: "edit event aaa and add this document"
-  - Step 1: Call get_all_events or get_upcoming_events
-  - Step 2: Find event with title matching "aaa", get its event_id
-  - Step 3: Call create_or_update_event with event_id + new data + attachments (files auto-link!)
+- **🔥 CRITICAL: PRESERVE ORIGINAL DATA WHEN EDITING 🔥**:
+  - ❌ DO NOT include start_date/end_date parameters when editing events UNLESS the user specifically asks to change the time
+  - ❌ DO NOT include deadline when editing tasks UNLESS the user asks to change the deadline
+  - ✅ ONLY include parameters for fields the user explicitly wants to change
+  - Example: "edit event BBAA and add note sad" → ONLY pass full_name="BBAA" and notes="sad" (NO start_date, NO end_date)
+  - Example: "change event BBAA time to 3pm" → Pass full_name="BBAA", start_date="2025-11-11T15:00:00", end_date="2025-11-11T16:00:00"
+  - The system will automatically preserve all other fields (times, payments, files, etc.)
+
+- **EVENTS EDITING EXAMPLE (CORRECT - PRESERVES TIMES)**:
+  - User: "edit that event and add note sad"
+  - AI: Remembers recent event was "BBAA"
+  - AI: ✅ Calls create_or_update_event(full_name="BBAA", notes="sad")  // NO start_date, NO end_date!
+  - Tool: Auto-finds "BBAA" event, preserves original times (9:00-10:00), updates notes only
+  - AI: Responds "✅ Event updated: BBAA (note added, original time 9:00-10:00 preserved)"
   
-- **TASKS EDITING EXAMPLE**:
-  - User: "edit task KAKA to done status"
-  - Step 1: Call get_all_tasks
-  - Step 2: Find task with title matching "KAKA", get its task_id
-  - Step 3: Call create_or_update_task with task_id and status="done"
+- **TASKS EDITING EXAMPLE (CORRECT - PRESERVES DATA)**:
+  - User: "move task KAKA to done status"
+  - AI: ✅ Calls create_or_update_task(task_name="KAKA", status="done")  // Only status, nothing else!
+  - Tool: Auto-finds "KAKA" task, preserves description/deadline/files, updates status only
+  - AI: Responds "✅ Task updated: KAKA → done"
   
-- **CUSTOMERS EDITING EXAMPLE** (DIFFERENT - NO SEARCH NEEDED):
+- **CUSTOMERS EDITING EXAMPLE (CORRECT - PRESERVES DATA)**:
   - User: "edit customer BAS and add payment 10$"
-  - Step 1: Just call create_or_update_customer with full_name="BAS", payment_amount=10
-  - NO need to search first - system auto-finds by exact name
-  - Files uploaded during edit will be attached automatically!
+  - AI: ✅ Calls create_or_update_customer(full_name="BAS", payment_amount=10)  // Only payment!
+  - Tool: Auto-finds "BAS" customer, preserves phone/email/notes, updates payment only
+  - Files uploaded during edit attach automatically!
   
 - **FILE ATTACHMENTS DURING EDITING**:
   - ✅ Files uploaded with edit requests are AUTOMATICALLY attached
   - ✅ Works for ALL types: events, tasks, customers
-  - ✅ NO extra parameters needed - just call the edit function with ID
+  - ✅ NO extra parameters needed - just call the tool with the name
   - Example: "edit event aaa and attach this document" → Files auto-link to event aaa
   
-- **CRITICAL: SEARCH FIRST FOR EVENTS/TASKS**:
-  - ❌ NEVER call create_or_update_event/task without event_id/task_id when user says "edit"
-  - ✅ ALWAYS search first using get_all_* tools to find the ID
-  - ❌ NEVER ask user for IDs - YOU must find them via search tools
-  
-- **CUSTOMERS ARE EXCEPTION**:
-  - ❌ NEVER search for customers before editing
-  - ❌ NEVER provide customer_id parameter
-  - ✅ ALWAYS just use full_name from conversation - system finds automatically
+- **CRITICAL RULES FOR EDITING**:
+  - ✅ When user says "edit X" or "that item" → Use the EXACT name from conversation context
+  - ✅ Auto-search finds items by name - NO manual searching needed (but you can if you want to show info)
+  - ✅ ALL existing data is preserved (files, payments, notes, times, etc.) - ONLY update what user explicitly mentions
+  - ✅ DO NOT pass start_date/end_date unless user explicitly wants to change the time
+  - ✅ DO NOT pass deadline unless user explicitly wants to change the deadline
+  - ❌ NEVER create NEW items when user says "edit", "update", "add to", "change"
+  - ❌ NEVER ask user for IDs - tools handle finding by name automatically
+  - ✅ ALWAYS just use full_name from conversation - system finds automatically and preserves data
   - The system searches by exact name and updates the most recent match
 
 **IMPORTANT PRINCIPLES:**
@@ -2688,6 +3037,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
             case 'get_todays_schedule': {
               const today = new Date().toISOString().split('T')[0];
+              
+              console.log(`🔍 get_todays_schedule: Fetching events for ${today}`);
+              console.log(`🌍 Timezone info: effectiveTZ=${effectiveTZ}, userTimezone=${userTimezone}, tzOffsetMinutes=${tzOffsetMinutes}`);
+              
               const { data: events } = await supabaseClient
                 .from('events')
                 .select('id, title, start_date, end_date, payment_status, payment_amount, user_surname, user_number, event_notes')
@@ -2696,8 +3049,88 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .lte('start_date', `${today}T23:59:59`)
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
-              toolResult = { date: today, events: events || [] };
-              console.log(`    ✓ Found ${toolResult.events.length} events today`);
+              
+              console.log(`📊 Found ${(events || []).length} raw events from database`);
+              
+              // ✅ ROBUST TIMEZONE CONVERSION: Use the same iterative adjustment logic that works for reminders
+              const eventsWithLocalTimes = (events || []).map(event => {
+                const startUTC = new Date(event.start_date);
+                const endUTC = new Date(event.end_date);
+                
+                console.log(`\n📅 Processing event: "${event.title || event.user_surname}"`);
+                console.log(`   UTC stored: ${event.start_date} to ${event.end_date}`);
+                console.log(`   UTC Date objects: ${startUTC.toISOString()} to ${endUTC.toISOString()}`);
+                
+                // Use the EXACT SAME conversion logic as reminders (which works correctly)
+                const convertUTCToLocal = (utcDate: Date): string => {
+                  if (!effectiveTZ) {
+                    console.log(`   ⚠️ No effectiveTZ, using offset fallback`);
+                    // Fallback: use offset
+                    if (typeof tzOffsetMinutes === 'number') {
+                      const localMs = utcDate.getTime() - (tzOffsetMinutes * 60000);
+                      const localDate = new Date(localMs);
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      return `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())}T${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}:${pad(localDate.getUTCSeconds())}`;
+                    }
+                    // Last resort: return UTC
+                    return utcDate.toISOString().replace('Z', '');
+                  }
+                  
+                  try {
+                    // Use Intl.DateTimeFormat with the EXACT same approach as reminders
+                    const formatter = new Intl.DateTimeFormat('en-CA', {
+                      timeZone: effectiveTZ,
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      hour12: false
+                    });
+                    
+                    const parts = formatter.formatToParts(utcDate);
+                    const values: Record<string, string> = {};
+                    parts.forEach(part => {
+                      if (part.type !== 'literal') {
+                        values[part.type] = part.value;
+                      }
+                    });
+                    
+                    const result = `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}`;
+                    console.log(`   ✅ Converted to ${effectiveTZ}: ${result}`);
+                    return result;
+                  } catch (err) {
+                    console.error(`   ❌ Conversion error:`, err);
+                    return utcDate.toISOString().replace('Z', '');
+                  }
+                };
+                
+                const localStart = convertUTCToLocal(startUTC);
+                const localEnd = convertUTCToLocal(endUTC);
+                
+                console.log(`   📤 Returning to LLM: ${localStart} to ${localEnd}`);
+                
+                return {
+                  id: event.id,
+                  title: event.title,
+                  user_surname: event.user_surname,
+                  user_number: event.user_number,
+                  event_notes: event.event_notes,
+                  payment_status: event.payment_status,
+                  payment_amount: event.payment_amount,
+                  start_date: localStart,
+                  end_date: localEnd
+                };
+              });
+              
+              toolResult = { date: today, events: eventsWithLocalTimes };
+              console.log(`\n✅ FINAL RESULT: Returning ${toolResult.events.length} events with times in ${effectiveTZ || 'offset-adjusted timezone'}`);
+              console.log(`📋 Event times being sent to LLM:`, JSON.stringify(eventsWithLocalTimes.map(e => ({
+                name: e.title || e.user_surname,
+                start: e.start_date,
+                end: e.end_date
+              })), null, 2));
               break;
             }
 
@@ -2717,26 +3150,168 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .order('start_date', { ascending: true })
                 .limit(20);
               
+              // ✅ PHASE 1 FIX: Simplified timezone conversion using toLocaleString
+              const eventsWithLocalTimes = (events || []).map(event => {
+                const startUTC = new Date(event.start_date);
+                const endUTC = new Date(event.end_date);
+                
+                const formatInTimezone = (date: Date): string => {
+                  const localStr = date.toLocaleString('en-CA', {
+                    timeZone: effectiveTZ || userTimezone,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  });
+                  return localStr.replace(', ', 'T');
+                };
+                
+                return {
+                  id: event.id,
+                  title: event.title,
+                  user_surname: event.user_surname,
+                  user_number: event.user_number,
+                  payment_status: event.payment_status,
+                  payment_amount: event.payment_amount,
+                  start_date: formatInTimezone(startUTC),
+                  end_date: formatInTimezone(endUTC)
+                };
+              });
+              
               toolResult = { 
                 from: startDate.toISOString().split('T')[0],
                 to: endDate.toISOString().split('T')[0],
-                events: events || [] 
+                events: eventsWithLocalTimes
               };
-              console.log(`    ✓ Found ${toolResult.events.length} upcoming events`);
+              console.log(`    ✓ Found ${toolResult.events.length} upcoming events (times converted to ${effectiveTZ})`);
               break;
             }
 
             case 'get_schedule': {
+              // ✅ BULLETPROOF FIX: Handle all parameter variations and validate types
+              console.log('🔍 get_schedule called with args:', JSON.stringify(args));
+              
+              // Check all possible parameter name variations
+              let fromParam = args.from || (args as any).from1_ || (args as any).from_ || (args as any).start || null;
+              let toParam = args.to || (args as any).to1_ || (args as any).to_ || (args as any).end || null;
+              
+              // Type validation and sanitization
+              if (fromParam && typeof fromParam !== 'string') {
+                fromParam = String(fromParam);
+              }
+              if (toParam && typeof toParam !== 'string') {
+                toParam = String(toParam);
+              }
+              
+              // Final validation
+              if (!fromParam || !toParam || fromParam.trim() === '' || toParam.trim() === '') {
+                console.error('❌ get_schedule: Invalid parameters after normalization', { 
+                  original: args,
+                  normalized: { fromParam, toParam }
+                });
+                toolResult = {
+                  success: false,
+                  error: 'Invalid date parameters. Please provide valid from and to dates in YYYY-MM-DD format.',
+                  hint: 'Example: from: "2025-11-18", to: "2025-11-18"',
+                  received: args
+                };
+                break;
+              }
+              
+              const fromDate = (typeof fromParam === 'string' && fromParam.includes('T')) ? fromParam : `${fromParam}T00:00:00`;
+              const toDate = (typeof toParam === 'string' && toParam.includes('T')) ? toParam : `${toParam}T23:59:59`;
+              
+              console.log(`🔍 get_schedule: Finding events that overlap ${fromDate} to ${toDate}`);
+              
               const { data: events } = await supabaseClient
                 .from('events')
                 .select('id, title, start_date, end_date, payment_status, payment_amount, user_surname, user_number, event_notes')
                 .eq('user_id', ownerId)
-                .gte('start_date', args.from)
-                .lte('end_date', args.to)
+                .lte('start_date', toDate)     // Event starts before or during the range
+                .gte('end_date', fromDate)     // Event ends after or during the range
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
-              toolResult = events || [];
-              console.log(`    ✓ Found ${toolResult.length} events`);
+              
+              console.log(`📊 Raw query result: ${(events || []).length} events found`);
+              
+              // ✅ PHASE 1 FIX: Simplified timezone conversion using toLocaleString
+              const eventsWithLocalTimes = (events || []).map(event => {
+                const startUTC = new Date(event.start_date);
+                const endUTC = new Date(event.end_date);
+                
+                console.log(`\n📅 Event: "${event.title || event.user_surname}"`);
+                console.log(`   UTC: ${event.start_date} to ${event.end_date}`);
+                
+                const formatInTimezone = (date: Date): string => {
+                  if (!effectiveTZ) {
+                    // Fallback: use offset
+                    if (typeof tzOffsetMinutes === 'number') {
+                      const localMs = date.getTime() - (tzOffsetMinutes * 60000);
+                      const localDate = new Date(localMs);
+                      const pad = (n: number) => String(n).padStart(2, '0');
+                      const result = `${localDate.getUTCFullYear()}-${pad(localDate.getUTCMonth() + 1)}-${pad(localDate.getUTCDate())}T${pad(localDate.getUTCHours())}:${pad(localDate.getUTCMinutes())}:${pad(localDate.getUTCSeconds())}`;
+                      console.log(`   Offset-adjusted: ${result}`);
+                      return result;
+                    }
+                    return date.toISOString().replace('Z', '');
+                  }
+                  
+                  try {
+                    const formatter = new Intl.DateTimeFormat('en-CA', {
+                      timeZone: effectiveTZ,
+                      year: 'numeric',
+                      month: '2-digit',
+                      day: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      hour12: false
+                    });
+                    
+                    const parts = formatter.formatToParts(date);
+                    const values: Record<string, string> = {};
+                    parts.forEach(part => {
+                      if (part.type !== 'literal') {
+                        values[part.type] = part.value;
+                      }
+                    });
+                    
+                    const result = `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}`;
+                    console.log(`   Converted to ${effectiveTZ}: ${result}`);
+                    return result;
+                  } catch (err) {
+                    console.error(`   Conversion error:`, err);
+                    return date.toISOString().replace('Z', '');
+                  }
+                };
+                
+                return {
+                  id: event.id,
+                  title: event.title,
+                  user_surname: event.user_surname,
+                  user_number: event.user_number,
+                  event_notes: event.event_notes,
+                  payment_status: event.payment_status,
+                  payment_amount: event.payment_amount,
+                  start_date: formatInTimezone(startUTC),
+                  end_date: formatInTimezone(endUTC)
+                };
+              });
+              
+              toolResult = { 
+                from: fromParam,
+                to: toParam,
+                events: eventsWithLocalTimes
+              };
+              console.log(`\n✅ FINAL: Returning ${toolResult.events.length} events for ${fromParam} to ${toParam}`);
+              console.log(`📋 Events being sent to LLM:`, JSON.stringify(eventsWithLocalTimes.map(e => ({
+                name: e.title || e.user_surname,
+                start: e.start_date,
+                end: e.end_date
+              })), null, 2));
               break;
             }
 
@@ -4541,6 +5116,50 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               });
               
               try {
+                // 🎯 AUTO-SEARCH: Validate event_id format and search for existing event by full_name
+                let finalEventId = null;
+                let preservedStartDate = start_date;
+                let preservedEndDate = end_date;
+                
+                // ✅ FIX: Validate UUID format - if invalid, treat as null and search by name
+                const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                if (event_id && uuidRegex.test(event_id)) {
+                  finalEventId = event_id;
+                  console.log(`    ✅ Valid event_id provided: ${finalEventId}`);
+                } else if (event_id) {
+                  console.log(`    ⚠️ Invalid event_id format: ${event_id} - will search by name instead`);
+                }
+                
+                // Search by name if no valid event_id
+                if (!finalEventId && full_name) {
+                  console.log(`    🔍 Auto-searching for existing event with name: ${full_name}`);
+                  const { data: existingEvents } = await supabaseAdmin
+                    .from('events')
+                    .select('id, title, user_surname, start_date, end_date')
+                    .eq('user_id', ownerId)
+                    .is('deleted_at', null)
+                    .or(`title.ilike.%${full_name}%,user_surname.ilike.%${full_name}%`)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                  
+                  if (existingEvents && existingEvents.length > 0) {
+                    finalEventId = existingEvents[0].id;
+                    console.log(`    ✅ Found existing event ID (UUID): ${finalEventId}`);
+                    
+                    // ✅ CRITICAL: If dates weren't provided, preserve original event times
+                    if (!start_date || !end_date) {
+                      preservedStartDate = existingEvents[0].start_date;
+                      preservedEndDate = existingEvents[0].end_date;
+                      console.log(`    📅 PRESERVING original event times: ${preservedStartDate} to ${preservedEndDate}`);
+                    }
+                    
+                    console.log(`    ✅ Found existing event: ${existingEvents[0].user_surname || existingEvents[0].title} (ID: ${finalEventId})`);
+                    console.log(`    📝 This will be an UPDATE, not a new creation`);
+                  } else {
+                    console.log(`    ℹ️ No existing event found with name "${full_name}" - will create new one`);
+                  }
+                }
+                
                 // CRITICAL: Convert local datetime to UTC using same logic as reminders
                 const convertLocalToUTC = (localDateTimeStr: string): string => {
                   if (!localDateTimeStr) return new Date().toISOString();
@@ -4591,21 +5210,22 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   return guess.toISOString();
                 };
                 
-                // Convert start and end dates to UTC
-                const startDateUTC = convertLocalToUTC(start_date);
-                const endDateUTC = convertLocalToUTC(end_date);
+                // Convert start and end dates to UTC (using preserved dates if editing without new times)
+                const startDateUTC = preservedStartDate ? (preservedStartDate.includes('Z') || preservedStartDate.includes('+') ? preservedStartDate : convertLocalToUTC(preservedStartDate)) : convertLocalToUTC(start_date);
+                const endDateUTC = preservedEndDate ? (preservedEndDate.includes('Z') || preservedEndDate.includes('+') ? preservedEndDate : convertLocalToUTC(preservedEndDate)) : convertLocalToUTC(end_date);
                 
                 console.log('🕐 Timezone conversion:', {
-                  localStart: start_date,
+                  localStart: preservedStartDate || start_date,
                   utcStart: startDateUTC,
-                  localEnd: end_date,
+                  localEnd: preservedEndDate || end_date,
                   utcEnd: endDateUTC,
                   effectiveTZ,
-                  tzOffsetMinutes
+                  tzOffsetMinutes,
+                  preserved: !start_date || !end_date
                 });
                 
                 // Check for time conflicts BEFORE creating (only for new events)
-                if (!event_id) {
+                if (!finalEventId) {
                   const { data: conflicts } = await supabaseAdmin
                     .from('events')
                     .select('id, title, start_date, end_date, user_surname')
@@ -4641,30 +5261,57 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   paymentAmount: person.paymentAmount || person.payment_amount || ""
                 }));
 
-                const eventData = {
+                // ✅ FIX: Only include fields that were explicitly provided to avoid overwriting existing data
+                const eventData: any = {
                   title: full_name,
                   user_surname: full_name,
-                  user_number: phone_number || "",
-                  social_network_link: social_media || "",
-                  event_notes: notes || "",
-                  event_name: event_name || "",
                   start_date: startDateUTC,
                   end_date: endDateUTC,
-                  payment_status: payment_status || "not_paid",
-                  payment_amount: payment_amount ? payment_amount.toString() : "",
-                  type: "event",
-                  is_recurring: is_recurring || false,
-                  repeat_pattern: repeat_pattern || null,
-                  repeat_until: repeat_until || null
+                  type: "event"
                 };
+                
+                // Only add optional fields if they were actually provided
+                if (phone_number !== undefined) eventData.user_number = phone_number;
+                if (social_media !== undefined) eventData.social_network_link = social_media;
+                if (notes !== undefined) eventData.event_notes = notes;
+                if (event_name !== undefined) eventData.event_name = event_name;
+                if (payment_status !== undefined) eventData.payment_status = payment_status;
+                if (payment_amount !== undefined) eventData.payment_amount = payment_amount.toString();
+                if (is_recurring !== undefined) eventData.is_recurring = is_recurring;
+                if (repeat_pattern !== undefined) eventData.repeat_pattern = repeat_pattern;
+                if (repeat_until !== undefined) eventData.repeat_until = repeat_until;
 
-                if (event_id) {
+                if (finalEventId) {
+                  // ✅ PHASE 2: Pre-flight validation - verify event exists before attempting update
+                  console.log(`    🔍 Pre-flight check: Verifying event ${finalEventId} exists...`);
+                  const { data: existingEvent, error: checkError } = await supabaseAdmin
+                    .from('events')
+                    .select('id, title, user_surname, start_date, end_date')
+                    .eq('id', finalEventId)
+                    .eq('user_id', ownerId)
+                    .is('deleted_at', null)
+                    .single();
+                  
+                  if (checkError || !existingEvent) {
+                    console.error(`    ❌ Pre-flight check failed: Event ${finalEventId} not found or access denied`);
+                    toolResult = { 
+                      success: false, 
+                      error: `Event not found or has been deleted. Cannot update event ID: ${finalEventId}` 
+                    };
+                    break;
+                  }
+                  
+                  console.log(`    ✅ Pre-flight check passed: Event exists - ${existingEvent.user_surname || existingEvent.title}`);
+                  console.log(`    📅 Original times: ${existingEvent.start_date} to ${existingEvent.end_date}`);
+                  console.log(`    📅 New times: ${startDateUTC} to ${endDateUTC}`);
+                  console.log(`    ℹ️ Dates ${!start_date || !end_date ? 'PRESERVED' : 'UPDATED'}`);
+                  
                   // Update existing event
                   const { data: result, error: updateError } = await supabaseAdmin.rpc('save_event_with_persons', {
                     p_event_data: eventData,
                     p_additional_persons: formattedAdditionalPersons,
                     p_user_id: ownerId,
-                    p_event_id: event_id,
+                    p_event_id: finalEventId,
                     p_created_by_type: requesterType,
                     p_created_by_name: baseName,  // ← Use clean name without "(AI)"
                     p_created_by_ai: true,        // ← Boolean flag for AI creation
@@ -4675,21 +5322,26 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   
                   if (updateError) {
                     console.error('    ❌ Failed to update event:', updateError);
-                    toolResult = { success: false, error: updateError.message };
+                    toolResult = { 
+                      success: false, 
+                      error: `Failed to update event: ${updateError.message}. Event ID: ${finalEventId}` 
+                    };
                   } else {
-                    console.log(`    ✅ Event updated: ${full_name}`);
+                    console.log(`    ✅ Event successfully updated: ${full_name}`);
+                    console.log(`    📋 Updated fields: ${Object.keys(eventData).join(', ')}`);
+                    console.log(`    ${!start_date || !end_date ? '📅 Original event times were PRESERVED' : '🕐 Event times were CHANGED'}`);
                     
                     // Link chat attachment files to event without re-uploading
                     let uploadedFiles = [];
                     if (attachments && attachments.length > 0) {
-                      console.log(`    📎 Linking ${attachments.length} file attachments to event ${event_id}`);
+                      console.log(`    📎 Linking ${attachments.length} file attachments to event ${finalEventId}`);
                       for (const attachment of attachments) {
                         try {
                           console.log(`    → Linking ${attachment.filename} from chat_attachments`);
                           
                           // Create event_files record pointing to chat_attachments file
                           const { error: dbError } = await supabaseAdmin.from('event_files').insert({
-                            event_id: event_id,
+                            event_id: finalEventId,
                             user_id: ownerId,
                             filename: attachment.filename,
                             file_path: attachment.file_path.startsWith('chat_attachments/') ? attachment.file_path : `chat_attachments/${attachment.file_path}`,
@@ -4712,14 +5364,16 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     
                     toolResult = { 
                       success: true, 
-                      event_id: result || event_id,
+                      event_id: result || finalEventId,
                       action: 'updated',
-                      message: `Event updated: ${full_name}`,
+                      message: `Event updated: ${full_name}${!start_date || !end_date ? ' (original times preserved)' : ''}`,
                       uploaded_files: uploadedFiles,
                       additional_persons_count: formattedAdditionalPersons.length,
                       event_name: event_name || null,
                       is_recurring: is_recurring || false,
-                      repeat_pattern: repeat_pattern || null
+                      repeat_pattern: repeat_pattern || null,
+                      times_preserved: !start_date || !end_date,
+                      updated_fields: Object.keys(eventData).filter(k => k !== 'start_date' && k !== 'end_date')
                     };
                     
                     // Broadcast change

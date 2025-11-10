@@ -202,24 +202,24 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
       // Don't return trial_expired on database errors, let it continue to try Stripe sync
     }
     
-    // If user has ultimate plan, return that immediately
+    // If user has ultimate plan, return that immediately - NO FURTHER PROCESSING
     if (subscription && subscription.plan_type === 'ultimate') {
-      console.log('User has ultimate subscription');
+      console.log('[SUBSCRIPTION_CHECK] ✅ User has ULTIMATE subscription - unlimited access!');
       const result = {
         success: true,
-        status: 'active',
+        status: 'active', // Always active for ultimate
         planType: 'ultimate',
         subscription_start_date: subscription.subscription_start_date,
         subscription_end_date: null // Ultimate has no end date
       };
       
       subscriptionCache.setCachedStatus(result, reason);
-      return result;
+      return result; // CRITICAL: Return immediately, don't continue to expiry checks below
     }
 
-    // If user has any existing subscription (yearly, monthly), preserve it
+    // If user has any OTHER existing subscription (yearly, monthly), check expiry
     if (subscription) {
-      console.log('User has existing subscription:', subscription);
+      console.log('[SUBSCRIPTION_CHECK] User has existing non-ultimate subscription:', subscription);
       const now = new Date();
       let status = subscription.status;
       
@@ -228,6 +228,7 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
         const trialEnd = new Date(subscription.trial_end_date);
         if (now > trialEnd) {
           status = 'trial_expired';
+          console.log('[SUBSCRIPTION_CHECK] Trial has expired');
         }
       }
       
@@ -236,6 +237,7 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
         const periodEnd = new Date(subscription.current_period_end);
         if (now > periodEnd) {
           status = 'expired';
+          console.log('[SUBSCRIPTION_CHECK] Subscription period has expired');
         }
       }
       
