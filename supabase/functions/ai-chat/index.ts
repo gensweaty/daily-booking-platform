@@ -2934,67 +2934,45 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
               
-              // Convert UTC times to user's local timezone using Intl.DateTimeFormat (same as reminders)
+              // ✅ PHASE 1 FIX: Simplified timezone conversion using toLocaleString (same as reminders)
               const eventsWithLocalTimes = (events || []).map(event => {
-                try {
-                  const startUTC = new Date(event.start_date);
-                  const endUTC = new Date(event.end_date);
-                  
-                  console.log(`  📅 Converting event: ${event.title || event.user_surname} - UTC ${event.start_date}`);
-                  
-                  // ✅ CORRECT: Use Intl.DateTimeFormat with user's timezone (same reliable method as reminders)
-                  const formatInTimezone = (date: Date): string => {
-                    try {
-                      if (!effectiveTZ || effectiveTZ === 'UTC') {
-                        // Fallback: keep as UTC
-                        const pad = (n: number) => String(n).padStart(2, '0');
-                        return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-                      }
-                      
-                      const parts: Record<string, string> = {};
-                      new Intl.DateTimeFormat('en-CA', {
-                        timeZone: effectiveTZ,
-                        hour12: false,
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                      }).formatToParts(date).forEach(p => {
-                        if (p.type !== 'literal') parts[p.type] = p.value;
-                      });
-                      
-                      return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
-                    } catch (err) {
-                      console.error('Format error:', err);
-                      // Fallback to UTC
-                      const pad = (n: number) => String(n).padStart(2, '0');
-                      return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-                    }
-                  };
-                  
-                  const convertedStart = formatInTimezone(startUTC);
-                  const convertedEnd = formatInTimezone(endUTC);
-                  
-                  console.log(`  ✅ Converted to ${effectiveTZ}: ${convertedStart} to ${convertedEnd}`);
-                  
-                  return {
-                    id: event.id,
-                    title: event.title,
-                    user_surname: event.user_surname,
-                    user_number: event.user_number,
-                    event_notes: event.event_notes,
-                    payment_status: event.payment_status,
-                    payment_amount: event.payment_amount,
-                    start_date: convertedStart,
-                    end_date: convertedEnd
-                  };
-                } catch (error) {
-                  console.error(`  ❌ Error converting event ${event.id}:`, error);
-                  // Return event with original times if conversion fails
-                  return event;
-                }
+                const startUTC = new Date(event.start_date);
+                const endUTC = new Date(event.end_date);
+                
+                console.log(`  📅 Event: ${event.title || event.user_surname} - UTC ${event.start_date}`);
+                
+                // Simple, reliable formatting using toLocaleString
+                const formatInTimezone = (date: Date): string => {
+                  const localStr = date.toLocaleString('en-CA', {
+                    timeZone: effectiveTZ || userTimezone,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  });
+                  // Convert "YYYY-MM-DD, HH:MM:SS" to "YYYY-MM-DDTHH:MM:SS"
+                  return localStr.replace(', ', 'T');
+                };
+                
+                const convertedStart = formatInTimezone(startUTC);
+                const convertedEnd = formatInTimezone(endUTC);
+                
+                console.log(`  ✅ Converted to ${effectiveTZ}: ${convertedStart} to ${convertedEnd}`);
+                
+                return {
+                  id: event.id,
+                  title: event.title,
+                  user_surname: event.user_surname,
+                  user_number: event.user_number,
+                  event_notes: event.event_notes,
+                  payment_status: event.payment_status,
+                  payment_amount: event.payment_amount,
+                  start_date: convertedStart,
+                  end_date: convertedEnd
+                };
               });
               
               toolResult = { date: today, events: eventsWithLocalTimes };
@@ -3018,53 +2996,35 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .order('start_date', { ascending: true })
                 .limit(20);
               
-              // Convert UTC times to user's local timezone using Intl.DateTimeFormat (same as reminders)
+              // ✅ PHASE 1 FIX: Simplified timezone conversion using toLocaleString
               const eventsWithLocalTimes = (events || []).map(event => {
-                try {
-                  const startUTC = new Date(event.start_date);
-                  const endUTC = new Date(event.end_date);
-                  
-                  const formatInTimezone = (date: Date): string => {
-                    try {
-                      if (!effectiveTZ || effectiveTZ === 'UTC') {
-                        const pad = (n: number) => String(n).padStart(2, '0');
-                        return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-                      }
-                      
-                      const parts: Record<string, string> = {};
-                      new Intl.DateTimeFormat('en-CA', {
-                        timeZone: effectiveTZ,
-                        hour12: false,
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                      }).formatToParts(date).forEach(p => {
-                        if (p.type !== 'literal') parts[p.type] = p.value;
-                      });
-                      
-                      return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
-                    } catch (err) {
-                      const pad = (n: number) => String(n).padStart(2, '0');
-                      return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-                    }
-                  };
-                  
-                  return {
-                    id: event.id,
-                    title: event.title,
-                    user_surname: event.user_surname,
-                    user_number: event.user_number,
-                    payment_status: event.payment_status,
-                    payment_amount: event.payment_amount,
-                    start_date: formatInTimezone(startUTC),
-                    end_date: formatInTimezone(endUTC)
-                  };
-                } catch (error) {
-                  return event;
-                }
+                const startUTC = new Date(event.start_date);
+                const endUTC = new Date(event.end_date);
+                
+                const formatInTimezone = (date: Date): string => {
+                  const localStr = date.toLocaleString('en-CA', {
+                    timeZone: effectiveTZ || userTimezone,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  });
+                  return localStr.replace(', ', 'T');
+                };
+                
+                return {
+                  id: event.id,
+                  title: event.title,
+                  user_surname: event.user_surname,
+                  user_number: event.user_number,
+                  payment_status: event.payment_status,
+                  payment_amount: event.payment_amount,
+                  start_date: formatInTimezone(startUTC),
+                  end_date: formatInTimezone(endUTC)
+                };
               });
               
               toolResult = { 
@@ -3086,54 +3046,36 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .is('deleted_at', null)
                 .order('start_date', { ascending: true });
               
-              // Convert UTC times to user's local timezone using Intl.DateTimeFormat (same as reminders)
+              // ✅ PHASE 1 FIX: Simplified timezone conversion using toLocaleString
               const eventsWithLocalTimes = (events || []).map(event => {
-                try {
-                  const startUTC = new Date(event.start_date);
-                  const endUTC = new Date(event.end_date);
-                  
-                  const formatInTimezone = (date: Date): string => {
-                    try {
-                      if (!effectiveTZ || effectiveTZ === 'UTC') {
-                        const pad = (n: number) => String(n).padStart(2, '0');
-                        return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-                      }
-                      
-                      const parts: Record<string, string> = {};
-                      new Intl.DateTimeFormat('en-CA', {
-                        timeZone: effectiveTZ,
-                        hour12: false,
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                      }).formatToParts(date).forEach(p => {
-                        if (p.type !== 'literal') parts[p.type] = p.value;
-                      });
-                      
-                      return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`;
-                    } catch (err) {
-                      const pad = (n: number) => String(n).padStart(2, '0');
-                      return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-                    }
-                  };
-                  
-                  return {
-                    id: event.id,
-                    title: event.title,
-                    user_surname: event.user_surname,
-                    user_number: event.user_number,
-                    event_notes: event.event_notes,
-                    payment_status: event.payment_status,
-                    payment_amount: event.payment_amount,
-                    start_date: formatInTimezone(startUTC),
-                    end_date: formatInTimezone(endUTC)
-                  };
-                } catch (error) {
-                  return event;
-                }
+                const startUTC = new Date(event.start_date);
+                const endUTC = new Date(event.end_date);
+                
+                const formatInTimezone = (date: Date): string => {
+                  const localStr = date.toLocaleString('en-CA', {
+                    timeZone: effectiveTZ || userTimezone,
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                  });
+                  return localStr.replace(', ', 'T');
+                };
+                
+                return {
+                  id: event.id,
+                  title: event.title,
+                  user_surname: event.user_surname,
+                  user_number: event.user_number,
+                  event_notes: event.event_notes,
+                  payment_status: event.payment_status,
+                  payment_amount: event.payment_amount,
+                  start_date: formatInTimezone(startUTC),
+                  end_date: formatInTimezone(endUTC)
+                };
               });
               
               toolResult = { 
@@ -5112,6 +5054,30 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 if (repeat_until !== undefined) eventData.repeat_until = repeat_until;
 
                 if (finalEventId) {
+                  // ✅ PHASE 2: Pre-flight validation - verify event exists before attempting update
+                  console.log(`    🔍 Pre-flight check: Verifying event ${finalEventId} exists...`);
+                  const { data: existingEvent, error: checkError } = await supabaseAdmin
+                    .from('events')
+                    .select('id, title, user_surname, start_date, end_date')
+                    .eq('id', finalEventId)
+                    .eq('user_id', ownerId)
+                    .is('deleted_at', null)
+                    .single();
+                  
+                  if (checkError || !existingEvent) {
+                    console.error(`    ❌ Pre-flight check failed: Event ${finalEventId} not found or access denied`);
+                    toolResult = { 
+                      success: false, 
+                      error: `Event not found or has been deleted. Cannot update event ID: ${finalEventId}` 
+                    };
+                    break;
+                  }
+                  
+                  console.log(`    ✅ Pre-flight check passed: Event exists - ${existingEvent.user_surname || existingEvent.title}`);
+                  console.log(`    📅 Original times: ${existingEvent.start_date} to ${existingEvent.end_date}`);
+                  console.log(`    📅 New times: ${startDateUTC} to ${endDateUTC}`);
+                  console.log(`    ℹ️ Dates ${!start_date || !end_date ? 'PRESERVED' : 'UPDATED'}`);
+                  
                   // Update existing event
                   const { data: result, error: updateError } = await supabaseAdmin.rpc('save_event_with_persons', {
                     p_event_data: eventData,
@@ -5128,9 +5094,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   
                   if (updateError) {
                     console.error('    ❌ Failed to update event:', updateError);
-                    toolResult = { success: false, error: updateError.message };
+                    toolResult = { 
+                      success: false, 
+                      error: `Failed to update event: ${updateError.message}. Event ID: ${finalEventId}` 
+                    };
                   } else {
-                    console.log(`    ✅ Event updated: ${full_name}`);
+                    console.log(`    ✅ Event successfully updated: ${full_name}`);
+                    console.log(`    📋 Updated fields: ${Object.keys(eventData).join(', ')}`);
+                    console.log(`    ${!start_date || !end_date ? '📅 Original event times were PRESERVED' : '🕐 Event times were CHANGED'}`);
                     
                     // Link chat attachment files to event without re-uploading
                     let uploadedFiles = [];
@@ -5167,12 +5138,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       success: true, 
                       event_id: result || finalEventId,
                       action: 'updated',
-                      message: `Event updated: ${full_name}`,
+                      message: `Event updated: ${full_name}${!start_date || !end_date ? ' (original times preserved)' : ''}`,
                       uploaded_files: uploadedFiles,
                       additional_persons_count: formattedAdditionalPersons.length,
                       event_name: event_name || null,
                       is_recurring: is_recurring || false,
-                      repeat_pattern: repeat_pattern || null
+                      repeat_pattern: repeat_pattern || null,
+                      times_preserved: !start_date || !end_date,
+                      updated_fields: Object.keys(eventData).filter(k => k !== 'start_date' && k !== 'end_date')
                     };
                     
                     // Broadcast change
