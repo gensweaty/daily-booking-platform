@@ -36,9 +36,20 @@ export interface ParsedData {
 
 const FIELD_KEYWORDS = {
   fullName: {
-    keywords: ['name', 'company', 'business', 'customer', 'client', 'organization', 'title', 
-               'nombre', 'სახელი', 'კლიენტი', 'კომპანია'],
+    keywords: ['fullname', 'full_name', 'full name', 'companyname', 'company_name', 'company name', 
+               'businessname', 'business_name', 'business name', 'customer', 'client', 
+               'organization', 'nombre completo', 'სრული სახელი', 'კლიენტი', 'კომპანია'],
     priority: 10,
+    patterns: [] as RegExp[]
+  },
+  firstName: {
+    keywords: ['firstname', 'first_name', 'first name', 'given', 'nombre', 'სახელი'],
+    priority: 9,
+    patterns: [] as RegExp[]
+  },
+  lastName: {
+    keywords: ['lastname', 'last_name', 'last name', 'surname', 'family', 'apellido', 'გვარი'],
+    priority: 9,
     patterns: [] as RegExp[]
   },
   phoneNumber: {
@@ -193,6 +204,12 @@ export const useExcelImport = () => {
       }
     });
     
+    // Special handling: if we have firstName and lastName but no fullName, mark them for combining
+    if (finalMappings.firstName !== undefined && finalMappings.lastName !== undefined && finalMappings.fullName === undefined) {
+      console.log('Detected first_name and last_name columns - will combine them into Full Name');
+      // Keep firstName and lastName in mappings for extraction, they'll be combined during parsing
+    }
+    
     console.log('Final mappings:', finalMappings);
     console.log('Selected suggestions:', suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex));
     
@@ -233,7 +250,26 @@ export const useExcelImport = () => {
       
       dataRows.forEach((row, index) => {
         const rowNumber = index + 2;
-        const fullName = row[columnMap.fullName]?.toString().trim();
+        
+        // Smart fullName extraction: combine first_name + last_name if available, or use fullName directly
+        let fullName = '';
+        
+        if (columnMap.fullName !== undefined) {
+          // Direct fullName column exists
+          fullName = row[columnMap.fullName]?.toString().trim() || '';
+        } else if (columnMap.firstName !== undefined && columnMap.lastName !== undefined) {
+          // Combine first_name and last_name
+          const firstName = row[columnMap.firstName]?.toString().trim() || '';
+          const lastName = row[columnMap.lastName]?.toString().trim() || '';
+          fullName = `${firstName} ${lastName}`.trim();
+        } else if (columnMap.firstName !== undefined) {
+          // Only first name available
+          fullName = row[columnMap.firstName]?.toString().trim() || '';
+        } else if (columnMap.lastName !== undefined) {
+          // Only last name available
+          fullName = row[columnMap.lastName]?.toString().trim() || '';
+        }
+        
         if (!fullName) {
           errors.push({ row: rowNumber, field: 'fullName', message: t('crm.missingRequired', { field: t('crm.fullName') }) });
           return;
