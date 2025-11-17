@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download } from "lucide-react";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -63,6 +63,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ExcelImportDialog } from "./ExcelImportDialog";
 
 const LoadingCustomerList = React.memo(() => {
   return (
@@ -146,6 +147,7 @@ const CustomerListContent = ({
   const searchValueRef = useRef("");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<any>(null);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   
   // Get currency symbol based on language
   const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
@@ -591,17 +593,30 @@ const CustomerListContent = ({
             resetPagination={resetPagination}
           />
           <CRMFilterButton boardOwnerId={isPublicMode ? publicBoardUserId : user?.id} />
-          <Button
-            onClick={handleExcelDownload}
-            variant="outline" 
-            size="default"
-            className="flex items-center gap-2 h-10 px-3"
-            title={t("statistics.exportExcel")}
-            disabled={isFetching}
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            <span className="hidden sm:inline">Excel</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline" 
+                size="default"
+                className="flex items-center gap-2 h-10 px-3"
+                title={t("crm.excelActions")}
+                disabled={isFetching}
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                <span className="hidden sm:inline">Excel</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExcelDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                {t("crm.exportExcel")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)} disabled={!canEditDelete}>
+                <Upload className="mr-2 h-4 w-4" />
+                {t("crm.importExcel")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button 
             onClick={openCreateDialog} 
             className="flex items-center gap-2 h-10 whitespace-nowrap"
@@ -881,6 +896,19 @@ const CustomerListContent = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ExcelImportDialog
+        open={isImportDialogOpen}
+        onOpenChange={setIsImportDialogOpen}
+        userId={isPublicMode ? publicBoardUserId! : user?.id!}
+        createdByType={isPublicMode ? 'sub_user' : (isSubUser ? 'sub_user' : 'admin')}
+        createdByName={isPublicMode ? externalUserName! : user?.email || ''}
+        onImportComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+          queryClient.invalidateQueries({ queryKey: ['events'] });
+          queryClient.invalidateQueries({ queryKey: ['crm-data'] });
+        }}
+      />
     </div>
   );
 };
