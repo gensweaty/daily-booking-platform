@@ -36,46 +36,40 @@ export interface ParsedData {
 
 const FIELD_KEYWORDS = {
   fullName: {
-    exact: ['full_name', 'full name', 'company_name', 'company name', 'business_name', 'business name', 
-            'customer_name', 'customer name', 'client_name', 'client name', 'organization', 'org_name', 
-            'company', 'business', 'customer', 'client', 'nombre completo', 'სახელი და გვარი'],
-    partial: ['name', 'nombre', 'სახელი', 'კლიენტი'],
-    patterns: [/company/i, /business/i, /customer/i, /client/i, /organization/i]
+    keywords: ['name', 'company', 'business', 'customer', 'client', 'organization', 'title', 
+               'nombre', 'სახელი', 'კლიენტი', 'კომპანია'],
+    priority: 10,
+    patterns: [] as RegExp[]
   },
   phoneNumber: {
-    exact: ['phone_number', 'phone number', 'phone', 'mobile', 'mobile_number', 'mobile number', 'tel', 'telephone',
-            'número de teléfono', 'ტელეფონის ნომერი'],
-    partial: ['contact', 'número', 'ტელეფონი', 'cell'],
-    patterns: [/phone/i, /mobile/i, /tel/i, /contact.*number/i, /\d{9,15}/]
+    keywords: ['phone', 'mobile', 'tel', 'contact', 'número', 'ტელეფონი'],
+    priority: 8,
+    patterns: [/\+?\d[\d\s\-()]{8,}/]
   },
   socialLink: {
-    exact: ['primary_email', 'primary email', 'email', 'e_mail', 'e-mail', 'email_address', 'email address',
-            'social link/email', 'enlace social/correo', 'სოციალური ბმული/ელფოსტა'],
-    partial: ['mail', 'correo', 'ელფოსტა'],
-    patterns: [/@/, /email/i, /mail/i]
+    keywords: ['email', 'mail', 'correo', 'ელფოსტა', 'social'],
+    priority: 7,
+    patterns: [/@/]
   },
   paymentStatus: {
-    exact: ['payment status', 'estado de pago', 'გადახდის სტატუსი', 'payment_status'],
-    partial: ['payment', 'status', 'paid', 'pago', 'estado', 'გადახდა'],
-    patterns: []
+    keywords: ['payment', 'status', 'paid', 'pago', 'გადახდა'],
+    priority: 6,
+    patterns: [] as RegExp[]
   },
   paymentAmount: {
-    exact: ['payment amount', 'monto de pago', 'გადახდის თანხა', 'estimated_deal_value', 'revenue_estimate', 'payment_amount'],
-    partial: ['amount', 'price', 'cost', 'monto', 'precio', 'თანხა', 'value', 'revenue', 'deal', 'estimate'],
-    patterns: [/[\d.,]+/]
+    keywords: ['amount', 'price', 'cost', 'value', 'monto', 'თანხა'],
+    priority: 6,
+    patterns: [/^\d+[\d.,]*$/]
   },
   eventDate: {
-    exact: ['event date', 'fecha del evento', 'ღონისძიების თარიღი', 'event_date'],
-    partial: ['date', 'fecha', 'თარიღი', 'when', 'time'],
-    patterns: [/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/]
+    keywords: ['date', 'event', 'fecha', 'თარიღი'],
+    priority: 5,
+    patterns: [/\d{1,2}[./-]\d{1,2}/]
   },
   comment: {
-    exact: ['comment', 'comments', 'notes', 'note', 'description', 'remarks', 'linkedin_profile', 'linkedin profile',
-            'linkedin_url', 'linkedin url', 'profile_url', 'profile url', 'comentario', 'კომენტარი'],
-    partial: ['linkedin', 'profile', 'segment', 'location', 'address', 'city', 'region', 'country', 'state',
-              'size', 'industry', 'sector', 'job', 'title', 'role', 'position', 'primary_contact', 'contact',
-              'additional', 'extra', 'misc', 'other', 'nota', 'შენიშვნა', 'education', 'experience'],
-    patterns: [/linkedin\.com/i, /http/i, /www\./i, /profile/i, /url/i]
+    keywords: ['comment', 'note', 'description', 'linkedin', 'profile', 'location', 'job', 'title', 'role'],
+    priority: 3,
+    patterns: [] as RegExp[]
   }
 };
 
@@ -114,48 +108,28 @@ export const useExcelImport = () => {
   }, []);
 
   const scoreColumnMatch = useCallback((header: string, sampleData: any[], fieldName: string): number => {
+    const config = FIELD_KEYWORDS[fieldName as keyof typeof FIELD_KEYWORDS];
+    if (!config) return 0;
+    
+    const normalized = header.toLowerCase().replace(/[_\s\-\.]/g, '');
     let score = 0;
-    const lowerHeader = header.toLowerCase().trim();
-    const keywords = FIELD_KEYWORDS[fieldName as keyof typeof FIELD_KEYWORDS];
-    if (!keywords) return 0;
     
-    // More aggressive normalization: remove ALL special characters
-    const normalizedHeader = lowerHeader.replace(/[_\s\-\.]/g, '');
+    // Check header keywords
+    const hasKeyword = config.keywords.some(kw => normalized.includes(kw.toLowerCase().replace(/[_\s\-\.]/g, '')));
+    if (hasKeyword) score += 50;
     
-    console.log(`Scoring "${header}" for ${fieldName}:`, { lowerHeader, normalizedHeader });
-    
-    // Exact match: +100 points (higher priority for exact matches)
-    const exactMatch = keywords.exact.some(k => {
-      const normalizedKeyword = k.toLowerCase().replace(/[_\s\-\.]/g, '');
-      const match = lowerHeader === k.toLowerCase() || normalizedHeader === normalizedKeyword;
-      if (match) console.log(`  ✓ Exact match: "${k}"`);
-      return match;
-    });
-    
-    if (exactMatch) {
-      score += 100;
-    } 
-    // Partial match: +30 points
-    else {
-      const partialMatch = keywords.partial.some(k => {
-        const match = lowerHeader.includes(k.toLowerCase()) || normalizedHeader.includes(k.toLowerCase().replace(/[_\s\-\.]/g, ''));
-        if (match) console.log(`  ✓ Partial match: "${k}"`);
-        return match;
-      });
-      if (partialMatch) score += 30;
-    }
-    
-    // Content pattern analysis: +40 points
-    if (keywords.patterns.length > 0 && sampleData.length > 0) {
-      const validSamples = sampleData.filter(val => val !== null && val !== undefined && val !== '');
+    // Check content patterns if available
+    if (config.patterns && sampleData.length > 0) {
+      const validSamples = sampleData.filter(v => v != null && String(v).trim() !== '');
       if (validSamples.length > 0) {
-        const matchingCount = validSamples.filter(val => 
-          keywords.patterns.some(pattern => pattern.test(String(val)))
+        const matches = validSamples.filter(v => 
+          config.patterns!.some(p => p.test(String(v)))
         ).length;
-        score += (matchingCount / validSamples.length) * 40;
+        score += (matches / validSamples.length) * 50;
       }
     }
-    return score;
+    
+    return score * config.priority;
   }, []);
 
   const detectColumnsWithConfidence = useCallback((headers: string[], rows: any[][]): { mappings: Record<string, number>, suggestions: ColumnMatch[] } => {
@@ -214,42 +188,13 @@ export const useExcelImport = () => {
       if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
       
       const headers = jsonData[0].map((h: any) => String(h || '').trim());
-      console.log('Headers:', headers);
-      const dataRows = jsonData.slice(1);
-      const { mappings: columnMap, suggestions } = detectColumnsWithConfidence(headers, dataRows);
-      console.log('Column mappings:', columnMap);
-      console.log('Suggestions:', suggestions);
+      const dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
       
-      // Fallback: If fullName not detected, find first text column or any column with name/company/business
-      if (!columnMap.fullName) {
-        console.warn('No fullName mapping found, attempting fallback...');
-        
-        // Try to find any column with name/company/business keywords
-        const nameRelatedIndex = headers.findIndex(h => {
-          const lower = h.toLowerCase();
-          return lower.includes('name') || lower.includes('company') || lower.includes('business') || 
-                 lower.includes('customer') || lower.includes('client') || lower.includes('organization');
-        });
-        
-        if (nameRelatedIndex >= 0) {
-          console.log(`Fallback: Using column "${headers[nameRelatedIndex]}" as fullName`);
-          columnMap.fullName = nameRelatedIndex;
-        } else {
-          // Last resort: use first column with text data
-          const firstTextColumnIndex = headers.findIndex((_, idx) => {
-            const sampleValues = dataRows.slice(0, 5).map(row => row[idx]);
-            return sampleValues.some(val => val && typeof val === 'string' && val.trim().length > 0);
-          });
-          
-          if (firstTextColumnIndex >= 0) {
-            console.log(`Fallback: Using first text column "${headers[firstTextColumnIndex]}" as fullName`);
-            columnMap.fullName = firstTextColumnIndex;
-          } else {
-            console.error('No suitable fullName column found even with fallback');
-            throw new Error(t('crm.missingFullNameColumn') + ` ${t('crm.detectedColumns')}: ${headers.join(', ')}`);
-          }
-        }
-      }
+      const { mappings: columnMap } = detectColumnsWithConfidence(headers, dataRows);
+      
+      console.log('Excel Import - Headers:', headers);
+      console.log('Excel Import - Mappings:', columnMap);
+      console.log('Excel Import - Sample row:', dataRows[0]);
       
       const validRows: ImportRow[] = [];
       const errors: ValidationError[] = [];
@@ -316,7 +261,7 @@ export const useExcelImport = () => {
       });
       
       console.log('Valid rows:', validRows.length, 'Errors:', errors.length);
-      return { validRows, errors, totalRows: dataRows.length, mappingSuggestions: suggestions };
+      return { validRows, errors, totalRows: dataRows.length, mappingSuggestions: [] };
     } catch (error) {
       console.error('Parse error:', error);
       throw new Error(error instanceof Error ? error.message : t('crm.parseError'));
