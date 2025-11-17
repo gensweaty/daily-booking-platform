@@ -118,8 +118,23 @@ export const useExcelImport = () => {
     const hasKeyword = config.keywords.some(kw => normalized.includes(kw.toLowerCase().replace(/[_\s\-\.]/g, '')));
     if (hasKeyword) score += 50;
     
-    // Check content patterns if available
-    if (config.patterns && sampleData.length > 0) {
+    // Special validation for phoneNumber - must have actual phone patterns
+    if (fieldName === 'phoneNumber') {
+      const validSamples = sampleData.filter(v => v != null && String(v).trim() !== '');
+      if (validSamples.length > 0) {
+        const phonePattern = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,5}[-\s\.]?[0-9]{1,5}$/;
+        const hasNumbers = validSamples.filter(v => /\d/.test(String(v))).length;
+        const matchingPhones = validSamples.filter(v => phonePattern.test(String(v).trim())).length;
+        
+        // If less than 30% of samples look like phone numbers, penalize heavily
+        if (hasNumbers < validSamples.length * 0.3 || matchingPhones < validSamples.length * 0.3) {
+          score = -1000; // Strong negative score to avoid matching job titles, categories, etc.
+        } else {
+          score += (matchingPhones / validSamples.length) * 50;
+        }
+      }
+    } else if (config.patterns && sampleData.length > 0) {
+      // Check content patterns for other fields
       const validSamples = sampleData.filter(v => v != null && String(v).trim() !== '');
       if (validSamples.length > 0) {
         const matches = validSamples.filter(v => 
@@ -129,6 +144,7 @@ export const useExcelImport = () => {
       }
     }
     
+    console.log(`[Field Detection] ${fieldName} score for "${header}":`, score, 'samples:', sampleData.slice(0, 3));
     return score * config.priority;
   }, []);
 

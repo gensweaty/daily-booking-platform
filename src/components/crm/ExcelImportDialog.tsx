@@ -235,13 +235,25 @@ export const ExcelImportDialog = ({
           {!parsedData && (
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm space-y-2">
-                <p className="font-medium">{t('crm.uploadExcelFile')}</p>
-                <ul className="text-xs text-muted-foreground space-y-1 mt-2">
-                  <li>• {t('crm.companyNameRequired')}</li>
-                  <li>• {t('crm.phoneNumberOptional')}, {t('crm.emailOptional')}</li>
-                  <li>• {t('crm.lowConfidenceWarning')}</li>
-                </ul>
+              <AlertDescription className="text-sm space-y-3">
+                <p className="font-semibold">{t('crm.excelFieldsTitle')}</p>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-foreground">{t('crm.requiredField')}</p>
+                      <p className="text-xs text-muted-foreground">{t('crm.companyNameDesc')}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-foreground">{t('crm.optionalFields')}</p>
+                      <p className="text-xs text-muted-foreground">{t('crm.optionalFieldsDesc')}</p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground italic">{t('crm.autoDetectNote')}</p>
               </AlertDescription>
             </Alert>
           )}
