@@ -162,7 +162,12 @@ export const translations: TranslationType = {
     validateFile: "Validate File",
     import: "Import",
     chooseAnother: "Choose Another File",
-    andMore: "...and {{count}} more"
+    andMore: "...and {{count}} more",
+    chooseFile: "Choose Excel File",
+    dragDropFile: "Drag and drop an Excel file here, or click to select",
+    validatingFile: "Validating file...",
+    detectedMappings: "Detected Column Mappings",
+    lowConfidenceWarning: "Some columns have low confidence. Please verify the preview data before importing.",
   },
   tasks: {
     title: "Task Management",

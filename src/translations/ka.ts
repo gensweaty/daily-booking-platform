@@ -177,9 +177,8 @@ export const translations: TranslationType = {
     chooseFile: "აირჩიეთ Excel ფაილი",
     dragDropFile: "გადმოიტანეთ Excel ფაილი აქ",
     validatingFile: "ვალიდაცია...",
-    importError: "იმპორტის შეცდომა",
     detectedMappings: "აღმოჩენილი შესაბამისობა",
-    lowConfidenceWarning: "გთხოვთ გადაამოწმოთ მონაცემები იმპორტამდე.",
+    lowConfidenceWarning: "გთხოვთ გადაამოწმოთ მონაცემები.",
   },
   tasks: {
     title: "დავალებების მართვა",

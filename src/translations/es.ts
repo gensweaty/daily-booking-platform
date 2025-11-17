@@ -173,7 +173,12 @@ export const translations: TranslationType = {
     validateFile: "Validar Archivo",
     import: "Importar",
     chooseAnother: "Elegir Otro Archivo",
-    andMore: "...y {{count}} más"
+    andMore: "...y {{count}} más",
+    chooseFile: "Elegir archivo Excel",
+    dragDropFile: "Arrastra y suelta un archivo Excel aquí, o haz clic para seleccionar",
+    validatingFile: "Validando archivo...",
+    detectedMappings: "Mapeos de columnas detectados",
+    lowConfidenceWarning: "Algunas columnas tienen baja confianza. Verifique los datos de vista previa antes de importar.",
   },
   tasks: {
     title: "Gestión de Tareas",
