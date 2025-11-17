@@ -180,7 +180,6 @@ export const translations: TranslationType = {
     excelFieldsTitle: "Excel File Requirements",
     requiredField: "Required: Full Name",
     companyNameDesc: "Column with customer/company names (e.g., \"Full Name\", \"Business\", \"Customer\")",
-    optionalFields: "Optional: Phone, Email, Payment, Date, Notes",
     optionalFieldsDesc: "Phone numbers, emails, payment info, event dates, and additional notes",
     autoDetectNote: "System automatically detects columns. Download template for correct format.",
     fieldRequirements: "Field Requirements & Instructions",

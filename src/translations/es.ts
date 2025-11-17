@@ -191,7 +191,6 @@ export const translations: TranslationType = {
     excelFieldsTitle: "Requisitos del Archivo Excel",
     requiredField: "Requerido: Nombre Completo",
     companyNameDesc: "Columna con nombres de clientes/empresas (ej: \"Nombre Completo\", \"Empresa\", \"Cliente\")",
-    optionalFields: "Opcional: Teléfono, Email, Pago, Fecha, Notas",
     optionalFieldsDesc: "Números de teléfono, correos, info de pago, fechas de eventos y notas adicionales",
     autoDetectNote: "El sistema detecta columnas automáticamente. Descargue la plantilla para el formato correcto.",
     fieldRequirements: "Requisitos de Campos e Instrucciones",
