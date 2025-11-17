@@ -175,6 +175,13 @@ export interface TranslationType {
     lowConfidenceWarning: string;
     downloadTemplate: string;
     templateDownloaded: string;
+    importCustomers: string;
+    importFileDescription: string;
+    supportedFileTypes: string;
+    fileRequirements: string;
+    requiredFieldDescription: string;
+    optionalFieldsDescription: string;
+    autoMapNote: string;
     excelFieldsTitle: string;
     requiredField: string;
     companyNameDesc: string;
@@ -182,7 +189,6 @@ export interface TranslationType {
     autoDetectNote: string;
     fieldRequirements: string;
     requiredFields: string;
-    optionalFields: string;
     acceptedColumnNames: string;
     formatExamples: string;
     companyNameRequired: string;

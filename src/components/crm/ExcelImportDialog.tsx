@@ -163,14 +163,14 @@ export const ExcelImportDialog = ({
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     const file = event.dataTransfer.files?.[0];
-    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv') || file.name.endsWith('.pdf'))) {
       setSelectedFile(file);
       setParsedData(null);
     } else {
       toast({
         variant: "destructive",
         title: t('crm.invalidFileType'),
-        description: t('crm.excelFilesOnly'),
+        description: t('crm.supportedFileTypes'),
       });
     }
   }, [toast, t]);
@@ -189,21 +189,23 @@ export const ExcelImportDialog = ({
   const handleDownloadTemplate = useCallback(() => {
     const templateData = [
       {
-        'Company Name': 'Acme Corporation',
+        'Full Name': 'John Smith',
         'Phone': '+1-555-0123',
-        'Email': 'contact@acme.com',
+        'Email': 'john@example.com',
         'Payment Status': 'Not Paid',
         'Amount': 2500,
         'Event Date': '15.12.2024 - 16.12.2024',
+        'Adding Date': '01.11.2024',
         'Notes': 'Corporate event planning'
       },
       {
-        'Company Name': 'Tech Startup Inc',
+        'Full Name': 'Sarah Johnson',
         'Phone': '+1-555-0456',
-        'Email': 'info@techstartup.com',
+        'Email': 'sarah@example.com',
         'Payment Status': 'Paid',
         'Amount': 5000,
         'Event Date': '20.01.2025 - 22.01.2025',
+        'Adding Date': '05.11.2024',
         'Notes': 'Conference booth setup'
       }
     ];
@@ -211,9 +213,9 @@ export const ExcelImportDialog = ({
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Customers');
-    ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 25 }, { wch: 30 }];
+    ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 30 }];
 
-    XLSX.writeFile(wb, 'customer_template.xlsx');
+    XLSX.writeFile(wb, 'customer_import_template.xlsx');
     toast({ title: t('crm.templateDownloaded') });
   }, [t, toast]);
 
@@ -223,10 +225,10 @@ export const ExcelImportDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            {t('crm.importExcel')}
+            {t('crm.importCustomers')}
           </DialogTitle>
           <DialogDescription>
-            {t('crm.uploadExcelFile')}
+            {t('crm.importFileDescription')}
           </DialogDescription>
         </DialogHeader>
 
@@ -236,24 +238,24 @@ export const ExcelImportDialog = ({
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription className="text-sm space-y-3">
-                <p className="font-semibold">{t('crm.excelFieldsTitle')}</p>
+                <p className="font-semibold">{t('crm.fileRequirements')}</p>
                 <div className="space-y-2">
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="font-medium text-foreground">{t('crm.requiredField')}</p>
-                      <p className="text-xs text-muted-foreground">{t('crm.companyNameDesc')}</p>
+                      <p className="text-xs text-muted-foreground">{t('crm.requiredFieldDescription')}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="font-medium text-foreground">{t('crm.optionalFields')}</p>
-                      <p className="text-xs text-muted-foreground">{t('crm.optionalFieldsDesc')}</p>
+                      <p className="text-xs text-muted-foreground">{t('crm.optionalFieldsDescription')}</p>
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground italic">{t('crm.autoDetectNote')}</p>
+                <p className="text-xs text-muted-foreground italic">{t('crm.autoMapNote')}</p>
               </AlertDescription>
             </Alert>
           )}
@@ -277,7 +279,7 @@ export const ExcelImportDialog = ({
               <p className="text-xs text-muted-foreground mb-4">{t('crm.orClickToSelect')}</p>
               <input
                 type="file"
-                accept=".xlsx,.xls"
+                accept=".xlsx,.xls,.csv,.pdf"
                 onChange={handleFileSelect}
                 className="hidden"
                 id="excel-upload"
