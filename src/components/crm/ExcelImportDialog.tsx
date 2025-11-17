@@ -234,6 +234,65 @@ export const ExcelImportDialog = ({
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Field Requirements Instructions */}
+          {!parsedData && (
+            <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
+              <div className="border rounded-lg bg-muted/30">
+                <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-sm">{t('crm.fieldRequirements')}</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showInstructions ? 'rotate-180' : ''}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-4 pb-4 space-y-3 text-sm">
+                    <div>
+                      <p className="font-medium mb-1">{t('crm.requiredFields')}:</p>
+                      <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                        <li>{t('crm.companyNameRequired')}</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium mb-1">{t('crm.optionalFields')}:</p>
+                      <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                        <li>{t('crm.phoneNumberOptional')}</li>
+                        <li>{t('crm.emailOptional')}</li>
+                        <li>{t('crm.paymentStatusOptional')}</li>
+                        <li>{t('crm.paymentAmountOptional')}</li>
+                        <li>{t('crm.eventDateOptional')}</li>
+                        <li>{t('crm.commentOptional')}</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <p className="font-medium mb-1">{t('crm.acceptedColumnNames')}:</p>
+                      <p className="text-muted-foreground">"Company_Name", "Business Name", "Customer Name", "Full Name"</p>
+                    </div>
+                    <div>
+                      <p className="font-medium mb-1">{t('crm.formatExamples')}:</p>
+                      <ul className="list-disc list-inside text-muted-foreground space-y-1">
+                        <li>{t('crm.dateFormatExample')}: 01.12.2024 - 02.12.2024</li>
+                        <li>{t('crm.paymentStatusValues')}: Not Paid, Partly Paid, Fully Paid</li>
+                      </ul>
+                    </div>
+                    <Alert className="bg-primary/5 border-primary/20">
+                      <Info className="h-4 w-4 text-primary" />
+                      <AlertDescription className="text-xs">{t('crm.tipDownloadTemplate')}</AlertDescription>
+                    </Alert>
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          )}
+
+          {/* Download Template Button */}
+          {!parsedData && (
+            <Button onClick={handleDownloadTemplate} variant="outline" className="w-full" type="button">
+              <Download className="h-4 w-4 mr-2" />
+              {t('crm.downloadTemplate')}
+            </Button>
+          )}
+
           {!parsedData && (
             <div
               onDrop={handleDrop}

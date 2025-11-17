@@ -119,18 +119,30 @@ export const useExcelImport = () => {
     const keywords = FIELD_KEYWORDS[fieldName as keyof typeof FIELD_KEYWORDS];
     if (!keywords) return 0;
     
+    // More aggressive normalization: remove ALL special characters
+    const normalizedHeader = lowerHeader.replace(/[_\s\-\.]/g, '');
+    
+    console.log(`Scoring "${header}" for ${fieldName}:`, { lowerHeader, normalizedHeader });
+    
     // Exact match: +100 points (higher priority for exact matches)
-    // Also handle underscores and spaces variations
-    const normalizedHeader = lowerHeader.replace(/[_\s]/g, '');
-    if (keywords.exact.some(k => {
-      const normalizedKeyword = k.toLowerCase().replace(/[_\s]/g, '');
-      return lowerHeader === k.toLowerCase() || normalizedHeader === normalizedKeyword;
-    })) {
+    const exactMatch = keywords.exact.some(k => {
+      const normalizedKeyword = k.toLowerCase().replace(/[_\s\-\.]/g, '');
+      const match = lowerHeader === k.toLowerCase() || normalizedHeader === normalizedKeyword;
+      if (match) console.log(`  ✓ Exact match: "${k}"`);
+      return match;
+    });
+    
+    if (exactMatch) {
       score += 100;
     } 
     // Partial match: +30 points
-    else if (keywords.partial.some(k => lowerHeader.includes(k.toLowerCase()))) {
-      score += 30;
+    else {
+      const partialMatch = keywords.partial.some(k => {
+        const match = lowerHeader.includes(k.toLowerCase()) || normalizedHeader.includes(k.toLowerCase().replace(/[_\s\-\.]/g, ''));
+        if (match) console.log(`  ✓ Partial match: "${k}"`);
+        return match;
+      });
+      if (partialMatch) score += 30;
     }
     
     // Content pattern analysis: +40 points
@@ -208,9 +220,35 @@ export const useExcelImport = () => {
       console.log('Column mappings:', columnMap);
       console.log('Suggestions:', suggestions);
       
+      // Fallback: If fullName not detected, find first text column or any column with name/company/business
       if (!columnMap.fullName) {
-        console.error('No fullName mapping found');
-        throw new Error(t('crm.missingFullNameColumn'));
+        console.warn('No fullName mapping found, attempting fallback...');
+        
+        // Try to find any column with name/company/business keywords
+        const nameRelatedIndex = headers.findIndex(h => {
+          const lower = h.toLowerCase();
+          return lower.includes('name') || lower.includes('company') || lower.includes('business') || 
+                 lower.includes('customer') || lower.includes('client') || lower.includes('organization');
+        });
+        
+        if (nameRelatedIndex >= 0) {
+          console.log(`Fallback: Using column "${headers[nameRelatedIndex]}" as fullName`);
+          columnMap.fullName = nameRelatedIndex;
+        } else {
+          // Last resort: use first column with text data
+          const firstTextColumnIndex = headers.findIndex((_, idx) => {
+            const sampleValues = dataRows.slice(0, 5).map(row => row[idx]);
+            return sampleValues.some(val => val && typeof val === 'string' && val.trim().length > 0);
+          });
+          
+          if (firstTextColumnIndex >= 0) {
+            console.log(`Fallback: Using first text column "${headers[firstTextColumnIndex]}" as fullName`);
+            columnMap.fullName = firstTextColumnIndex;
+          } else {
+            console.error('No suitable fullName column found even with fallback');
+            throw new Error(t('crm.missingFullNameColumn') + ` ${t('crm.detectedColumns')}: ${headers.join(', ')}`);
+          }
+        }
       }
       
       const validRows: ImportRow[] = [];
