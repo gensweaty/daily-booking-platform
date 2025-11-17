@@ -606,12 +606,12 @@ const CustomerListContent = ({
                 <span className="hidden sm:inline">Excel</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExcelDownload}>
+            <DropdownMenuContent align="end" className="bg-background border-border shadow-lg min-w-[180px]">
+              <DropdownMenuItem onClick={handleExcelDownload} className="cursor-pointer">
                 <Download className="mr-2 h-4 w-4" />
                 {t("crm.exportExcel")}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)} disabled={!canEditDelete}>
+              <DropdownMenuItem onClick={() => setIsImportDialogOpen(true)} disabled={!canEditDelete} className="cursor-pointer">
                 <Upload className="mr-2 h-4 w-4" />
                 {t("crm.importExcel")}
               </DropdownMenuItem>
