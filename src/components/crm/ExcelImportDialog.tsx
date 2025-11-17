@@ -189,35 +189,32 @@ export const ExcelImportDialog = ({
   const handleDownloadTemplate = useCallback(() => {
     const templateData = [
       {
-        'Company_Name': 'Example Business LLC',
-        'Phone_Number': '+1234567890',
-        'Primary_Email': 'contact@example.com',
-        'Payment_Status': 'Not Paid',
-        'Payment_Amount': 1000,
-        'Event_Date': '01.12.2024 - 02.12.2024',
-        'Comment': 'LinkedIn: linkedin.com/company/example | Location: New York'
+        'Company Name': 'Acme Corporation',
+        'Phone': '+1-555-0123',
+        'Email': 'contact@acme.com',
+        'Payment Status': 'Not Paid',
+        'Amount': 2500,
+        'Event Date': '15.12.2024 - 16.12.2024',
+        'Notes': 'Corporate event planning'
+      },
+      {
+        'Company Name': 'Tech Startup Inc',
+        'Phone': '+1-555-0456',
+        'Email': 'info@techstartup.com',
+        'Payment Status': 'Paid',
+        'Amount': 5000,
+        'Event Date': '20.01.2025 - 22.01.2025',
+        'Notes': 'Conference booth setup'
       }
     ];
 
     const ws = XLSX.utils.json_to_sheet(templateData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Customer Template');
-    
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 25 }, // Company_Name
-      { wch: 15 }, // Phone_Number
-      { wch: 25 }, // Primary_Email
-      { wch: 15 }, // Payment_Status
-      { wch: 15 }, // Payment_Amount
-      { wch: 25 }, // Event_Date
-      { wch: 50 }  // Comment
-    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'Customers');
+    ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 25 }, { wch: 30 }];
 
-    XLSX.writeFile(wb, 'customer_import_template.xlsx');
-    toast({
-      title: t('crm.templateDownloaded'),
-    });
+    XLSX.writeFile(wb, 'customer_template.xlsx');
+    toast({ title: t('crm.templateDownloaded') });
   }, [t, toast]);
 
   return (
@@ -236,53 +233,17 @@ export const ExcelImportDialog = ({
         <div className="space-y-4">
           {/* Field Requirements Instructions */}
           {!parsedData && (
-            <Collapsible open={showInstructions} onOpenChange={setShowInstructions}>
-              <div className="border rounded-lg bg-muted/30">
-                <CollapsibleTrigger className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-primary" />
-                    <span className="font-medium text-sm">{t('crm.fieldRequirements')}</span>
-                  </div>
-                  <ChevronDown className={`h-4 w-4 transition-transform ${showInstructions ? 'rotate-180' : ''}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="px-4 pb-4 space-y-3 text-sm">
-                    <div>
-                      <p className="font-medium mb-1">{t('crm.requiredFields')}:</p>
-                      <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                        <li>{t('crm.companyNameRequired')}</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="font-medium mb-1">{t('crm.optionalFields')}:</p>
-                      <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                        <li>{t('crm.phoneNumberOptional')}</li>
-                        <li>{t('crm.emailOptional')}</li>
-                        <li>{t('crm.paymentStatusOptional')}</li>
-                        <li>{t('crm.paymentAmountOptional')}</li>
-                        <li>{t('crm.eventDateOptional')}</li>
-                        <li>{t('crm.commentOptional')}</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <p className="font-medium mb-1">{t('crm.acceptedColumnNames')}:</p>
-                      <p className="text-muted-foreground">"Company_Name", "Business Name", "Customer Name", "Full Name"</p>
-                    </div>
-                    <div>
-                      <p className="font-medium mb-1">{t('crm.formatExamples')}:</p>
-                      <ul className="list-disc list-inside text-muted-foreground space-y-1">
-                        <li>{t('crm.dateFormatExample')}: 01.12.2024 - 02.12.2024</li>
-                        <li>{t('crm.paymentStatusValues')}: Not Paid, Partly Paid, Fully Paid</li>
-                      </ul>
-                    </div>
-                    <Alert className="bg-primary/5 border-primary/20">
-                      <Info className="h-4 w-4 text-primary" />
-                      <AlertDescription className="text-xs">{t('crm.tipDownloadTemplate')}</AlertDescription>
-                    </Alert>
-                  </div>
-                </CollapsibleContent>
-              </div>
-            </Collapsible>
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription className="text-sm space-y-2">
+                <p className="font-medium">{t('crm.uploadExcelFile')}</p>
+                <ul className="text-xs text-muted-foreground space-y-1 mt-2">
+                  <li>• {t('crm.companyNameRequired')}</li>
+                  <li>• {t('crm.phoneNumberOptional')}, {t('crm.emailOptional')}</li>
+                  <li>• {t('crm.lowConfidenceWarning')}</li>
+                </ul>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Download Template Button */}
