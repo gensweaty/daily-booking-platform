@@ -168,6 +168,11 @@ export interface TranslationType {
     import: string;
     chooseAnother: string;
     andMore: string;
+    chooseFile: string;
+    dragDropFile: string;
+    validatingFile: string;
+    detectedMappings: string;
+    lowConfidenceWarning: string;
   };
   tasks: {
     title: string;
