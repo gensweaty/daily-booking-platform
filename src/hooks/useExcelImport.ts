@@ -36,20 +36,25 @@ export interface ParsedData {
 
 const FIELD_KEYWORDS = {
   fullName: {
-    keywords: ['fullname', 'full_name', 'full name', 'companyname', 'company_name', 'company name', 
-               'businessname', 'business_name', 'business name', 'customer', 'client', 
-               'organization', 'nombre completo', 'სრული სახელი', 'კლიენტი', 'კომპანია'],
+    keywords: ['fullname', 'full_name', 'full name', 'customer', 'client', 
+               'nombre completo', 'სრული სახელი', 'კლიენტი'],
     priority: 10,
     patterns: [] as RegExp[]
   },
   firstName: {
-    keywords: ['firstname', 'first_name', 'first name', 'given', 'nombre', 'სახელი'],
-    priority: 9,
+    keywords: ['firstname', 'first_name', 'first name', 'first', 'given', 'nombre', 'სახელი'],
+    priority: 12, // Higher priority than fullName to prefer combination
     patterns: [] as RegExp[]
   },
   lastName: {
-    keywords: ['lastname', 'last_name', 'last name', 'surname', 'family', 'apellido', 'გვარი'],
-    priority: 9,
+    keywords: ['lastname', 'last_name', 'last name', 'last', 'surname', 'family', 'apellido', 'გვარი'],
+    priority: 12, // Higher priority than fullName to prefer combination
+    patterns: [] as RegExp[]
+  },
+  companyName: {
+    keywords: ['companyname', 'company_name', 'company name', 'company', 'businessname', 
+               'business_name', 'business name', 'business', 'organization', 'კომპანია'],
+    priority: 8, // Lower than firstName/lastName, used as fallback
     patterns: [] as RegExp[]
   },
   phoneNumber: {
@@ -204,14 +209,31 @@ export const useExcelImport = () => {
       }
     });
     
-    // Special handling: if we have firstName and lastName but no fullName, mark them for combining
-    if (finalMappings.firstName !== undefined && finalMappings.lastName !== undefined && finalMappings.fullName === undefined) {
-      console.log('Detected first_name and last_name columns - will combine them into Full Name');
-      // Keep firstName and lastName in mappings for extraction, they'll be combined during parsing
+    // Smart name handling: prefer firstName+lastName combination over single columns
+    if (finalMappings.firstName !== undefined && finalMappings.lastName !== undefined) {
+      // We have both first and last name - remove any fullName or companyName mapping
+      console.log('✓ Detected First Name + Last Name columns - will combine them');
+      delete finalMappings.fullName;
+      delete finalMappings.companyName;
+    } else if (finalMappings.firstName !== undefined) {
+      // Only first name available
+      console.log('✓ Detected First Name only');
+      delete finalMappings.fullName;
+      delete finalMappings.companyName;
+    } else if (finalMappings.lastName !== undefined) {
+      // Only last name available  
+      console.log('✓ Detected Last Name only');
+      delete finalMappings.fullName;
+      delete finalMappings.companyName;
+    } else if (finalMappings.companyName !== undefined && finalMappings.fullName === undefined) {
+      // Use company name as fallback for fullName
+      console.log('✓ Using Company Name column as Full Name');
+      finalMappings.fullName = finalMappings.companyName;
+      delete finalMappings.companyName;
     }
     
-    console.log('Final mappings:', finalMappings);
-    console.log('Selected suggestions:', suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex));
+    console.log('📊 Final field mappings:', finalMappings);
+    console.log('📋 Detected columns:', suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex));
     
     return { mappings: finalMappings, suggestions: suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex) };
   }, [scoreColumnMatch]);
