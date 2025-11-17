@@ -165,20 +165,30 @@ export const useExcelImport = () => {
   }, [scoreColumnMatch]);
 
   const parseExcelFile = useCallback(async (file: File): Promise<ParsedData> => {
+    console.log('parseExcelFile called with:', file.name);
     setIsProcessing(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
+      console.log('File read, size:', arrayBuffer.byteLength);
       const workbook = XLSX.read(arrayBuffer);
+      console.log('Workbook parsed, sheets:', workbook.SheetNames);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      console.log('Data extracted, rows:', jsonData.length);
       
       if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
       
       const headers = jsonData[0].map((h: any) => String(h || '').trim());
+      console.log('Headers:', headers);
       const dataRows = jsonData.slice(1);
       const { mappings: columnMap, suggestions } = detectColumnsWithConfidence(headers, dataRows);
+      console.log('Column mappings:', columnMap);
+      console.log('Suggestions:', suggestions);
       
-      if (!columnMap.fullName) throw new Error(t('crm.missingFullNameColumn'));
+      if (!columnMap.fullName) {
+        console.error('No fullName mapping found');
+        throw new Error(t('crm.missingFullNameColumn'));
+      }
       
       const validRows: ImportRow[] = [];
       const errors: ValidationError[] = [];
@@ -201,8 +211,10 @@ export const useExcelImport = () => {
         });
       });
       
+      console.log('Valid rows:', validRows.length, 'Errors:', errors.length);
       return { validRows, errors, totalRows: dataRows.length, mappingSuggestions: suggestions };
     } catch (error) {
+      console.error('Parse error:', error);
       throw new Error(error instanceof Error ? error.message : t('crm.parseError'));
     } finally {
       setIsProcessing(false);
