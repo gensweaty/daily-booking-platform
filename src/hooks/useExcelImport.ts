@@ -3,6 +3,14 @@ import * as XLSX from 'xlsx';
 import { format, parse } from 'date-fns';
 import { useLanguage } from '@/contexts/LanguageContext';
 
+export interface ColumnMatch {
+  fieldName: string;
+  columnIndex: number;
+  confidence: number;
+  matchType: 'exact' | 'partial' | 'content';
+  suggestedMapping: string;
+}
+
 export interface ImportRow {
   fullName: string;
   phoneNumber?: string;
@@ -23,206 +31,183 @@ export interface ParsedData {
   validRows: ImportRow[];
   errors: ValidationError[];
   totalRows: number;
+  mappingSuggestions: ColumnMatch[];
 }
 
+const FIELD_KEYWORDS = {
+  fullName: {
+    exact: ['full name', 'nombre completo', 'სახელი და გვარი'],
+    partial: ['name', 'nombre', 'სახელი', 'client', 'customer', 'კლიენტი'],
+    patterns: []
+  },
+  phoneNumber: {
+    exact: ['phone number', 'número de teléfono', 'ტელეფონის ნომერი'],
+    partial: ['phone', 'tel', 'mobile', 'número', 'ტელეფონი', 'contact', 'contacto'],
+    patterns: [/\d{9,15}/]
+  },
+  socialLink: {
+    exact: ['social link/email', 'enlace social/correo', 'სოციალური ბმული/ელფოსტა'],
+    partial: ['email', 'social', 'link', 'correo', 'ელფოსტა'],
+    patterns: [/@/, /http/]
+  },
+  paymentStatus: {
+    exact: ['payment status', 'estado de pago', 'გადახდის სტატუსი'],
+    partial: ['payment', 'status', 'paid', 'pago', 'estado', 'გადახდა'],
+    patterns: []
+  },
+  paymentAmount: {
+    exact: ['payment amount', 'monto de pago', 'გადახდის თანხა'],
+    partial: ['amount', 'price', 'cost', 'monto', 'precio', 'თანხა'],
+    patterns: [/[\d.,]+/]
+  },
+  eventDate: {
+    exact: ['event date', 'fecha del evento', 'ღონისძიების თარიღი'],
+    partial: ['date', 'fecha', 'თარიღი', 'when', 'time'],
+    patterns: [/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/]
+  },
+  comment: {
+    exact: ['comment', 'comentario', 'კომენტარი'],
+    partial: ['note', 'notes', 'observation', 'nota', 'შენიშვნა'],
+    patterns: []
+  }
+};
+
 export const useExcelImport = () => {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Map payment status translations back to database values
   const mapPaymentStatus = useCallback((value: string | undefined): string => {
     if (!value) return 'not_paid';
-    
     const lowerValue = value.toLowerCase().trim();
-    
-    // English
-    if (lowerValue.includes('not paid')) return 'not_paid';
-    if (lowerValue.includes('partly') || lowerValue.includes('partial')) return 'partly_paid';
-    if (lowerValue.includes('fully') || lowerValue.includes('paid')) return 'fully_paid';
-    
-    // Spanish
-    if (lowerValue.includes('no pagado')) return 'not_paid';
-    if (lowerValue.includes('parcialmente')) return 'partly_paid';
-    if (lowerValue.includes('totalmente')) return 'fully_paid';
-    
-    // Georgian
-    if (lowerValue.includes('არ არის გადახდილი')) return 'not_paid';
-    if (lowerValue.includes('ნაწილობრივ')) return 'partly_paid';
-    if (lowerValue.includes('სრულად')) return 'fully_paid';
-    
+    if (lowerValue.includes('not paid') || lowerValue.includes('no pagado') || lowerValue.includes('არ არის')) return 'not_paid';
+    if (lowerValue.includes('partly') || lowerValue.includes('partial') || lowerValue.includes('ნაწილობრივ')) return 'partly_paid';
+    if (lowerValue.includes('fully') || lowerValue.includes('totalmente') || lowerValue.includes('სრულად')) return 'fully_paid';
     return 'not_paid';
   }, []);
 
-  // Parse date range from format "dd.MM.yyyy - dd.MM.yyyy"
   const parseDateRange = useCallback((dateStr: string | undefined): { start: Date; end: Date } | undefined => {
     if (!dateStr) return undefined;
-    
     try {
       const parts = dateStr.split('-').map(s => s.trim());
       if (parts.length !== 2) return undefined;
-      
       const start = parse(parts[0], 'dd.MM.yyyy', new Date());
       const end = parse(parts[1], 'dd.MM.yyyy', new Date());
-      
       if (isNaN(start.getTime()) || isNaN(end.getTime())) return undefined;
-      
       return { start, end };
-    } catch (error) {
+    } catch {
       return undefined;
     }
   }, []);
 
-  // Parse payment amount - remove currency symbols and convert to number
   const parsePaymentAmount = useCallback((value: any): number | undefined => {
     if (value === null || value === undefined || value === '') return undefined;
-    
     const strValue = String(value).replace(/[₾€$,]/g, '').trim();
     const numValue = parseFloat(strValue);
-    
     return isNaN(numValue) ? undefined : numValue;
   }, []);
 
-  // Detect column headers based on translations
-  const detectColumns = useCallback((headers: string[]): Record<string, number> => {
-    const columnMap: Record<string, number> = {};
+  const scoreColumnMatch = useCallback((header: string, sampleData: any[], fieldName: string): number => {
+    let score = 0;
+    const lowerHeader = header.toLowerCase().trim();
+    const keywords = FIELD_KEYWORDS[fieldName as keyof typeof FIELD_KEYWORDS];
+    if (!keywords) return 0;
     
-    headers.forEach((header, index) => {
-      const lowerHeader = header.toLowerCase().trim();
-      
-      // Full Name
-      if (lowerHeader.includes('full name') || lowerHeader.includes('nombre completo') || 
-          lowerHeader.includes('სახელი და გვარი') || lowerHeader.includes('სახელი გვარი')) {
-        columnMap.fullName = index;
+    if (keywords.exact.some(k => lowerHeader === k.toLowerCase())) {
+      score += 50;
+    } else if (keywords.partial.some(k => lowerHeader.includes(k.toLowerCase()))) {
+      score += 30;
+    }
+    
+    if (keywords.patterns.length > 0 && sampleData.length > 0) {
+      const validSamples = sampleData.filter(val => val !== null && val !== undefined && val !== '');
+      if (validSamples.length > 0) {
+        const matchingCount = validSamples.filter(val => 
+          keywords.patterns.some(pattern => pattern.test(String(val)))
+        ).length;
+        score += (matchingCount / validSamples.length) * 40;
       }
-      // Phone Number
-      else if (lowerHeader.includes('phone') || lowerHeader.includes('número') || 
-               lowerHeader.includes('телефон') || lowerHeader.includes('ტელეფონი')) {
-        columnMap.phoneNumber = index;
-      }
-      // Social Link/Email
-      else if (lowerHeader.includes('social') || lowerHeader.includes('email') || 
-               lowerHeader.includes('correo') || lowerHeader.includes('ელფოსტა') || 
-               lowerHeader.includes('სოციალური')) {
-        columnMap.socialLink = index;
-      }
-      // Payment Status
-      else if (lowerHeader.includes('payment status') || lowerHeader.includes('estado de pago') || 
-               lowerHeader.includes('გადახდის სტატუსი')) {
-        columnMap.paymentStatus = index;
-      }
-      // Payment Amount
-      else if (lowerHeader.includes('payment amount') || lowerHeader.includes('monto') || 
-               lowerHeader.includes('cantidad') || lowerHeader.includes('გადახდის თანხა')) {
-        columnMap.paymentAmount = index;
-      }
-      // Event Date
-      else if (lowerHeader.includes('event date') || lowerHeader.includes('fecha') || 
-               lowerHeader.includes('ივენთის თარიღი')) {
-        columnMap.eventDate = index;
-      }
-      // Comment
-      else if (lowerHeader.includes('comment') || lowerHeader.includes('comentario') || 
-               lowerHeader.includes('კომენტარი')) {
-        columnMap.comment = index;
+    }
+    return score;
+  }, []);
+
+  const detectColumnsWithConfidence = useCallback((headers: string[], rows: any[][]): { mappings: Record<string, number>, suggestions: ColumnMatch[] } => {
+    const suggestions: ColumnMatch[] = [];
+    const finalMappings: Record<string, number> = {};
+    
+    headers.forEach((header, colIndex) => {
+      const sampleData = rows.slice(0, Math.min(10, rows.length)).map(row => row[colIndex]);
+      Object.keys(FIELD_KEYWORDS).forEach(fieldName => {
+        const confidence = scoreColumnMatch(header, sampleData, fieldName);
+        if (confidence > 20) {
+          suggestions.push({
+            fieldName,
+            columnIndex: colIndex,
+            confidence: Math.round(confidence),
+            matchType: confidence >= 50 ? 'exact' : confidence >= 30 ? 'partial' : 'content',
+            suggestedMapping: header
+          });
+        }
+      });
+    });
+    
+    suggestions.sort((a, b) => b.confidence - a.confidence);
+    const usedColumns = new Set<number>();
+    const usedFields = new Set<string>();
+    suggestions.forEach(match => {
+      if (!usedColumns.has(match.columnIndex) && !usedFields.has(match.fieldName)) {
+        finalMappings[match.fieldName] = match.columnIndex;
+        usedColumns.add(match.columnIndex);
+        usedFields.add(match.fieldName);
       }
     });
     
-    return columnMap;
-  }, []);
+    return { mappings: finalMappings, suggestions: suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex) };
+  }, [scoreColumnMatch]);
 
   const parseExcelFile = useCallback(async (file: File): Promise<ParsedData> => {
     setIsProcessing(true);
-    
-    return new Promise((resolve) => {
-      const reader = new FileReader();
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
       
-      reader.onload = (e) => {
-        try {
-          const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: 'binary' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-          
-          if (jsonData.length < 2) {
-            setIsProcessing(false);
-            resolve({ validRows: [], errors: [{ row: 0, field: 'file', message: t('crm.emptyFile') }], totalRows: 0 });
-            return;
-          }
-          
-          const headers = jsonData[0].map(h => String(h || ''));
-          const columnMap = detectColumns(headers);
-          
-          if (columnMap.fullName === undefined) {
-            setIsProcessing(false);
-            resolve({ validRows: [], errors: [{ row: 0, field: 'file', message: t('crm.missingFullNameColumn') }], totalRows: 0 });
-            return;
-          }
-          
-          const validRows: ImportRow[] = [];
-          const errors: ValidationError[] = [];
-          
-          // Process data rows (skip header)
-          for (let i = 1; i < jsonData.length; i++) {
-            const row = jsonData[i];
-            const rowNumber = i + 1;
-            
-            // Skip empty rows
-            if (!row || row.every(cell => !cell)) continue;
-            
-            const fullName = row[columnMap.fullName]?.toString().trim();
-            
-            if (!fullName) {
-              errors.push({ row: rowNumber, field: 'fullName', message: t('crm.missingRequired', { field: t('crm.fullName') }) });
-              continue;
-            }
-            
-            const importRow: ImportRow = {
-              fullName,
-              phoneNumber: columnMap.phoneNumber !== undefined ? row[columnMap.phoneNumber]?.toString().trim() : undefined,
-              socialLink: columnMap.socialLink !== undefined ? row[columnMap.socialLink]?.toString().trim() : undefined,
-              paymentStatus: columnMap.paymentStatus !== undefined ? mapPaymentStatus(row[columnMap.paymentStatus]?.toString()) : 'not_paid',
-              paymentAmount: columnMap.paymentAmount !== undefined ? parsePaymentAmount(row[columnMap.paymentAmount]) : undefined,
-              comment: columnMap.comment !== undefined ? row[columnMap.comment]?.toString().trim() : undefined,
-            };
-            
-            // Parse event date if provided
-            if (columnMap.eventDate !== undefined) {
-              const dateStr = row[columnMap.eventDate]?.toString();
-              if (dateStr) {
-                const dateRange = parseDateRange(dateStr);
-                if (dateRange) {
-                  importRow.eventDate = dateRange;
-                } else {
-                  errors.push({ row: rowNumber, field: 'eventDate', message: t('crm.invalidDateFormat') });
-                  continue;
-                }
-              }
-            }
-            
-            validRows.push(importRow);
-          }
-          
-          setIsProcessing(false);
-          resolve({ validRows, errors, totalRows: jsonData.length - 1 });
-        } catch (error) {
-          console.error('Error parsing Excel file:', error);
-          setIsProcessing(false);
-          resolve({ validRows: [], errors: [{ row: 0, field: 'file', message: t('crm.parseError') }], totalRows: 0 });
+      if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
+      
+      const headers = jsonData[0].map((h: any) => String(h || '').trim());
+      const dataRows = jsonData.slice(1);
+      const { mappings: columnMap, suggestions } = detectColumnsWithConfidence(headers, dataRows);
+      
+      if (!columnMap.fullName) throw new Error(t('crm.missingFullNameColumn'));
+      
+      const validRows: ImportRow[] = [];
+      const errors: ValidationError[] = [];
+      
+      dataRows.forEach((row, index) => {
+        const rowNumber = index + 2;
+        const fullName = row[columnMap.fullName]?.toString().trim();
+        if (!fullName) {
+          errors.push({ row: rowNumber, field: 'fullName', message: t('crm.missingRequired', { field: t('crm.fullName') }) });
+          return;
         }
-      };
+        validRows.push({
+          fullName,
+          phoneNumber: columnMap.phoneNumber !== undefined ? row[columnMap.phoneNumber]?.toString().trim() : undefined,
+          socialLink: columnMap.socialLink !== undefined ? row[columnMap.socialLink]?.toString().trim() : undefined,
+          paymentStatus: columnMap.paymentStatus !== undefined ? mapPaymentStatus(row[columnMap.paymentStatus]?.toString()) : undefined,
+          paymentAmount: columnMap.paymentAmount !== undefined ? parsePaymentAmount(row[columnMap.paymentAmount]) : undefined,
+          eventDate: columnMap.eventDate !== undefined ? parseDateRange(row[columnMap.eventDate]?.toString()) : undefined,
+          comment: columnMap.comment !== undefined ? row[columnMap.comment]?.toString().trim() : undefined,
+        });
+      });
       
-      reader.onerror = () => {
-        setIsProcessing(false);
-        resolve({ validRows: [], errors: [{ row: 0, field: 'file', message: t('crm.fileReadError') }], totalRows: 0 });
-      };
-      
-      reader.readAsBinaryString(file);
-    });
-  }, [t, detectColumns, mapPaymentStatus, parseDateRange, parsePaymentAmount]);
+      return { validRows, errors, totalRows: dataRows.length, mappingSuggestions: suggestions };
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : t('crm.parseError'));
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [t, mapPaymentStatus, parseDateRange, parsePaymentAmount, detectColumnsWithConfidence]);
 
-  return {
-    parseExcelFile,
-    isProcessing,
-  };
+  return { parseExcelFile, isProcessing };
 };
