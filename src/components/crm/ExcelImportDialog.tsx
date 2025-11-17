@@ -39,17 +39,25 @@ export const ExcelImportDialog = ({
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    console.log('File selected:', file);
     if (file) {
       setSelectedFile(file);
       setParsedData(null);
+      console.log('File set to state:', file.name);
     }
   }, []);
 
   const handleParseFile = useCallback(async () => {
-    if (!selectedFile) return;
+    console.log('handleParseFile called, selectedFile:', selectedFile);
+    if (!selectedFile) {
+      console.log('No file selected, returning');
+      return;
+    }
 
+    console.log('Starting file parsing...');
     try {
       const result = await parseExcelFile(selectedFile);
+      console.log('Parse result:', result);
       setParsedData(result);
 
       if (result.errors.length > 0 && result.validRows.length === 0) {
@@ -65,6 +73,7 @@ export const ExcelImportDialog = ({
         });
       }
     } catch (error) {
+      console.error('Error parsing file:', error);
       toast({
         variant: "destructive",
         title: t('crm.importFailed'),
