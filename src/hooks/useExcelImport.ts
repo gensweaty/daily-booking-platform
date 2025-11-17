@@ -36,19 +36,19 @@ export interface ParsedData {
 
 const FIELD_KEYWORDS = {
   fullName: {
-    exact: ['full name', 'nombre completo', 'სახელი და გვარი', 'business_segment', 'company'],
-    partial: ['name', 'nombre', 'სახელი', 'client', 'customer', 'კლიენტი', 'business', 'company', 'segment'],
+    exact: ['full name', 'nombre completo', 'სახელი და გვარი', 'company_name', 'company name', 'business name'],
+    partial: ['company', 'business', 'name', 'nombre', 'სახელი', 'client', 'customer', 'კლიენტი', 'organization'],
     patterns: []
   },
   phoneNumber: {
-    exact: ['phone number', 'número de teléfono', 'ტელეფონის ნომერი'],
-    partial: ['phone', 'tel', 'mobile', 'número', 'ტელეფონი', 'contact', 'contacto'],
+    exact: ['phone number', 'número de teléfono', 'ტელეფონის ნომერი', 'phone', 'mobile'],
+    partial: ['tel', 'mobile', 'número', 'ტელეფონი', 'contact number', 'cell'],
     patterns: [/\d{9,15}/]
   },
   socialLink: {
-    exact: ['social link/email', 'enlace social/correo', 'სოციალური ბმული/ელფოსტა', 'primary_email'],
-    partial: ['email', 'social', 'link', 'correo', 'ელფოსტა', 'primary', 'contact', 'linkedin', 'website'],
-    patterns: [/@/, /http/]
+    exact: ['social link/email', 'enlace social/correo', 'სოციალური ბმული/ელფოსტა', 'primary_email', 'primary email'],
+    partial: ['email', 'primary', 'correo', 'ელფოსტა', 'mail', 'e-mail'],
+    patterns: [/@/]
   },
   paymentStatus: {
     exact: ['payment status', 'estado de pago', 'გადახდის სტატუსი'],
@@ -66,9 +66,9 @@ const FIELD_KEYWORDS = {
     patterns: [/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/]
   },
   comment: {
-    exact: ['comment', 'comentario', 'კომენტარი', 'location'],
-    partial: ['note', 'notes', 'observation', 'nota', 'შენიშვნა', 'location', 'address', 'city', 'size'],
-    patterns: []
+    exact: ['comment', 'comentario', 'კომენტარი', 'linkedin_profile', 'linkedin profile'],
+    partial: ['note', 'notes', 'observation', 'nota', 'შენიშვნა', 'linkedin', 'profile', 'segment', 'location', 'address', 'city', 'size', 'business', 'job', 'title', 'primary_contact', 'contact'],
+    patterns: [/linkedin\.com/, /http/]
   }
 };
 
@@ -112,12 +112,21 @@ export const useExcelImport = () => {
     const keywords = FIELD_KEYWORDS[fieldName as keyof typeof FIELD_KEYWORDS];
     if (!keywords) return 0;
     
-    if (keywords.exact.some(k => lowerHeader === k.toLowerCase())) {
-      score += 50;
-    } else if (keywords.partial.some(k => lowerHeader.includes(k.toLowerCase()))) {
+    // Exact match: +100 points (higher priority for exact matches)
+    // Also handle underscores and spaces variations
+    const normalizedHeader = lowerHeader.replace(/[_\s]/g, '');
+    if (keywords.exact.some(k => {
+      const normalizedKeyword = k.toLowerCase().replace(/[_\s]/g, '');
+      return lowerHeader === k.toLowerCase() || normalizedHeader === normalizedKeyword;
+    })) {
+      score += 100;
+    } 
+    // Partial match: +30 points
+    else if (keywords.partial.some(k => lowerHeader.includes(k.toLowerCase()))) {
       score += 30;
     }
     
+    // Content pattern analysis: +40 points
     if (keywords.patterns.length > 0 && sampleData.length > 0) {
       const validSamples = sampleData.filter(val => val !== null && val !== undefined && val !== '');
       if (validSamples.length > 0) {
@@ -143,16 +152,20 @@ export const useExcelImport = () => {
             fieldName,
             columnIndex: colIndex,
             confidence: Math.round(confidence),
-            matchType: confidence >= 50 ? 'exact' : confidence >= 30 ? 'partial' : 'content',
+            matchType: confidence >= 100 ? 'exact' : confidence >= 30 ? 'partial' : 'content',
             suggestedMapping: header
           });
         }
       });
     });
     
+    // Sort by confidence (highest first)
     suggestions.sort((a, b) => b.confidence - a.confidence);
+    
     const usedColumns = new Set<number>();
     const usedFields = new Set<string>();
+    
+    // Assign best matches
     suggestions.forEach(match => {
       if (!usedColumns.has(match.columnIndex) && !usedFields.has(match.fieldName)) {
         finalMappings[match.fieldName] = match.columnIndex;
@@ -160,6 +173,9 @@ export const useExcelImport = () => {
         usedFields.add(match.fieldName);
       }
     });
+    
+    console.log('Final mappings:', finalMappings);
+    console.log('Selected suggestions:', suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex));
     
     return { mappings: finalMappings, suggestions: suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex) };
   }, [scoreColumnMatch]);
@@ -193,6 +209,12 @@ export const useExcelImport = () => {
       const validRows: ImportRow[] = [];
       const errors: ValidationError[] = [];
       
+      // Identify unmapped columns that might be useful for comments
+      const mappedIndices = new Set(Object.values(columnMap));
+      const unmappedColumns = headers
+        .map((header, index) => ({ header, index }))
+        .filter(col => !mappedIndices.has(col.index));
+      
       dataRows.forEach((row, index) => {
         const rowNumber = index + 2;
         const fullName = row[columnMap.fullName]?.toString().trim();
@@ -200,6 +222,43 @@ export const useExcelImport = () => {
           errors.push({ row: rowNumber, field: 'fullName', message: t('crm.missingRequired', { field: t('crm.fullName') }) });
           return;
         }
+        
+        // Build comprehensive comment from mapped comment + unmapped useful columns
+        const commentParts: string[] = [];
+        
+        // Add primary comment if exists
+        if (columnMap.comment !== undefined && row[columnMap.comment]) {
+          commentParts.push(row[columnMap.comment]?.toString().trim());
+        }
+        
+        // Add other potentially useful unmapped columns
+        unmappedColumns.forEach(({ header, index: colIndex }) => {
+          const value = row[colIndex]?.toString().trim();
+          if (value && value.length > 0) {
+            // Filter out obviously non-useful data
+            const lowerHeader = header.toLowerCase();
+            const lowerValue = value.toLowerCase();
+            
+            // Include if it looks like useful information
+            if (
+              lowerHeader.includes('linkedin') ||
+              lowerHeader.includes('profile') ||
+              lowerHeader.includes('segment') ||
+              lowerHeader.includes('location') ||
+              lowerHeader.includes('job') ||
+              lowerHeader.includes('title') ||
+              lowerHeader.includes('contact') ||
+              lowerHeader.includes('size') ||
+              lowerValue.includes('linkedin.com') ||
+              lowerValue.includes('http')
+            ) {
+              commentParts.push(`${header}: ${value}`);
+            }
+          }
+        });
+        
+        const finalComment = commentParts.length > 0 ? commentParts.join(' | ') : undefined;
+        
         validRows.push({
           fullName,
           phoneNumber: columnMap.phoneNumber !== undefined ? row[columnMap.phoneNumber]?.toString().trim() : undefined,
@@ -207,7 +266,7 @@ export const useExcelImport = () => {
           paymentStatus: columnMap.paymentStatus !== undefined ? mapPaymentStatus(row[columnMap.paymentStatus]?.toString()) : undefined,
           paymentAmount: columnMap.paymentAmount !== undefined ? parsePaymentAmount(row[columnMap.paymentAmount]) : undefined,
           eventDate: columnMap.eventDate !== undefined ? parseDateRange(row[columnMap.eventDate]?.toString()) : undefined,
-          comment: columnMap.comment !== undefined ? row[columnMap.comment]?.toString().trim() : undefined,
+          comment: finalComment,
         });
       });
       
