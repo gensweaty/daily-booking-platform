@@ -36,39 +36,46 @@ export interface ParsedData {
 
 const FIELD_KEYWORDS = {
   fullName: {
-    exact: ['full name', 'nombre completo', 'სახელი და გვარი', 'company_name', 'company name', 'business name'],
-    partial: ['company', 'business', 'name', 'nombre', 'სახელი', 'client', 'customer', 'კლიენტი', 'organization'],
-    patterns: []
+    exact: ['full_name', 'full name', 'company_name', 'company name', 'business_name', 'business name', 
+            'customer_name', 'customer name', 'client_name', 'client name', 'organization', 'org_name', 
+            'company', 'business', 'customer', 'client', 'nombre completo', 'სახელი და გვარი'],
+    partial: ['name', 'nombre', 'სახელი', 'კლიენტი'],
+    patterns: [/company/i, /business/i, /customer/i, /client/i, /organization/i]
   },
   phoneNumber: {
-    exact: ['phone number', 'número de teléfono', 'ტელეფონის ნომერი', 'phone', 'mobile'],
-    partial: ['tel', 'mobile', 'número', 'ტელეფონი', 'contact number', 'cell'],
-    patterns: [/\d{9,15}/]
+    exact: ['phone_number', 'phone number', 'phone', 'mobile', 'mobile_number', 'mobile number', 'tel', 'telephone',
+            'número de teléfono', 'ტელეფონის ნომერი'],
+    partial: ['contact', 'número', 'ტელეფონი', 'cell'],
+    patterns: [/phone/i, /mobile/i, /tel/i, /contact.*number/i, /\d{9,15}/]
   },
   socialLink: {
-    exact: ['social link/email', 'enlace social/correo', 'სოციალური ბმული/ელფოსტა', 'primary_email', 'primary email'],
-    partial: ['email', 'primary', 'correo', 'ელფოსტა', 'mail', 'e-mail'],
-    patterns: [/@/]
+    exact: ['primary_email', 'primary email', 'email', 'e_mail', 'e-mail', 'email_address', 'email address',
+            'social link/email', 'enlace social/correo', 'სოციალური ბმული/ელფოსტა'],
+    partial: ['mail', 'correo', 'ელფოსტა'],
+    patterns: [/@/, /email/i, /mail/i]
   },
   paymentStatus: {
-    exact: ['payment status', 'estado de pago', 'გადახდის სტატუსი'],
+    exact: ['payment status', 'estado de pago', 'გადახდის სტატუსი', 'payment_status'],
     partial: ['payment', 'status', 'paid', 'pago', 'estado', 'გადახდა'],
     patterns: []
   },
   paymentAmount: {
-    exact: ['payment amount', 'monto de pago', 'გადახდის თანხა', 'estimated_deal_value', 'revenue_estimate'],
+    exact: ['payment amount', 'monto de pago', 'გადახდის თანხა', 'estimated_deal_value', 'revenue_estimate', 'payment_amount'],
     partial: ['amount', 'price', 'cost', 'monto', 'precio', 'თანხა', 'value', 'revenue', 'deal', 'estimate'],
     patterns: [/[\d.,]+/]
   },
   eventDate: {
-    exact: ['event date', 'fecha del evento', 'ღონისძიების თარიღი'],
+    exact: ['event date', 'fecha del evento', 'ღონისძიების თარიღი', 'event_date'],
     partial: ['date', 'fecha', 'თარიღი', 'when', 'time'],
     patterns: [/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/]
   },
   comment: {
-    exact: ['comment', 'comentario', 'კომენტარი', 'linkedin_profile', 'linkedin profile'],
-    partial: ['note', 'notes', 'observation', 'nota', 'შენიშვნა', 'linkedin', 'profile', 'segment', 'location', 'address', 'city', 'size', 'business', 'job', 'title', 'primary_contact', 'contact'],
-    patterns: [/linkedin\.com/, /http/]
+    exact: ['comment', 'comments', 'notes', 'note', 'description', 'remarks', 'linkedin_profile', 'linkedin profile',
+            'linkedin_url', 'linkedin url', 'profile_url', 'profile url', 'comentario', 'კომენტარი'],
+    partial: ['linkedin', 'profile', 'segment', 'location', 'address', 'city', 'region', 'country', 'state',
+              'size', 'industry', 'sector', 'job', 'title', 'role', 'position', 'primary_contact', 'contact',
+              'additional', 'extra', 'misc', 'other', 'nota', 'შენიშვნა', 'education', 'experience'],
+    patterns: [/linkedin\.com/i, /http/i, /www\./i, /profile/i, /url/i]
   }
 };
 

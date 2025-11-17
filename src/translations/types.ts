@@ -173,6 +173,25 @@ export interface TranslationType {
     validatingFile: string;
     detectedMappings: string;
     lowConfidenceWarning: string;
+    downloadTemplate: string;
+    templateDownloaded: string;
+    fieldRequirements: string;
+    requiredFields: string;
+    optionalFields: string;
+    acceptedColumnNames: string;
+    formatExamples: string;
+    companyNameRequired: string;
+    phoneNumberOptional: string;
+    emailOptional: string;
+    paymentStatusOptional: string;
+    paymentAmountOptional: string;
+    eventDateOptional: string;
+    commentOptional: string;
+    dateFormatExample: string;
+    paymentStatusValues: string;
+    tipDownloadTemplate: string;
+    importFromExcel: string;
+    importDescription: string;
   };
   tasks: {
     title: string;
