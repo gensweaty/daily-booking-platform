@@ -77,6 +77,16 @@ export const useExcelImport = () => {
   const { t } = useLanguage();
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const parseFile = useCallback(async (file: File): Promise<ArrayBuffer | string> => {
+    if (file.name.endsWith('.csv')) {
+      return await file.text();
+    } else if (file.name.endsWith('.pdf')) {
+      throw new Error('PDF files are not yet supported. Please convert to Excel (.xlsx) or CSV (.csv) format.');
+    } else {
+      return await file.arrayBuffer();
+    }
+  }, []);
+
   const mapPaymentStatus = useCallback((value: string | undefined): string => {
     if (!value) return 'not_paid';
     const lowerValue = value.toLowerCase().trim();
