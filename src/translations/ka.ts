@@ -161,7 +161,7 @@ export const translations: TranslationType = {
     invalidPaymentAmount: "არასწორი გადახდის თანხა",
     missingRequired: "აკლია სავალდებულო ველი: {{field}}",
     emptyFile: "ფაილი ცარიელია ან არ შეიცავს მონაცემებს",
-    missingFullNameColumn: "სრული სახელის სვეტი აუცილებელია",
+    missingFullNameColumn: "სრული სახელის სვეტი საჭიროა. სისტემამ ვერ იპოვა სვეტი, რომელიც აშკარად წარმოადგენს კლიენტების სახელებს. გთხოვთ დარწმუნდეთ, რომ თქვენს Excel ფაილში არის სვეტი კლიენტის ან ბიზნესის სახელებით.",
     parseError: "Excel ფაილის გაანალიზების შეცდომა",
     fileReadError: "ფაილის წაკითხვის შეცდომა",
     invalidFileType: "არასწორი ფაილის ტიპი",
