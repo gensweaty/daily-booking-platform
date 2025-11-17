@@ -175,6 +175,11 @@ export interface TranslationType {
     lowConfidenceWarning: string;
     downloadTemplate: string;
     templateDownloaded: string;
+    excelFieldsTitle: string;
+    requiredField: string;
+    companyNameDesc: string;
+    optionalFieldsDesc: string;
+    autoDetectNote: string;
     fieldRequirements: string;
     requiredFields: string;
     optionalFields: string;
