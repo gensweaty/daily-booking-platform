@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, XCircle, CheckCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, XCircle, CheckCircle, Download, ChevronDown, Info } from 'lucide-react';
 import { useExcelImport, ImportRow } from '@/hooks/useExcelImport';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
@@ -11,6 +11,8 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import * as XLSX from 'xlsx';
 
 interface ExcelImportDialogProps {
   open: boolean;
@@ -36,6 +38,7 @@ export const ExcelImportDialog = ({
   const [parsedData, setParsedData] = useState<{ validRows: ImportRow[]; errors: any[]; totalRows: number; mappingSuggestions: any[] } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [showInstructions, setShowInstructions] = useState(true);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -180,7 +183,42 @@ export const ExcelImportDialog = ({
     setSelectedFile(null);
     setParsedData(null);
     setImportProgress(0);
+    setShowInstructions(true);
   }, []);
+
+  const handleDownloadTemplate = useCallback(() => {
+    const templateData = [
+      {
+        'Company_Name': 'Example Business LLC',
+        'Phone_Number': '+1234567890',
+        'Primary_Email': 'contact@example.com',
+        'Payment_Status': 'Not Paid',
+        'Payment_Amount': 1000,
+        'Event_Date': '01.12.2024 - 02.12.2024',
+        'Comment': 'LinkedIn: linkedin.com/company/example | Location: New York'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Customer Template');
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 25 }, // Company_Name
+      { wch: 15 }, // Phone_Number
+      { wch: 25 }, // Primary_Email
+      { wch: 15 }, // Payment_Status
+      { wch: 15 }, // Payment_Amount
+      { wch: 25 }, // Event_Date
+      { wch: 50 }  // Comment
+    ];
+
+    XLSX.writeFile(wb, 'customer_import_template.xlsx');
+    toast({
+      title: t('crm.templateDownloaded'),
+    });
+  }, [t, toast]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
