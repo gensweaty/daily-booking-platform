@@ -161,7 +161,7 @@ export const translations: TranslationType = {
     invalidPaymentAmount: "Monto de pago inválido",
     missingRequired: "Falta el campo requerido: {{field}}",
     emptyFile: "El archivo está vacío o no tiene datos",
-    missingFullNameColumn: "La columna Nombre Completo es requerida",
+    missingFullNameColumn: "Se requiere columna de nombre completo. El sistema no pudo encontrar una columna que represente claramente los nombres de los clientes. Asegúrese de que su archivo Excel tenga una columna con nombres de clientes o empresas.",
     parseError: "Error al analizar el archivo Excel",
     fileReadError: "Error al leer el archivo",
     invalidFileType: "Tipo de archivo inválido",

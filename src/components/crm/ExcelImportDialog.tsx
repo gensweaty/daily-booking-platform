@@ -48,20 +48,29 @@ export const ExcelImportDialog = ({
   const handleParseFile = useCallback(async () => {
     if (!selectedFile) return;
 
-    const result = await parseExcelFile(selectedFile);
-    setParsedData(result);
+    try {
+      const result = await parseExcelFile(selectedFile);
+      setParsedData(result);
 
-    if (result.errors.length > 0 && result.validRows.length === 0) {
+      if (result.errors.length > 0 && result.validRows.length === 0) {
+        toast({
+          variant: "destructive",
+          title: t('crm.importFailed'),
+          description: t('crm.noValidRows'),
+        });
+      } else if (result.validRows.length > 0) {
+        toast({
+          title: t('crm.fileValidated'),
+          description: t('crm.readyToImport', { count: result.validRows.length }),
+        });
+      }
+    } catch (error) {
       toast({
         variant: "destructive",
         title: t('crm.importFailed'),
-        description: t('crm.noValidRows'),
+        description: error instanceof Error ? error.message : t('crm.parseError'),
       });
-    } else if (result.validRows.length > 0) {
-      toast({
-        title: t('crm.fileValidated'),
-        description: t('crm.readyToImport', { count: result.validRows.length }),
-      });
+      setParsedData(null);
     }
   }, [selectedFile, parseExcelFile, toast, t]);
 

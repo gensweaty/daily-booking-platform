@@ -36,8 +36,8 @@ export interface ParsedData {
 
 const FIELD_KEYWORDS = {
   fullName: {
-    exact: ['full name', 'nombre completo', 'სახელი და გვარი'],
-    partial: ['name', 'nombre', 'სახელი', 'client', 'customer', 'კლიენტი'],
+    exact: ['full name', 'nombre completo', 'სახელი და გვარი', 'business_segment', 'company'],
+    partial: ['name', 'nombre', 'სახელი', 'client', 'customer', 'კლიენტი', 'business', 'company', 'segment'],
     patterns: []
   },
   phoneNumber: {
@@ -46,8 +46,8 @@ const FIELD_KEYWORDS = {
     patterns: [/\d{9,15}/]
   },
   socialLink: {
-    exact: ['social link/email', 'enlace social/correo', 'სოციალური ბმული/ელფოსტა'],
-    partial: ['email', 'social', 'link', 'correo', 'ელფოსტა'],
+    exact: ['social link/email', 'enlace social/correo', 'სოციალური ბმული/ელფოსტა', 'primary_email'],
+    partial: ['email', 'social', 'link', 'correo', 'ელფოსტა', 'primary', 'contact', 'linkedin', 'website'],
     patterns: [/@/, /http/]
   },
   paymentStatus: {
@@ -56,8 +56,8 @@ const FIELD_KEYWORDS = {
     patterns: []
   },
   paymentAmount: {
-    exact: ['payment amount', 'monto de pago', 'გადახდის თანხა'],
-    partial: ['amount', 'price', 'cost', 'monto', 'precio', 'თანხა'],
+    exact: ['payment amount', 'monto de pago', 'გადახდის თანხა', 'estimated_deal_value', 'revenue_estimate'],
+    partial: ['amount', 'price', 'cost', 'monto', 'precio', 'თანხა', 'value', 'revenue', 'deal', 'estimate'],
     patterns: [/[\d.,]+/]
   },
   eventDate: {
@@ -66,8 +66,8 @@ const FIELD_KEYWORDS = {
     patterns: [/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/]
   },
   comment: {
-    exact: ['comment', 'comentario', 'კომენტარი'],
-    partial: ['note', 'notes', 'observation', 'nota', 'შენიშვნა'],
+    exact: ['comment', 'comentario', 'კომენტარი', 'location'],
+    partial: ['note', 'notes', 'observation', 'nota', 'შენიშვნა', 'location', 'address', 'city', 'size'],
     patterns: []
   }
 };

@@ -150,7 +150,7 @@ export const translations: TranslationType = {
     invalidPaymentAmount: "Invalid payment amount",
     missingRequired: "Missing required field: {{field}}",
     emptyFile: "File is empty or has no data",
-    missingFullNameColumn: "Full Name column is required",
+    missingFullNameColumn: "Full Name column is required. The system couldn't find a column that clearly represents customer names. Please ensure your Excel file has a column with customer or business names.",
     parseError: "Error parsing Excel file",
     fileReadError: "Error reading file",
     invalidFileType: "Invalid file type",
