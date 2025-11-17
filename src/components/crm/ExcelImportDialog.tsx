@@ -3,13 +3,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, Loader2, XCircle, CheckCircle } from 'lucide-react';
 import { useExcelImport, ImportRow } from '@/hooks/useExcelImport';
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 
 interface ExcelImportDialogProps {
   open: boolean;
@@ -32,7 +33,7 @@ export const ExcelImportDialog = ({
   const { toast } = useToast();
   const { parseExcelFile, isProcessing } = useExcelImport();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [parsedData, setParsedData] = useState<{ validRows: ImportRow[]; errors: any[]; totalRows: number } | null>(null);
+  const [parsedData, setParsedData] = useState<{ validRows: ImportRow[]; errors: any[]; totalRows: number; mappingSuggestions: any[] } | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
 

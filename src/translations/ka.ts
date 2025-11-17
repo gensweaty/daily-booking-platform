@@ -173,7 +173,13 @@ export const translations: TranslationType = {
     validateFile: "ფაილის ვალიდაცია",
     import: "იმპორტი",
     chooseAnother: "სხვა ფაილის არჩევა",
-    andMore: "...და {{count}} მეტი"
+    andMore: "...და {{count}} მეტი",
+    chooseFile: "აირჩიეთ Excel ფაილი",
+    dragDropFile: "გადმოიტანეთ Excel ფაილი აქ",
+    validatingFile: "ვალიდაცია...",
+    importError: "იმპორტის შეცდომა",
+    detectedMappings: "აღმოჩენილი შესაბამისობა",
+    lowConfidenceWarning: "გთხოვთ გადაამოწმოთ მონაცემები იმპორტამდე.",
   },
   tasks: {
     title: "დავალებების მართვა",
