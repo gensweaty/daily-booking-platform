@@ -11,43 +11,43 @@ import { cn } from "@/lib/utils";
 
 const productImages = [{
   src: "/lovable-uploads/hero-tasks-view.webp",
-  alt: "Tasks Management",
+  alt: "Smartbookly Tasks Management Dashboard - Organize and track tasks efficiently",
   loading: "eager" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-statistics-view.webp",
-  alt: "Statistics Dashboard",
+  alt: "Smartbookly Statistics Dashboard - Business analytics and insights",
   loading: "lazy" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-calendar-month.webp",
-  alt: "Calendar Month View",
+  alt: "Smartbookly Calendar Month View - Schedule and manage appointments",
   loading: "lazy" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-calendar-week.webp",
-  alt: "Calendar Week View",
+  alt: "Smartbookly Calendar Week View - Weekly schedule overview",
   loading: "lazy" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-calendar-day.webp",
-  alt: "Calendar Day View",
+  alt: "Smartbookly Calendar Day View - Daily appointment management",
   loading: "lazy" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-business-page.webp",
-  alt: "Business Page",
+  alt: "Smartbookly Business Page - Professional online presence",
   loading: "lazy" as const,
   customStyle: "object-cover",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-crm-view.webp",
-  alt: "CRM Dashboard",
+  alt: "Smartbookly CRM Dashboard - Customer relationship management",
   loading: "lazy" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
@@ -76,9 +76,9 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           <h2 className="text-xl md:text-2xl font-semibold text-foreground/90 drop-shadow-sm">
             <LanguageText>{t('hero.subtitle')}</LanguageText>
           </h2>
-          <h3 className="text-base md:text-lg text-muted-foreground leading-relaxed">
+          <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
             <LanguageText>{t('hero.description')}</LanguageText>
-          </h3>
+          </p>
         </article>
         <div className="pt-2 md:pt-3 relative">
           <div className="absolute -inset-4 pointer-events-none hidden lg:block">
