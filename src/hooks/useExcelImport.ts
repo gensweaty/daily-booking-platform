@@ -228,8 +228,9 @@ export const useExcelImport = () => {
     if (file.name.endsWith('.csv')) {
       return await file.text();
     } else if (file.name.endsWith('.pdf')) {
-      // PDF files will be handled separately with table extraction
-      return await file.arrayBuffer();
+      // PDFs require special handling - xlsx library cannot parse PDFs
+      // Return a marker to indicate PDF parsing is needed
+      return 'PDF_FILE';
     } else {
       return await file.arrayBuffer();
     }
@@ -505,20 +506,138 @@ export const useExcelImport = () => {
     return { mappings: finalMappings, suggestions: suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex) };
   }, [scoreColumnMatch]);
 
+  const parsePDFToTable = useCallback(async (file: File): Promise<any[][]> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      // Convert PDF binary to text - extract readable text content
+      let text = '';
+      for (let i = 0; i < uint8Array.length - 1; i++) {
+        // Look for text content in PDF structure
+        // PDF text is usually between parentheses or angle brackets
+        if (uint8Array[i] === 40 || uint8Array[i] === 60) { // ( or <
+          let j = i + 1;
+          let textChunk = '';
+          while (j < uint8Array.length && uint8Array[j] !== 41 && uint8Array[j] !== 62) {
+            if (uint8Array[j] >= 32 && uint8Array[j] <= 126) {
+              textChunk += String.fromCharCode(uint8Array[j]);
+            } else if (uint8Array[j] === 10 || uint8Array[j] === 13) {
+              textChunk += '\n';
+            }
+            j++;
+          }
+          if (textChunk.trim().length > 0) {
+            text += textChunk + ' ';
+          }
+          i = j;
+        }
+      }
+      
+      console.log('📄 Extracted PDF text length:', text.length);
+      console.log('📄 First 500 chars:', text.substring(0, 500));
+      
+      // Parse extracted text into table rows
+      const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 0);
+      
+      // Find the header row - usually contains keywords like "Name", "Phone", "Email", etc.
+      const headerKeywords = ['name', 'phone', 'email', 'business', 'contact', 'address', 'city', 'state'];
+      let headerIndex = -1;
+      for (let i = 0; i < Math.min(10, lines.length); i++) {
+        const lowerLine = lines[i].toLowerCase();
+        const matchCount = headerKeywords.filter(kw => lowerLine.includes(kw)).length;
+        if (matchCount >= 2) {
+          headerIndex = i;
+          console.log('📄 Found header row at line', i, ':', lines[i]);
+          break;
+        }
+      }
+      
+      if (headerIndex === -1) {
+        console.warn('📄 Could not find header row, using first line');
+        headerIndex = 0;
+      }
+      
+      // Extract table data starting from header
+      const tableLines: string[][] = [];
+      const headerLine = lines[headerIndex];
+      
+      // Parse header - split by multiple spaces (2+) or tabs
+      const headers = headerLine.split(/\t|  +/).map(h => h.trim()).filter(h => h);
+      console.log('📄 Parsed headers:', headers);
+      
+      if (headers.length < 2) {
+        throw new Error(`Could not detect table columns in PDF. Found only ${headers.length} column(s). Please ensure the PDF has a clear table structure with multiple columns, or convert to Excel/CSV.`);
+      }
+      
+      tableLines.push(headers);
+      
+      // Parse data rows
+      for (let i = headerIndex + 1; i < lines.length; i++) {
+        const line = lines[i];
+        // Skip lines that look like separators or are too short
+        if (line.length < 10 || /^[=\-_\s]+$/.test(line)) continue;
+        
+        // Split by tabs or multiple spaces
+        const cells = line.split(/\t|  +/).map(c => c.trim()).filter(c => c);
+        
+        // Only include rows with data (at least 2 cells)
+        if (cells.length >= 2) {
+          // Pad row to match header length
+          while (cells.length < headers.length) {
+            cells.push('');
+          }
+          // Trim row if longer than headers
+          if (cells.length > headers.length) {
+            cells.length = headers.length;
+          }
+          tableLines.push(cells);
+        }
+      }
+      
+      if (tableLines.length <= 1) {
+        throw new Error('Could not extract table rows from PDF. Please convert the PDF to Excel (.xlsx) or CSV (.csv) format for reliable import.');
+      }
+      
+      console.log('📄 Extracted PDF table:', tableLines.length - 1, 'data rows');
+      console.log('📄 First data row:', tableLines[1]);
+      
+      return tableLines;
+    } catch (error) {
+      console.error('📄 PDF parsing error:', error);
+      if (error instanceof Error && error.message.includes('Could not')) {
+        throw error;
+      }
+      throw new Error('Failed to parse PDF table structure. For best results, please convert your PDF to Excel (.xlsx) or CSV (.csv) format before importing.');
+    }
+  }, []);
+
   const parseExcelFile = useCallback(async (file: File): Promise<ParsedData> => {
     console.log('=== EXCEL IMPORT START ===');
     console.log('File:', file.name, 'Size:', file.size);
     setIsProcessing(true);
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      let headers: string[];
+      let dataRows: any[][];
       
-      if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
-      
-      const headers = jsonData[0].map((h: any) => String(h || '').trim());
-      const dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
+      if (file.name.endsWith('.pdf')) {
+        // Special PDF handling
+        console.log('📄 Parsing PDF file...');
+        const pdfTable = await parsePDFToTable(file);
+        headers = pdfTable[0].map((h: any) => String(h || '').trim());
+        dataRows = pdfTable.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
+      } else {
+        // Excel/CSV handling
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
+        
+        headers = jsonData[0].map((h: any) => String(h || '').trim());
+        dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
+      }
       
       console.log('📋 Detected Headers:', headers);
       console.log('📊 Total data rows:', dataRows.length);
