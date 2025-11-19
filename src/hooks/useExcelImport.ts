@@ -140,9 +140,16 @@ export const useExcelImport = () => {
     const normalized = header.toLowerCase().replace(/[_\s\-\.]/g, '');
     let score = 0;
     
-    // Check header keywords
-    const hasKeyword = config.keywords.some(kw => normalized.includes(kw.toLowerCase().replace(/[_\s\-\.]/g, '')));
-    if (hasKeyword) score += 50;
+    // Check header keywords with exact and partial matching
+    for (const kw of config.keywords) {
+      const normalizedKw = kw.toLowerCase().replace(/[_\s\-\.]/g, '');
+      if (normalized === normalizedKw) {
+        score += 100; // Exact match
+        break;
+      } else if (normalized.includes(normalizedKw) || normalizedKw.includes(normalized)) {
+        score += 50; // Partial match
+      }
+    }
     
     // Special validation for phoneNumber - must have actual phone patterns
     if (fieldName === 'phoneNumber') {
@@ -239,27 +246,27 @@ export const useExcelImport = () => {
   }, [scoreColumnMatch]);
 
   const parseExcelFile = useCallback(async (file: File): Promise<ParsedData> => {
-    console.log('parseExcelFile called with:', file.name);
+    console.log('=== EXCEL IMPORT START ===');
+    console.log('File:', file.name, 'Size:', file.size);
     setIsProcessing(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
-      console.log('File read, size:', arrayBuffer.byteLength);
       const workbook = XLSX.read(arrayBuffer);
-      console.log('Workbook parsed, sheets:', workbook.SheetNames);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      console.log('Data extracted, rows:', jsonData.length);
       
       if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
       
       const headers = jsonData[0].map((h: any) => String(h || '').trim());
       const dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
       
+      console.log('📋 Detected Headers:', headers);
+      console.log('📊 Total data rows:', dataRows.length);
+      console.log('🔍 Sample row data:', dataRows[0]);
+      
       const { mappings: columnMap } = detectColumnsWithConfidence(headers, dataRows);
       
-      console.log('Excel Import - Headers:', headers);
-      console.log('Excel Import - Mappings:', columnMap);
-      console.log('Excel Import - Sample row:', dataRows[0]);
+      console.log('✅ FINAL COLUMN MAPPINGS:', JSON.stringify(columnMap, null, 2));
       
       const validRows: ImportRow[] = [];
       const errors: ValidationError[] = [];
@@ -279,17 +286,23 @@ export const useExcelImport = () => {
         if (columnMap.fullName !== undefined) {
           // Direct fullName column exists
           fullName = row[columnMap.fullName]?.toString().trim() || '';
+          if (index === 0) console.log(`Row ${rowNumber}: Using fullName column [${columnMap.fullName}] = "${fullName}"`);
         } else if (columnMap.firstName !== undefined && columnMap.lastName !== undefined) {
           // Combine first_name and last_name
           const firstName = row[columnMap.firstName]?.toString().trim() || '';
           const lastName = row[columnMap.lastName]?.toString().trim() || '';
           fullName = `${firstName} ${lastName}`.trim();
+          if (index === 0) console.log(`Row ${rowNumber}: Combining firstName[${columnMap.firstName}]="${firstName}" + lastName[${columnMap.lastName}]="${lastName}" = "${fullName}"`);
         } else if (columnMap.firstName !== undefined) {
           // Only first name available
           fullName = row[columnMap.firstName]?.toString().trim() || '';
+          if (index === 0) console.log(`Row ${rowNumber}: Using firstName only [${columnMap.firstName}] = "${fullName}"`);
         } else if (columnMap.lastName !== undefined) {
           // Only last name available
           fullName = row[columnMap.lastName]?.toString().trim() || '';
+          if (index === 0) console.log(`Row ${rowNumber}: Using lastName only [${columnMap.lastName}] = "${fullName}"`);
+        } else {
+          if (index === 0) console.log(`Row ${rowNumber}: ❌ NO NAME COLUMNS DETECTED! columnMap:`, columnMap);
         }
         
         if (!fullName) {
