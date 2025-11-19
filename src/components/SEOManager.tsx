@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { updatePageMetaTags } from '@/utils/seo/metaTags';
-import { generateOrganizationSchema, generateWebsiteSchema } from '@/utils/seo/structuredData';
+import { generateOrganizationSchema, generateWebsiteSchema, generateBreadcrumbSchema } from '@/utils/seo/structuredData';
 import { SEO_CONFIG } from '@/utils/seo/seoConfig';
 
 export const SEOManager = () => {
@@ -42,7 +42,7 @@ export const SEOManager = () => {
     
     let title = langConfig.title;
     let description = langConfig.description;
-    let structuredData: any = generateOrganizationSchema();
+    let structuredData: any = [generateOrganizationSchema()];
     
     // Page-specific SEO
     if (currentPath === '/contact') {
@@ -51,15 +51,23 @@ export const SEOManager = () => {
         title = contactConfig.title;
         description = contactConfig.description;
       }
+      structuredData.push(generateBreadcrumbSchema([
+        { name: 'Home', url: SEO_CONFIG.siteUrl },
+        { name: 'Contact', url: `${SEO_CONFIG.siteUrl}/contact` }
+      ]));
     } else if (currentPath === '/legal') {
       const legalConfig = SEO_CONFIG.pages.legal[currentLang as keyof typeof SEO_CONFIG.pages.legal];
       if (legalConfig) {
         title = legalConfig.title;
         description = legalConfig.description;
       }
+      structuredData.push(generateBreadcrumbSchema([
+        { name: 'Home', url: SEO_CONFIG.siteUrl },
+        { name: 'Legal', url: `${SEO_CONFIG.siteUrl}/legal` }
+      ]));
     } else if (currentPath === '/') {
       // Homepage gets website schema
-      structuredData = generateWebsiteSchema();
+      structuredData.push(generateWebsiteSchema());
     }
     
     // Update meta tags

@@ -39,6 +39,14 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
     }
   };
 
+  const handleFeatureScroll = (featureId: string) => {
+    const section = document.getElementById(featureId);
+    if (section) {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      handleMenuClose();
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -78,6 +86,14 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
             </AvatarFallback>
           </MemoizedAvatar>
           <LanguageText>{language === 'ka' ? "მართვის პანელი" : "Dashboard"}</LanguageText>
+        </Button>
+        
+        <Button 
+          onClick={() => handleFeatureScroll('ai-assistant')}
+          variant="ghost" 
+          className="hover:scale-105 transition-transform text-sm glass-morphism hover:bg-accent/10"
+        >
+          {language === 'ka' ? "ფუნქციები" : "Features"}
         </Button>
         
         <Button 
