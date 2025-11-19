@@ -36,8 +36,8 @@ export interface ParsedData {
 
 const FIELD_KEYWORDS = {
   fullName: {
-    keywords: ['fullname', 'full_name', 'full name', 'customer', 'client', 
-               'nombre completo', 'სრული სახელი', 'კლიენტი'],
+    keywords: ['fullname', 'full_name', 'full name', 'customer', 'client', 'contact', 'name',
+               'nombre completo', 'სრული სახელი', 'კლიენტი', 'contacto'],
     priority: 10,
     patterns: [] as RegExp[]
   },
@@ -148,6 +148,32 @@ export const useExcelImport = () => {
         break;
       } else if (normalized.includes(normalizedKw) || normalizedKw.includes(normalized)) {
         score += 50; // Partial match
+      }
+    }
+    
+    // Content-based analysis for fullName - check if data looks like person names
+    if (fieldName === 'fullName') {
+      const validSamples = sampleData.filter(v => v != null && String(v).trim() !== '');
+      if (validSamples.length > 0) {
+        // Analyze if the content looks like person names
+        const namePatterns = validSamples.filter(v => {
+          const str = String(v).trim();
+          // Person names typically: 1-4 words, capitalized, 2-50 chars, no URLs/emails
+          const words = str.split(/\s+/);
+          const hasProperCase = /^[A-Z]/.test(str);
+          const isReasonableLength = str.length >= 2 && str.length <= 50;
+          const isNotUrl = !str.includes('http') && !str.includes('www.');
+          const isNotEmail = !str.includes('@');
+          const wordCount = words.length >= 1 && words.length <= 4;
+          
+          return hasProperCase && isReasonableLength && isNotUrl && isNotEmail && wordCount;
+        }).length;
+        
+        const namePercentage = namePatterns / validSamples.length;
+        // If 60%+ of samples look like person names, boost the score
+        if (namePercentage >= 0.6) {
+          score += 40;
+        }
       }
     }
     
