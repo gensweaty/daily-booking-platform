@@ -508,26 +508,127 @@ export const useExcelImport = () => {
 
 
   const parseExcelFile = useCallback(async (file: File): Promise<ParsedData> => {
-    console.log('=== EXCEL IMPORT START ===');
+    console.log('=== IMPORT START ===');
     console.log('File:', file.name, 'Size:', file.size);
-    
-    // Check for PDF files first - they cannot be parsed reliably
-    if (file.name.endsWith('.pdf')) {
-      throw new Error('PDF import is not supported. Please convert your PDF to Excel or CSV:\n\n1. Open your PDF\n2. Copy the table data (Ctrl+A, Ctrl+C)\n3. Paste into Excel or Google Sheets\n4. Save as .xlsx or .csv\n5. Upload the Excel/CSV file\n\nThis ensures accurate data import.');
-    }
-    
     setIsProcessing(true);
+    
     try {
-      // Excel/CSV handling only
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      let headers: string[];
+      let dataRows: any[][];
       
-      if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
-      
-      const headers = jsonData[0].map((h: any) => String(h || '').trim());
-      const dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
+      if (file.name.endsWith('.pdf')) {
+        // PDF parsing using proper PDF library
+        console.log('📄 Parsing PDF with pdfjs-dist...');
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Dynamic import of pdfjs-dist
+        const pdfjsLib = await import('pdfjs-dist');
+        
+        // Set worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+        
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        console.log('📄 PDF loaded, pages:', pdf.numPages);
+        
+        let allText = '';
+        // Extract text from all pages (limit to first 10 for performance)
+        const pagesToRead = Math.min(pdf.numPages, 10);
+        for (let i = 1; i <= pagesToRead; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(' ');
+          allText += pageText + '\n';
+        }
+        
+        console.log('📄 Extracted text length:', allText.length);
+        console.log('📄 First 500 chars:', allText.substring(0, 500));
+        
+        // Parse text into table structure
+        const lines = allText.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 2);
+        console.log('📄 Total lines:', lines.length);
+        
+        // Find header row
+        const headerKeywords = ['name', 'phone', 'email', 'business', 'contact', 'address', 'city', 'state', 'website', 'e-mail'];
+        let headerIndex = -1;
+        let maxMatches = 0;
+        
+        for (let i = 0; i < Math.min(30, lines.length); i++) {
+          const lower = lines[i].toLowerCase();
+          const matches = headerKeywords.filter(kw => lower.includes(kw)).length;
+          if (matches > maxMatches && matches >= 2) {
+            maxMatches = matches;
+            headerIndex = i;
+          }
+        }
+        
+        if (headerIndex === -1) {
+          throw new Error('Could not detect table header in PDF. Please ensure your PDF contains a clear table with column headers like "Business Name", "Phone", "Email", etc.');
+        }
+        
+        console.log('📄 Header found at line', headerIndex, ':', lines[headerIndex]);
+        
+        // Parse header - try multiple splitting strategies
+        const headerLine = lines[headerIndex];
+        let parsedHeaders: string[] = [];
+        
+        // Strategy 1: Split by 2+ spaces (most common in PDFs)
+        parsedHeaders = headerLine.split(/\s{2,}/).map(h => h.trim()).filter(h => h);
+        
+        // Strategy 2: If too few columns, try tabs
+        if (parsedHeaders.length < 2) {
+          parsedHeaders = headerLine.split('\t').map(h => h.trim()).filter(h => h);
+        }
+        
+        // Strategy 3: Try splitting by keywords
+        if (parsedHeaders.length < 2) {
+          const keywordRegex = new RegExp(`(${headerKeywords.join('|')})`, 'gi');
+          const matches = headerLine.match(keywordRegex);
+          if (matches && matches.length >= 2) {
+            parsedHeaders = matches;
+          }
+        }
+        
+        if (parsedHeaders.length < 2) {
+          throw new Error(`Could not parse table columns. Found only ${parsedHeaders.length} column(s). For best results:\n\n1. Copy table from PDF (Ctrl+A, Ctrl+C)\n2. Paste into Excel\n3. Save as .xlsx\n4. Upload Excel file`);
+        }
+        
+        console.log('📄 Parsed headers:', parsedHeaders);
+        headers = parsedHeaders;
+        
+        // Parse data rows using same splitting strategy
+        dataRows = [];
+        for (let i = headerIndex + 1; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.length < 5 || /^[=\-_\s]+$/.test(line)) continue;
+          
+          let cells = line.split(/\s{2,}/).map(c => c.trim());
+          if (cells.filter(c => c).length >= 1) {
+            // Pad to match header length
+            while (cells.length < headers.length) cells.push('');
+            if (cells.length > headers.length) cells.length = headers.length;
+            dataRows.push(cells);
+          }
+        }
+        
+        console.log('📄 Parsed', dataRows.length, 'data rows');
+        if (dataRows.length === 0) {
+          throw new Error('No data rows found in PDF. Please ensure the PDF has data below the header row.');
+        }
+        
+      } else {
+        // Excel/CSV handling
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer);
+        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
+        
+        headers = jsonData[0].map((h: any) => String(h || '').trim());
+        dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
+      }
       
       console.log('📋 Detected Headers:', headers);
       console.log('📊 Total data rows:', dataRows.length);
