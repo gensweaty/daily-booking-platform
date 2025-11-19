@@ -524,8 +524,8 @@ export const useExcelImport = () => {
         // Dynamic import of pdfjs-dist
         const pdfjsLib = await import('pdfjs-dist');
         
-        // Set worker
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+        // Set worker using unpkg instead of cloudflare CDN
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
         
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         console.log('📄 PDF loaded, pages:', pdf.numPages);
