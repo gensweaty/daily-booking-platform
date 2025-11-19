@@ -228,9 +228,9 @@ export const useExcelImport = () => {
     if (file.name.endsWith('.csv')) {
       return await file.text();
     } else if (file.name.endsWith('.pdf')) {
-      // PDFs require special handling - xlsx library cannot parse PDFs
-      // Return a marker to indicate PDF parsing is needed
-      return 'PDF_FILE';
+      // PDFs cannot be reliably parsed without specialized libraries
+      // Guide users to convert to Excel/CSV for best results
+      throw new Error('PDF import is not fully supported yet. Please convert your PDF to Excel or CSV format:\n\n1. Open your PDF\n2. Select and copy the table data\n3. Paste into Excel or Google Sheets\n4. Save as .xlsx or .csv file\n5. Upload the Excel/CSV file here\n\nThis ensures all your data is imported accurately.');
     } else {
       return await file.arrayBuffer();
     }
@@ -658,27 +658,16 @@ export const useExcelImport = () => {
     console.log('File:', file.name, 'Size:', file.size);
     setIsProcessing(true);
     try {
-      let headers: string[];
-      let dataRows: any[][];
+      // Excel/CSV handling only
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer);
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
       
-      if (file.name.endsWith('.pdf')) {
-        // Special PDF handling
-        console.log('📄 Parsing PDF file...');
-        const pdfTable = await parsePDFToTable(file);
-        headers = pdfTable[0].map((h: any) => String(h || '').trim());
-        dataRows = pdfTable.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
-      } else {
-        // Excel/CSV handling
-        const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer);
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
-        
-        headers = jsonData[0].map((h: any) => String(h || '').trim());
-        dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
-      }
+      if (jsonData.length === 0) throw new Error(t('crm.emptyFile'));
+      
+      const headers = jsonData[0].map((h: any) => String(h || '').trim());
+      const dataRows = jsonData.slice(1).filter(row => row.some(cell => cell != null && String(cell).trim() !== ''));
       
       console.log('📋 Detected Headers:', headers);
       console.log('📊 Total data rows:', dataRows.length);
