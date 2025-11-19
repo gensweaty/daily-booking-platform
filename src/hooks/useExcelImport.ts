@@ -509,106 +509,147 @@ export const useExcelImport = () => {
   const parsePDFToTable = useCallback(async (file: File): Promise<any[][]> => {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
       
-      // Convert PDF binary to text - extract readable text content
+      // Try to extract text using TextDecoder with multiple strategies
       let text = '';
-      for (let i = 0; i < uint8Array.length - 1; i++) {
-        // Look for text content in PDF structure
-        // PDF text is usually between parentheses or angle brackets
-        if (uint8Array[i] === 40 || uint8Array[i] === 60) { // ( or <
-          let j = i + 1;
-          let textChunk = '';
-          while (j < uint8Array.length && uint8Array[j] !== 41 && uint8Array[j] !== 62) {
-            if (uint8Array[j] >= 32 && uint8Array[j] <= 126) {
-              textChunk += String.fromCharCode(uint8Array[j]);
-            } else if (uint8Array[j] === 10 || uint8Array[j] === 13) {
-              textChunk += '\n';
-            }
-            j++;
-          }
-          if (textChunk.trim().length > 0) {
-            text += textChunk + ' ';
-          }
-          i = j;
-        }
+      
+      // Strategy 1: Direct UTF-8 decode (works for simple PDFs)
+      try {
+        const decoder = new TextDecoder('utf-8');
+        text = decoder.decode(arrayBuffer);
+      } catch (e) {
+        console.warn('UTF-8 decode failed, trying raw extraction');
       }
       
-      console.log('📄 Extracted PDF text length:', text.length);
-      console.log('📄 First 500 chars:', text.substring(0, 500));
+      // Strategy 2: Raw byte extraction (more reliable for various PDF formats)
+      if (text.length < 100) {
+        const uint8Array = new Uint8Array(arrayBuffer);
+        let extracted = '';
+        let inTextBlock = false;
+        
+        for (let i = 0; i < uint8Array.length - 2; i++) {
+          const byte = uint8Array[i];
+          
+          // Detect text blocks: BT (Begin Text) and ET (End Text) markers
+          if (byte === 66 && uint8Array[i+1] === 84 && uint8Array[i+2] === 32) { // "BT "
+            inTextBlock = true;
+            i += 2;
+            continue;
+          }
+          if (byte === 69 && uint8Array[i+1] === 84 && (uint8Array[i+2] === 32 || uint8Array[i+2] === 10)) { // "ET " or "ET\n"
+            inTextBlock = false;
+            extracted += '\n';
+            i += 2;
+            continue;
+          }
+          
+          // Extract printable ASCII characters
+          if (byte >= 32 && byte <= 126) {
+            extracted += String.fromCharCode(byte);
+          } else if (byte === 10 || byte === 13) { // newline/carriage return
+            extracted += '\n';
+          } else if (byte === 9) { // tab
+            extracted += '\t';
+          }
+        }
+        
+        text = extracted;
+      }
       
-      // Parse extracted text into table rows
-      const lines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 0);
+      console.log('📄 PDF text extraction length:', text.length);
+      console.log('📄 Sample extracted text:', text.substring(0, 800));
       
-      // Find the header row - usually contains keywords like "Name", "Phone", "Email", etc.
-      const headerKeywords = ['name', 'phone', 'email', 'business', 'contact', 'address', 'city', 'state'];
+      if (text.length < 50) {
+        throw new Error('PDF appears to be empty or contains only images. Please convert to Excel/CSV format.');
+      }
+      
+      // Parse text into lines
+      const allLines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.length > 2);
+      console.log('📄 Total lines extracted:', allLines.length);
+      
+      // Find header row with common CRM keywords
+      const headerKeywords = ['name', 'phone', 'email', 'business', 'contact', 'address', 'city', 'state', 'website'];
       let headerIndex = -1;
-      for (let i = 0; i < Math.min(10, lines.length); i++) {
-        const lowerLine = lines[i].toLowerCase();
-        const matchCount = headerKeywords.filter(kw => lowerLine.includes(kw)).length;
-        if (matchCount >= 2) {
+      let maxKeywordMatches = 0;
+      
+      for (let i = 0; i < Math.min(20, allLines.length); i++) {
+        const lowerLine = allLines[i].toLowerCase();
+        const matches = headerKeywords.filter(kw => lowerLine.includes(kw)).length;
+        if (matches > maxKeywordMatches && matches >= 2) {
+          maxKeywordMatches = matches;
           headerIndex = i;
-          console.log('📄 Found header row at line', i, ':', lines[i]);
-          break;
         }
       }
       
       if (headerIndex === -1) {
-        console.warn('📄 Could not find header row, using first line');
+        console.warn('📄 No clear header found, using first line');
         headerIndex = 0;
       }
       
-      // Extract table data starting from header
-      const tableLines: string[][] = [];
-      const headerLine = lines[headerIndex];
+      console.log('📄 Using header at line', headerIndex, ':', allLines[headerIndex]);
       
-      // Parse header - split by multiple spaces (2+) or tabs
-      const headers = headerLine.split(/\t|  +/).map(h => h.trim()).filter(h => h);
-      console.log('📄 Parsed headers:', headers);
+      // Parse header
+      const headerLine = allLines[headerIndex];
+      let headers = headerLine.split(/\t|  {2,}/).map(h => h.trim()).filter(h => h && h.length > 1);
       
+      // If splitting by spaces doesn't work well, try other delimiters
       if (headers.length < 2) {
-        throw new Error(`Could not detect table columns in PDF. Found only ${headers.length} column(s). Please ensure the PDF has a clear table structure with multiple columns, or convert to Excel/CSV.`);
-      }
-      
-      tableLines.push(headers);
-      
-      // Parse data rows
-      for (let i = headerIndex + 1; i < lines.length; i++) {
-        const line = lines[i];
-        // Skip lines that look like separators or are too short
-        if (line.length < 10 || /^[=\-_\s]+$/.test(line)) continue;
-        
-        // Split by tabs or multiple spaces
-        const cells = line.split(/\t|  +/).map(c => c.trim()).filter(c => c);
-        
-        // Only include rows with data (at least 2 cells)
-        if (cells.length >= 2) {
-          // Pad row to match header length
-          while (cells.length < headers.length) {
-            cells.push('');
+        // Try splitting by common delimiters
+        const delimiters = [/\s{3,}/, /\|/, /;/, /,\s+/];
+        for (const delimiter of delimiters) {
+          const tryHeaders = headerLine.split(delimiter).map(h => h.trim()).filter(h => h && h.length > 1);
+          if (tryHeaders.length >= 2) {
+            headers = tryHeaders;
+            break;
           }
-          // Trim row if longer than headers
-          if (cells.length > headers.length) {
-            cells.length = headers.length;
-          }
-          tableLines.push(cells);
         }
       }
       
-      if (tableLines.length <= 1) {
-        throw new Error('Could not extract table rows from PDF. Please convert the PDF to Excel (.xlsx) or CSV (.csv) format for reliable import.');
+      console.log('📄 Parsed', headers.length, 'headers:', headers);
+      
+      if (headers.length < 2) {
+        throw new Error(`Could not detect table columns in PDF. Found only ${headers.length} column(s). PDF tables often lose their structure during text extraction. For reliable import, please:\n\n1. Open the PDF and copy the table\n2. Paste into Excel/Google Sheets\n3. Save as .xlsx or .csv\n4. Upload the Excel/CSV file here`);
       }
       
-      console.log('📄 Extracted PDF table:', tableLines.length - 1, 'data rows');
-      console.log('📄 First data row:', tableLines[1]);
+      // Build table data
+      const tableData: string[][] = [headers];
       
-      return tableLines;
+      // Parse data rows
+      const dataStartIndex = headerIndex + 1;
+      for (let i = dataStartIndex; i < allLines.length; i++) {
+        const line = allLines[i];
+        
+        // Skip separator lines or very short lines
+        if (/^[=\-_\s|.]+$/.test(line) || line.length < 5) continue;
+        
+        // Try to split using same approach as headers
+        let cells = line.split(/\t|  {2,}/).map(c => c.trim());
+        
+        // Filter out empty cells but keep the structure
+        if (cells.filter(c => c).length < 1) continue;
+        
+        // Ensure row matches header length (pad or trim)
+        while (cells.length < headers.length) cells.push('');
+        if (cells.length > headers.length) cells.length = headers.length;
+        
+        tableData.push(cells);
+      }
+      
+      console.log('📄 Extracted', tableData.length - 1, 'data rows from PDF');
+      console.log('📄 First data row:', tableData[1]);
+      
+      if (tableData.length <= 1) {
+        throw new Error('Could not extract data rows from PDF. Please convert to Excel (.xlsx) or CSV (.csv) format.');
+      }
+      
+      return tableData;
+      
     } catch (error) {
-      console.error('📄 PDF parsing error:', error);
+      console.error('📄 PDF parse error:', error);
       if (error instanceof Error && error.message.includes('Could not')) {
         throw error;
       }
-      throw new Error('Failed to parse PDF table structure. For best results, please convert your PDF to Excel (.xlsx) or CSV (.csv) format before importing.');
+      throw new Error('Failed to parse PDF. For best results, convert your PDF to Excel (.xlsx) or CSV (.csv) format before importing.');
     }
   }, []);
 
