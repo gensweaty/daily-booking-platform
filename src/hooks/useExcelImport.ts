@@ -83,10 +83,113 @@ const FIELD_KEYWORDS = {
     patterns: [/\d{1,2}[./-]\d{1,2}/]
   },
   comment: {
-    keywords: ['comment', 'note', 'description', 'linkedin', 'profile', 'location', 'job', 'title', 'role'],
+    keywords: ['comment', 'note', 'description', 'linkedin', 'profile', 'location'],
     priority: 3,
     patterns: [] as RegExp[]
   }
+};
+
+// Job title indicators for negative validation
+const JOB_TITLE_INDICATORS = [
+  '&', ' and ', 'ceo', 'founder', 'manager', 'director', 'president', 
+  'executive', 'chief', 'head of', 'vp', 'owner', 'producer', 'officer',
+  'coordinator', 'specialist', 'analyst', 'consultant', 'associate',
+  'assistant', 'lead', 'senior', 'junior', 'staff', 'representative'
+];
+
+/**
+ * Analyzes column content to classify data type
+ * Returns: personName, jobTitle, email, phone, company, date, number, text, unknown
+ */
+const classifyColumnContent = (sampleData: any[]): string => {
+  const validSamples = sampleData.filter(v => v != null && String(v).trim() !== '');
+  if (validSamples.length === 0) return 'unknown';
+  
+  let personNameScore = 0;
+  let jobTitleScore = 0;
+  let emailScore = 0;
+  let phoneScore = 0;
+  let dateScore = 0;
+  let numberScore = 0;
+  
+  validSamples.forEach(v => {
+    const str = String(v).trim();
+    const lower = str.toLowerCase();
+    
+    // Email detection
+    if (str.includes('@') && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str)) {
+      emailScore += 10;
+      return;
+    }
+    
+    // Phone detection
+    if (/^\+?\d[\d\s\-()]{8,}$/.test(str)) {
+      phoneScore += 10;
+      return;
+    }
+    
+    // Date detection
+    if (/\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(str)) {
+      dateScore += 10;
+      return;
+    }
+    
+    // Number detection
+    if (/^\d+[\d.,]*$/.test(str) && !str.includes(' ')) {
+      numberScore += 10;
+      return;
+    }
+    
+    // Job title indicators
+    const hasJobIndicators = JOB_TITLE_INDICATORS.some(indicator => 
+      lower.includes(indicator)
+    );
+    if (hasJobIndicators) {
+      jobTitleScore += 10;
+      personNameScore -= 5; // Penalize person name score
+      return;
+    }
+    
+    // Person name patterns
+    const words = str.split(/\s+/);
+    const hasProperCase = /^[A-Z]/.test(str);
+    const isReasonableLength = str.length >= 2 && str.length <= 50;
+    const wordCount = words.length >= 1 && words.length <= 4;
+    const hasNoSpecialChars = !/[&/\\@#$%^*()+=[\]{}|<>]/.test(str);
+    const hasNoUrl = !str.includes('http') && !str.includes('www.');
+    
+    if (hasProperCase && isReasonableLength && wordCount && hasNoSpecialChars && hasNoUrl) {
+      personNameScore += 8;
+      
+      // Bonus for typical 2-3 word names
+      if (words.length === 2 || words.length === 3) {
+        personNameScore += 2;
+      }
+    }
+  });
+  
+  // Determine classification based on highest score
+  const scores = {
+    email: emailScore,
+    phone: phoneScore,
+    date: dateScore,
+    number: numberScore,
+    jobTitle: jobTitleScore,
+    personName: personNameScore
+  };
+  
+  const maxScore = Math.max(...Object.values(scores));
+  if (maxScore === 0) return 'text';
+  
+  const classification = Object.entries(scores).find(([_, score]) => score === maxScore)?.[0] || 'unknown';
+  
+  console.log(`🔍 Content classification:`, {
+    sampleSize: validSamples.length,
+    scores,
+    result: classification
+  });
+  
+  return classification;
 };
 
 export const useExcelImport = () => {
@@ -139,45 +242,85 @@ export const useExcelImport = () => {
     
     const normalized = header.toLowerCase().replace(/[_\s\-\.]/g, '');
     let score = 0;
+    let matchType = 'none';
     
     // Check header keywords with exact and partial matching
     for (const kw of config.keywords) {
       const normalizedKw = kw.toLowerCase().replace(/[_\s\-\.]/g, '');
       if (normalized === normalizedKw) {
         score += 100; // Exact match
+        matchType = 'exact';
         break;
       } else if (normalized.includes(normalizedKw) || normalizedKw.includes(normalized)) {
         score += 50; // Partial match
+        matchType = 'partial';
       }
     }
     
-    // Content-based analysis for fullName - check if data looks like person names
+    // Get content classification for intelligent analysis
+    const contentType = classifyColumnContent(sampleData);
+    
+    // Enhanced content-based analysis for fullName
     if (fieldName === 'fullName') {
       const validSamples = sampleData.filter(v => v != null && String(v).trim() !== '');
       if (validSamples.length > 0) {
-        // Analyze if the content looks like person names
-        const namePatterns = validSamples.filter(v => {
+        // NEGATIVE VALIDATION: Check for job title indicators
+        const jobTitleCount = validSamples.filter(v => {
+          const lower = String(v).toLowerCase();
+          return JOB_TITLE_INDICATORS.some(indicator => lower.includes(indicator));
+        }).length;
+        
+        const jobTitlePercentage = jobTitleCount / validSamples.length;
+        
+        // Heavy penalty if 30%+ samples look like job titles
+        if (jobTitlePercentage >= 0.3) {
+          console.log(`❌ Rejecting "${header}" for fullName: ${(jobTitlePercentage * 100).toFixed(0)}% job titles detected`);
+          score -= 200;
+          return score * config.priority;
+        }
+        
+        // POSITIVE VALIDATION: Enhanced person name detection
+        const personNameCount = validSamples.filter(v => {
           const str = String(v).trim();
-          // Person names typically: 1-4 words, capitalized, 2-50 chars, no URLs/emails
           const words = str.split(/\s+/);
           const hasProperCase = /^[A-Z]/.test(str);
           const isReasonableLength = str.length >= 2 && str.length <= 50;
           const isNotUrl = !str.includes('http') && !str.includes('www.');
           const isNotEmail = !str.includes('@');
           const wordCount = words.length >= 1 && words.length <= 4;
+          const hasNoSpecialChars = !/[&/\\@#$%^*()+=[\]{}|<>]/.test(str);
           
-          return hasProperCase && isReasonableLength && isNotUrl && isNotEmail && wordCount;
+          // Additional validation: no common job title endings
+          const hasJobSuffix = /producer|officer|manager|director|executive|coordinator$/i.test(str);
+          
+          return hasProperCase && isReasonableLength && isNotUrl && isNotEmail && 
+                 wordCount && hasNoSpecialChars && !hasJobSuffix;
         }).length;
         
-        const namePercentage = namePatterns / validSamples.length;
-        // If 60%+ of samples look like person names, boost the score
-        if (namePercentage >= 0.6) {
-          score += 40;
+        const personNamePercentage = personNameCount / validSamples.length;
+        
+        // Boost score based on person name confidence
+        if (personNamePercentage >= 0.7) {
+          score += 80; // High confidence
+          matchType = 'content-high';
+          console.log(`✅ Strong name match for "${header}": ${(personNamePercentage * 100).toFixed(0)}% person names`);
+        } else if (personNamePercentage >= 0.5) {
+          score += 40; // Medium confidence
+          matchType = 'content-medium';
+        }
+        
+        // Use content classifier result
+        if (contentType === 'personName') {
+          score += 100; // Strong boost from classifier
+          console.log(`🎯 Classifier confirms "${header}" as personName`);
+        } else if (contentType === 'jobTitle') {
+          score -= 200; // Strong penalty from classifier
+          console.log(`⚠️ Classifier identifies "${header}" as jobTitle, rejecting for fullName`);
         }
       }
     }
     
-    // Special validation for phoneNumber - must have actual phone patterns
+    // Enhanced validation for phoneNumber
     if (fieldName === 'phoneNumber') {
       const validSamples = sampleData.filter(v => v != null && String(v).trim() !== '');
       if (validSamples.length > 0) {
@@ -185,11 +328,16 @@ export const useExcelImport = () => {
         const hasNumbers = validSamples.filter(v => /\d/.test(String(v))).length;
         const matchingPhones = validSamples.filter(v => phonePattern.test(String(v).trim())).length;
         
-        // If less than 30% of samples look like phone numbers, penalize heavily
+        // Reject if less than 30% look like phones
         if (hasNumbers < validSamples.length * 0.3 || matchingPhones < validSamples.length * 0.3) {
-          score = -1000; // Strong negative score to avoid matching job titles, categories, etc.
+          score = -1000;
         } else {
           score += (matchingPhones / validSamples.length) * 50;
+        }
+        
+        // Boost if classifier confirms
+        if (contentType === 'phone') {
+          score += 50;
         }
       }
     } else if (config.patterns && sampleData.length > 0) {
@@ -203,18 +351,36 @@ export const useExcelImport = () => {
       }
     }
     
-    console.log(`[Field Detection] ${fieldName} score for "${header}":`, score, 'samples:', sampleData.slice(0, 3));
-    return score * config.priority;
+    const finalScore = score * config.priority;
+    console.log(`📊 [Field Detection] ${fieldName} for "${header}":`, {
+      headerMatch: matchType,
+      contentType,
+      rawScore: score,
+      priority: config.priority,
+      finalScore,
+      samples: sampleData.slice(0, 2)
+    });
+    
+    return finalScore;
   }, []);
 
   const detectColumnsWithConfidence = useCallback((headers: string[], rows: any[][]): { mappings: Record<string, number>, suggestions: ColumnMatch[] } => {
+    console.log('\n🔍 === COLUMN DETECTION ANALYSIS ===');
+    console.log('Headers:', headers);
+    
     const suggestions: ColumnMatch[] = [];
     const finalMappings: Record<string, number> = {};
+    const columnAnalysis: any[] = [];
     
     headers.forEach((header, colIndex) => {
       const sampleData = rows.slice(0, Math.min(10, rows.length)).map(row => row[colIndex]);
+      const contentType = classifyColumnContent(sampleData);
+      
+      const fieldScores: Record<string, number> = {};
       Object.keys(FIELD_KEYWORDS).forEach(fieldName => {
         const confidence = scoreColumnMatch(header, sampleData, fieldName);
+        fieldScores[fieldName] = confidence;
+        
         if (confidence > 20) {
           suggestions.push({
             fieldName,
@@ -225,6 +391,23 @@ export const useExcelImport = () => {
           });
         }
       });
+      
+      columnAnalysis.push({
+        index: colIndex,
+        header,
+        contentType,
+        topScores: Object.entries(fieldScores)
+          .filter(([_, score]) => score > 0)
+          .sort(([_, a], [__, b]) => b - a)
+          .slice(0, 3)
+          .map(([field, score]) => `${field}(${score})`)
+          .join(', ') || 'no matches'
+      });
+    });
+    
+    console.log('\n📊 Column Analysis Summary:');
+    columnAnalysis.forEach(col => {
+      console.log(`  Col ${col.index} "${col.header}": Type=${col.contentType}, Scores=${col.topScores}`);
     });
     
     // Sort by confidence (highest first)
@@ -244,29 +427,36 @@ export const useExcelImport = () => {
     
     // Smart name handling: prefer firstName+lastName combination over single columns
     if (finalMappings.firstName !== undefined && finalMappings.lastName !== undefined) {
-      // We have both first and last name - remove any fullName or companyName mapping
-      console.log('✓ Detected First Name + Last Name columns - will combine them');
+      console.log('✅ Detected First Name + Last Name columns - will combine them');
       delete finalMappings.fullName;
       delete finalMappings.companyName;
     } else if (finalMappings.firstName !== undefined) {
-      // Only first name available
-      console.log('✓ Detected First Name only');
+      console.log('✅ Detected First Name only');
       delete finalMappings.fullName;
       delete finalMappings.companyName;
     } else if (finalMappings.lastName !== undefined) {
-      // Only last name available  
-      console.log('✓ Detected Last Name only');
+      console.log('✅ Detected Last Name only');
       delete finalMappings.fullName;
       delete finalMappings.companyName;
     } else if (finalMappings.companyName !== undefined && finalMappings.fullName === undefined) {
-      // Use company name as fallback for fullName
-      console.log('✓ Using Company Name column as Full Name');
+      console.log('✅ Using Company Name column as Full Name');
       finalMappings.fullName = finalMappings.companyName;
       delete finalMappings.companyName;
     }
     
-    console.log('📊 Final field mappings:', finalMappings);
-    console.log('📋 Detected columns:', suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex));
+    console.log('\n✅ Final Field Mappings:');
+    Object.entries(finalMappings).forEach(([field, colIdx]) => {
+      console.log(`  ${field} ← Column ${colIdx} "${headers[colIdx]}"`);
+    });
+    
+    // Warning if fullName not detected
+    if (finalMappings.fullName === undefined && finalMappings.firstName === undefined) {
+      console.warn('\n⚠️ WARNING: Full Name field not detected!');
+      console.warn('Available columns:', headers);
+      console.warn('Suggestion: Check if column contains person names vs job titles/categories');
+    }
+    
+    console.log('=== END COLUMN DETECTION ===\n');
     
     return { mappings: finalMappings, suggestions: suggestions.filter(s => finalMappings[s.fieldName] === s.columnIndex) };
   }, [scoreColumnMatch]);
