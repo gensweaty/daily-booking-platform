@@ -89,12 +89,20 @@ const FIELD_KEYWORDS = {
   }
 };
 
-// Job title indicators for negative validation
+// Job title indicators for negative validation (when NOT in business context)
 const JOB_TITLE_INDICATORS = [
-  '&', ' and ', 'ceo', 'founder', 'manager', 'director', 'president', 
-  'executive', 'chief', 'head of', 'vp', 'owner', 'producer', 'officer',
+  'ceo', 'founder', 'manager', 'director', 'president', 
+  'executive', 'chief', 'head of', 'vp', 'producer', 'officer',
   'coordinator', 'specialist', 'analyst', 'consultant', 'associate',
   'assistant', 'lead', 'senior', 'junior', 'staff', 'representative'
+];
+
+// Business/Company name indicators
+const BUSINESS_NAME_INDICATORS = [
+  'gym', 'fitness', 'inc', 'llc', 'ltd', 'corp', 'company', 'group',
+  'center', 'studio', 'club', 'enterprise', 'services', 'solutions',
+  'consulting', 'training', 'academy', 'institute', 'shop', 'store',
+  'cafe', 'restaurant', 'bar', 'hotel', 'resort'
 ];
 
 /**
@@ -106,6 +114,7 @@ const classifyColumnContent = (sampleData: any[]): string => {
   if (validSamples.length === 0) return 'unknown';
   
   let personNameScore = 0;
+  let companyNameScore = 0;
   let jobTitleScore = 0;
   let emailScore = 0;
   let phoneScore = 0;
@@ -140,7 +149,22 @@ const classifyColumnContent = (sampleData: any[]): string => {
       return;
     }
     
-    // Job title indicators
+    // Business/Company name detection (before job title check)
+    const hasBusinessIndicators = BUSINESS_NAME_INDICATORS.some(indicator => 
+      lower.includes(indicator)
+    );
+    const hasAmpersand = str.includes('&') || lower.includes(' and ');
+    const isLongerName = str.length > 15; // Business names tend to be longer
+    const words = str.split(/\s+/);
+    const hasMultipleWords = words.length >= 2;
+    
+    if (hasBusinessIndicators || (hasAmpersand && hasMultipleWords && isLongerName)) {
+      companyNameScore += 12;
+      // Don't penalize person name if it could be a business
+      return;
+    }
+    
+    // Job title indicators (only if not a business name)
     const hasJobIndicators = JOB_TITLE_INDICATORS.some(indicator => 
       lower.includes(indicator)
     );
@@ -151,7 +175,6 @@ const classifyColumnContent = (sampleData: any[]): string => {
     }
     
     // Person name patterns
-    const words = str.split(/\s+/);
     const hasProperCase = /^[A-Z]/.test(str);
     const isReasonableLength = str.length >= 2 && str.length <= 50;
     const wordCount = words.length >= 1 && words.length <= 4;
@@ -165,6 +188,9 @@ const classifyColumnContent = (sampleData: any[]): string => {
       if (words.length === 2 || words.length === 3) {
         personNameScore += 2;
       }
+    } else if (hasProperCase && isReasonableLength && hasMultipleWords && !hasNoUrl) {
+      // Could be company name with special chars
+      companyNameScore += 5;
     }
   });
   
@@ -174,6 +200,7 @@ const classifyColumnContent = (sampleData: any[]): string => {
     phone: phoneScore,
     date: dateScore,
     number: numberScore,
+    company: companyNameScore,
     jobTitle: jobTitleScore,
     personName: personNameScore
   };
@@ -313,6 +340,10 @@ export const useExcelImport = () => {
         if (contentType === 'personName') {
           score += 100; // Strong boost from classifier
           console.log(`🎯 Classifier confirms "${header}" as personName`);
+        } else if (contentType === 'company') {
+          // Company names can be used as fullName, moderate boost
+          score += 40;
+          console.log(`🏢 Classifier identifies "${header}" as company name, acceptable for fullName`);
         } else if (contentType === 'jobTitle') {
           score -= 200; // Strong penalty from classifier
           console.log(`⚠️ Classifier identifies "${header}" as jobTitle, rejecting for fullName`);
@@ -339,6 +370,15 @@ export const useExcelImport = () => {
         if (contentType === 'phone') {
           score += 50;
         }
+      }
+    }
+    
+    // Enhanced validation for companyName
+    if (fieldName === 'companyName') {
+      // Boost score if classified as company
+      if (contentType === 'company') {
+        score += 100;
+        console.log(`🏢 Classifier confirms "${header}" as company name`);
       }
     } else if (config.patterns && sampleData.length > 0) {
       // Check content patterns for other fields
