@@ -37,6 +37,7 @@ export interface ParsedData {
 const FIELD_KEYWORDS = {
   fullName: {
     keywords: ['fullname', 'full_name', 'full name', 'customer', 'client', 'contact', 'name',
+               'businessname', 'business_name', 'business name', 'business', // Added business variants
                'nombre completo', 'სრული სახელი', 'კლიენტი', 'contacto'],
     priority: 10,
     patterns: [] as RegExp[]
@@ -227,7 +228,8 @@ export const useExcelImport = () => {
     if (file.name.endsWith('.csv')) {
       return await file.text();
     } else if (file.name.endsWith('.pdf')) {
-      throw new Error('PDF files are not yet supported. Please convert to Excel (.xlsx) or CSV (.csv) format.');
+      // PDF files will be handled separately with table extraction
+      return await file.arrayBuffer();
     } else {
       return await file.arrayBuffer();
     }
@@ -466,6 +468,7 @@ export const useExcelImport = () => {
     });
     
     // Smart name handling: prefer firstName+lastName combination over single columns
+    // But also use companyName or businessName if that's the only name column available
     if (finalMappings.firstName !== undefined && finalMappings.lastName !== undefined) {
       console.log('✅ Detected First Name + Last Name columns - will combine them');
       delete finalMappings.fullName;
@@ -478,8 +481,9 @@ export const useExcelImport = () => {
       console.log('✅ Detected Last Name only');
       delete finalMappings.fullName;
       delete finalMappings.companyName;
-    } else if (finalMappings.companyName !== undefined && finalMappings.fullName === undefined) {
-      console.log('✅ Using Company Name column as Full Name');
+    } else if (finalMappings.fullName === undefined && finalMappings.companyName !== undefined) {
+      // Use companyName as fullName if no fullName detected
+      console.log('✅ Using Company/Business Name column as Full Name');
       finalMappings.fullName = finalMappings.companyName;
       delete finalMappings.companyName;
     }
