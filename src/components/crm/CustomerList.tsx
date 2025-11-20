@@ -664,7 +664,15 @@ const CustomerListContent = ({
 
       {!(isFetching && !isLoading) && displayedData.length > 0 && (
         <>
-          <div className="w-full overflow-x-auto">
+          <div className="w-full overflow-x-auto relative">
+            {/* Mobile scroll indicator - shows there's more content to the right */}
+            <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-background/95 via-background/60 to-transparent pointer-events-none z-10 md:hidden flex items-center justify-end pr-2">
+              <div className="flex flex-col gap-1 animate-pulse">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
+                <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
+                <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
+              </div>
+            </div>
             <div className="min-w-[1000px]">
               <Table>
                 <TableHeader>

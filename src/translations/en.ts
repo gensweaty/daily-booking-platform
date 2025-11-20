@@ -171,6 +171,7 @@ export const translations: TranslationType = {
     lowConfidenceWarning: "Some columns have low confidence. Please verify the preview data before importing.",
     downloadTemplate: "Download Excel Template",
     templateDownloaded: "Template downloaded successfully",
+    aiFormatSuggestion: "Need help formatting your file? Send it to our AI agent in the chat, and it will restructure it according to our template for easy import.",
     importCustomers: 'Import Customers',
     importFileDescription: 'Upload Excel (.xlsx, .xls), CSV (.csv) or PDF files with customer data',
     supportedFileTypes: 'Supported files: Excel (.xlsx, .xls), CSV (.csv), PDF (.pdf)',
