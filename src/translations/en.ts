@@ -83,6 +83,7 @@ export const translations: TranslationType = {
     feature3: "Payment tracking and status monitoring",
     feature4: "Elastic search for quick data access",
     feature5: "One-click Excel download of all displayed data",
+    feature6: "Import thousands of customers with a single Excel file upload",
     notPaid: "Not Paid",
     paidPartly: "Paid Partly",
     paidFully: "Paid Fully",
