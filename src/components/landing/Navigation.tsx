@@ -80,7 +80,7 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
           <LanguageText>{language === 'ka' ? "მართვის პანელი" : "Dashboard"}</LanguageText>
         </Button>
         
-        <Button 
+        <Button
           onClick={handlePricingClick}
           variant="outline" 
           className="hover:scale-105 transition-transform text-sm glass-morphism hover:bg-accent/10"

@@ -108,7 +108,7 @@ export const FeatureSection = () => {
     title: t('crm.title'),
     description: t('crm.description'),
     image: "/lovable-uploads/84a5ef8b-fbd6-46dd-bb22-9378e67590d9.png",
-    benefits: [t('crm.feature1'), t('crm.feature2'), t('crm.feature3'), t('crm.feature4'), t('crm.feature5')],
+    benefits: [t('crm.feature1'), t('crm.feature2'), t('crm.feature3'), t('crm.feature4'), t('crm.feature5'), t('crm.feature6')],
     translationPrefix: 'crm' as const,
     id: "crm-solution",
     reverse: false

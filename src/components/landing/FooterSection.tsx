@@ -76,19 +76,19 @@ const FooterSection = () => {
               <LanguageText>{t('footer.description')}</LanguageText>
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-muted-foreground hover:text-foreground" aria-label="Visit our Facebook page">
+              <a href="https://facebook.com/smartbookly" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" aria-label="Visit our Facebook page">
                 <Facebook className="w-5 h-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground" aria-label="Follow us on Twitter">
+              <a href="https://twitter.com/smartbookly" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" aria-label="Follow us on Twitter">
                 <Twitter className="w-5 h-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground" aria-label="Follow us on Instagram">
+              <a href="https://instagram.com/smartbookly" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" aria-label="Follow us on Instagram">
                 <Instagram className="w-5 h-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground" aria-label="Connect with us on LinkedIn">
+              <a href="https://linkedin.com/company/smartbookly" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" aria-label="Connect with us on LinkedIn">
                 <Linkedin className="w-5 h-5" />
               </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground" aria-label="Check our GitHub repository">
+              <a href="https://github.com/smartbookly" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground" aria-label="Check our GitHub repository">
                 <Github className="w-5 h-5" />
               </a>
             </div>
@@ -97,6 +97,42 @@ const FooterSection = () => {
           <div>
             <h3 className="text-lg font-medium mb-4"><LanguageText>{t('footer.navigation')}</LanguageText></h3>
             <ul className="space-y-2">
+              <li>
+                <a 
+                  href="#ai-assistant" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('ai-assistant')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <LanguageText>{language === 'ka' ? "AI ასისტენტი" : "AI Assistant"}</LanguageText>
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="#smart-booking" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('smart-booking')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <LanguageText>{language === 'ka' ? "ჯავშანი" : "Smart Booking"}</LanguageText>
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="#crm" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    document.getElementById('crm')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <LanguageText>{language === 'ka' ? "CRM" : "CRM"}</LanguageText>
+                </a>
+              </li>
               <li>
                 <Link to="/login" className="text-muted-foreground hover:text-foreground transition-colors">
                   {language === 'ka' ? "შესვლა" : t('nav.signin')}
