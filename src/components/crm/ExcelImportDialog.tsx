@@ -322,15 +322,25 @@ export const ExcelImportDialog = ({
               </div>
 
               {parsedData.errors.length > 0 && (
-                <div>
-                  <h4 className="text-sm font-medium mb-2">{t('crm.validationErrors')}</h4>
-                  <ScrollArea className="h-32 border rounded-lg p-2">
-                    {parsedData.errors.map((error, index) => (
-                      <p key={index} className="text-sm text-destructive mb-1">
-                        {t('crm.rowError', { row: error.row, error: error.message })}
-                      </p>
-                    ))}
-                  </ScrollArea>
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">{t('crm.validationErrors')}</h4>
+                    <ScrollArea className="h-32 border rounded-lg p-2">
+                      {parsedData.errors.map((error, index) => (
+                        <p key={index} className="text-sm text-destructive mb-1">
+                          {t('crm.rowError', { row: error.row, error: error.message })}
+                        </p>
+                      ))}
+                    </ScrollArea>
+                  </div>
+                  {parsedData.validRows.length === 0 && (
+                    <Alert>
+                      <Info className="h-4 w-4" />
+                      <AlertDescription className="text-sm">
+                        {t('crm.aiFormatSuggestion')}
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               )}
 

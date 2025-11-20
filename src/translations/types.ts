@@ -176,6 +176,7 @@ export interface TranslationType {
     lowConfidenceWarning: string;
     downloadTemplate: string;
     templateDownloaded: string;
+    aiFormatSuggestion: string;
     importCustomers: string;
     importFileDescription: string;
     supportedFileTypes: string;

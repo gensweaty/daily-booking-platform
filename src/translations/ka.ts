@@ -182,6 +182,7 @@ export const translations: TranslationType = {
     lowConfidenceWarning: "გთხოვთ გადაამოწმოთ მონაცემები.",
     downloadTemplate: "Excel შაბლონის გადმოწერა",
     templateDownloaded: "შაბლონი წარმატებით გადმოწერილია",
+    aiFormatSuggestion: "გჭირდებათ დახმარება ფაილის ფორმატირებაში? გაუგზავნეთ იგი ჩვენს AI აგენტს ჩათში და ის მოაწყობს მას ჩვენი შაბლონის მიხედვით მარტივი იმპორტისთვის.",
     importCustomers: 'კლიენტების იმპორტი',
     importFileDescription: 'ატვირთეთ Excel (.xlsx, .xls), CSV (.csv) ან PDF ფაილები კლიენტების მონაცემებით',
     supportedFileTypes: 'მხარდაჭერილი ფაილები: Excel (.xlsx, .xls), CSV (.csv), PDF (.pdf)',

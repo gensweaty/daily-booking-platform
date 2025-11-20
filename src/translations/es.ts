@@ -182,6 +182,7 @@ export const translations: TranslationType = {
     lowConfidenceWarning: "Algunas columnas tienen baja confianza. Verifique los datos de vista previa antes de importar.",
     downloadTemplate: "Descargar Plantilla Excel",
     templateDownloaded: "Plantilla descargada exitosamente",
+    aiFormatSuggestion: "¿Necesitas ayuda para formatear tu archivo? Envíalo a nuestro agente de IA en el chat y lo estructurará según nuestra plantilla para una importación fácil.",
     importCustomers: 'Importar Clientes',
     importFileDescription: 'Sube archivos Excel (.xlsx, .xls), CSV (.csv) o PDF con datos de clientes',
     supportedFileTypes: 'Archivos compatibles: Excel (.xlsx, .xls), CSV (.csv), PDF (.pdf)',
