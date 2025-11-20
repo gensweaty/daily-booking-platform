@@ -190,6 +190,7 @@ export const translations: TranslationType = {
     autoMapNote: 'El sistema detecta y mapea automáticamente las columnas de tu archivo',
     excelFieldsTitle: "Requisitos del Archivo Excel",
     requiredField: "Requerido: Nombre Completo",
+    optionalFields: "Campos Opcionales",
     companyNameDesc: "Columna con nombres de clientes/empresas (ej: \"Nombre Completo\", \"Empresa\", \"Cliente\")",
     optionalFieldsDesc: "Números de teléfono, correos, info de pago, fechas de eventos y notas adicionales",
     autoDetectNote: "El sistema detecta columnas automáticamente. Descargue la plantilla para el formato correcto.",

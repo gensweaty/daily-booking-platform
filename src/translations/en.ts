@@ -179,6 +179,7 @@ export const translations: TranslationType = {
     autoMapNote: 'System automatically detects and maps columns from your file',
     excelFieldsTitle: "Excel File Requirements",
     requiredField: "Required: Full Name",
+    optionalFields: "Optional Fields",
     companyNameDesc: "Column with customer/company names (e.g., \"Full Name\", \"Business\", \"Customer\")",
     optionalFieldsDesc: "Phone numbers, emails, payment info, event dates, and additional notes",
     autoDetectNote: "System automatically detects columns. Download template for correct format.",

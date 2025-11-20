@@ -184,6 +184,7 @@ export interface TranslationType {
     autoMapNote: string;
     excelFieldsTitle: string;
     requiredField: string;
+    optionalFields: string;
     companyNameDesc: string;
     optionalFieldsDesc: string;
     autoDetectNote: string;
