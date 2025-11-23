@@ -108,6 +108,27 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
     hover: { scale: 1.1, rotate: 5, transition: { duration: 0.2 } }
   };
 
+  const getStyle = (style: any, snapshot: any) => {
+    if (!snapshot.isDropAnimating) {
+      return {
+        ...style,
+        touchAction: 'manipulation',
+        WebkitTouchCallout: 'none',
+        WebkitTapHighlightColor: 'transparent',
+        cursor: snapshot.isDragging ? 'grabbing' : 'grab'
+      };
+    }
+    
+    // Fast drop animation for mobile
+    return {
+      ...style,
+      transitionDuration: '0.15s', // Quick drop animation
+      touchAction: 'manipulation',
+      WebkitTouchCallout: 'none',
+      WebkitTapHighlightColor: 'transparent',
+    };
+  };
+
   return (
     <Draggable draggableId={String(task.id)} index={index}>
       {(provided, snapshot) => {
@@ -118,15 +139,9 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
             {...provided.dragHandleProps}
             data-is-dragging={snapshot.isDragging}
             className={`p-4 bg-card dark:bg-gray-800 rounded-xl relative overflow-hidden border border-border/80 dark:border-border/50 ${getTaskStyle(task.status)} ${
-              snapshot.isDragging ? 'shadow-2xl z-50 opacity-90' : 'shadow hover:shadow-md'
-            } transition-shadow duration-200`}
-            style={{
-              ...provided.draggableProps.style,
-              touchAction: 'manipulation',
-              WebkitTouchCallout: 'none',
-              WebkitTapHighlightColor: 'transparent',
-              cursor: snapshot.isDragging ? 'grabbing' : 'grab'
-            }}
+              snapshot.isDragging ? 'shadow-2xl z-50 opacity-95 scale-105' : 'shadow hover:shadow-md'
+            } transition-shadow duration-100`}
+            style={getStyle(provided.draggableProps.style, snapshot)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
