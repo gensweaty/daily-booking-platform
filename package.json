@@ -68,6 +68,7 @@
     "input-otp": "^1.2.4",
     "lodash": "^4.17.21",
     "lucide-react": "^0.451.0",
+    "mobile-drag-drop": "^3.0.0-rc.0",
     "next-themes": "^0.4.6",
     "pdfjs-dist": "^5.4.394",
     "qrcode.react": "^3.1.0",

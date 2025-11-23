@@ -1,4 +1,5 @@
 @import './components/landing/animations.css';
+@import 'mobile-drag-drop/default.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -565,5 +566,32 @@
 [data-radix-portal] [data-radix-alert-dialog-overlay],
 [data-radix-portal] [data-radix-dialog-overlay] {
   z-index: var(--z-dialog) !important;
+}
+
+/* Mobile Drag and Drop Optimization */
+@media (hover: none) and (pointer: coarse) {
+  /* Optimize draggable items for touch */
+  [data-react-beautiful-dnd-draggable] {
+    -webkit-touch-callout: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+  
+  /* Improve drag handle for mobile */
+  [data-react-beautiful-dnd-drag-handle] {
+    cursor: grab !important;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* When actively dragging */
+  [data-react-beautiful-dnd-draggable][data-is-dragging="true"] {
+    cursor: grabbing !important;
+    opacity: 0.9 !important;
+    transform: scale(1.05) rotate(2deg) !important;
+    transition: none !important;
+  }
 }
 

@@ -116,12 +116,16 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
+            data-is-dragging={snapshot.isDragging}
             className={`p-4 bg-card dark:bg-gray-800 rounded-xl relative overflow-hidden border border-border/80 dark:border-border/50 ${getTaskStyle(task.status)} ${
-              snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing scale-105 rotate-2' : 'shadow hover:shadow-md cursor-grab'
-            } transition-all duration-200`}
+              snapshot.isDragging ? 'shadow-2xl z-50 opacity-90' : 'shadow hover:shadow-md'
+            } transition-shadow duration-200`}
             style={{
               ...provided.draggableProps.style,
-              touchAction: 'manipulation'
+              touchAction: 'manipulation',
+              WebkitTouchCallout: 'none',
+              WebkitTapHighlightColor: 'transparent',
+              cursor: snapshot.isDragging ? 'grabbing' : 'grab'
             }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
