@@ -118,17 +118,13 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
             {...provided.dragHandleProps}
             className={`p-4 bg-card dark:bg-gray-800 rounded-xl relative overflow-hidden border border-border/80 dark:border-border/50 ${getTaskStyle(task.status)} ${
               snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing scale-105 rotate-2' : 'shadow hover:shadow-md cursor-grab'
-            } transition-all duration-200 touch-manipulation select-none`}
+            } transition-all duration-200`}
             style={{
               ...provided.draggableProps.style,
-              touchAction: 'none',
-              userSelect: 'none',
-              WebkitUserSelect: 'none'
+              touchAction: 'manipulation'
             }}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            onTouchStart={() => setIsHovered(true)}
-            onTouchEnd={() => setIsHovered(false)}
           >
             {/* Subtle animated background gradient */}
             <motion.div

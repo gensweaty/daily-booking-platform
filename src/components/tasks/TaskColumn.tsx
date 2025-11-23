@@ -127,8 +127,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
         <div
           ref={provided.innerRef}
           {...provided.droppableProps}
-          className={`p-6 min-h-[500px] flex flex-col relative overflow-visible touch-manipulation ${getColumnStyle(status)}`}
-          style={{ touchAction: 'pan-y pinch-zoom' }}
+          className={`p-6 min-h-[500px] flex flex-col relative overflow-visible ${getColumnStyle(status)}`}
           onDragEnter={() => setIsDragOver(true)}
           onDragLeave={() => setIsDragOver(false)}
         >
