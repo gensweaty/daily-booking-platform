@@ -6,12 +6,12 @@ import './index.css'
 import { polyfill } from 'mobile-drag-drop';
 import { scrollBehaviourDragImageTranslateOverride } from 'mobile-drag-drop/scroll-behaviour';
 
-// Initialize mobile drag-drop polyfill with scroll behavior
+// Initialize mobile drag-drop polyfill with optimized settings
 polyfill({
   dragImageTranslateOverride: scrollBehaviourDragImageTranslateOverride,
-  // Optional: customize drag image
-  holdToDrag: 200, // ms to hold before drag starts
-  iterationInterval: 150, // Update frequency during drag
+  holdToDrag: 150, // Reduced from 200ms for faster response
+  iterationInterval: 50, // Increased update frequency for smoother dragging
+  dragImageCenterOnTouch: true, // Center drag image on touch point
 });
 
 // Fix for iOS Safari >= 10 to prevent default touch behavior

@@ -5,7 +5,7 @@ import { Task } from "@/lib/types";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import AddTaskForm from "./AddTaskForm";
@@ -120,7 +120,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     },
   });
 
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = useCallback((result: DropResult) => {
     if (!result.destination) return;
 
     const taskId = result.draggableId;
@@ -149,7 +149,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
         last_edited_at: new Date().toISOString()
       },
     });
-  };
+  }, [updateTaskMutation, user, username]);
 
   const handleDeleteClick = (id: string) => {
     setTaskToDelete(id);
