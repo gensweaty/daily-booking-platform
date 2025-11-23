@@ -368,24 +368,23 @@ export const DashboardContent = ({
                             <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                               <DialogTrigger asChild>
                                 <Button 
-                                  className="flex items-center gap-1 sm:gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-2 sm:px-4 text-xs sm:text-sm w-auto min-w-[70px] sm:min-w-[120px]"
+                                  className="flex items-center gap-1 sm:gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-2 sm:px-4 text-xs sm:text-sm w-auto min-w-[40px] sm:min-w-[120px]"
                                 >
                                   <motion.div
                                     whileHover={{ rotate: 180 }}
                                     transition={{ duration: 0.3 }}
                                   >
-                                    <PlusCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                                    <PlusCircle className="w-4 h-4 sm:w-4 sm:h-4" />
                                   </motion.div>
                                   <span className="hidden sm:inline">
                                     <LanguageText>{t("tasks.addTask")}</LanguageText>
                                   </span>
-                                  <span className="sm:hidden">
-                                    {isGeorgian ? (
-                                      <GeorgianAuthText>დამატება</GeorgianAuthText>
-                                    ) : (
+                                  {/* Show only + icon on mobile for Georgian, text for other languages */}
+                                  {!isGeorgian && (
+                                    <span className="sm:hidden">
                                       <LanguageText>Add</LanguageText>
-                                    )}
-                                  </span>
+                                    </span>
+                                  )}
                                 </Button>
                               </DialogTrigger>
                           <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
