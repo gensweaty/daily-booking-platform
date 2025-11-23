@@ -334,13 +334,9 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
 
   return (
     <>
-      <DragDropContext 
-        onDragEnd={handleDragEnd}
-        // Improve mobile drag and drop experience
-        enableDefaultSensors={false}
-      >
+      <DragDropContext onDragEnd={handleDragEnd}>
         <div 
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 touch-none"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6"
         >
           {Object.entries(columns).map(([status, statusTasks]) => (
             <TaskColumn
