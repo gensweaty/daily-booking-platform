@@ -112,20 +112,15 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
     if (!snapshot.isDropAnimating) {
       return {
         ...style,
-        touchAction: 'manipulation',
-        WebkitTouchCallout: 'none',
-        WebkitTapHighlightColor: 'transparent',
+        touchAction: 'none',
         cursor: snapshot.isDragging ? 'grabbing' : 'grab'
       };
     }
     
-    // Fast drop animation for mobile
     return {
       ...style,
-      transitionDuration: '0.15s', // Quick drop animation
-      touchAction: 'manipulation',
-      WebkitTouchCallout: 'none',
-      WebkitTapHighlightColor: 'transparent',
+      transitionDuration: '0.2s',
+      touchAction: 'none',
     };
   };
 
