@@ -5,7 +5,7 @@ import { Task } from "@/lib/types";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import AddTaskForm from "./AddTaskForm";
@@ -120,36 +120,27 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     },
   });
 
-  const handleDragEnd = useCallback((result: DropResult) => {
+  const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
 
     const taskId = result.draggableId;
-    const newStatus = result.destination.droppableId;
+    const droppableId = result.destination.droppableId;
     
-    // Convert from UI status format to database status format
-    let dbStatus: 'todo' | 'inprogress' | 'done';
-    
-    if (newStatus === 'in-progress') {
-      dbStatus = 'inprogress';
-    } else {
-      dbStatus = newStatus as 'todo' | 'done';
-    }
-
-    console.log(`Moving task ${taskId} to status: ${dbStatus}`);
-    
-    const editorType = (user?.user_metadata?.role === 'sub_user') ? 'sub_user' : 'admin';
-    const editorName = username || (user?.user_metadata?.full_name as string) || 'User';
+    // Convert droppableId to actual status value (in-progress -> inprogress)
+    const statusMap: Record<string, "todo" | "inprogress" | "done"> = {
+      'todo': 'todo',
+      'in-progress': 'inprogress',
+      'done': 'done'
+    };
+    const newStatus = statusMap[droppableId];
     
     updateTaskMutation.mutate({
       id: taskId,
-      updates: { 
-        status: dbStatus,
-        last_edited_by_type: editorType,
-        last_edited_by_name: editorName,
-        last_edited_at: new Date().toISOString()
+      updates: {
+        status: newStatus,
       },
     });
-  }, [updateTaskMutation, user, username]);
+  };
 
   const handleDeleteClick = (id: string) => {
     setTaskToDelete(id);
