@@ -109,18 +109,18 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
   };
 
   const getStyle = (style: any, snapshot: any) => {
+    const baseStyle = {
+      ...style,
+      cursor: snapshot.isDragging ? 'grabbing' : 'grab'
+    };
+    
     if (!snapshot.isDropAnimating) {
-      return {
-        ...style,
-        touchAction: 'none',
-        cursor: snapshot.isDragging ? 'grabbing' : 'grab'
-      };
+      return baseStyle;
     }
     
     return {
-      ...style,
-      transitionDuration: '0.2s',
-      touchAction: 'none',
+      ...baseStyle,
+      transitionDuration: '0.001ms', // Instant drop for better mobile performance
     };
   };
 
