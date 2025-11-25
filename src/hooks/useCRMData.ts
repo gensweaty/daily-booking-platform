@@ -40,12 +40,13 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .select(`
         *,
         customer_files_new(*)
-      `)
+      `, { count: 'exact' }) // Add count for verification
       .eq('user_id', userId)
       .gte('created_at', dateRange.start.toISOString())
       .lte('created_at', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null)
-      .order('created_at', { ascending: false }); // Sort by created_at in descending order (newest first)
+      .order('created_at', { ascending: false }) // Sort by created_at in descending order (newest first)
+      .limit(50000); // Explicit high limit to ensure all data is fetched
 
     if (error) {
       console.error("Error fetching customers:", error);
@@ -63,13 +64,14 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     // Filter events by their creation date (when they were added to the system)
     const { data: events, error: eventsError } = await supabase
       .from('events')
-      .select('*')
+      .select('*', { count: 'exact' }) // Add count for verification
       .eq('user_id', userId)
       .gte('created_at', dateRange.start.toISOString())
       .lte('created_at', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null)
       .is('parent_event_id', null) // ONLY fetch parent events, not child instances
-      .order('created_at', { ascending: false }); // Sort by created_at in descending order (newest first)
+      .order('created_at', { ascending: false }) // Sort by created_at in descending order (newest first)
+      .limit(50000); // Explicit high limit to ensure all data is fetched
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);

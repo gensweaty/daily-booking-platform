@@ -84,9 +84,9 @@ const FIELD_KEYWORDS = {
     patterns: [/\d{1,2}[./-]\d{1,2}/]
   },
   comment: {
-    keywords: ['comment', 'note', 'description', 'linkedin', 'profile', 'location'],
-    priority: 3,
-    patterns: [] as RegExp[]
+    keywords: ['comment', 'comments', 'note', 'notes', 'description', 'linkedin', 'profile', 'location', 'website', 'url', 'link', 'comentario', 'კომენტარი'],
+    priority: 7, // Increased priority to match social link priority for better detection
+    patterns: [/https?:\/\//, /www\./] // Detect URLs which are common in comment fields
   }
 };
 
