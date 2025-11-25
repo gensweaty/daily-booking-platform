@@ -1,8 +1,35 @@
 @import './components/landing/animations.css';
-@import 'mobile-drag-drop/default.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Mobile drag-and-drop optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Enable smooth scrolling on mobile while allowing drag */
+  .dnd-drag-area {
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Optimize drag handle for mobile */
+  [data-rbd-drag-handle-draggable-id] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Performance optimization during drag */
+  [data-is-dragging="true"] {
+    will-change: transform;
+    pointer-events: none;
+  }
+  
+  /* Smooth scroll container */
+  .task-list-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
 
 @layer base {
   :root {
