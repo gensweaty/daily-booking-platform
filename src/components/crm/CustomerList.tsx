@@ -135,7 +135,7 @@ const CustomerListContent = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
-  const [pageSize, setPageSize] = useState(100); // Increased default from 20 to 100 for better bulk import visibility
+  const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const queryClient = useQueryClient();
   const currentDate = useMemo(() => new Date(), []);
