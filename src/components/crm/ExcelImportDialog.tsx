@@ -101,17 +101,19 @@ export const ExcelImportDialog = ({
 
       let importedCount = 0;
 
-      for (const batch of batches) {
+      console.log(`📊 Starting import of ${parsedData.validRows.length} customers in ${batches.length} batches`);
+      
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        console.log(`📦 Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} customers)`);
+        
         const customersToInsert = batch.map(row => {
-          // Split full name into title and user_surname
-          const nameParts = row.fullName.split(' ');
-          const title = nameParts[0] || row.fullName;
-          const user_surname = nameParts.slice(1).join(' ') || '';
-
+          // CRITICAL FIX: Don't split the full name - store it completely in title field
+          // The title field IS the full name field in CRM
           return {
             user_id: userId,
-            title,
-            user_surname: user_surname || null,
+            title: row.fullName, // Store complete name in title field
+            user_surname: null, // Not splitting name anymore
             user_number: row.phoneNumber || null,
             social_network_link: row.socialLink || null,
             payment_status: row.paymentStatus || 'not_paid',
@@ -126,14 +128,27 @@ export const ExcelImportDialog = ({
           };
         });
 
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from('customers')
-          .insert(customersToInsert);
+          .insert(customersToInsert)
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error(`❌ Error in batch ${batchIndex + 1}:`, error);
+          throw error;
+        }
 
-        importedCount += batch.length;
+        const insertedCount = data?.length || batch.length;
+        importedCount += insertedCount;
+        console.log(`✅ Batch ${batchIndex + 1} completed: ${insertedCount} customers inserted (Total: ${importedCount}/${parsedData.validRows.length})`);
+        
         setImportProgress((importedCount / parsedData.validRows.length) * 100);
+      }
+      
+      console.log(`🎉 Import completed: ${importedCount} customers successfully imported`);
+      
+      if (importedCount < parsedData.validRows.length) {
+        console.warn(`⚠️ Warning: Expected ${parsedData.validRows.length} but only imported ${importedCount}`);
       }
 
       toast({
