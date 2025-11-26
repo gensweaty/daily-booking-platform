@@ -250,29 +250,39 @@ export const ExcelImportDialog = ({
         <div className="space-y-4">
           {/* Field Requirements Instructions */}
           {!parsedData && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm space-y-3">
-                <p className="font-semibold">{t('crm.fileRequirements')}</p>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-foreground">{t('crm.requiredField')}</p>
-                      <p className="text-xs text-muted-foreground">{t('crm.requiredFieldDescription')}</p>
+            <>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-sm space-y-3">
+                  <p className="font-semibold">{t('crm.fileRequirements')}</p>
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground">{t('crm.requiredField')}</p>
+                        <p className="text-xs text-muted-foreground">{t('crm.requiredFieldDescription')}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground">{t('crm.optionalFields')}</p>
+                        <p className="text-xs text-muted-foreground">{t('crm.optionalFieldsDescription')}</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-foreground">{t('crm.optionalFields')}</p>
-                      <p className="text-xs text-muted-foreground">{t('crm.optionalFieldsDescription')}</p>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground italic">{t('crm.autoMapNote')}</p>
-              </AlertDescription>
-            </Alert>
+                  <p className="text-xs text-muted-foreground italic">{t('crm.autoMapNote')}</p>
+                </AlertDescription>
+              </Alert>
+              
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  <p className="font-semibold mb-1">{t('crm.importLimit')}</p>
+                  <p>{t('crm.importLimitDescription')}</p>
+                </AlertDescription>
+              </Alert>
+            </>
           )}
 
           {/* Download Template Button */}

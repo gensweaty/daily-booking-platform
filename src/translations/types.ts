@@ -184,6 +184,8 @@ export interface TranslationType {
     requiredFieldDescription: string;
     optionalFieldsDescription: string;
     autoMapNote: string;
+    importLimit: string;
+    importLimitDescription: string;
     excelFieldsTitle: string;
     requiredField: string;
     optionalFields: string;
