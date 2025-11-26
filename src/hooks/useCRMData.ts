@@ -46,7 +46,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .lte('created_at', endOfDay(dateRange.end).toISOString())
       .is('deleted_at', null)
       .order('created_at', { ascending: false }) // Sort by created_at in descending order (newest first)
-      .limit(50000); // Explicit high limit to ensure all data is fetched
+      .range(0, 99999); // Use range instead of limit to fetch up to 100k records
 
     if (error) {
       console.error("Error fetching customers:", error);
@@ -71,7 +71,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       .is('deleted_at', null)
       .is('parent_event_id', null) // ONLY fetch parent events, not child instances
       .order('created_at', { ascending: false }) // Sort by created_at in descending order (newest first)
-      .limit(50000); // Explicit high limit to ensure all data is fetched
+      .range(0, 99999); // Use range instead of limit to fetch up to 100k records
 
     if (eventsError) {
       console.error("Error fetching events:", eventsError);
