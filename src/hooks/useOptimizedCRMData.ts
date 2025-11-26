@@ -37,7 +37,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .lte('created_at', endDateStr)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
-        .limit(50000); // Explicit high limit to ensure all data is fetched
+        .range(0, 99999); // Use range instead of limit to fetch up to 100k records
 
       if (customersError) {
         console.error('Error fetching standalone customers:', customersError);
@@ -63,7 +63,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .is('deleted_at', null)
         .is('parent_event_id', null)
         .order('created_at', { ascending: false })
-        .limit(50000); // Explicit high limit to ensure all data is fetched
+        .range(0, 99999); // Use range instead of limit to fetch up to 100k records
 
       if (eventsError) {
         console.error('Error fetching events:', eventsError);
@@ -79,7 +79,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .lte('start_date', endDateStr)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
-        .limit(50000); // Explicit high limit to ensure all data is fetched
+        .range(0, 99999); // Use range instead of limit to fetch up to 100k records
 
       if (bookingRequestsError) {
         console.error('Error fetching booking requests:', bookingRequestsError);
@@ -109,7 +109,7 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
         .lte('created_at', endDateStr)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
-        .limit(50000); // Explicit high limit to ensure all data is fetched
+        .range(0, 99999); // Use range instead of limit to fetch up to 100k records
 
       if (eventCustomersError) {
         console.error('Error fetching event customers:', eventCustomersError);

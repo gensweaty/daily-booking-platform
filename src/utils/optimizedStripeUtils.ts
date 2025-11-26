@@ -217,13 +217,15 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
       return result; // CRITICAL: Return immediately, don't continue to expiry checks below
     }
 
-    // If user has any OTHER existing subscription (yearly, monthly), check expiry
+    // If user has any OTHER existing subscription (yearly, monthly), trust DB status
     if (subscription) {
       console.log('[SUBSCRIPTION_CHECK] User has existing non-ultimate subscription:', subscription);
       const now = new Date();
       let status = subscription.status;
       
-      // Check if trial has expired
+      // CRITICAL FIX: For monthly/yearly plans, trust the DB status from Stripe webhooks
+      // Don't do local expiry checks as they may be stale - DB is source of truth
+      // Only check trial expiry for trial status
       if (status === 'trial' && subscription.trial_end_date) {
         const trialEnd = new Date(subscription.trial_end_date);
         if (now > trialEnd) {
@@ -232,14 +234,8 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
         }
       }
       
-      // Check if active subscription has expired
-      if (status === 'active' && subscription.current_period_end) {
-        const periodEnd = new Date(subscription.current_period_end);
-        if (now > periodEnd) {
-          status = 'expired';
-          console.log('[SUBSCRIPTION_CHECK] Subscription period has expired');
-        }
-      }
+      // For 'active' status, trust it - it's managed by Stripe webhooks
+      // Don't mark as expired based on local period_end checks
       
       const result = {
         success: true,
