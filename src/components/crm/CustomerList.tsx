@@ -264,120 +264,122 @@ const CustomerListContent = ({
   // Bulk delete handler - uses stored IDs from ref (not state) to prevent re-render issues
   const handleBulkDelete = useCallback(async () => {
     const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
-    const idsToDelete = idsToDeleteRef.current; // Use ref, not state
+    const idsToDelete = [...idsToDeleteRef.current]; // Copy ref immediately
+    const totalCount = idsToDelete.length;
     
-    console.log('🗑️ handleBulkDelete called:', {
-      effectiveUserId,
-      idsToDeleteCount: idsToDelete.length,
-      firstIds: idsToDelete.slice(0, 5)
-    });
+    console.log('🗑️ handleBulkDelete called:', { effectiveUserId, totalCount });
     
-    if (!effectiveUserId || idsToDelete.length === 0) {
-      console.log('❌ Bulk delete aborted: no user or no IDs');
+    if (!effectiveUserId || totalCount === 0) {
       setIsBulkDeleteConfirmOpen(false);
       return;
     }
 
-    try {
-      let successCount = 0;
-      let errorCount = 0;
-      
-      console.log('Bulk delete starting:', { totalItems: idsToDelete.length, effectiveUserId });
+    // IMMEDIATELY close dialog and clear UI state BEFORE starting deletions
+    setIsBulkDeleteConfirmOpen(false);
+    setSelectedCustomerIds(new Set());
+    setIsSelectionMode(false);
+    idsToDeleteRef.current = [];
 
-      // Helper function to delete a single item - mirrors handleConfirmDelete exactly
-      const deleteSingleItem = async (id: string): Promise<boolean> => {
-        try {
+    // Show initial progress toast
+    toast({
+      title: language === 'en' ? `Deleting ${totalCount} items...` : 
+             language === 'es' ? `Eliminando ${totalCount} elementos...` : 
+             `${totalCount} ჩანაწერის წაშლა...`,
+    });
+
+    // Run deletion in background (non-blocking)
+    const runDeletion = async () => {
+      try {
+        let successCount = 0;
+        let errorCount = 0;
+        
+        // Separate customers and events for batch processing
+        const customerIds: string[] = [];
+        const eventIds: string[] = [];
+        
+        idsToDelete.forEach(id => {
           if (id.startsWith('event-')) {
-            // Event delete - exact same code as handleConfirmDelete
-            const eventId = id.replace('event-', '');
-            const { error } = await supabase
-              .from('events')
-              .update({ 
-                deleted_at: new Date().toISOString(),
-                last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
-                last_edited_by_name: isPublicMode ? externalUserName : user?.email,
-                last_edited_at: new Date().toISOString()
-              })
-              .eq('id', eventId)
-              .eq('user_id', effectiveUserId);
-
-            if (error) {
-              console.error('Error deleting event:', eventId, error);
-              return false;
-            }
-            return true;
+            eventIds.push(id.replace('event-', ''));
           } else {
-            // Customer delete - exact same code as handleConfirmDelete
-            const { error } = await supabase
-              .from('customers')
-              .update({ 
-                deleted_at: new Date().toISOString(),
-                last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
-                last_edited_by_name: isPublicMode ? externalUserName : user?.email,
-                last_edited_at: new Date().toISOString()
-              })
-              .eq('id', id)
-              .eq('user_id', effectiveUserId);
-
-            if (error) {
-              console.error('Error deleting customer:', id, error);
-              return false;
-            }
-            return true;
+            customerIds.push(id);
           }
-        } catch (err) {
-          console.error('Exception deleting item:', id, err);
-          return false;
+        });
+
+        const updateData = {
+          deleted_at: new Date().toISOString(),
+          last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+          last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+          last_edited_at: new Date().toISOString()
+        };
+
+        // Process in large batches using .in() operator (much faster than individual updates)
+        const BATCH_SIZE = 100;
+        
+        // Delete customers in batches
+        for (let i = 0; i < customerIds.length; i += BATCH_SIZE) {
+          const batch = customerIds.slice(i, i + BATCH_SIZE);
+          const { error, count } = await supabase
+            .from('customers')
+            .update(updateData)
+            .in('id', batch)
+            .eq('user_id', effectiveUserId);
+
+          if (error) {
+            console.error('Batch customer delete error:', error);
+            errorCount += batch.length;
+          } else {
+            successCount += count || batch.length;
+          }
         }
-      };
 
-      // Process in parallel chunks for performance (10 at a time)
-      const CHUNK_SIZE = 10;
-      for (let i = 0; i < idsToDelete.length; i += CHUNK_SIZE) {
-        const chunk = idsToDelete.slice(i, i + CHUNK_SIZE);
-        const results = await Promise.all(chunk.map(deleteSingleItem));
-        
-        results.forEach(success => {
-          if (success) successCount++;
-          else errorCount++;
-        });
-        
-        console.log(`Processed ${Math.min(i + CHUNK_SIZE, idsToDelete.length)}/${idsToDelete.length} items`);
-      }
+        // Delete events in batches
+        for (let i = 0; i < eventIds.length; i += BATCH_SIZE) {
+          const batch = eventIds.slice(i, i + BATCH_SIZE);
+          const { error, count } = await supabase
+            .from('events')
+            .update(updateData)
+            .in('id', batch)
+            .eq('user_id', effectiveUserId);
 
-      // Close dialog and clear selection BEFORE invalidating queries
-      setIsBulkDeleteConfirmOpen(false);
-      setSelectedCustomerIds(new Set());
-      setIsSelectionMode(false);
-      idsToDeleteRef.current = []; // Clear the ref
+          if (error) {
+            console.error('Batch event delete error:', error);
+            errorCount += batch.length;
+          } else {
+            successCount += count || batch.length;
+          }
+        }
 
-      // Invalidate queries to refresh data
-      await queryClient.invalidateQueries({ queryKey: ['customers'] });
-      await queryClient.invalidateQueries({ queryKey: ['events'] });
-      await queryClient.invalidateQueries({ queryKey: ['crm-data'] });
-      
-      // Show appropriate message
-      if (errorCount === 0) {
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['crm-data'] });
+        queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
+
+        // Show completion toast
+        if (errorCount === 0) {
+          toast({
+            title: t("common.success"),
+            description: `${successCount} ${language === 'en' ? 'items deleted successfully' : language === 'es' ? 'elementos eliminados correctamente' : 'ჩანაწერი წარმატებით წაიშალა'}`,
+          });
+        } else {
+          toast({
+            title: t("common.success"),
+            description: `${successCount} ${language === 'en' ? 'deleted' : language === 'es' ? 'eliminados' : 'წაშლილი'}, ${errorCount} ${language === 'en' ? 'failed' : language === 'es' ? 'fallidos' : 'ვერ წაიშალა'}`,
+            variant: errorCount > successCount ? "destructive" : "default",
+          });
+        }
+      } catch (error: any) {
+        console.error('Bulk delete error:', error);
         toast({
-          title: t("common.success"),
-          description: `${successCount} ${language === 'en' ? 'items deleted successfully' : language === 'es' ? 'elementos eliminados correctamente' : 'ჩანაწერი წარმატებით წაიშალა'}`,
-        });
-      } else {
-        toast({
-          title: t("common.success"),
-          description: `${successCount} ${language === 'en' ? 'deleted' : language === 'es' ? 'eliminados' : 'წაშლილი'}, ${errorCount} ${language === 'en' ? 'failed' : language === 'es' ? 'fallidos' : 'ვერ წაიშალა'}`,
-          variant: errorCount > successCount ? "destructive" : "default",
+          title: t("common.error"),
+          description: error.message || t("common.deleteError"),
+          variant: "destructive",
         });
       }
-    } catch (error: any) {
-      console.error('Error bulk deleting:', error);
-      setIsBulkDeleteConfirmOpen(false);
-      toast({
-        title: t("common.error"),
-        description: error.message || t("common.deleteError"),
-        variant: "destructive",
-      });
-    }
+    };
+
+    // Start deletion without awaiting (fire and forget with its own error handling)
+    runDeletion();
   }, [isPublicMode, publicBoardUserId, user?.id, user?.email, externalUserName, queryClient, toast, t, language]);
 
   // Helper function to get the effective user ID for operations (same as CustomerDialog)
