@@ -857,73 +857,13 @@ const CustomerListContent = ({
 
       {!(isFetching && !isLoading) && displayedData.length > 0 && (
         <>
-          {/* Mobile: Flex layout with fixed selection column + scrollable table */}
-          <div className="w-full flex md:block" ref={tableContainerRef}>
-            {/* Mobile selection column - fixed outside scroll area */}
-            <div className="md:hidden flex-shrink-0 w-10 border-r border-border/30">
-              {/* Selection header */}
-              <div className="h-10 flex items-center justify-center border-b border-border/30 bg-muted/30">
-                {isSelectionMode ? (
-                  <div className="flex flex-col items-center gap-0.5">
-                    <button
-                      onClick={toggleSelectAll}
-                      className="p-1 rounded hover:bg-primary/20 transition-colors"
-                      data-selection-control
-                    >
-                      {allCurrentPageSelected ? (
-                        <CheckSquare className="h-4 w-4 text-primary" />
-                      ) : (
-                        <Square className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </button>
-                    {selectedCustomerIds.size > 0 && (
-                      <button
-                        onClick={openBulkDeleteDialog}
-                        className="p-1 rounded hover:bg-destructive/20 transition-colors text-destructive"
-                        data-selection-control
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    onClick={toggleSelectionMode}
-                    className="p-1 rounded hover:bg-primary/20 transition-colors"
-                    data-selection-control
-                  >
-                    <CheckSquare className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                )}
-              </div>
-              {/* Selection checkboxes for each row */}
-              {paginatedData.map((customer: any) => (
-                <div 
-                  key={`sel-${customer.id}`} 
-                  className="min-h-[3.5rem] flex items-center justify-center border-b border-border/20"
-                >
-                  {isSelectionMode ? (
-                    <Checkbox
-                      checked={selectedCustomerIds.has(customer.id)}
-                      onCheckedChange={() => toggleCustomerSelection(customer.id)}
-                      className="h-4 w-4"
-                      data-selection-control
-                    />
-                  ) : (
-                    <div className="w-4 h-4" />
-                  )}
-                </div>
-              ))}
-            </div>
-            
-            {/* Scrollable table area */}
-            <div className="flex-1 overflow-x-auto">
-              <div className="min-w-[800px] md:min-w-[1000px]">
-                <Table>
+          <div className="w-full overflow-x-auto" ref={tableContainerRef}>
+            <div className="min-w-[800px] md:min-w-[1000px]">
+              <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    {/* Selection column - hidden on mobile (shown in separate fixed column) */}
-                    <TableHead className="w-[48px] min-w-[48px] px-1 hidden md:table-cell">
+                    {/* Selection column - sticky on mobile for visibility while scrolling */}
+                    <TableHead className="w-[48px] min-w-[48px] px-1 sticky left-0 z-20 bg-background">
                       <div className="flex items-center justify-center gap-1" data-selection-control>
                         {isSelectionMode ? (
                           <div className="flex items-center gap-1 bg-muted/50 rounded-md p-0.5">
@@ -993,8 +933,8 @@ const CustomerListContent = ({
                 <TableBody>
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">
-                      {/* Selection checkbox cell - hidden on mobile */}
-                      <TableCell className="py-2 w-[48px] min-w-[48px] px-1 hidden md:table-cell">
+                      {/* Selection checkbox cell - sticky on mobile */}
+                      <TableCell className="py-2 w-[48px] min-w-[48px] px-1 sticky left-0 z-10 bg-background">
                         <div className="flex items-center justify-center" data-selection-control>
                           {isSelectionMode ? (
                             <Checkbox
@@ -1146,7 +1086,6 @@ const CustomerListContent = ({
                   ))}
                 </TableBody>
               </Table>
-              </div>
             </div>
           </div>
 
