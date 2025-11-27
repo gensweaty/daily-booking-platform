@@ -256,10 +256,22 @@ const CustomerListContent = ({
   // This ensures RLS policies work correctly for each item
   const handleBulkDelete = useCallback(async () => {
     const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
-    if (!effectiveUserId || selectedCustomerIds.size === 0) return;
+    
+    console.log('🗑️ handleBulkDelete called:', {
+      effectiveUserId,
+      selectedCount: selectedCustomerIds.size,
+      selectedIds: Array.from(selectedCustomerIds).slice(0, 5) // Log first 5 IDs
+    });
+    
+    if (!effectiveUserId || selectedCustomerIds.size === 0) {
+      console.log('❌ Bulk delete aborted: no user or no selection');
+      return;
+    }
 
     try {
+      // Capture IDs immediately to prevent any state change issues
       const idsToDelete = Array.from(selectedCustomerIds);
+      console.log('📋 IDs to delete:', idsToDelete.length);
       let successCount = 0;
       let errorCount = 0;
       
@@ -1154,7 +1166,10 @@ const CustomerListContent = ({
               {language === 'en' ? 'Cancel' : language === 'es' ? 'Cancelar' : 'გაუქმება'}
             </AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleBulkDelete} 
+              onClick={(e) => {
+                e.preventDefault();
+                handleBulkDelete();
+              }} 
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {language === 'en' 
