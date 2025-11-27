@@ -1099,7 +1099,12 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             content_type: a.content_type,
             size: a.size,
           }));
-          await supabase.from('chat_message_files').insert(rows);
+          const { error: fileInsertError } = await supabase.from('chat_message_files').insert(rows);
+          if (fileInsertError) {
+            console.error('❌ Failed to insert file records:', fileInsertError);
+          } else {
+            console.log('✅ File records inserted for message:', real.id);
+          }
           await supabase.from('chat_messages')
             .update({ has_attachments: true, message_type: 'file' })
             .eq('id', real.id);

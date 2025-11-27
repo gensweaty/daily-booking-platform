@@ -518,6 +518,104 @@ serve(async (req) => {
     }
     // ---- END REMINDER FAST-PATHS ----
     
+    // ---- EXCEL IMPORT FAST-PATH ----
+    // When user uploads Excel/CSV and asks to import, do it directly without relying on AI to parse rows
+    const importKeywords = /\b(import|upload|add\s+all|add\s+these|add\s+customers?|import\s+all|import\s+customers?)\b/i.test(lower);
+    const hasExcelAttachment = attachments?.some((a: any) => 
+      /\.(xlsx?|csv)$/i.test(a.filename || '') || 
+      (a.content_type || '').includes('spreadsheet') ||
+      (a.content_type || '').includes('csv')
+    );
+    
+    if (importKeywords && hasExcelAttachment) {
+      console.log('⚡ Excel Import Fast-Path TRIGGERED');
+      
+      try {
+        const excelAtt = attachments.find((a: any) => 
+          /\.(xlsx?|csv)$/i.test(a.filename || '') || 
+          (a.content_type || '').includes('spreadsheet') ||
+          (a.content_type || '').includes('csv')
+        );
+        
+        if (excelAtt) {
+          const bucket = 'chat_attachments';
+          const { data: fileBlob } = await supabaseAdmin.storage.from(bucket).download(excelAtt.file_path);
+          
+          if (fileBlob) {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'buffer' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+            
+            if (jsonData.length > 1) {
+              const headers = (jsonData[0] || []).map((h: any) => String(h || '').toLowerCase().trim());
+              const dataRows = jsonData.slice(1).filter(row => row.some(cell => cell));
+              
+              // Detect column mappings
+              const nameCol = headers.findIndex(h => /name|company|business|full.?name|customer/i.test(h));
+              const phoneCol = headers.findIndex(h => /phone|tel|mobile|cell/i.test(h));
+              const emailCol = headers.findIndex(h => /email|social|link|contact/i.test(h));
+              const notesCol = headers.findIndex(h => /note|comment|description|website|url/i.test(h));
+              
+              console.log(`📊 Excel columns detected: name=${nameCol}, phone=${phoneCol}, email=${emailCol}, notes=${notesCol}`);
+              console.log(`📊 Processing ${dataRows.length} data rows`);
+              
+              // Build customer records
+              const customers = dataRows.slice(0, 1000).map(row => ({
+                title: String(row[nameCol >= 0 ? nameCol : 0] || 'Unknown').trim(),
+                user_surname: String(row[nameCol >= 0 ? nameCol : 0] || 'Unknown').trim(),
+                user_number: phoneCol >= 0 ? String(row[phoneCol] || '').trim() : '',
+                social_network_link: emailCol >= 0 ? String(row[emailCol] || '').trim() : '',
+                event_notes: notesCol >= 0 ? String(row[notesCol] || '').trim() : '',
+                payment_status: 'not_paid',
+                user_id: ownerId,
+                type: 'customer',
+                created_by_type: requesterType,
+                created_by_name: baseName,
+                created_by_ai: true
+              })).filter(c => c.title && c.title !== 'Unknown');
+              
+              // Batch insert
+              const batchSize = 100;
+              let successCount = 0;
+              
+              for (let i = 0; i < customers.length; i += batchSize) {
+                const batch = customers.slice(i, i + batchSize);
+                const { data: inserted, error: insertError } = await supabaseAdmin
+                  .from('customers')
+                  .insert(batch)
+                  .select('id');
+                
+                if (!insertError) successCount += inserted?.length || 0;
+              }
+              
+              console.log(`✅ Excel Import Fast-Path: Imported ${successCount} customers`);
+              
+              // Save AI response
+              const responseText = `✅ Successfully imported ${successCount} customers to your CRM from ${excelAtt.filename}`;
+              await supabaseAdmin.from('chat_messages').insert({
+                channel_id: channelId,
+                owner_id: ownerId,
+                sender_type: 'admin',
+                sender_name: 'Smartbookly AI',
+                content: responseText,
+                message_type: 'text'
+              });
+              
+              return new Response(
+                JSON.stringify({ success: true, content: responseText }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Excel Import Fast-Path error:', error);
+        // Fall through to LLM
+      }
+    }
+    // ---- END EXCEL IMPORT FAST-PATH ----
+    
     // Check if user explicitly requests Excel generation
     const explicitExcelRequest = /\b(generate|create|make|download|export)\s+(an?\s+)?(excel|xlsx|spreadsheet)\b/.test(lower) ||
                                   /\b(excel|xlsx|spreadsheet)\s+(report|file|export)\b/.test(lower) ||
@@ -3141,11 +3239,32 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       console.log('🔧 Executing tool calls...');
       
       for (const toolCall of message.tool_calls) {
-        const funcName = toolCall.function.name;
+        let funcName = toolCall.function.name;
         const args = JSON.parse(toolCall.function.arguments);
         let toolResult = null;
 
-        console.log(`  → ${funcName}(${JSON.stringify(args)})`);
+        // Normalize tool names - AI sometimes uses wrong casing/format
+        const toolNameMap: Record<string, string> = {
+          'bulkimportcustomerscustomers': 'bulk_import_customers',
+          'bulk_import_customers_customers': 'bulk_import_customers', 
+          'importcustomers': 'bulk_import_customers',
+          'bulkimportcustomers': 'bulk_import_customers',
+          'createorupdatecustomer': 'create_or_update_customer',
+          'createorupdateevent': 'create_or_update_event',
+          'createorupdatetask': 'create_or_update_task',
+          'createcustomreminder': 'create_custom_reminder',
+          'getalltasks': 'get_all_tasks',
+          'getupcomingevents': 'get_upcoming_events',
+          'getallcustomers': 'get_all_customers',
+        };
+        
+        const normalizedName = funcName.toLowerCase().replace(/[-_]/g, '');
+        if (toolNameMap[normalizedName]) {
+          console.log(`  ⚠️ Normalizing tool name: ${funcName} → ${toolNameMap[normalizedName]}`);
+          funcName = toolNameMap[normalizedName];
+        }
+
+        console.log(`  → ${funcName}(${JSON.stringify(args).substring(0, 500)}...)`);
 
         try {
           switch (funcName) {
@@ -6413,6 +6532,22 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               }
               break;
             }
+            
+            default: {
+              console.warn(`    ⚠️ Unknown tool called: ${funcName}`);
+              toolResult = { 
+                success: false, 
+                error: `Unknown action requested. Please try rephrasing your request.`,
+                requested_tool: funcName 
+              };
+              break;
+            }
+          }
+
+          // Ensure toolResult is never null
+          if (toolResult === null) {
+            console.warn(`    ⚠️ Tool ${funcName} returned null result`);
+            toolResult = { success: false, error: 'Action could not be completed' };
           }
 
           // Add tool result to conversation
