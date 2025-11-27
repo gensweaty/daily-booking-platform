@@ -252,64 +252,98 @@ const CustomerListContent = ({
     return paginatedData.every((c: any) => selectedCustomerIds.has(c.id));
   }, [paginatedData, selectedCustomerIds]);
 
-  // Bulk delete handler - batch operations to handle large datasets
-  // Uses same logic as handleConfirmDelete for consistency
+  // Bulk delete handler - uses SAME individual delete logic as handleConfirmDelete
+  // This ensures RLS policies work correctly for each item
   const handleBulkDelete = useCallback(async () => {
     const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
     if (!effectiveUserId || selectedCustomerIds.size === 0) return;
 
     try {
       const idsToDelete = Array.from(selectedCustomerIds);
+      let successCount = 0;
+      let errorCount = 0;
       
-      // Separate event IDs (prefixed with 'event-') from customer IDs
-      // This matches the logic in handleConfirmDelete
-      const eventIds = idsToDelete
-        .filter(id => id.startsWith('event-'))
-        .map(id => id.replace('event-', ''));
-      const customerIds = idsToDelete.filter(id => !id.startsWith('event-'));
-      
-      console.log('Bulk delete:', { totalItems: idsToDelete.length, eventIds: eventIds.length, customerIds: customerIds.length });
-      
-      const BATCH_SIZE = 100;
-      const deleteData = {
-        deleted_at: new Date().toISOString(),
-        last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
-        last_edited_by_name: isPublicMode ? externalUserName : user?.email,
-        last_edited_at: new Date().toISOString()
+      console.log('Bulk delete starting:', { totalItems: idsToDelete.length, effectiveUserId });
+
+      // Helper function to delete a single item - mirrors handleConfirmDelete exactly
+      const deleteSingleItem = async (id: string): Promise<boolean> => {
+        try {
+          if (id.startsWith('event-')) {
+            // Event delete - exact same code as handleConfirmDelete
+            const eventId = id.replace('event-', '');
+            const { error } = await supabase
+              .from('events')
+              .update({ 
+                deleted_at: new Date().toISOString(),
+                last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+                last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+                last_edited_at: new Date().toISOString()
+              })
+              .eq('id', eventId)
+              .eq('user_id', effectiveUserId);
+
+            if (error) {
+              console.error('Error deleting event:', eventId, error);
+              return false;
+            }
+            return true;
+          } else {
+            // Customer delete - exact same code as handleConfirmDelete
+            const { error } = await supabase
+              .from('customers')
+              .update({ 
+                deleted_at: new Date().toISOString(),
+                last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+                last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+                last_edited_at: new Date().toISOString()
+              })
+              .eq('id', id)
+              .eq('user_id', effectiveUserId);
+
+            if (error) {
+              console.error('Error deleting customer:', id, error);
+              return false;
+            }
+            return true;
+          }
+        } catch (err) {
+          console.error('Exception deleting item:', id, err);
+          return false;
+        }
       };
 
-      // Delete events in batches
-      for (let i = 0; i < eventIds.length; i += BATCH_SIZE) {
-        const batch = eventIds.slice(i, i + BATCH_SIZE);
-        console.log(`Deleting events batch ${i / BATCH_SIZE + 1}:`, batch.length);
-        const { error: eventError } = await supabase
-          .from('events')
-          .update(deleteData)
-          .in('id', batch)
-          .eq('user_id', effectiveUserId);
-        if (eventError) throw eventError;
+      // Process in parallel chunks for performance (10 at a time)
+      const CHUNK_SIZE = 10;
+      for (let i = 0; i < idsToDelete.length; i += CHUNK_SIZE) {
+        const chunk = idsToDelete.slice(i, i + CHUNK_SIZE);
+        const results = await Promise.all(chunk.map(deleteSingleItem));
+        
+        results.forEach(success => {
+          if (success) successCount++;
+          else errorCount++;
+        });
+        
+        console.log(`Processed ${Math.min(i + CHUNK_SIZE, idsToDelete.length)}/${idsToDelete.length} items`);
       }
 
-      // Delete customers in batches
-      for (let i = 0; i < customerIds.length; i += BATCH_SIZE) {
-        const batch = customerIds.slice(i, i + BATCH_SIZE);
-        console.log(`Deleting customers batch ${i / BATCH_SIZE + 1}:`, batch.length);
-        const { error: customerError } = await supabase
-          .from('customers')
-          .update(deleteData)
-          .in('id', batch)
-          .eq('user_id', effectiveUserId);
-        if (customerError) throw customerError;
-      }
-
+      // Invalidate queries to refresh data
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
       await queryClient.invalidateQueries({ queryKey: ['crm-data'] });
       
-      toast({
-        title: t("common.success"),
-        description: `${idsToDelete.length} ${language === 'en' ? 'items deleted successfully' : language === 'es' ? 'elementos eliminados correctamente' : 'ჩანაწერი წარმატებით წაიშალა'}`,
-      });
+      // Show appropriate message
+      if (errorCount === 0) {
+        toast({
+          title: t("common.success"),
+          description: `${successCount} ${language === 'en' ? 'items deleted successfully' : language === 'es' ? 'elementos eliminados correctamente' : 'ჩანაწერი წარმატებით წაიშალა'}`,
+        });
+      } else {
+        toast({
+          title: t("common.success"),
+          description: `${successCount} ${language === 'en' ? 'deleted' : language === 'es' ? 'eliminados' : 'წაშლილი'}, ${errorCount} ${language === 'en' ? 'failed' : language === 'es' ? 'fallidos' : 'ვერ წაიშალა'}`,
+          variant: errorCount > successCount ? "destructive" : "default",
+        });
+      }
       
       setSelectedCustomerIds(new Set());
       setIsSelectionMode(false);
