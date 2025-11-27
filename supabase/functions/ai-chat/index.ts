@@ -564,7 +564,8 @@ serve(async (req) => {
               const localRequesterType = senderType || 'admin';
               const localBaseName = senderName || 'User';
               
-              const customers = dataRows.slice(0, 1000).map(row => ({
+              // Process ALL rows - no limit (matching manual import behavior)
+              const customers = dataRows.map(row => ({
                 title: String(row[nameCol >= 0 ? nameCol : 0] || 'Unknown').trim(),
                 user_surname: String(row[nameCol >= 0 ? nameCol : 0] || 'Unknown').trim(),
                 user_number: phoneCol >= 0 ? String(row[phoneCol] || '').trim() : '',
