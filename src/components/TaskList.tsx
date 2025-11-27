@@ -124,29 +124,20 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     if (!result.destination) return;
 
     const taskId = result.draggableId;
-    const newStatus = result.destination.droppableId;
+    const droppableId = result.destination.droppableId;
     
-    // Convert from UI status format to database status format
-    let dbStatus: 'todo' | 'inprogress' | 'done';
-    
-    if (newStatus === 'in-progress') {
-      dbStatus = 'inprogress';
-    } else {
-      dbStatus = newStatus as 'todo' | 'done';
-    }
-
-    console.log(`Moving task ${taskId} to status: ${dbStatus}`);
-    
-    const editorType = (user?.user_metadata?.role === 'sub_user') ? 'sub_user' : 'admin';
-    const editorName = username || (user?.user_metadata?.full_name as string) || 'User';
+    // Convert droppableId to actual status value (in-progress -> inprogress)
+    const statusMap: Record<string, "todo" | "inprogress" | "done"> = {
+      'todo': 'todo',
+      'in-progress': 'inprogress',
+      'done': 'done'
+    };
+    const newStatus = statusMap[droppableId];
     
     updateTaskMutation.mutate({
       id: taskId,
-      updates: { 
-        status: dbStatus,
-        last_edited_by_type: editorType,
-        last_edited_by_name: editorName,
-        last_edited_at: new Date().toISOString()
+      updates: {
+        status: newStatus,
       },
     });
   };
@@ -189,21 +180,11 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   const filterStateKey = `${filters.sortOrder}-${filters.filterType}-${filters.selectedUserId}-${filters.selectedUserType}-${filters.selectedUserName}`;
   
   const filteredTasks = useMemo(() => {
-    console.log('🔄 TaskList: Recomputing filtered tasks', {
-      sortOrder: filters.sortOrder,
-      filterType: filters.filterType,
-      selectedUserId: filters.selectedUserId,
-      selectedUserType: filters.selectedUserType,
-      selectedUserName: filters.selectedUserName,
-      filterKey: filterStateKey
-    });
     const nonArchived = tasks.filter((task: Task) => !task.archived);
-    const result = applyFilters(nonArchived);
-    console.log('✅ TaskList: Filtered result:', result.length, 'tasks');
-    return result;
+    return applyFilters(nonArchived);
   }, [
     tasks, 
-    filterStateKey, // Use the composite key instead of individual properties
+    filterStateKey,
     applyFilters
   ]);
   
@@ -217,8 +198,6 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
   useEffect(() => {
     if (!boardOwnerId) return;
     
-    console.log('[TaskList] Setting up realtime subscriptions for board:', boardOwnerId);
-    
     // Listen for database changes - this will catch ALL task changes including AI-created ones
     const channel = supabase
       .channel(`tasks-realtime-${boardOwnerId}`)
@@ -227,16 +206,12 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
         schema: 'public',
         table: 'tasks',
         filter: `user_id=eq.${boardOwnerId}`,
-      }, (payload) => {
-        console.log('[TaskList] Realtime task change:', payload.eventType, payload);
+      }, () => {
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
       })
-      .subscribe((status) => {
-        console.log('[TaskList] Subscription status:', status);
-      });
+      .subscribe();
 
     return () => {
-      console.log('[TaskList] Cleaning up realtime subscriptions');
       supabase.removeChannel(channel);
     };
   }, [boardOwnerId, queryClient]);
@@ -336,7 +311,7 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
         <div 
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 dnd-drag-area"
         >
           {Object.entries(columns).map(([status, statusTasks]) => (
             <TaskColumn

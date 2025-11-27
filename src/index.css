@@ -3,6 +3,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile drag-and-drop optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Enable smooth scrolling on mobile while allowing drag */
+  .dnd-drag-area {
+    touch-action: pan-y !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Optimize drag handle for mobile */
+  [data-rbd-drag-handle-draggable-id] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Performance optimization during drag */
+  [data-is-dragging="true"] {
+    will-change: transform;
+    pointer-events: none;
+  }
+  
+  /* Smooth scroll container */
+  .task-list-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -565,5 +593,38 @@
 [data-radix-portal] [data-radix-alert-dialog-overlay],
 [data-radix-portal] [data-radix-dialog-overlay] {
   z-index: var(--z-dialog) !important;
+}
+
+/* Mobile Drag and Drop Optimization */
+@media (hover: none) and (pointer: coarse) {
+  /* Optimize draggable items for touch */
+  [data-react-beautiful-dnd-draggable] {
+    -webkit-touch-callout: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    cursor: grab !important;
+  }
+  
+  /* Improve drag handle for mobile */
+  [data-react-beautiful-dnd-drag-handle] {
+    cursor: grab !important;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* When actively dragging - smoother animations */
+  [data-react-beautiful-dnd-draggable][data-is-dragging="true"] {
+    cursor: grabbing !important;
+    opacity: 0.95 !important;
+    will-change: transform !important;
+    /* Remove heavy animations on mobile for better performance */
+  }
+  
+  /* Optimize drop placeholder */
+  [data-react-beautiful-dnd-droppable] {
+    will-change: transform !important;
+  }
 }
 

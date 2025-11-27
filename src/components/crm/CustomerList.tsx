@@ -135,7 +135,7 @@ const CustomerListContent = ({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [filteredData, setFilteredData] = useState<any[]>([]);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const queryClient = useQueryClient();
   const currentDate = useMemo(() => new Date(), []);
@@ -859,7 +859,7 @@ const CustomerListContent = ({
                   <SelectValue placeholder="10" />
                 </SelectTrigger>
                 <SelectContent className="bg-background">
-                  {[10, 20, 50, 100, 500, 1000].map((size) => (
+                  {[10, 20, 50, 100, 500, 1000, 10000].map((size) => (
                     <SelectItem key={size} value={size.toString()}>
                       {size}
                     </SelectItem>

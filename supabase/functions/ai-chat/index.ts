@@ -110,6 +110,59 @@ serve(async (req) => {
       );
     }
 
+    // 🔥 CRITICAL FIX: Save user message to database for persistence across refreshes
+    // This ensures chat history is not lost when user refreshes the page
+    console.log('💾 Saving user message to database...');
+    
+    // Determine requester identity for the user message
+    const requesterType = senderType || 'admin';
+    const baseName = senderName || 'User';
+    
+    // Insert user message
+    const { data: userMsgData, error: userMsgError } = await supabaseAdmin
+      .from('chat_messages')
+      .insert({
+        channel_id: channelId,
+        owner_id: ownerId,
+        sender_type: requesterType,
+        sender_name: baseName,
+        content: prompt,
+        message_type: 'text',
+        has_attachments: attachments && attachments.length > 0
+      })
+      .select('id')
+      .single();
+    
+    if (userMsgError) {
+      console.error('❌ Failed to save user message:', userMsgError);
+      // Continue anyway - don't block AI response, just log the error
+    } else {
+      console.log('✅ User message saved with ID:', userMsgData?.id);
+      
+      // Link any attachments to the user message
+      if (attachments && attachments.length > 0 && userMsgData?.id) {
+        console.log('📎 Linking', attachments.length, 'attachments to user message');
+        
+        const attachmentRecords = attachments.map((att: any) => ({
+          message_id: userMsgData.id,
+          filename: att.filename,
+          file_path: att.file_path,
+          content_type: att.content_type || null,
+          size: att.size || null
+        }));
+        
+        const { error: attError } = await supabaseAdmin
+          .from('chat_message_files')
+          .insert(attachmentRecords);
+        
+        if (attError) {
+          console.error('❌ Failed to link attachments:', attError);
+        } else {
+          console.log('✅ Attachments linked successfully');
+        }
+      }
+    }
+
     // Detect user language from the LATEST user message BEFORE processing (needed for fast-paths)
     const detectLanguage = (text: string): string => {
       // Check for Cyrillic characters (Russian, etc.)
@@ -518,6 +571,140 @@ serve(async (req) => {
     }
     // ---- END REMINDER FAST-PATHS ----
     
+    // ---- EXCEL IMPORT FAST-PATH ----
+    // When user uploads Excel/CSV and asks to import, do it directly without relying on AI to parse rows
+    const importKeywords = /\b(import|upload|add\s+all|add\s+these|add\s+customers?|import\s+all|import\s+customers?)\b/i.test(lower);
+    const hasExcelAttachment = attachments?.some((a: any) => 
+      /\.(xlsx?|csv)$/i.test(a.filename || '') || 
+      (a.content_type || '').includes('spreadsheet') ||
+      (a.content_type || '').includes('csv')
+    );
+    
+    if (importKeywords && hasExcelAttachment) {
+      console.log('⚡ Excel Import Fast-Path TRIGGERED');
+      
+      try {
+        const excelAtt = attachments.find((a: any) => 
+          /\.(xlsx?|csv)$/i.test(a.filename || '') || 
+          (a.content_type || '').includes('spreadsheet') ||
+          (a.content_type || '').includes('csv')
+        );
+        
+        if (excelAtt) {
+          const bucket = 'chat_attachments';
+          const { data: fileBlob } = await supabaseAdmin.storage.from(bucket).download(excelAtt.file_path);
+          
+          if (fileBlob) {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: 'buffer' });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+            
+            if (jsonData.length > 1) {
+              const headers = (jsonData[0] || []).map((h: any) => String(h || '').toLowerCase().trim());
+              const dataRows = jsonData.slice(1).filter(row => row.some(cell => cell));
+              
+              // Detect column mappings
+              const nameCol = headers.findIndex(h => /name|company|business|full.?name|customer/i.test(h));
+              const phoneCol = headers.findIndex(h => /phone|tel|mobile|cell/i.test(h));
+              
+              // Smart column detection - detect email column but exclude from notes detection
+              const emailCol = headers.findIndex(h => /email|social|link|contact/i.test(h));
+              
+              // For notes/comment column: prioritize "comment" or "note" headers, exclude already-matched columns
+              // Also use content-based detection: if values look like URLs, it's the website/comment field
+              let notesCol = headers.findIndex((h, idx) => {
+                // Skip columns already matched
+                if (idx === nameCol || idx === phoneCol || idx === emailCol) return false;
+                // Match comment/note/description headers
+                return /\b(comment|note|description)\b/i.test(h);
+              });
+              
+              // If no dedicated comment column found, look for website/url column (but not email columns)
+              if (notesCol < 0) {
+                notesCol = headers.findIndex((h, idx) => {
+                  if (idx === nameCol || idx === phoneCol || idx === emailCol) return false;
+                  return /\b(website|url|web)\b/i.test(h) && !/email/i.test(h);
+                });
+              }
+              
+              // Content-based fallback: find column with URL-like values
+              if (notesCol < 0) {
+                for (let i = 0; i < headers.length; i++) {
+                  if (i === nameCol || i === phoneCol || i === emailCol) continue;
+                  // Check if first few data rows have URL-like content
+                  const sampleValues = dataRows.slice(0, 5).map(r => String(r[i] || ''));
+                  const hasUrls = sampleValues.some(v => /^https?:\/\/|\.com|\.net|\.org/i.test(v));
+                  if (hasUrls) {
+                    notesCol = i;
+                    break;
+                  }
+                }
+              }
+              
+              console.log(`📊 Excel columns detected: name=${nameCol}, phone=${phoneCol}, email=${emailCol}, notes=${notesCol}`);
+              console.log(`📊 Processing ${dataRows.length} data rows`);
+              
+              // Build customer records - use local variables since we're before they're defined
+              const localRequesterType = senderType || 'admin';
+              const localBaseName = senderName || 'User';
+              
+              // Process ALL rows - no limit (matching manual import behavior)
+              const customers = dataRows.map(row => ({
+                title: String(row[nameCol >= 0 ? nameCol : 0] || 'Unknown').trim(),
+                user_surname: String(row[nameCol >= 0 ? nameCol : 0] || 'Unknown').trim(),
+                user_number: phoneCol >= 0 ? String(row[phoneCol] || '').trim() : '',
+                social_network_link: emailCol >= 0 ? String(row[emailCol] || '').trim() : '',
+                event_notes: notesCol >= 0 ? String(row[notesCol] || '').trim() : '',
+                payment_status: 'not_paid',
+                user_id: ownerId,
+                type: 'customer',
+                created_by_type: localRequesterType,
+                created_by_name: localBaseName,
+                created_by_ai: true
+              })).filter(c => c.title && c.title !== 'Unknown');
+              
+              // Batch insert
+              const batchSize = 100;
+              let successCount = 0;
+              
+              for (let i = 0; i < customers.length; i += batchSize) {
+                const batch = customers.slice(i, i + batchSize);
+                const { data: inserted, error: insertError } = await supabaseAdmin
+                  .from('customers')
+                  .insert(batch)
+                  .select('id');
+                
+                if (!insertError) successCount += inserted?.length || 0;
+              }
+              
+              console.log(`✅ Excel Import Fast-Path: Imported ${successCount} customers`);
+              
+              // Save AI response
+              const responseText = `✅ Successfully imported ${successCount} customers to your CRM from ${excelAtt.filename}`;
+              await supabaseAdmin.from('chat_messages').insert({
+                channel_id: channelId,
+                owner_id: ownerId,
+                sender_type: 'admin',
+                sender_name: 'Smartbookly AI',
+                content: responseText,
+                message_type: 'text'
+              });
+              
+              return new Response(
+                JSON.stringify({ success: true, content: responseText }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Excel Import Fast-Path error:', error);
+        // Fall through to LLM
+      }
+    }
+    // ---- END EXCEL IMPORT FAST-PATH ----
+    
     // Check if user explicitly requests Excel generation
     const explicitExcelRequest = /\b(generate|create|make|download|export)\s+(an?\s+)?(excel|xlsx|spreadsheet)\b/.test(lower) ||
                                   /\b(excel|xlsx|spreadsheet)\s+(report|file|export)\b/.test(lower) ||
@@ -751,9 +938,9 @@ serve(async (req) => {
               const sheetName = workbook.SheetNames[i];
               const sheet = workbook.Sheets[sheetName];
               const csv = XLSX.utils.sheet_to_csv(sheet);
-              const lines = csv.split('\n').filter(l => l.trim()).slice(0, 30);
+              const lines = csv.split('\n').filter(l => l.trim()).slice(0, 1000);
               
-              content += `**Sheet: ${sheetName}**\n\`\`\`csv\n${lines.join('\n')}${csv.split('\n').length > 30 ? '\n...(showing first 30 rows)' : ''}\n\`\`\`\n\n`;
+              content += `**Sheet: ${sheetName}**\n\`\`\`csv\n${lines.join('\n')}${csv.split('\n').length > 1000 ? '\n...(showing first 1000 rows)' : ''}\n\`\`\`\n\n`;
             }
             
             if (workbook.SheetNames.length > 3) {
@@ -1609,6 +1796,62 @@ EDITING CUSTOMERS:
             required: ["full_name"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "bulk_import_customers",
+          description: `Bulk import multiple customers from Excel/CSV file data - use this when user uploads an Excel/CSV file and asks to import customers.
+
+🎯 USE THIS TOOL WHEN:
+- User uploads Excel/CSV file AND asks to "import", "add", "upload", or "create" customers
+- User says things like "import these customers", "add all customers from file", "upload this excel to CRM"
+- User provides a list of customer data to import
+
+📋 INPUT FORMAT:
+- customers: Array of customer objects, each with:
+  - full_name: Customer name (REQUIRED)
+  - phone_number: Phone number (optional)
+  - social_media: Email or social link (optional)
+  - notes: Comments/notes (optional)
+  - payment_status: "not_paid", "partly_paid", or "fully_paid" (default: "not_paid")
+  - payment_amount: Payment amount number (optional)
+
+🚀 MAXIMUM: Up to 1000 customers per import batch
+- If Excel has more than 1000 rows, inform user they need to split into multiple files
+
+⚡ PERFORMANCE:
+- This tool inserts customers in efficient batches of 100
+- Much faster than calling create_or_update_customer one by one
+
+📊 EXAMPLE USAGE:
+User uploads Excel with 500 customers and says "import these to CRM"
+→ Parse Excel data, call bulk_import_customers with array of 500 customer objects
+→ Tool imports all in ~5 batch operations
+→ Respond: "✅ Successfully imported 500 customers to your CRM"`,
+          parameters: {
+            type: "object",
+            properties: {
+              customers: {
+                type: "array",
+                description: "Array of customer objects to import",
+                items: {
+                  type: "object",
+                  properties: {
+                    full_name: { type: "string", description: "Customer full name (REQUIRED)" },
+                    phone_number: { type: "string", description: "Phone number" },
+                    social_media: { type: "string", description: "Email or social link" },
+                    notes: { type: "string", description: "Notes/comments" },
+                    payment_status: { type: "string", enum: ["not_paid", "partly_paid", "fully_paid"] },
+                    payment_amount: { type: "number", description: "Payment amount" }
+                  },
+                  required: ["full_name"]
+                }
+              }
+            },
+            required: ["customers"]
+          }
+        }
       }
     ];
 
@@ -1640,16 +1883,33 @@ EDITING CUSTOMERS:
 - NEVER say things like "Let me check your schedule" or "I'll look that up" - you already have access to all their data
 - Respond DIRECTLY and NATURALLY as a knowledgeable assistant who knows the user's business inside out
 
+🚫🚫🚫 ABSOLUTELY FORBIDDEN TECHNICAL TERMS - NEVER SAY THESE TO USERS 🚫🚫🚫
+**NEVER mention ANY of these to users:**
+- Tool names: "bulk_import_customers", "create_or_update_customer", "get_all_tasks", etc.
+- Technical terms: "API", "database", "function", "tool call", "parameters", "JSON"
+- Internal processes: "I need to call...", "I'll use the X tool...", "let me invoke..."
+- Request for raw data: "provide the data", "list them out", "give me structured format"
+
+**IF USER UPLOADS EXCEL AND ASKS TO IMPORT:**
+- You ALREADY HAVE the data from the Excel preview shown in your context
+- Parse ALL rows from the Excel content and import them immediately
+- NEVER ask user to "provide the data" or "list them out" - you can SEE the data!
+- Just import and confirm: "✅ Successfully imported X customers to your CRM"
+
 **CORRECT EXAMPLES:**
 ✅ "You have one event today: sdf from 9:00 AM to 1:00 PM"
 ✅ "Your schedule is clear tomorrow"
 ✅ "You have 3 tasks in progress and 2 completed today"
+✅ "✅ Successfully imported 500 customers to your CRM"
 
 **FORBIDDEN EXAMPLES:**
 ❌ "The image shows events on November 2nd..."
 ❌ "To confirm the events on November 3rd and 4th, I need to call the get_schedule tool"
 ❌ "Let me check your database..."
 ❌ "I'll analyze your schedule..."
+❌ "I can use the bulk_import_customers tool to add them"
+❌ "Please provide the data from your file"
+❌ "Just list them out for me, or provide a structured format"
 ❌ Any mention of tools, functions, images, or technical processes
 
 **WHEN USER ASKS A SIMPLE QUESTION LIKE "do i have any events today?"**
@@ -2168,6 +2428,74 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 - User says "Add customer Lisa Brown" → YOU HAVE ALL INFO → create_or_update_customer immediately
 - If they want to create event too → ask for event dates
 - Payment details are OPTIONAL - only include if provided
+
+4. **📦 BULK IMPORT CUSTOMERS FROM EXCEL/CSV (CRITICAL!)**
+   - When user uploads Excel/CSV file AND asks to import customers
+   - MAXIMUM: 1000 customers per import
+   - TRIGGER KEYWORDS: "import", "upload", "add all", "import customers", "add these to CRM"
+   
+   🚨🚨🚨 **ABSOLUTELY CRITICAL - YOU ALREADY HAVE ALL THE DATA!** 🚨🚨🚨
+   When user uploads an Excel/CSV file, the data is ALREADY PARSED and shown in your context as CSV format.
+   YOU CAN SEE ALL THE ROWS IN THE FILE! Parse them from the context and import immediately!
+   
+   **ULTRA-CRITICAL RULES:**
+   - ❌ NEVER import just 1 customer when file has hundreds!
+   - ❌ NEVER say "provide the data" or "list them out" - YOU ALREADY HAVE IT!
+   - ❌ NEVER ask user to re-upload or give you data in different format
+   - ❌ NEVER mention technical terms
+   - ✅ ALWAYS parse EVERY SINGLE ROW from the CSV preview in your context
+   - ✅ ALWAYS build an ARRAY with ALL customers (not just 1!)
+   - ✅ ALWAYS import immediately without asking
+   - ✅ ALWAYS respond naturally: "✅ Successfully imported X customers to your CRM"
+   
+   **🔥 CRITICAL FORMAT - YOU MUST PASS AN ARRAY OF ALL CUSTOMERS! 🔥**
+   Look at the CSV data in your context. It might look like:
+   \`\`\`csv
+   Name,Phone,Email,Website
+   John Smith,1234567890,john@email.com,www.john.com
+   Jane Doe,9876543210,jane@email.com,www.jane.com
+   Bob Wilson,5555555555,bob@email.com,www.bob.com
+   ... (hundreds more rows)
+   \`\`\`
+   
+   YOU MUST extract EVERY ROW and create an array with ALL of them:
+   - Row 1: John Smith → add to array
+   - Row 2: Jane Doe → add to array  
+   - Row 3: Bob Wilson → add to array
+   - ... continue for ALL rows!
+   
+   **IF THE FILE HAS 1269 ROWS, YOUR ARRAY MUST HAVE 1269 CUSTOMERS!**
+   
+   **WORKFLOW FOR EXCEL IMPORT:**
+   1. User uploads Excel file - YOU CAN SEE THE CSV DATA IN YOUR CONTEXT
+   2. User says "import" / "add all" / "upload to CRM" etc.
+   3. COUNT how many data rows are in the CSV (skip header)
+   4. Parse EACH ROW and add it to your customers array
+   5. Map columns intelligently:
+      - Name/Full Name/Company columns → full_name (REQUIRED)
+      - Phone/Tel/Mobile columns → phone_number
+      - Email/Social/Link columns → social_media  
+      - Note/Comment/Description/Website columns → notes
+      - Status columns → payment_status
+      - Amount/Payment columns → payment_amount
+   6. Pass the FULL ARRAY with ALL customers
+   7. Respond: "✅ Successfully imported [count] customers to your CRM"
+   
+   **REAL EXAMPLE:**
+   - User uploads Excel with CSV preview showing 1269 rows
+   - You MUST parse all 1269 rows into an array
+   - Not 1 customer, not 10 customers - ALL 1269 customers!
+   
+   ❌ ABSOLUTELY WRONG (NEVER DO THIS):
+   - Parsing only the first row
+   - Creating just 1 customer when file has hundreds
+   - "Please provide the data from your file"
+   - "Just list them out for me"
+   
+   ✅ CORRECT:
+   - Parse EVERY row from CSV data in context
+   - Build array with ALL customers
+   - Import ALL at once
 
 
 **FOR EDITING/UPDATING:**
@@ -3000,11 +3328,32 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       console.log('🔧 Executing tool calls...');
       
       for (const toolCall of message.tool_calls) {
-        const funcName = toolCall.function.name;
+        let funcName = toolCall.function.name;
         const args = JSON.parse(toolCall.function.arguments);
         let toolResult = null;
 
-        console.log(`  → ${funcName}(${JSON.stringify(args)})`);
+        // Normalize tool names - AI sometimes uses wrong casing/format
+        const toolNameMap: Record<string, string> = {
+          'bulkimportcustomerscustomers': 'bulk_import_customers',
+          'bulk_import_customers_customers': 'bulk_import_customers', 
+          'importcustomers': 'bulk_import_customers',
+          'bulkimportcustomers': 'bulk_import_customers',
+          'createorupdatecustomer': 'create_or_update_customer',
+          'createorupdateevent': 'create_or_update_event',
+          'createorupdatetask': 'create_or_update_task',
+          'createcustomreminder': 'create_custom_reminder',
+          'getalltasks': 'get_all_tasks',
+          'getupcomingevents': 'get_upcoming_events',
+          'getallcustomers': 'get_all_customers',
+        };
+        
+        const normalizedName = funcName.toLowerCase().replace(/[-_]/g, '');
+        if (toolNameMap[normalizedName]) {
+          console.log(`  ⚠️ Normalizing tool name: ${funcName} → ${toolNameMap[normalizedName]}`);
+          funcName = toolNameMap[normalizedName];
+        }
+
+        console.log(`  → ${funcName}(${JSON.stringify(args).substring(0, 500)}...)`);
 
         try {
           switch (funcName) {
@@ -6171,6 +6520,123 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               }
               break;
             }
+
+            case 'bulk_import_customers': {
+              let { customers } = args;
+              
+              // ROBUST HANDLING: If AI passed a single customer object instead of array, wrap it
+              // Also handle case where args itself is the customer data (no 'customers' key)
+              if (!customers && args.full_name) {
+                console.log('    ⚠️ AI passed single customer object directly - wrapping in array');
+                customers = [args];
+              } else if (customers && !Array.isArray(customers)) {
+                console.log('    ⚠️ AI passed customers as object - wrapping in array');
+                customers = [customers];
+              } else if (!customers) {
+                // Check if args has customer-like properties but no customers key
+                const argsKeys = Object.keys(args);
+                if (argsKeys.some(k => ['full_name', 'phone_number', 'social_media', 'notes'].includes(k))) {
+                  console.log('    ⚠️ AI passed customer data without customers wrapper - extracting');
+                  customers = [args];
+                }
+              }
+              
+              console.log(`    📦 BULK IMPORT: Importing ${customers?.length || 0} customers`);
+              
+              try {
+                if (!customers || !Array.isArray(customers) || customers.length === 0) {
+                  toolResult = { success: false, error: 'No customers provided for import. Make sure to parse ALL rows from the Excel/CSV data and pass them as an array.' };
+                  break;
+                }
+                
+                if (customers.length > 1000) {
+                  toolResult = { 
+                    success: false, 
+                    error: `Too many customers (${customers.length}). Maximum is 1000 per import. Please split your file into smaller batches.` 
+                  };
+                  break;
+                }
+                
+                // Prepare customer data for batch insert
+                const customerRecords = customers.map(c => ({
+                  title: c.full_name || 'Unknown',
+                  user_surname: c.full_name || 'Unknown',
+                  user_number: c.phone_number || '',
+                  social_network_link: c.social_media || '',
+                  event_notes: c.notes || '',
+                  payment_status: c.payment_status || 'not_paid',
+                  payment_amount: c.payment_amount || null,
+                  user_id: ownerId,
+                  type: 'customer',
+                  created_by_type: requesterType,
+                  created_by_name: baseName,
+                  created_by_ai: true
+                }));
+                
+                // Insert in batches of 100 for performance
+                const batchSize = 100;
+                let successCount = 0;
+                let errorCount = 0;
+                
+                for (let i = 0; i < customerRecords.length; i += batchSize) {
+                  const batch = customerRecords.slice(i, i + batchSize);
+                  console.log(`    → Inserting batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(customerRecords.length/batchSize)} (${batch.length} records)`);
+                  
+                  const { data: inserted, error: insertError } = await supabaseAdmin
+                    .from('customers')
+                    .insert(batch)
+                    .select('id');
+                  
+                  if (insertError) {
+                    console.error(`    ❌ Batch insert error:`, insertError);
+                    errorCount += batch.length;
+                  } else {
+                    successCount += inserted?.length || 0;
+                  }
+                }
+                
+                console.log(`    ✅ Bulk import complete: ${successCount} created, ${errorCount} failed`);
+                
+                // Broadcast change for real-time sync
+                const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
+                ch.subscribe((status) => {
+                  if (status === 'SUBSCRIBED') {
+                    ch.send({ type: 'broadcast', event: 'customers-changed', payload: { ts: Date.now(), source: 'ai_bulk_import' } });
+                    supabaseAdmin.removeChannel(ch);
+                  }
+                });
+                
+                toolResult = {
+                  success: true,
+                  imported_count: successCount,
+                  failed_count: errorCount,
+                  total_requested: customers.length,
+                  message: errorCount > 0 
+                    ? `Imported ${successCount} customers (${errorCount} failed)` 
+                    : `Successfully imported ${successCount} customers to your CRM`
+                };
+              } catch (error) {
+                console.error('    ❌ Error in bulk_import_customers:', error);
+                toolResult = { success: false, error: error.message || 'Unknown error during bulk import' };
+              }
+              break;
+            }
+            
+            default: {
+              console.warn(`    ⚠️ Unknown tool called: ${funcName}`);
+              toolResult = { 
+                success: false, 
+                error: `Unknown action requested. Please try rephrasing your request.`,
+                requested_tool: funcName 
+              };
+              break;
+            }
+          }
+
+          // Ensure toolResult is never null
+          if (toolResult === null) {
+            console.warn(`    ⚠️ Tool ${funcName} returned null result`);
+            toolResult = { success: false, error: 'Action could not be completed' };
           }
 
           // Add tool result to conversation

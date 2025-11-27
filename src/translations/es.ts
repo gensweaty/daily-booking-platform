@@ -190,6 +190,8 @@ export const translations: TranslationType = {
     requiredFieldDescription: 'Nombre Completo - Requerido (columna Nombre, Empresa o Cliente)',
     optionalFieldsDescription: 'Teléfono, Email, Estado de Pago, Monto, Fecha de Evento, Fecha de Ingreso, Notas - Todos Opcionales',
     autoMapNote: 'El sistema detecta y mapea automáticamente las columnas de tu archivo',
+    importLimit: "⚠️ Máximo 1000 clientes por carga",
+    importLimitDescription: "Puede cargar un máximo de 1000 clientes a la vez. Si tiene más clientes, divida su archivo en varias partes y cárguelos por separado.",
     excelFieldsTitle: "Requisitos del Archivo Excel",
     requiredField: "Requerido: Nombre Completo",
     optionalFields: "Campos Opcionales",

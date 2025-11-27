@@ -179,6 +179,8 @@ export const translations: TranslationType = {
     requiredFieldDescription: 'Full Name - Required (Name, Company, or Client column)',
     optionalFieldsDescription: 'Phone, Email, Payment Status, Amount, Event Date, Adding Date, Notes - All Optional',
     autoMapNote: 'System automatically detects and maps columns from your file',
+    importLimit: "⚠️ Maximum 1000 customers per upload",
+    importLimitDescription: "You can upload a maximum of 1000 customers at once. If you have more customers, please split your file into multiple parts and upload them separately.",
     excelFieldsTitle: "Excel File Requirements",
     requiredField: "Required: Full Name",
     optionalFields: "Optional Fields",

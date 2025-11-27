@@ -101,17 +101,19 @@ export const ExcelImportDialog = ({
 
       let importedCount = 0;
 
-      for (const batch of batches) {
+      console.log(`📊 Starting import of ${parsedData.validRows.length} customers in ${batches.length} batches`);
+      
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        console.log(`📦 Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} customers)`);
+        
         const customersToInsert = batch.map(row => {
-          // Split full name into title and user_surname
-          const nameParts = row.fullName.split(' ');
-          const title = nameParts[0] || row.fullName;
-          const user_surname = nameParts.slice(1).join(' ') || '';
-
+          // CRITICAL FIX: Don't split the full name - store it completely in title field
+          // The title field IS the full name field in CRM
           return {
             user_id: userId,
-            title,
-            user_surname: user_surname || null,
+            title: row.fullName, // Store complete name in title field
+            user_surname: null, // Not splitting name anymore
             user_number: row.phoneNumber || null,
             social_network_link: row.socialLink || null,
             payment_status: row.paymentStatus || 'not_paid',
@@ -126,14 +128,27 @@ export const ExcelImportDialog = ({
           };
         });
 
-        const { error } = await supabase
+        const { error, data } = await supabase
           .from('customers')
-          .insert(customersToInsert);
+          .insert(customersToInsert)
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error(`❌ Error in batch ${batchIndex + 1}:`, error);
+          throw error;
+        }
 
-        importedCount += batch.length;
+        const insertedCount = data?.length || batch.length;
+        importedCount += insertedCount;
+        console.log(`✅ Batch ${batchIndex + 1} completed: ${insertedCount} customers inserted (Total: ${importedCount}/${parsedData.validRows.length})`);
+        
         setImportProgress((importedCount / parsedData.validRows.length) * 100);
+      }
+      
+      console.log(`🎉 Import completed: ${importedCount} customers successfully imported`);
+      
+      if (importedCount < parsedData.validRows.length) {
+        console.warn(`⚠️ Warning: Expected ${parsedData.validRows.length} but only imported ${importedCount}`);
       }
 
       toast({
@@ -235,29 +250,39 @@ export const ExcelImportDialog = ({
         <div className="space-y-4">
           {/* Field Requirements Instructions */}
           {!parsedData && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription className="text-sm space-y-3">
-                <p className="font-semibold">{t('crm.fileRequirements')}</p>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-foreground">{t('crm.requiredField')}</p>
-                      <p className="text-xs text-muted-foreground">{t('crm.requiredFieldDescription')}</p>
+            <>
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-sm space-y-3">
+                  <p className="font-semibold">{t('crm.fileRequirements')}</p>
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground">{t('crm.requiredField')}</p>
+                        <p className="text-xs text-muted-foreground">{t('crm.requiredFieldDescription')}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-foreground">{t('crm.optionalFields')}</p>
+                        <p className="text-xs text-muted-foreground">{t('crm.optionalFieldsDescription')}</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium text-foreground">{t('crm.optionalFields')}</p>
-                      <p className="text-xs text-muted-foreground">{t('crm.optionalFieldsDescription')}</p>
-                    </div>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground italic">{t('crm.autoMapNote')}</p>
-              </AlertDescription>
-            </Alert>
+                  <p className="text-xs text-muted-foreground italic">{t('crm.autoMapNote')}</p>
+                </AlertDescription>
+              </Alert>
+              
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  <p className="font-semibold mb-1">{t('crm.importLimit')}</p>
+                  <p>{t('crm.importLimitDescription')}</p>
+                </AlertDescription>
+              </Alert>
+            </>
           )}
 
           {/* Download Template Button */}

@@ -859,11 +859,16 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => clearInterval(interval);
   }, [activeChannelId, messages]);
 
+  // Handle chat-reset event - CRITICAL: Only clear cache, not messages
+  // Messages will be reloaded naturally via the loadMessages useEffect when dependencies are ready
+  // This prevents chat data from disappearing on page refresh
   useEffect(() => {
     const onReset = () => {
+      console.log('[chat] Reset event received - clearing cache only, messages will reload');
       cacheRef.current.clear();
-      setMessages([]);
-      setLoading(false);
+      // Don't clear messages here - let them persist until new data loads
+      // This prevents the "empty chat" flash on refresh
+      setLoading(true); // Show loading state while reloading
     };
     window.addEventListener('chat-reset', onReset as EventListener);
     return () => window.removeEventListener('chat-reset', onReset as EventListener);
@@ -1094,7 +1099,12 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             content_type: a.content_type,
             size: a.size,
           }));
-          await supabase.from('chat_message_files').insert(rows);
+          const { error: fileInsertError } = await supabase.from('chat_message_files').insert(rows);
+          if (fileInsertError) {
+            console.error('❌ Failed to insert file records:', fileInsertError);
+          } else {
+            console.log('✅ File records inserted for message:', real.id);
+          }
           await supabase.from('chat_messages')
             .update({ has_attachments: true, message_type: 'file' })
             .eq('id', real.id);

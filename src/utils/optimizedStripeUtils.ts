@@ -217,13 +217,15 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
       return result; // CRITICAL: Return immediately, don't continue to expiry checks below
     }
 
-    // If user has any OTHER existing subscription (yearly, monthly), check expiry
+    // If user has any OTHER existing subscription (yearly, monthly), trust DB status
     if (subscription) {
       console.log('[SUBSCRIPTION_CHECK] User has existing non-ultimate subscription:', subscription);
       const now = new Date();
       let status = subscription.status;
       
-      // Check if trial has expired
+      // CRITICAL FIX: For monthly/yearly plans, trust the DB status from Stripe webhooks
+      // Don't do local expiry checks as they may be stale - DB is source of truth
+      // Only check trial expiry for trial status
       if (status === 'trial' && subscription.trial_end_date) {
         const trialEnd = new Date(subscription.trial_end_date);
         if (now > trialEnd) {
@@ -232,14 +234,8 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
         }
       }
       
-      // Check if active subscription has expired
-      if (status === 'active' && subscription.current_period_end) {
-        const periodEnd = new Date(subscription.current_period_end);
-        if (now > periodEnd) {
-          status = 'expired';
-          console.log('[SUBSCRIPTION_CHECK] Subscription period has expired');
-        }
-      }
+      // For 'active' status, trust it - it's managed by Stripe webhooks
+      // Don't mark as expired based on local period_end checks
       
       const result = {
         success: true,
@@ -263,14 +259,32 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
       return { success: false, status: 'not_authenticated' };
     }
     
-    const response = await supabase.functions.invoke('sync-stripe-subscription', {
-      headers: {
-        Authorization: `Bearer ${session.access_token}`
-      },
-      body: { 
-        user_id: userData.user.id
+    // Wrap edge function call in try-catch to handle 401 errors gracefully
+    let response: StripeSyncResponse;
+    try {
+      response = await supabase.functions.invoke('sync-stripe-subscription', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        },
+        body: { 
+          user_id: userData.user.id
+        }
+      }) as StripeSyncResponse;
+    } catch (invokeError: any) {
+      console.error('Edge function invoke error:', invokeError);
+      // Handle 401 errors from edge function
+      const errorMsg = invokeError?.message || invokeError?.toString() || '';
+      if (errorMsg.includes('401') || errorMsg.includes('Authentication') || 
+          errorMsg.includes('Auth session missing') || errorMsg.includes('not_authenticated')) {
+        return { success: false, status: 'not_authenticated' };
       }
-    }) as StripeSyncResponse;
+      // For other invoke errors, try cached or return trial_expired
+      const cached = subscriptionCache.getCachedStatus();
+      if (cached) {
+        return { success: true, status: cached.status, planType: cached.planType };
+      }
+      return { success: false, status: 'trial_expired' };
+    }
     
     const data = response?.data;
     const error = response?.error;
@@ -279,9 +293,12 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
       console.error('Error checking subscription status:', error);
       
       // If auth error (session expired), return not_authenticated
-      if (error.message?.includes('Authentication error') || 
-          error.message?.includes('Auth session missing') ||
-          error.message?.includes('invalid claim')) {
+      const errorMsg = typeof error === 'string' ? error : (error.message || '');
+      if (errorMsg.includes('Authentication error') || 
+          errorMsg.includes('Auth session missing') ||
+          errorMsg.includes('invalid claim') ||
+          errorMsg.includes('401') ||
+          errorMsg.includes('not_authenticated')) {
         return { success: false, status: 'not_authenticated' };
       }
       

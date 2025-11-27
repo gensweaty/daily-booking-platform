@@ -108,6 +108,22 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
     hover: { scale: 1.1, rotate: 5, transition: { duration: 0.2 } }
   };
 
+  const getStyle = (style: any, snapshot: any) => {
+    const baseStyle = {
+      ...style,
+      cursor: snapshot.isDragging ? 'grabbing' : 'grab'
+    };
+    
+    if (!snapshot.isDropAnimating) {
+      return baseStyle;
+    }
+    
+    return {
+      ...baseStyle,
+      transitionDuration: '0.001ms', // Instant drop for better mobile performance
+    };
+  };
+
   return (
     <Draggable draggableId={String(task.id)} index={index}>
       {(provided, snapshot) => {
@@ -116,9 +132,11 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
+            data-is-dragging={snapshot.isDragging}
             className={`p-4 bg-card dark:bg-gray-800 rounded-xl relative overflow-hidden border border-border/80 dark:border-border/50 ${getTaskStyle(task.status)} ${
-              snapshot.isDragging ? 'shadow-2xl z-50 cursor-grabbing' : 'shadow hover:shadow-md cursor-grab'
-            } transition-shadow duration-200`}
+              snapshot.isDragging ? 'shadow-2xl z-50 opacity-95 scale-105' : 'shadow hover:shadow-md'
+            } transition-shadow duration-100`}
+            style={getStyle(provided.draggableProps.style, snapshot)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >

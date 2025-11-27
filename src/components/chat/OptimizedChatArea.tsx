@@ -515,6 +515,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   }, [me, boardOwnerId, isInitialized, location.pathname, effectiveEmail, publicSubUserId]);
 
   // Initial message loading - always fetch fresh to ensure history is visible
+  // CRITICAL FIX: Include all dependencies to ensure messages reload when identity is resolved
   useEffect(() => {
     if (!activeChannelId) {
       setMessages([]);
@@ -522,10 +523,23 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       return;
     }
 
+    // Wait for all required dependencies before loading
+    if (!me || !boardOwnerId || !isInitialized) {
+      console.log('[chat] Waiting for dependencies:', { me: !!me, boardOwnerId: !!boardOwnerId, isInitialized });
+      return;
+    }
+
+    // For public boards, also wait for sub-user identity resolution
+    if (isPublic && me?.type === 'sub_user' && !publicSubUserId) {
+      console.log('[chat] Waiting for public sub-user identity resolution...');
+      return;
+    }
+
     // Always do a fresh load to ensure we have the latest messages
+    console.log('[chat] Loading messages for channel:', activeChannelId);
     setLoading(true);
     loadMessages(activeChannelId).finally(() => setLoading(false));
-  }, [activeChannelId, loadMessages]);
+  }, [activeChannelId, loadMessages, me, boardOwnerId, isInitialized, isPublic, publicSubUserId]);
 
   // Load older messages
   const loadOlderMessages = useCallback(async () => {
@@ -666,10 +680,21 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             };
 
             setMessages(prev => {
-              const exists = prev.find(m => m.id === newMessage.id);
-              if (exists) return prev;
+              // Check if exact ID already exists
+              const existsById = prev.find(m => m.id === newMessage.id);
+              if (existsById) return prev;
               
-              const updated = [...prev, messageWithAttachments].sort(
+              // 🔧 CRITICAL FIX: Dedupe optimistic messages
+              // When real message arrives, remove any temp message with same content from same sender
+              // This prevents duplicates when user sends a message and realtime picks it up
+              const isOptimisticMatch = (m: Message) => 
+                m.id.startsWith('temp_') && 
+                m.content === newMessage.content &&
+                m.sender_type === newMessage.sender_type;
+              
+              const withoutOptimistic = prev.filter(m => !isOptimisticMatch(m));
+              
+              const updated = [...withoutOptimistic, messageWithAttachments].sort(
                 (a, b) => +new Date(a.created_at) - +new Date(b.created_at)
               );
               
@@ -734,6 +759,22 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
     return () => clearInterval(interval);
   }, [activeChannelId, realtimeEnabled, loadMessages]);
+
+  // Handle chat-reset event - CRITICAL: Only clear cache, not messages
+  // Messages will be reloaded naturally via the loadMessages useEffect when dependencies are ready
+  // This prevents chat data from disappearing on page refresh
+  useEffect(() => {
+    const onReset = () => {
+      console.log('[OptimizedChat] Reset event received - clearing cache only, messages will reload');
+      cacheRef.current.clear();
+      headerCacheRef.current.clear();
+      // Don't clear messages here - let them persist until new data loads
+      // This prevents the "empty chat" flash on refresh
+      setLoading(true); // Show loading state while reloading
+    };
+    window.addEventListener('chat-reset', onReset as EventListener);
+    return () => window.removeEventListener('chat-reset', onReset as EventListener);
+  }, []);
 
   // Auto-scroll when AI typing indicator appears - immediate, no delay
   useEffect(() => {
@@ -849,7 +890,31 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       {/* Message Input */}
       <div className="border-t p-4">
         <MessageInput
-          onSendMessage={(content: string) => console.log('Send:', content)}
+          onSendMessage={(content: string, attachments?: any[]) => {
+            // Optimistic paint - show user message immediately before server confirms
+            const tempId = `temp_${Date.now()}`;
+            const optimisticMessage: Message = {
+              id: tempId,
+              content,
+              created_at: new Date().toISOString(),
+              sender_type: me?.type as 'admin' | 'sub_user' || 'admin',
+              sender_name: me?.name || (me as any)?.full_name || 'User',
+              sender_avatar_url: me?.avatarUrl || undefined,
+              channel_id: activeChannelId || '',
+              has_attachments: (attachments?.length || 0) > 0,
+              message_type: attachments?.length ? 'file' : 'text',
+              attachments: attachments?.map((a: any) => ({
+                id: `tmp_${Math.random().toString(36).slice(2)}`,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+                public_url: a.public_url,
+              })) || [],
+            };
+            setMessages(prev => [...prev, optimisticMessage]);
+            setTimeout(scrollToBottom, 100);
+          }}
           replyingTo={replyingTo ? { ...replyingTo, updated_at: replyingTo.updated_at || replyingTo.created_at } : null}
           onCancelReply={() => setReplyingTo(null)}
           editingMessage={editingMessage ? { ...editingMessage, updated_at: editingMessage.updated_at || editingMessage.created_at } : null}
