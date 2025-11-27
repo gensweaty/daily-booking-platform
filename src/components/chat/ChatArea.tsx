@@ -859,11 +859,16 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
     return () => clearInterval(interval);
   }, [activeChannelId, messages]);
 
+  // Handle chat-reset event - CRITICAL: Only clear cache, not messages
+  // Messages will be reloaded naturally via the loadMessages useEffect when dependencies are ready
+  // This prevents chat data from disappearing on page refresh
   useEffect(() => {
     const onReset = () => {
+      console.log('[chat] Reset event received - clearing cache only, messages will reload');
       cacheRef.current.clear();
-      setMessages([]);
-      setLoading(false);
+      // Don't clear messages here - let them persist until new data loads
+      // This prevents the "empty chat" flash on refresh
+      setLoading(true); // Show loading state while reloading
     };
     window.addEventListener('chat-reset', onReset as EventListener);
     return () => window.removeEventListener('chat-reset', onReset as EventListener);

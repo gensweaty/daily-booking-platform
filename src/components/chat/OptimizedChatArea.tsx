@@ -515,6 +515,7 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   }, [me, boardOwnerId, isInitialized, location.pathname, effectiveEmail, publicSubUserId]);
 
   // Initial message loading - always fetch fresh to ensure history is visible
+  // CRITICAL FIX: Include all dependencies to ensure messages reload when identity is resolved
   useEffect(() => {
     if (!activeChannelId) {
       setMessages([]);
@@ -522,10 +523,23 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       return;
     }
 
+    // Wait for all required dependencies before loading
+    if (!me || !boardOwnerId || !isInitialized) {
+      console.log('[chat] Waiting for dependencies:', { me: !!me, boardOwnerId: !!boardOwnerId, isInitialized });
+      return;
+    }
+
+    // For public boards, also wait for sub-user identity resolution
+    if (isPublic && me?.type === 'sub_user' && !publicSubUserId) {
+      console.log('[chat] Waiting for public sub-user identity resolution...');
+      return;
+    }
+
     // Always do a fresh load to ensure we have the latest messages
+    console.log('[chat] Loading messages for channel:', activeChannelId);
     setLoading(true);
     loadMessages(activeChannelId).finally(() => setLoading(false));
-  }, [activeChannelId, loadMessages]);
+  }, [activeChannelId, loadMessages, me, boardOwnerId, isInitialized, isPublic, publicSubUserId]);
 
   // Load older messages
   const loadOlderMessages = useCallback(async () => {
@@ -734,6 +748,22 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
 
     return () => clearInterval(interval);
   }, [activeChannelId, realtimeEnabled, loadMessages]);
+
+  // Handle chat-reset event - CRITICAL: Only clear cache, not messages
+  // Messages will be reloaded naturally via the loadMessages useEffect when dependencies are ready
+  // This prevents chat data from disappearing on page refresh
+  useEffect(() => {
+    const onReset = () => {
+      console.log('[OptimizedChat] Reset event received - clearing cache only, messages will reload');
+      cacheRef.current.clear();
+      headerCacheRef.current.clear();
+      // Don't clear messages here - let them persist until new data loads
+      // This prevents the "empty chat" flash on refresh
+      setLoading(true); // Show loading state while reloading
+    };
+    window.addEventListener('chat-reset', onReset as EventListener);
+    return () => window.removeEventListener('chat-reset', onReset as EventListener);
+  }, []);
 
   // Auto-scroll when AI typing indicator appears - immediate, no delay
   useEffect(() => {
