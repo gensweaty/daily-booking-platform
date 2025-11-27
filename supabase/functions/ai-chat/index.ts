@@ -2247,45 +2247,68 @@ Analysis: October is showing a stronger performance in terms of revenue compared
    - MAXIMUM: 1000 customers per import
    - TRIGGER KEYWORDS: "import", "upload", "add all", "import customers", "add these to CRM"
    
-   🚨🚨🚨 **CRITICAL - YOU ALREADY HAVE THE DATA!** 🚨🚨🚨
+   🚨🚨🚨 **ABSOLUTELY CRITICAL - YOU ALREADY HAVE ALL THE DATA!** 🚨🚨🚨
    When user uploads an Excel/CSV file, the data is ALREADY PARSED and shown in your context as CSV format.
    YOU CAN SEE ALL THE ROWS IN THE FILE! Parse them from the context and import immediately!
    
    **ULTRA-CRITICAL RULES:**
+   - ❌ NEVER import just 1 customer when file has hundreds!
    - ❌ NEVER say "provide the data" or "list them out" - YOU ALREADY HAVE IT!
    - ❌ NEVER ask user to re-upload or give you data in different format
-   - ❌ NEVER mention technical terms like "bulk_import_customers tool"
-   - ✅ ALWAYS parse ALL rows from the Excel preview in your context
+   - ❌ NEVER mention technical terms
+   - ✅ ALWAYS parse EVERY SINGLE ROW from the CSV preview in your context
+   - ✅ ALWAYS build an ARRAY with ALL customers (not just 1!)
    - ✅ ALWAYS import immediately without asking
    - ✅ ALWAYS respond naturally: "✅ Successfully imported X customers to your CRM"
+   
+   **🔥 CRITICAL FORMAT - YOU MUST PASS AN ARRAY OF ALL CUSTOMERS! 🔥**
+   Look at the CSV data in your context. It might look like:
+   \`\`\`csv
+   Name,Phone,Email,Website
+   John Smith,1234567890,john@email.com,www.john.com
+   Jane Doe,9876543210,jane@email.com,www.jane.com
+   Bob Wilson,5555555555,bob@email.com,www.bob.com
+   ... (hundreds more rows)
+   \`\`\`
+   
+   YOU MUST extract EVERY ROW and create an array with ALL of them:
+   - Row 1: John Smith → add to array
+   - Row 2: Jane Doe → add to array  
+   - Row 3: Bob Wilson → add to array
+   - ... continue for ALL rows!
+   
+   **IF THE FILE HAS 1269 ROWS, YOUR ARRAY MUST HAVE 1269 CUSTOMERS!**
    
    **WORKFLOW FOR EXCEL IMPORT:**
    1. User uploads Excel file - YOU CAN SEE THE CSV DATA IN YOUR CONTEXT
    2. User says "import" / "add all" / "upload to CRM" etc.
-   3. YOU parse ALL rows from the CSV preview (look for the data in your message context!)
-   4. Map columns intelligently:
+   3. COUNT how many data rows are in the CSV (skip header)
+   4. Parse EACH ROW and add it to your customers array
+   5. Map columns intelligently:
       - Name/Full Name/Company columns → full_name (REQUIRED)
       - Phone/Tel/Mobile columns → phone_number
       - Email/Social/Link columns → social_media  
-      - Note/Comment/Description columns → notes
+      - Note/Comment/Description/Website columns → notes
       - Status columns → payment_status
       - Amount/Payment columns → payment_amount
-   5. Import ALL customers in one batch (internally handled efficiently)
-   6. Respond: "✅ Successfully imported [count] customers to your CRM"
+   6. Pass the FULL ARRAY with ALL customers
+   7. Respond: "✅ Successfully imported [count] customers to your CRM"
    
    **REAL EXAMPLE:**
-   - User uploads Excel with 1269 customer rows (shown in your context as CSV)
-   - User says "import all 1269 customers"
-   - YOU: Parse all 1269 rows from the CSV data in context, import them
-   - YOU respond: "✅ Successfully imported 1269 customers to your CRM"
+   - User uploads Excel with CSV preview showing 1269 rows
+   - You MUST parse all 1269 rows into an array
+   - Not 1 customer, not 10 customers - ALL 1269 customers!
    
-   ❌ WRONG RESPONSE (NEVER DO THIS):
+   ❌ ABSOLUTELY WRONG (NEVER DO THIS):
+   - Parsing only the first row
+   - Creating just 1 customer when file has hundreds
    - "Please provide the data from your file"
-   - "I can use the bulk_import_customers tool to add them"
    - "Just list them out for me"
    
-   ✅ CORRECT RESPONSE:
-   - Parse the CSV data shown in your context and import ALL rows immediately
+   ✅ CORRECT:
+   - Parse EVERY row from CSV data in context
+   - Build array with ALL customers
+   - Import ALL at once
 
 
 **FOR EDITING/UPDATING:**
@@ -6291,13 +6314,30 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'bulk_import_customers': {
-              const { customers } = args;
+              let { customers } = args;
+              
+              // ROBUST HANDLING: If AI passed a single customer object instead of array, wrap it
+              // Also handle case where args itself is the customer data (no 'customers' key)
+              if (!customers && args.full_name) {
+                console.log('    ⚠️ AI passed single customer object directly - wrapping in array');
+                customers = [args];
+              } else if (customers && !Array.isArray(customers)) {
+                console.log('    ⚠️ AI passed customers as object - wrapping in array');
+                customers = [customers];
+              } else if (!customers) {
+                // Check if args has customer-like properties but no customers key
+                const argsKeys = Object.keys(args);
+                if (argsKeys.some(k => ['full_name', 'phone_number', 'social_media', 'notes'].includes(k))) {
+                  console.log('    ⚠️ AI passed customer data without customers wrapper - extracting');
+                  customers = [args];
+                }
+              }
               
               console.log(`    📦 BULK IMPORT: Importing ${customers?.length || 0} customers`);
               
               try {
                 if (!customers || !Array.isArray(customers) || customers.length === 0) {
-                  toolResult = { success: false, error: 'No customers provided for import' };
+                  toolResult = { success: false, error: 'No customers provided for import. Make sure to parse ALL rows from the Excel/CSV data and pass them as an array.' };
                   break;
                 }
                 
