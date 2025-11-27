@@ -152,6 +152,7 @@ const CustomerListContent = ({
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const idsToDeleteRef = useRef<string[]>([]); // Store IDs when opening dialog to prevent re-render issues
   const tableContainerRef = useRef<HTMLDivElement>(null);
   
   // Get currency symbol based on language
@@ -252,26 +253,32 @@ const CustomerListContent = ({
     return paginatedData.every((c: any) => selectedCustomerIds.has(c.id));
   }, [paginatedData, selectedCustomerIds]);
 
-  // Bulk delete handler - uses SAME individual delete logic as handleConfirmDelete
-  // This ensures RLS policies work correctly for each item
+  // Function to open bulk delete dialog - stores IDs in ref to prevent re-render issues
+  const openBulkDeleteDialog = useCallback(() => {
+    // Store IDs in ref BEFORE opening dialog to prevent state clearing issues
+    idsToDeleteRef.current = Array.from(selectedCustomerIds);
+    console.log('📋 Stored IDs for deletion:', idsToDeleteRef.current.length);
+    setIsBulkDeleteConfirmOpen(true);
+  }, [selectedCustomerIds]);
+
+  // Bulk delete handler - uses stored IDs from ref (not state) to prevent re-render issues
   const handleBulkDelete = useCallback(async () => {
     const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
+    const idsToDelete = idsToDeleteRef.current; // Use ref, not state
     
     console.log('🗑️ handleBulkDelete called:', {
       effectiveUserId,
-      selectedCount: selectedCustomerIds.size,
-      selectedIds: Array.from(selectedCustomerIds).slice(0, 5) // Log first 5 IDs
+      idsToDeleteCount: idsToDelete.length,
+      firstIds: idsToDelete.slice(0, 5)
     });
     
-    if (!effectiveUserId || selectedCustomerIds.size === 0) {
-      console.log('❌ Bulk delete aborted: no user or no selection');
+    if (!effectiveUserId || idsToDelete.length === 0) {
+      console.log('❌ Bulk delete aborted: no user or no IDs');
+      setIsBulkDeleteConfirmOpen(false);
       return;
     }
 
     try {
-      // Capture IDs immediately to prevent any state change issues
-      const idsToDelete = Array.from(selectedCustomerIds);
-      console.log('📋 IDs to delete:', idsToDelete.length);
       let successCount = 0;
       let errorCount = 0;
       
@@ -338,6 +345,12 @@ const CustomerListContent = ({
         console.log(`Processed ${Math.min(i + CHUNK_SIZE, idsToDelete.length)}/${idsToDelete.length} items`);
       }
 
+      // Close dialog and clear selection BEFORE invalidating queries
+      setIsBulkDeleteConfirmOpen(false);
+      setSelectedCustomerIds(new Set());
+      setIsSelectionMode(false);
+      idsToDeleteRef.current = []; // Clear the ref
+
       // Invalidate queries to refresh data
       await queryClient.invalidateQueries({ queryKey: ['customers'] });
       await queryClient.invalidateQueries({ queryKey: ['events'] });
@@ -356,19 +369,16 @@ const CustomerListContent = ({
           variant: errorCount > successCount ? "destructive" : "default",
         });
       }
-      
-      setSelectedCustomerIds(new Set());
-      setIsSelectionMode(false);
-      setIsBulkDeleteConfirmOpen(false);
     } catch (error: any) {
       console.error('Error bulk deleting:', error);
+      setIsBulkDeleteConfirmOpen(false);
       toast({
         title: t("common.error"),
         description: error.message || t("common.deleteError"),
         variant: "destructive",
       });
     }
-  }, [selectedCustomerIds, isPublicMode, publicBoardUserId, user?.id, user?.email, externalUserName, queryClient, toast, t, language]);
+  }, [isPublicMode, publicBoardUserId, user?.id, user?.email, externalUserName, queryClient, toast, t, language]);
 
   // Helper function to get the effective user ID for operations (same as CustomerDialog)
   const getEffectiveUserId = useCallback(() => {
@@ -877,7 +887,7 @@ const CustomerListContent = ({
                             </button>
                             {selectedCustomerIds.size > 0 && (
                               <button
-                                onClick={() => setIsBulkDeleteConfirmOpen(true)}
+                                onClick={openBulkDeleteDialog}
                                 className="p-1.5 rounded hover:bg-destructive/20 transition-colors text-destructive border border-transparent hover:border-destructive/30"
                                 data-selection-control
                                 title={`${language === 'en' ? 'Delete' : language === 'es' ? 'Eliminar' : 'წაშლა'} (${selectedCustomerIds.size})`}
@@ -1142,7 +1152,12 @@ const CustomerListContent = ({
       </AlertDialog>
 
       {/* Bulk delete confirmation dialog */}
-      <AlertDialog open={isBulkDeleteConfirmOpen} onOpenChange={setIsBulkDeleteConfirmOpen}>
+      <AlertDialog open={isBulkDeleteConfirmOpen} onOpenChange={(open) => {
+        if (!open) {
+          idsToDeleteRef.current = []; // Clear ref when dialog closes
+        }
+        setIsBulkDeleteConfirmOpen(open);
+      }}>
         <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -1155,10 +1170,10 @@ const CustomerListContent = ({
             </AlertDialogTitle>
             <AlertDialogDescription className="text-base">
               {language === 'en' 
-                ? `You are about to delete ${selectedCustomerIds.size} selected item${selectedCustomerIds.size > 1 ? 's' : ''}. This action cannot be undone.`
+                ? `You are about to delete ${idsToDeleteRef.current.length} selected item${idsToDeleteRef.current.length > 1 ? 's' : ''}. This action cannot be undone.`
                 : language === 'es'
-                ? `Está a punto de eliminar ${selectedCustomerIds.size} elemento${selectedCustomerIds.size > 1 ? 's' : ''} seleccionado${selectedCustomerIds.size > 1 ? 's' : ''}. Esta acción no se puede deshacer.`
-                : `თქვენ აპირებთ ${selectedCustomerIds.size} არჩეული ჩანაწერის წაშლას. ეს მოქმედება შეუქცევადია.`}
+                ? `Está a punto de eliminar ${idsToDeleteRef.current.length} elemento${idsToDeleteRef.current.length > 1 ? 's' : ''} seleccionado${idsToDeleteRef.current.length > 1 ? 's' : ''}. Esta acción no se puede deshacer.`
+                : `თქვენ აპირებთ ${idsToDeleteRef.current.length} არჩეული ჩანაწერის წაშლას. ეს მოქმედება შეუქცევადია.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">
@@ -1173,10 +1188,10 @@ const CustomerListContent = ({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {language === 'en' 
-                ? `Delete ${selectedCustomerIds.size} item${selectedCustomerIds.size > 1 ? 's' : ''}`
+                ? `Delete ${idsToDeleteRef.current.length} item${idsToDeleteRef.current.length > 1 ? 's' : ''}`
                 : language === 'es' 
-                ? `Eliminar ${selectedCustomerIds.size} elemento${selectedCustomerIds.size > 1 ? 's' : ''}`
-                : `წაშლა (${selectedCustomerIds.size})`}
+                ? `Eliminar ${idsToDeleteRef.current.length} elemento${idsToDeleteRef.current.length > 1 ? 's' : ''}`
+                : `წაშლა (${idsToDeleteRef.current.length})`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
