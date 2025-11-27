@@ -4,7 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download, CheckSquare, Square } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -148,6 +149,9 @@ const CustomerListContent = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<any>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   
   // Get currency symbol based on language
   const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
@@ -173,6 +177,24 @@ const CustomerListContent = ({
     return () => window.removeEventListener('crm-search-updated', handleSearchUpdate as any);
   }, []);
 
+  // Click outside handler to exit selection mode
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!isSelectionMode) return;
+      
+      const target = e.target as HTMLElement;
+      // Don't exit if clicking on the table, select button, or checkboxes
+      if (tableContainerRef.current?.contains(target)) return;
+      if (target.closest('[data-selection-control]')) return;
+      
+      setIsSelectionMode(false);
+      setSelectedCustomerIds(new Set());
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSelectionMode]);
+
   const resetPagination = useCallback(() => {
     setCurrentPage(1);
   }, []);
@@ -188,6 +210,46 @@ const CustomerListContent = ({
     const endIndex = startIndex + pageSize;
     return displayedData.slice(startIndex, endIndex);
   }, [displayedData, currentPage, pageSize]);
+
+  // Selection mode handlers
+  const toggleSelectionMode = useCallback(() => {
+    if (isSelectionMode) {
+      setIsSelectionMode(false);
+      setSelectedCustomerIds(new Set());
+    } else {
+      setIsSelectionMode(true);
+    }
+  }, [isSelectionMode]);
+
+  const toggleSelectAll = useCallback(() => {
+    const currentPageIds = paginatedData.map((c: any) => c.id);
+    const allSelected = currentPageIds.every((id: string) => selectedCustomerIds.has(id));
+    
+    if (allSelected) {
+      // Deselect all
+      setSelectedCustomerIds(new Set());
+    } else {
+      // Select all on current page
+      setSelectedCustomerIds(new Set(currentPageIds));
+    }
+  }, [paginatedData, selectedCustomerIds]);
+
+  const toggleCustomerSelection = useCallback((customerId: string) => {
+    setSelectedCustomerIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(customerId)) {
+        newSet.delete(customerId);
+      } else {
+        newSet.add(customerId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const allCurrentPageSelected = useMemo(() => {
+    if (paginatedData.length === 0) return false;
+    return paginatedData.every((c: any) => selectedCustomerIds.has(c.id));
+  }, [paginatedData, selectedCustomerIds]);
 
   // Helper function to get the effective user ID for operations (same as CustomerDialog)
   const getEffectiveUserId = useCallback(() => {
@@ -664,7 +726,7 @@ const CustomerListContent = ({
 
       {!(isFetching && !isLoading) && displayedData.length > 0 && (
         <>
-          <div className="w-full overflow-x-auto relative">
+          <div className="w-full overflow-x-auto relative" ref={tableContainerRef}>
             {/* Mobile scroll indicator - shows there's more content to the right */}
             <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-background/95 via-background/60 to-transparent pointer-events-none z-10 md:hidden flex items-center justify-end pr-2">
               <div className="flex flex-col gap-1 animate-pulse">
@@ -677,6 +739,43 @@ const CustomerListContent = ({
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
+                    {/* Selection column */}
+                    <TableHead className="w-[60px]">
+                      <div className="flex items-center justify-center" data-selection-control>
+                        {isSelectionMode ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={toggleSelectAll}
+                            className="h-8 px-2 text-xs font-medium hover:bg-primary/10"
+                            data-selection-control
+                          >
+                            {allCurrentPageSelected ? (
+                              <CheckSquare className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Square className="h-4 w-4" />
+                            )}
+                            <span className="ml-1.5">
+                              {language === 'en' ? 'All' : language === 'es' ? 'Todo' : 'ყველა'}
+                            </span>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={toggleSelectionMode}
+                            className="h-8 px-2 text-xs font-medium hover:bg-primary/10"
+                            data-selection-control
+                            title={language === 'en' ? 'Select customers' : language === 'es' ? 'Seleccionar clientes' : 'აირჩიეთ კლიენტები'}
+                          >
+                            <CheckSquare className="h-4 w-4" />
+                            <span className="ml-1.5 hidden sm:inline">
+                              {language === 'en' ? 'Select' : language === 'es' ? 'Seleccionar' : 'არჩევა'}
+                            </span>
+                          </Button>
+                        )}
+                      </div>
+                    </TableHead>
                     <TableHead className="w-[180px]">
                       {isGeorgian ? (
                         <GeorgianAuthText fontWeight="medium">სრული სახელი</GeorgianAuthText>
@@ -708,6 +807,21 @@ const CustomerListContent = ({
                 <TableBody>
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">
+                      {/* Selection checkbox cell */}
+                      <TableCell className="py-2 w-[60px]">
+                        <div className="flex items-center justify-center" data-selection-control>
+                          {isSelectionMode ? (
+                            <Checkbox
+                              checked={selectedCustomerIds.has(customer.id)}
+                              onCheckedChange={() => toggleCustomerSelection(customer.id)}
+                              className="h-5 w-5 transition-all duration-200"
+                              data-selection-control
+                            />
+                          ) : (
+                            <div className="w-5 h-5" />
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="py-2">
                         <div 
                           className="flex items-start gap-2 group relative pr-6"
