@@ -751,9 +751,9 @@ serve(async (req) => {
               const sheetName = workbook.SheetNames[i];
               const sheet = workbook.Sheets[sheetName];
               const csv = XLSX.utils.sheet_to_csv(sheet);
-              const lines = csv.split('\n').filter(l => l.trim()).slice(0, 30);
+              const lines = csv.split('\n').filter(l => l.trim()).slice(0, 1000);
               
-              content += `**Sheet: ${sheetName}**\n\`\`\`csv\n${lines.join('\n')}${csv.split('\n').length > 30 ? '\n...(showing first 30 rows)' : ''}\n\`\`\`\n\n`;
+              content += `**Sheet: ${sheetName}**\n\`\`\`csv\n${lines.join('\n')}${csv.split('\n').length > 1000 ? '\n...(showing first 1000 rows)' : ''}\n\`\`\`\n\n`;
             }
             
             if (workbook.SheetNames.length > 3) {
@@ -1609,6 +1609,62 @@ EDITING CUSTOMERS:
             required: ["full_name"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "bulk_import_customers",
+          description: `Bulk import multiple customers from Excel/CSV file data - use this when user uploads an Excel/CSV file and asks to import customers.
+
+🎯 USE THIS TOOL WHEN:
+- User uploads Excel/CSV file AND asks to "import", "add", "upload", or "create" customers
+- User says things like "import these customers", "add all customers from file", "upload this excel to CRM"
+- User provides a list of customer data to import
+
+📋 INPUT FORMAT:
+- customers: Array of customer objects, each with:
+  - full_name: Customer name (REQUIRED)
+  - phone_number: Phone number (optional)
+  - social_media: Email or social link (optional)
+  - notes: Comments/notes (optional)
+  - payment_status: "not_paid", "partly_paid", or "fully_paid" (default: "not_paid")
+  - payment_amount: Payment amount number (optional)
+
+🚀 MAXIMUM: Up to 1000 customers per import batch
+- If Excel has more than 1000 rows, inform user they need to split into multiple files
+
+⚡ PERFORMANCE:
+- This tool inserts customers in efficient batches of 100
+- Much faster than calling create_or_update_customer one by one
+
+📊 EXAMPLE USAGE:
+User uploads Excel with 500 customers and says "import these to CRM"
+→ Parse Excel data, call bulk_import_customers with array of 500 customer objects
+→ Tool imports all in ~5 batch operations
+→ Respond: "✅ Successfully imported 500 customers to your CRM"`,
+          parameters: {
+            type: "object",
+            properties: {
+              customers: {
+                type: "array",
+                description: "Array of customer objects to import",
+                items: {
+                  type: "object",
+                  properties: {
+                    full_name: { type: "string", description: "Customer full name (REQUIRED)" },
+                    phone_number: { type: "string", description: "Phone number" },
+                    social_media: { type: "string", description: "Email or social link" },
+                    notes: { type: "string", description: "Notes/comments" },
+                    payment_status: { type: "string", enum: ["not_paid", "partly_paid", "fully_paid"] },
+                    payment_amount: { type: "number", description: "Payment amount" }
+                  },
+                  required: ["full_name"]
+                }
+              }
+            },
+            required: ["customers"]
+          }
+        }
       }
     ];
 
@@ -2168,6 +2224,36 @@ Analysis: October is showing a stronger performance in terms of revenue compared
 - User says "Add customer Lisa Brown" → YOU HAVE ALL INFO → create_or_update_customer immediately
 - If they want to create event too → ask for event dates
 - Payment details are OPTIONAL - only include if provided
+
+4. **📦 BULK IMPORT CUSTOMERS FROM EXCEL/CSV (CRITICAL!)**
+   - Tool: bulk_import_customers
+   - USE THIS when user uploads Excel/CSV file AND asks to import multiple customers
+   - MAXIMUM: 1000 customers per import
+   - TRIGGER KEYWORDS: "import", "upload", "add all", "import customers", "add these to CRM"
+   
+   **WORKFLOW FOR EXCEL IMPORT:**
+   1. User uploads Excel file and says "import these customers" / "add all to CRM" / "upload to CRM"
+   2. Parse ALL customer data from the Excel preview (up to 1000 rows)
+   3. Map columns to customer fields:
+      - Name columns → full_name (REQUIRED)
+      - Phone columns → phone_number
+      - Email/Social columns → social_media  
+      - Note/Comment columns → notes
+      - Payment status columns → payment_status
+      - Amount columns → payment_amount
+   4. Call bulk_import_customers with array of ALL customers at once
+   5. Respond: "✅ Successfully imported [count] customers to your CRM"
+   
+   **EXAMPLE:**
+   - User uploads Excel with 500 customer rows
+   - User says "import these customers"
+   - AI: Parse all 500 rows, call bulk_import_customers([{full_name:"John",...}, ...])
+   - AI responds: "✅ Successfully imported 500 customers to your CRM"
+   
+   **CRITICAL RULES:**
+   - ❌ DO NOT call create_or_update_customer one-by-one for Excel imports (too slow!)
+   - ✅ ALWAYS use bulk_import_customers for batch imports
+   - If Excel has more than 1000 rows, inform user to split into multiple files
 
 
 **FOR EDITING/UPDATING:**
@@ -6168,6 +6254,90 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               } catch (error) {
                 console.error('    ❌ Error in create_or_update_customer:', error);
                 toolResult = { success: false, error: error.message || 'Unknown error' };
+              }
+              break;
+            }
+
+            case 'bulk_import_customers': {
+              const { customers } = args;
+              
+              console.log(`    📦 BULK IMPORT: Importing ${customers?.length || 0} customers`);
+              
+              try {
+                if (!customers || !Array.isArray(customers) || customers.length === 0) {
+                  toolResult = { success: false, error: 'No customers provided for import' };
+                  break;
+                }
+                
+                if (customers.length > 1000) {
+                  toolResult = { 
+                    success: false, 
+                    error: `Too many customers (${customers.length}). Maximum is 1000 per import. Please split your file into smaller batches.` 
+                  };
+                  break;
+                }
+                
+                // Prepare customer data for batch insert
+                const customerRecords = customers.map(c => ({
+                  title: c.full_name || 'Unknown',
+                  user_surname: c.full_name || 'Unknown',
+                  user_number: c.phone_number || '',
+                  social_network_link: c.social_media || '',
+                  event_notes: c.notes || '',
+                  payment_status: c.payment_status || 'not_paid',
+                  payment_amount: c.payment_amount || null,
+                  user_id: ownerId,
+                  type: 'customer',
+                  created_by_type: requesterType,
+                  created_by_name: baseName,
+                  created_by_ai: true
+                }));
+                
+                // Insert in batches of 100 for performance
+                const batchSize = 100;
+                let successCount = 0;
+                let errorCount = 0;
+                
+                for (let i = 0; i < customerRecords.length; i += batchSize) {
+                  const batch = customerRecords.slice(i, i + batchSize);
+                  console.log(`    → Inserting batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(customerRecords.length/batchSize)} (${batch.length} records)`);
+                  
+                  const { data: inserted, error: insertError } = await supabaseAdmin
+                    .from('customers')
+                    .insert(batch)
+                    .select('id');
+                  
+                  if (insertError) {
+                    console.error(`    ❌ Batch insert error:`, insertError);
+                    errorCount += batch.length;
+                  } else {
+                    successCount += inserted?.length || 0;
+                  }
+                }
+                
+                console.log(`    ✅ Bulk import complete: ${successCount} created, ${errorCount} failed`);
+                
+                // Broadcast change for real-time sync
+                const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
+                ch.subscribe((status) => {
+                  if (status === 'SUBSCRIBED') {
+                    ch.send({ type: 'broadcast', event: 'customers-changed', payload: { ts: Date.now(), source: 'ai_bulk_import' } });
+                    supabaseAdmin.removeChannel(ch);
+                  }
+                });
+                
+                toolResult = {
+                  success: true,
+                  imported_count: successCount,
+                  failed_count: errorCount,
+                  total_requested: customers.length,
+                  message: errorCount > 0 
+                    ? `Imported ${successCount} customers (${errorCount} failed)` 
+                    : `Successfully imported ${successCount} customers to your CRM`
+                };
+              } catch (error) {
+                console.error('    ❌ Error in bulk_import_customers:', error);
+                toolResult = { success: false, error: error.message || 'Unknown error during bulk import' };
               }
               break;
             }
