@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { endOfDay } from 'date-fns';
 import type { FileRecord } from '@/types/files';
+import { fetchAllRecords } from '@/lib/supabasePagination';
 
 // This interface defines the shape of event objects in our application
 interface EventWithCustomerId {
@@ -25,67 +26,65 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
     [dateRange.start, dateRange.end, userId]
   );
 
-  // Fetch customers with optimized query and proper date filtering - ORDER BY created_at DESC
+  // Fetch customers with pagination to bypass 1000 row limit
   const fetchCustomers = useCallback(async () => {
     if (!userId) return [];
     
+    const startDateStr = dateRange.start.toISOString();
+    const endDateStr = endOfDay(dateRange.end).toISOString();
+    
     console.log("Fetching customers for user:", userId, "with date range:", {
-      start: dateRange.start.toISOString(),
-      end: endOfDay(dateRange.end).toISOString()
+      start: startDateStr,
+      end: endDateStr
     });
     
-    // Filter customers by their creation date (when they were added to the system)
-    const { data, error } = await supabase
-      .from('customers')
-      .select(`
-        *,
-        customer_files_new(*)
-      `, { count: 'exact' }) // Add count for verification
-      .eq('user_id', userId)
-      .gte('created_at', dateRange.start.toISOString())
-      .lte('created_at', endOfDay(dateRange.end).toISOString())
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false }) // Sort by created_at in descending order (newest first)
-      .range(0, 99999); // Use range instead of limit to fetch up to 100k records
+    // Use pagination to fetch ALL customers (bypasses 1000 row limit)
+    const allCustomers = await fetchAllRecords(async (from, to) => {
+      return supabase
+        .from('customers')
+        .select(`*, customer_files_new(*)`)
+        .eq('user_id', userId)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+    });
 
-    if (error) {
-      console.error("Error fetching customers:", error);
-      throw error;
-    }
-    console.log("Retrieved customers in date range:", data?.length || 0);
-    return data || [];
+    console.log("Retrieved ALL customers in date range:", allCustomers.length);
+    return allCustomers;
   }, [userId, dateRange.start, dateRange.end]);
 
-  // Fetch events with optimized query - ONLY fetch parent events to avoid duplicates, ORDER BY created_at DESC
+  // Fetch events with pagination to bypass 1000 row limit
   const fetchEvents = useCallback(async () => {
     if (!userId) return [];
     
+    const startDateStr = dateRange.start.toISOString();
+    const endDateStr = endOfDay(dateRange.end).toISOString();
+    
     console.log("Fetching events for user:", userId);
-    // Filter events by their creation date (when they were added to the system)
-    const { data: events, error: eventsError } = await supabase
-      .from('events')
-      .select('*', { count: 'exact' }) // Add count for verification
-      .eq('user_id', userId)
-      .gte('created_at', dateRange.start.toISOString())
-      .lte('created_at', endOfDay(dateRange.end).toISOString())
-      .is('deleted_at', null)
-      .is('parent_event_id', null) // ONLY fetch parent events, not child instances
-      .order('created_at', { ascending: false }) // Sort by created_at in descending order (newest first)
-      .range(0, 99999); // Use range instead of limit to fetch up to 100k records
-
-    if (eventsError) {
-      console.error("Error fetching events:", eventsError);
-      throw eventsError;
-    }
+    
+    // Use pagination to fetch ALL events (bypasses 1000 row limit)
+    const allEvents = await fetchAllRecords<EventWithCustomerId>(async (from, to) => {
+      return supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('created_at', startDateStr)
+        .lte('created_at', endDateStr)
+        .is('deleted_at', null)
+        .is('parent_event_id', null)
+        .order('created_at', { ascending: false })
+        .range(from, to);
+    });
 
     // Fetch files for each event with improved typing
-    const eventsWithFiles = await Promise.all((events as EventWithCustomerId[]).map(async (event) => {
+    const eventsWithFiles = await Promise.all(allEvents.map(async (event) => {
       if (!event.id) {
         console.error("Event without ID detected:", event);
         return { ...event, event_files: [] };
       }
       
-      // Use direct query to event_files to ensure we only get files specifically linked to this event
       const { data: eventFiles, error: eventFilesError } = await supabase
         .from('event_files')
         .select('*')
@@ -102,7 +101,7 @@ export function useCRMData(userId: string | undefined, dateRange: { start: Date,
       };
     }));
 
-    console.log("Retrieved parent events:", eventsWithFiles.length);
+    console.log("Retrieved ALL parent events:", eventsWithFiles.length);
     return eventsWithFiles;
   }, [userId, dateRange.start, dateRange.end]);
 

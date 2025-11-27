@@ -1,6 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRecords } from "@/lib/supabasePagination";
 
 export const useOptimizedCRMData = (userId: string | undefined, dateRange: { start: Date; end: Date }) => {
   const { data: combinedData, isLoading } = useQuery({
@@ -13,107 +14,107 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       const startDateStr = dateRange.start.toISOString();
       const endDateStr = dateRange.end.toISOString();
 
-      // Get standalone customers (not linked to events) - filter by CUSTOMER created_at date
-      const { data: standaloneCustomers, error: customersError } = await supabase
-        .from('customers')
-        .select(`
-          id,
-          title,
-          user_surname,
-          user_number,
-          social_network_link,
-          start_date,
-          end_date,
-          payment_status,
-          payment_amount,
-          create_event,
-          created_at,
-          type,
-          customer_files_new!inner(count)
-        `)
-        .eq('user_id', userId)
-        .is('event_id', null)
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .range(0, 99999); // Use range instead of limit to fetch up to 100k records
+      // Get standalone customers with pagination (bypasses 1000 row limit)
+      const standaloneCustomers = await fetchAllRecords(async (from, to) => {
+        return supabase
+          .from('customers')
+          .select(`
+            id,
+            title,
+            user_surname,
+            user_number,
+            social_network_link,
+            start_date,
+            end_date,
+            payment_status,
+            payment_amount,
+            create_event,
+            created_at,
+            type,
+            customer_files_new!inner(count)
+          `)
+          .eq('user_id', userId)
+          .is('event_id', null)
+          .gte('created_at', startDateStr)
+          .lte('created_at', endDateStr)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+      });
 
-      if (customersError) {
-        console.error('Error fetching standalone customers:', customersError);
-      }
+      console.log('Fetched standalone customers:', standaloneCustomers.length);
 
-      // Get events in date range (only parent events to avoid duplicates)
-      const { data: events, error: eventsError } = await supabase
-        .from('events')
-        .select(`
-          id,
-          booking_request_id,
-          title,
-          start_date,
-          end_date,
-          payment_status,
-          payment_amount,
-          created_at,
-          event_files!inner(count)
-        `)
-        .eq('user_id', userId)
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
-        .is('deleted_at', null)
-        .is('parent_event_id', null)
-        .order('created_at', { ascending: false })
-        .range(0, 99999); // Use range instead of limit to fetch up to 100k records
+      // Get events with pagination (bypasses 1000 row limit)
+      const events = await fetchAllRecords(async (from, to) => {
+        return supabase
+          .from('events')
+          .select(`
+            id,
+            booking_request_id,
+            title,
+            start_date,
+            end_date,
+            payment_status,
+            payment_amount,
+            created_at,
+            event_files!inner(count)
+          `)
+          .eq('user_id', userId)
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
+          .is('deleted_at', null)
+          .is('parent_event_id', null)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+      });
 
-      if (eventsError) {
-        console.error('Error fetching events:', eventsError);
-      }
+      console.log('Fetched events:', events.length);
 
-      // Get approved booking requests in date range
-      const { data: bookingRequests, error: bookingRequestsError } = await supabase
-        .from('booking_requests')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('status', 'approved')
-        .gte('start_date', startDateStr)
-        .lte('start_date', endDateStr)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .range(0, 99999); // Use range instead of limit to fetch up to 100k records
+      // Get approved booking requests with pagination
+      const bookingRequests = await fetchAllRecords(async (from, to) => {
+        return supabase
+          .from('booking_requests')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('status', 'approved')
+          .gte('start_date', startDateStr)
+          .lte('start_date', endDateStr)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+      });
 
-      if (bookingRequestsError) {
-        console.error('Error fetching booking requests:', bookingRequestsError);
-      }
+      console.log('Fetched booking requests:', bookingRequests.length);
 
-      // Get event customers (customers created from approved bookings)
-      const { data: eventLinkedCustomers, error: eventCustomersError } = await supabase
-        .from('customers')
-        .select(`
-          id,
-          title,
-          user_surname,
-          user_number,
-          social_network_link,
-          start_date,
-          end_date,
-          payment_status,
-          payment_amount,
-          create_event,
-          created_at,
-          type,
-          customer_files_new!inner(count)
-        `)
-        .eq('user_id', userId)
-        .eq('type', 'customer')
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .range(0, 99999); // Use range instead of limit to fetch up to 100k records
+      // Get event customers with pagination (bypasses 1000 row limit)
+      const eventLinkedCustomers = await fetchAllRecords(async (from, to) => {
+        return supabase
+          .from('customers')
+          .select(`
+            id,
+            title,
+            user_surname,
+            user_number,
+            social_network_link,
+            start_date,
+            end_date,
+            payment_status,
+            payment_amount,
+            create_event,
+            created_at,
+            type,
+            customer_files_new!inner(count)
+          `)
+          .eq('user_id', userId)
+          .eq('type', 'customer')
+          .gte('created_at', startDateStr)
+          .lte('created_at', endDateStr)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+      });
 
-      if (eventCustomersError) {
-        console.error('Error fetching event customers:', eventCustomersError);
-      }
+      console.log('Fetched event linked customers:', eventLinkedCustomers.length);
 
       // Helper function to normalize payment status values
       const normalizePaymentStatus = (status: string | undefined): string => {
