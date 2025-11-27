@@ -259,8 +259,11 @@ const CustomerListContent = ({
 
     try {
       const idsToDelete = Array.from(selectedCustomerIds);
-      const eventIds = idsToDelete.filter(id => id.startsWith('event-')).map(id => id.replace('event-', ''));
-      const customerIds = idsToDelete.filter(id => !id.startsWith('event-'));
+      
+      // Get the actual items to determine their type (event vs customer)
+      const selectedItems = displayedData.filter((item: any) => selectedCustomerIds.has(item.id));
+      const eventIds = selectedItems.filter((item: any) => item.type === 'event' || item.parent_event_id !== undefined).map((item: any) => item.id);
+      const customerIds = selectedItems.filter((item: any) => item.type === 'customer' || (item.type !== 'event' && item.parent_event_id === undefined)).map((item: any) => item.id);
       
       const BATCH_SIZE = 100;
       const deleteData = {
@@ -312,7 +315,7 @@ const CustomerListContent = ({
         variant: "destructive",
       });
     }
-  }, [selectedCustomerIds, isPublicMode, publicBoardUserId, user?.id, user?.email, externalUserName, queryClient, toast, t, language]);
+  }, [selectedCustomerIds, displayedData, isPublicMode, publicBoardUserId, user?.id, user?.email, externalUserName, queryClient, toast, t, language]);
 
   // Helper function to get the effective user ID for operations (same as CustomerDialog)
   const getEffectiveUserId = useCallback(() => {
