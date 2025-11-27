@@ -110,6 +110,59 @@ serve(async (req) => {
       );
     }
 
+    // 🔥 CRITICAL FIX: Save user message to database for persistence across refreshes
+    // This ensures chat history is not lost when user refreshes the page
+    console.log('💾 Saving user message to database...');
+    
+    // Determine requester identity for the user message
+    const requesterType = senderType || 'admin';
+    const baseName = senderName || 'User';
+    
+    // Insert user message
+    const { data: userMsgData, error: userMsgError } = await supabaseAdmin
+      .from('chat_messages')
+      .insert({
+        channel_id: channelId,
+        owner_id: ownerId,
+        sender_type: requesterType,
+        sender_name: baseName,
+        content: prompt,
+        message_type: 'text',
+        has_attachments: attachments && attachments.length > 0
+      })
+      .select('id')
+      .single();
+    
+    if (userMsgError) {
+      console.error('❌ Failed to save user message:', userMsgError);
+      // Continue anyway - don't block AI response, just log the error
+    } else {
+      console.log('✅ User message saved with ID:', userMsgData?.id);
+      
+      // Link any attachments to the user message
+      if (attachments && attachments.length > 0 && userMsgData?.id) {
+        console.log('📎 Linking', attachments.length, 'attachments to user message');
+        
+        const attachmentRecords = attachments.map((att: any) => ({
+          message_id: userMsgData.id,
+          filename: att.filename,
+          file_path: att.file_path,
+          content_type: att.content_type || null,
+          size: att.size || null
+        }));
+        
+        const { error: attError } = await supabaseAdmin
+          .from('chat_message_files')
+          .insert(attachmentRecords);
+        
+        if (attError) {
+          console.error('❌ Failed to link attachments:', attError);
+        } else {
+          console.log('✅ Attachments linked successfully');
+        }
+      }
+    }
+
     // Detect user language from the LATEST user message BEFORE processing (needed for fast-paths)
     const detectLanguage = (text: string): string => {
       // Check for Cyrillic characters (Russian, etc.)

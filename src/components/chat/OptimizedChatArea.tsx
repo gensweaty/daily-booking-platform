@@ -680,10 +680,21 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
             };
 
             setMessages(prev => {
-              const exists = prev.find(m => m.id === newMessage.id);
-              if (exists) return prev;
+              // Check if exact ID already exists
+              const existsById = prev.find(m => m.id === newMessage.id);
+              if (existsById) return prev;
               
-              const updated = [...prev, messageWithAttachments].sort(
+              // 🔧 CRITICAL FIX: Dedupe optimistic messages
+              // When real message arrives, remove any temp message with same content from same sender
+              // This prevents duplicates when user sends a message and realtime picks it up
+              const isOptimisticMatch = (m: Message) => 
+                m.id.startsWith('temp_') && 
+                m.content === newMessage.content &&
+                m.sender_type === newMessage.sender_type;
+              
+              const withoutOptimistic = prev.filter(m => !isOptimisticMatch(m));
+              
+              const updated = [...withoutOptimistic, messageWithAttachments].sort(
                 (a, b) => +new Date(a.created_at) - +new Date(b.created_at)
               );
               
@@ -879,7 +890,31 @@ export const ChatArea = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
       {/* Message Input */}
       <div className="border-t p-4">
         <MessageInput
-          onSendMessage={(content: string) => console.log('Send:', content)}
+          onSendMessage={(content: string, attachments?: any[]) => {
+            // Optimistic paint - show user message immediately before server confirms
+            const tempId = `temp_${Date.now()}`;
+            const optimisticMessage: Message = {
+              id: tempId,
+              content,
+              created_at: new Date().toISOString(),
+              sender_type: me?.type as 'admin' | 'sub_user' || 'admin',
+              sender_name: me?.name || (me as any)?.full_name || 'User',
+              sender_avatar_url: me?.avatarUrl || undefined,
+              channel_id: activeChannelId || '',
+              has_attachments: (attachments?.length || 0) > 0,
+              message_type: attachments?.length ? 'file' : 'text',
+              attachments: attachments?.map((a: any) => ({
+                id: `tmp_${Math.random().toString(36).slice(2)}`,
+                filename: a.filename,
+                file_path: a.file_path,
+                content_type: a.content_type,
+                size: a.size,
+                public_url: a.public_url,
+              })) || [],
+            };
+            setMessages(prev => [...prev, optimisticMessage]);
+            setTimeout(scrollToBottom, 100);
+          }}
           replyingTo={replyingTo ? { ...replyingTo, updated_at: replyingTo.updated_at || replyingTo.created_at } : null}
           onCancelReply={() => setReplyingTo(null)}
           editingMessage={editingMessage ? { ...editingMessage, updated_at: editingMessage.updated_at || editingMessage.created_at } : null}
