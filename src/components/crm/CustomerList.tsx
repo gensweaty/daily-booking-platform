@@ -151,6 +151,7 @@ const CustomerListContent = ({
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   
   // Get currency symbol based on language
@@ -250,6 +251,67 @@ const CustomerListContent = ({
     if (paginatedData.length === 0) return false;
     return paginatedData.every((c: any) => selectedCustomerIds.has(c.id));
   }, [paginatedData, selectedCustomerIds]);
+
+  // Bulk delete handler
+  const handleBulkDelete = useCallback(async () => {
+    const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
+    if (!effectiveUserId || selectedCustomerIds.size === 0) return;
+
+    try {
+      const idsToDelete = Array.from(selectedCustomerIds);
+      const eventIds = idsToDelete.filter(id => id.startsWith('event-')).map(id => id.replace('event-', ''));
+      const customerIds = idsToDelete.filter(id => !id.startsWith('event-'));
+
+      // Delete events
+      if (eventIds.length > 0) {
+        const { error: eventError } = await supabase
+          .from('events')
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+            last_edited_at: new Date().toISOString()
+          })
+          .in('id', eventIds)
+          .eq('user_id', effectiveUserId);
+        if (eventError) throw eventError;
+      }
+
+      // Delete customers
+      if (customerIds.length > 0) {
+        const { error: customerError } = await supabase
+          .from('customers')
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+            last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+            last_edited_at: new Date().toISOString()
+          })
+          .in('id', customerIds)
+          .eq('user_id', effectiveUserId);
+        if (customerError) throw customerError;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      await queryClient.invalidateQueries({ queryKey: ['events'] });
+      
+      toast({
+        title: t("common.success"),
+        description: `${idsToDelete.length} ${language === 'en' ? 'items deleted' : language === 'es' ? 'elementos eliminados' : 'ჩანაწერი წაიშალა'}`,
+      });
+      
+      setSelectedCustomerIds(new Set());
+      setIsSelectionMode(false);
+      setIsBulkDeleteConfirmOpen(false);
+    } catch (error: any) {
+      console.error('Error bulk deleting:', error);
+      toast({
+        title: t("common.error"),
+        description: error.message || t("common.deleteError"),
+        variant: "destructive",
+      });
+    }
+  }, [selectedCustomerIds, isPublicMode, publicBoardUserId, user?.id, user?.email, externalUserName, queryClient, toast, t, language]);
 
   // Helper function to get the effective user ID for operations (same as CustomerDialog)
   const getEffectiveUserId = useCallback(() => {
@@ -739,40 +801,43 @@ const CustomerListContent = ({
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    {/* Selection column */}
-                    <TableHead className="w-[60px]">
-                      <div className="flex items-center justify-center" data-selection-control>
+                    {/* Selection column - compact */}
+                    <TableHead className="w-[36px] px-1">
+                      <div className="flex items-center justify-center gap-0.5" data-selection-control>
                         {isSelectionMode ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={toggleSelectAll}
-                            className="h-8 px-2 text-xs font-medium hover:bg-primary/10"
-                            data-selection-control
-                          >
-                            {allCurrentPageSelected ? (
-                              <CheckSquare className="h-4 w-4 text-primary" />
-                            ) : (
-                              <Square className="h-4 w-4" />
+                          <>
+                            <button
+                              onClick={toggleSelectAll}
+                              className="p-1 rounded hover:bg-primary/10 transition-colors"
+                              data-selection-control
+                              title={language === 'en' ? 'Select All' : language === 'es' ? 'Seleccionar Todo' : 'ყველას არჩევა'}
+                            >
+                              {allCurrentPageSelected ? (
+                                <CheckSquare className="h-4 w-4 text-primary" />
+                              ) : (
+                                <Square className="h-4 w-4" />
+                              )}
+                            </button>
+                            {selectedCustomerIds.size > 0 && (
+                              <button
+                                onClick={() => setIsBulkDeleteConfirmOpen(true)}
+                                className="p-1 rounded hover:bg-destructive/10 transition-colors text-destructive"
+                                data-selection-control
+                                title={`${language === 'en' ? 'Delete' : language === 'es' ? 'Eliminar' : 'წაშლა'} (${selectedCustomerIds.size})`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
                             )}
-                            <span className="ml-1.5">
-                              {language === 'en' ? 'All' : language === 'es' ? 'Todo' : 'ყველა'}
-                            </span>
-                          </Button>
+                          </>
                         ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                          <button
                             onClick={toggleSelectionMode}
-                            className="h-8 px-2 text-xs font-medium hover:bg-primary/10"
+                            className="p-1 rounded hover:bg-primary/10 transition-colors"
                             data-selection-control
-                            title={language === 'en' ? 'Select customers' : language === 'es' ? 'Seleccionar clientes' : 'აირჩიეთ კლიენტები'}
+                            title={language === 'en' ? 'Select' : language === 'es' ? 'Seleccionar' : 'არჩევა'}
                           >
-                            <CheckSquare className="h-4 w-4" />
-                            <span className="ml-1.5 hidden sm:inline">
-                              {language === 'en' ? 'Select' : language === 'es' ? 'Seleccionar' : 'არჩევა'}
-                            </span>
-                          </Button>
+                            <CheckSquare className="h-4 w-4 opacity-60" />
+                          </button>
                         )}
                       </div>
                     </TableHead>
@@ -807,18 +872,18 @@ const CustomerListContent = ({
                 <TableBody>
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">
-                      {/* Selection checkbox cell */}
-                      <TableCell className="py-2 w-[60px]">
+                      {/* Selection checkbox cell - compact */}
+                      <TableCell className="py-2 w-[36px] px-1">
                         <div className="flex items-center justify-center" data-selection-control>
                           {isSelectionMode ? (
                             <Checkbox
                               checked={selectedCustomerIds.has(customer.id)}
                               onCheckedChange={() => toggleCustomerSelection(customer.id)}
-                              className="h-5 w-5 transition-all duration-200"
+                              className="h-4 w-4 transition-all duration-200"
                               data-selection-control
                             />
                           ) : (
-                            <div className="w-5 h-5" />
+                            <div className="w-4 h-4" />
                           )}
                         </div>
                       </TableCell>
@@ -1014,6 +1079,31 @@ const CustomerListContent = ({
             <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation dialog */}
+      <AlertDialog open={isBulkDeleteConfirmOpen} onOpenChange={setIsBulkDeleteConfirmOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {language === 'en' ? 'Delete Selected Items' : language === 'es' ? 'Eliminar Elementos Seleccionados' : 'არჩეულის წაშლა'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {language === 'en' 
+                ? `Are you sure you want to delete ${selectedCustomerIds.size} selected item(s)? This action cannot be undone.`
+                : language === 'es'
+                ? `¿Está seguro de que desea eliminar ${selectedCustomerIds.size} elemento(s) seleccionado(s)? Esta acción no se puede deshacer.`
+                : `ნამდვილად გსურთ ${selectedCustomerIds.size} არჩეული ჩანაწერის წაშლა? ეს მოქმედება შეუქცევადია.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {t("common.delete")} ({selectedCustomerIds.size})
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
