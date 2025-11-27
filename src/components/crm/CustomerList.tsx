@@ -857,21 +857,73 @@ const CustomerListContent = ({
 
       {!(isFetching && !isLoading) && displayedData.length > 0 && (
         <>
-          <div className="w-full overflow-x-auto relative" ref={tableContainerRef}>
-            {/* Mobile scroll indicator - shows there's more content to the right */}
-            <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-background/95 via-background/60 to-transparent pointer-events-none z-10 md:hidden flex items-center justify-end pr-2">
-              <div className="flex flex-col gap-1 animate-pulse">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
+          {/* Mobile: Flex layout with fixed selection column + scrollable table */}
+          <div className="w-full flex md:block" ref={tableContainerRef}>
+            {/* Mobile selection column - fixed outside scroll area */}
+            <div className="md:hidden flex-shrink-0 w-10 border-r border-border/30">
+              {/* Selection header */}
+              <div className="h-10 flex items-center justify-center border-b border-border/30 bg-muted/30">
+                {isSelectionMode ? (
+                  <div className="flex flex-col items-center gap-0.5">
+                    <button
+                      onClick={toggleSelectAll}
+                      className="p-1 rounded hover:bg-primary/20 transition-colors"
+                      data-selection-control
+                    >
+                      {allCurrentPageSelected ? (
+                        <CheckSquare className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Square className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </button>
+                    {selectedCustomerIds.size > 0 && (
+                      <button
+                        onClick={openBulkDeleteDialog}
+                        className="p-1 rounded hover:bg-destructive/20 transition-colors text-destructive"
+                        data-selection-control
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    onClick={toggleSelectionMode}
+                    className="p-1 rounded hover:bg-primary/20 transition-colors"
+                    data-selection-control
+                  >
+                    <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                )}
               </div>
+              {/* Selection checkboxes for each row */}
+              {paginatedData.map((customer: any) => (
+                <div 
+                  key={`sel-${customer.id}`} 
+                  className="min-h-[3.5rem] flex items-center justify-center border-b border-border/20"
+                >
+                  {isSelectionMode ? (
+                    <Checkbox
+                      checked={selectedCustomerIds.has(customer.id)}
+                      onCheckedChange={() => toggleCustomerSelection(customer.id)}
+                      className="h-4 w-4"
+                      data-selection-control
+                    />
+                  ) : (
+                    <div className="w-4 h-4" />
+                  )}
+                </div>
+              ))}
             </div>
-            <div className="min-w-[1000px]">
-              <Table>
+            
+            {/* Scrollable table area */}
+            <div className="flex-1 overflow-x-auto">
+              <div className="min-w-[800px] md:min-w-[1000px]">
+                <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    {/* Selection column - sticky for mobile visibility */}
-                    <TableHead className="w-[48px] min-w-[48px] px-1 sticky left-0 z-20 bg-background">
+                    {/* Selection column - hidden on mobile (shown in separate fixed column) */}
+                    <TableHead className="w-[48px] min-w-[48px] px-1 hidden md:table-cell">
                       <div className="flex items-center justify-center gap-1" data-selection-control>
                         {isSelectionMode ? (
                           <div className="flex items-center gap-1 bg-muted/50 rounded-md p-0.5">
@@ -934,15 +986,15 @@ const CustomerListContent = ({
                     <TableHead className="w-[150px]">{t("crm.addingDate")}</TableHead>
                     <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
                     <TableHead className="w-[180px]">{t("common.attachments")}</TableHead>
-                    <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
+                    <TableHead className="w-[100px] hidden md:table-cell">{t("crm.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 
                 <TableBody>
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">
-                      {/* Selection checkbox cell - sticky for mobile */}
-                      <TableCell className="py-2 w-[48px] min-w-[48px] px-1 sticky left-0 z-10 bg-background">
+                      {/* Selection checkbox cell - hidden on mobile */}
+                      <TableCell className="py-2 w-[48px] min-w-[48px] px-1 hidden md:table-cell">
                         <div className="flex items-center justify-center" data-selection-control>
                           {isSelectionMode ? (
                             <Checkbox
@@ -1059,7 +1111,8 @@ const CustomerListContent = ({
                           </div>
                         ) : '-'}
                       </TableCell>
-                      <TableCell className="py-2">
+                      {/* Actions column - hidden on mobile */}
+                      <TableCell className="py-2 hidden md:table-cell">
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
@@ -1093,6 +1146,7 @@ const CustomerListContent = ({
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </div>
           </div>
 
