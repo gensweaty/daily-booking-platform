@@ -253,6 +253,7 @@ const CustomerListContent = ({
   }, [paginatedData, selectedCustomerIds]);
 
   // Bulk delete handler - batch operations to handle large datasets
+  // Uses same logic as handleConfirmDelete for consistency
   const handleBulkDelete = useCallback(async () => {
     const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
     if (!effectiveUserId || selectedCustomerIds.size === 0) return;
@@ -260,10 +261,14 @@ const CustomerListContent = ({
     try {
       const idsToDelete = Array.from(selectedCustomerIds);
       
-      // Get the actual items to determine their type (event vs customer)
-      const selectedItems = displayedData.filter((item: any) => selectedCustomerIds.has(item.id));
-      const eventIds = selectedItems.filter((item: any) => item.type === 'event' || item.parent_event_id !== undefined).map((item: any) => item.id);
-      const customerIds = selectedItems.filter((item: any) => item.type === 'customer' || (item.type !== 'event' && item.parent_event_id === undefined)).map((item: any) => item.id);
+      // Separate event IDs (prefixed with 'event-') from customer IDs
+      // This matches the logic in handleConfirmDelete
+      const eventIds = idsToDelete
+        .filter(id => id.startsWith('event-'))
+        .map(id => id.replace('event-', ''));
+      const customerIds = idsToDelete.filter(id => !id.startsWith('event-'));
+      
+      console.log('Bulk delete:', { totalItems: idsToDelete.length, eventIds: eventIds.length, customerIds: customerIds.length });
       
       const BATCH_SIZE = 100;
       const deleteData = {
@@ -276,6 +281,7 @@ const CustomerListContent = ({
       // Delete events in batches
       for (let i = 0; i < eventIds.length; i += BATCH_SIZE) {
         const batch = eventIds.slice(i, i + BATCH_SIZE);
+        console.log(`Deleting events batch ${i / BATCH_SIZE + 1}:`, batch.length);
         const { error: eventError } = await supabase
           .from('events')
           .update(deleteData)
@@ -287,6 +293,7 @@ const CustomerListContent = ({
       // Delete customers in batches
       for (let i = 0; i < customerIds.length; i += BATCH_SIZE) {
         const batch = customerIds.slice(i, i + BATCH_SIZE);
+        console.log(`Deleting customers batch ${i / BATCH_SIZE + 1}:`, batch.length);
         const { error: customerError } = await supabase
           .from('customers')
           .update(deleteData)
@@ -315,7 +322,7 @@ const CustomerListContent = ({
         variant: "destructive",
       });
     }
-  }, [selectedCustomerIds, displayedData, isPublicMode, publicBoardUserId, user?.id, user?.email, externalUserName, queryClient, toast, t, language]);
+  }, [selectedCustomerIds, isPublicMode, publicBoardUserId, user?.id, user?.email, externalUserName, queryClient, toast, t, language]);
 
   // Helper function to get the effective user ID for operations (same as CustomerDialog)
   const getEffectiveUserId = useCallback(() => {
