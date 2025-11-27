@@ -560,7 +560,10 @@ serve(async (req) => {
               console.log(`📊 Excel columns detected: name=${nameCol}, phone=${phoneCol}, email=${emailCol}, notes=${notesCol}`);
               console.log(`📊 Processing ${dataRows.length} data rows`);
               
-              // Build customer records
+              // Build customer records - use local variables since we're before they're defined
+              const localRequesterType = senderType || 'admin';
+              const localBaseName = senderName || 'User';
+              
               const customers = dataRows.slice(0, 1000).map(row => ({
                 title: String(row[nameCol >= 0 ? nameCol : 0] || 'Unknown').trim(),
                 user_surname: String(row[nameCol >= 0 ? nameCol : 0] || 'Unknown').trim(),
@@ -570,8 +573,8 @@ serve(async (req) => {
                 payment_status: 'not_paid',
                 user_id: ownerId,
                 type: 'customer',
-                created_by_type: requesterType,
-                created_by_name: baseName,
+                created_by_type: localRequesterType,
+                created_by_name: localBaseName,
                 created_by_ai: true
               })).filter(c => c.title && c.title !== 'Unknown');
               
