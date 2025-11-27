@@ -554,8 +554,40 @@ serve(async (req) => {
               // Detect column mappings
               const nameCol = headers.findIndex(h => /name|company|business|full.?name|customer/i.test(h));
               const phoneCol = headers.findIndex(h => /phone|tel|mobile|cell/i.test(h));
+              
+              // Smart column detection - detect email column but exclude from notes detection
               const emailCol = headers.findIndex(h => /email|social|link|contact/i.test(h));
-              const notesCol = headers.findIndex(h => /note|comment|description|website|url/i.test(h));
+              
+              // For notes/comment column: prioritize "comment" or "note" headers, exclude already-matched columns
+              // Also use content-based detection: if values look like URLs, it's the website/comment field
+              let notesCol = headers.findIndex((h, idx) => {
+                // Skip columns already matched
+                if (idx === nameCol || idx === phoneCol || idx === emailCol) return false;
+                // Match comment/note/description headers
+                return /\b(comment|note|description)\b/i.test(h);
+              });
+              
+              // If no dedicated comment column found, look for website/url column (but not email columns)
+              if (notesCol < 0) {
+                notesCol = headers.findIndex((h, idx) => {
+                  if (idx === nameCol || idx === phoneCol || idx === emailCol) return false;
+                  return /\b(website|url|web)\b/i.test(h) && !/email/i.test(h);
+                });
+              }
+              
+              // Content-based fallback: find column with URL-like values
+              if (notesCol < 0) {
+                for (let i = 0; i < headers.length; i++) {
+                  if (i === nameCol || i === phoneCol || i === emailCol) continue;
+                  // Check if first few data rows have URL-like content
+                  const sampleValues = dataRows.slice(0, 5).map(r => String(r[i] || ''));
+                  const hasUrls = sampleValues.some(v => /^https?:\/\/|\.com|\.net|\.org/i.test(v));
+                  if (hasUrls) {
+                    notesCol = i;
+                    break;
+                  }
+                }
+              }
               
               console.log(`📊 Excel columns detected: name=${nameCol}, phone=${phoneCol}, email=${emailCol}, notes=${notesCol}`);
               console.log(`📊 Processing ${dataRows.length} data rows`);
