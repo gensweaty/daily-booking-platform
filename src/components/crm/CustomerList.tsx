@@ -754,7 +754,7 @@ const CustomerListContent = ({
 
   return (
     <div className={cn(
-      "space-y-4 w-full max-w-[100vw] px-2 md:px-4 overflow-hidden",
+      "space-y-4 w-full max-w-[100vw] px-1 md:px-4 overflow-hidden",
       isPublicMode && "mt-6"
     )}>
       {/* Header and all action buttons on same line */}
@@ -860,10 +860,10 @@ const CustomerListContent = ({
           <div className="w-full overflow-x-auto" ref={tableContainerRef}>
             <div className="min-w-[800px] md:min-w-[1000px]">
               <Table>
-                <TableHeader>
+                  <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     {/* Selection column - sticky on mobile for visibility while scrolling */}
-                    <TableHead className="w-[48px] min-w-[48px] px-1 sticky left-0 z-20 bg-background">
+                    <TableHead className="w-[48px] min-w-[48px] md:w-[48px] md:min-w-[48px] w-[32px] min-w-[32px] px-0.5 md:px-1 sticky left-0 z-20 bg-background">
                       <div className="flex items-center justify-center gap-1" data-selection-control>
                         {isSelectionMode ? (
                           <div className="flex items-center gap-1 bg-muted/50 rounded-md p-0.5">
@@ -934,7 +934,7 @@ const CustomerListContent = ({
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">
                       {/* Selection checkbox cell - sticky on mobile */}
-                      <TableCell className="py-2 w-[48px] min-w-[48px] px-1 sticky left-0 z-10 bg-background">
+                      <TableCell className="py-2 w-[48px] min-w-[48px] md:w-[48px] md:min-w-[48px] w-[32px] min-w-[32px] px-0.5 md:px-1 sticky left-0 z-10 bg-background">
                         <div className="flex items-center justify-center" data-selection-control>
                           {isSelectionMode ? (
                             <Checkbox
