@@ -6,6 +6,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface EmailAttachment {
+  filename: string;
+  content: string; // base64 encoded content
+  content_type?: string;
+}
+
 interface DirectEmailRequest {
   recipient_email: string;
   subject: string;
@@ -14,6 +20,7 @@ interface DirectEmailRequest {
   sender_name?: string;
   sender_email?: string;
   business_name?: string;
+  attachments?: EmailAttachment[];
 }
 
 const getEmailContent = (
@@ -144,30 +151,44 @@ const handler = async (req: Request): Promise<Response> => {
       emailRequest.business_name
     );
 
-    // Construct from address: "Business/User Name (email) <noreply@smartbookly.com>"
+    // Construct clean from address for better deliverability
+    // Using "Name via SmartBookly" format - keeps domain consistent, reduces spam flags
     let displayName = 'SmartBookly';
     
-    if (emailRequest.business_name && emailRequest.sender_email) {
-      // Business exists: "Business Name (sender@email.com)"
-      displayName = `${emailRequest.business_name} (${emailRequest.sender_email})`;
-    } else if (emailRequest.sender_name && emailRequest.sender_email) {
-      // No business: "User Name (sender@email.com)"
-      displayName = `${emailRequest.sender_name} (${emailRequest.sender_email})`;
-    } else if (emailRequest.sender_email) {
-      // Only email available
-      displayName = emailRequest.sender_email;
+    if (emailRequest.business_name) {
+      displayName = `${emailRequest.business_name} via SmartBookly`;
+    } else if (emailRequest.sender_name) {
+      displayName = `${emailRequest.sender_name} via SmartBookly`;
     }
     
     const fromAddress = `${displayName} <noreply@smartbookly.com>`;
+    
+    // Use Reply-To header for actual sender's email (allows recipient to reply directly)
+    const replyToAddress = emailRequest.sender_email || undefined;
     console.log('📧 Sending email with from address:', fromAddress);
     console.log('📧 Recipient:', emailRequest.recipient_email);
     console.log('📧 Using RESEND_API_KEY:', RESEND_API_KEY ? 'Present (length: ' + RESEND_API_KEY.length + ')' : 'MISSING');
 
+    // Prepare attachments for Resend API
+    const resendAttachments = emailRequest.attachments?.map(att => ({
+      filename: att.filename,
+      content: att.content, // base64 string
+      content_type: att.content_type || 'application/octet-stream',
+    })) || [];
+
+    console.log('📎 Attachments to send:', resendAttachments.length);
+
     const emailResult = await resend.emails.send({
       from: fromAddress,
       to: [emailRequest.recipient_email],
+      reply_to: replyToAddress,
       subject: emailRequest.subject || subject,
       html: html,
+      attachments: resendAttachments.length > 0 ? resendAttachments : undefined,
+      headers: {
+        'X-Entity-Ref-ID': `smartbookly-${Date.now()}`,
+        'List-Unsubscribe': `<mailto:unsubscribe@smartbookly.com>`,
+      },
     });
 
     console.log('✅ Direct email sent:', emailResult);

@@ -4,7 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download, CheckSquare, Square } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
 import { format, startOfMonth, endOfMonth } from "date-fns";
@@ -148,6 +149,11 @@ const CustomerListContent = ({
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<any>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
+  const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const idsToDeleteRef = useRef<string[]>([]); // Store IDs when opening dialog to prevent re-render issues
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   
   // Get currency symbol based on language
   const currencySymbol = useMemo(() => getCurrencySymbol(language), [language]);
@@ -173,6 +179,24 @@ const CustomerListContent = ({
     return () => window.removeEventListener('crm-search-updated', handleSearchUpdate as any);
   }, []);
 
+  // Click outside handler to exit selection mode
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (!isSelectionMode) return;
+      
+      const target = e.target as HTMLElement;
+      // Don't exit if clicking on the table, select button, or checkboxes
+      if (tableContainerRef.current?.contains(target)) return;
+      if (target.closest('[data-selection-control]')) return;
+      
+      setIsSelectionMode(false);
+      setSelectedCustomerIds(new Set());
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isSelectionMode]);
+
   const resetPagination = useCallback(() => {
     setCurrentPage(1);
   }, []);
@@ -188,6 +212,175 @@ const CustomerListContent = ({
     const endIndex = startIndex + pageSize;
     return displayedData.slice(startIndex, endIndex);
   }, [displayedData, currentPage, pageSize]);
+
+  // Selection mode handlers
+  const toggleSelectionMode = useCallback(() => {
+    if (isSelectionMode) {
+      setIsSelectionMode(false);
+      setSelectedCustomerIds(new Set());
+    } else {
+      setIsSelectionMode(true);
+    }
+  }, [isSelectionMode]);
+
+  const toggleSelectAll = useCallback(() => {
+    const currentPageIds = paginatedData.map((c: any) => c.id);
+    const allSelected = currentPageIds.every((id: string) => selectedCustomerIds.has(id));
+    
+    if (allSelected) {
+      // Deselect all
+      setSelectedCustomerIds(new Set());
+    } else {
+      // Select all on current page
+      setSelectedCustomerIds(new Set(currentPageIds));
+    }
+  }, [paginatedData, selectedCustomerIds]);
+
+  const toggleCustomerSelection = useCallback((customerId: string) => {
+    setSelectedCustomerIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(customerId)) {
+        newSet.delete(customerId);
+      } else {
+        newSet.add(customerId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const allCurrentPageSelected = useMemo(() => {
+    if (paginatedData.length === 0) return false;
+    return paginatedData.every((c: any) => selectedCustomerIds.has(c.id));
+  }, [paginatedData, selectedCustomerIds]);
+
+  // Function to open bulk delete dialog - stores IDs in ref to prevent re-render issues
+  const openBulkDeleteDialog = useCallback(() => {
+    // Store IDs in ref BEFORE opening dialog to prevent state clearing issues
+    idsToDeleteRef.current = Array.from(selectedCustomerIds);
+    console.log('📋 Stored IDs for deletion:', idsToDeleteRef.current.length);
+    setIsBulkDeleteConfirmOpen(true);
+  }, [selectedCustomerIds]);
+
+  // Bulk delete handler - uses stored IDs from ref (not state) to prevent re-render issues
+  const handleBulkDelete = useCallback(async () => {
+    const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
+    const idsToDelete = [...idsToDeleteRef.current]; // Copy ref immediately
+    const totalCount = idsToDelete.length;
+    
+    console.log('🗑️ handleBulkDelete called:', { effectiveUserId, totalCount });
+    
+    if (!effectiveUserId || totalCount === 0) {
+      setIsBulkDeleteConfirmOpen(false);
+      return;
+    }
+
+    // IMMEDIATELY close dialog and clear UI state BEFORE starting deletions
+    setIsBulkDeleteConfirmOpen(false);
+    setSelectedCustomerIds(new Set());
+    setIsSelectionMode(false);
+    idsToDeleteRef.current = [];
+
+    // Show initial progress toast
+    toast({
+      title: language === 'en' ? `Deleting ${totalCount} items...` : 
+             language === 'es' ? `Eliminando ${totalCount} elementos...` : 
+             `${totalCount} ჩანაწერის წაშლა...`,
+    });
+
+    // Run deletion in background (non-blocking)
+    const runDeletion = async () => {
+      try {
+        let successCount = 0;
+        let errorCount = 0;
+        
+        // Separate customers and events for batch processing
+        const customerIds: string[] = [];
+        const eventIds: string[] = [];
+        
+        idsToDelete.forEach(id => {
+          if (id.startsWith('event-')) {
+            eventIds.push(id.replace('event-', ''));
+          } else {
+            customerIds.push(id);
+          }
+        });
+
+        const updateData = {
+          deleted_at: new Date().toISOString(),
+          last_edited_by_type: isPublicMode ? 'sub_user' : 'admin',
+          last_edited_by_name: isPublicMode ? externalUserName : user?.email,
+          last_edited_at: new Date().toISOString()
+        };
+
+        // Process in large batches using .in() operator (much faster than individual updates)
+        const BATCH_SIZE = 100;
+        
+        // Delete customers in batches
+        for (let i = 0; i < customerIds.length; i += BATCH_SIZE) {
+          const batch = customerIds.slice(i, i + BATCH_SIZE);
+          const { error, count } = await supabase
+            .from('customers')
+            .update(updateData)
+            .in('id', batch)
+            .eq('user_id', effectiveUserId);
+
+          if (error) {
+            console.error('Batch customer delete error:', error);
+            errorCount += batch.length;
+          } else {
+            successCount += count || batch.length;
+          }
+        }
+
+        // Delete events in batches
+        for (let i = 0; i < eventIds.length; i += BATCH_SIZE) {
+          const batch = eventIds.slice(i, i + BATCH_SIZE);
+          const { error, count } = await supabase
+            .from('events')
+            .update(updateData)
+            .in('id', batch)
+            .eq('user_id', effectiveUserId);
+
+          if (error) {
+            console.error('Batch event delete error:', error);
+            errorCount += batch.length;
+          } else {
+            successCount += count || batch.length;
+          }
+        }
+
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: ['customers'] });
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        queryClient.invalidateQueries({ queryKey: ['crm-data'] });
+        queryClient.invalidateQueries({ queryKey: ['optimized-customers'] });
+
+        // Show completion toast
+        if (errorCount === 0) {
+          toast({
+            title: t("common.success"),
+            description: `${successCount} ${language === 'en' ? 'items deleted successfully' : language === 'es' ? 'elementos eliminados correctamente' : 'ჩანაწერი წარმატებით წაიშალა'}`,
+          });
+        } else {
+          toast({
+            title: t("common.success"),
+            description: `${successCount} ${language === 'en' ? 'deleted' : language === 'es' ? 'eliminados' : 'წაშლილი'}, ${errorCount} ${language === 'en' ? 'failed' : language === 'es' ? 'fallidos' : 'ვერ წაიშალა'}`,
+            variant: errorCount > successCount ? "destructive" : "default",
+          });
+        }
+      } catch (error: any) {
+        console.error('Bulk delete error:', error);
+        toast({
+          title: t("common.error"),
+          description: error.message || t("common.deleteError"),
+          variant: "destructive",
+        });
+      }
+    };
+
+    // Start deletion without awaiting (fire and forget with its own error handling)
+    runDeletion();
+  }, [isPublicMode, publicBoardUserId, user?.id, user?.email, externalUserName, queryClient, toast, t, language]);
 
   // Helper function to get the effective user ID for operations (same as CustomerDialog)
   const getEffectiveUserId = useCallback(() => {
@@ -561,7 +754,7 @@ const CustomerListContent = ({
 
   return (
     <div className={cn(
-      "space-y-4 w-full max-w-[100vw] px-2 md:px-4 overflow-hidden",
+      "space-y-4 w-full max-w-[100vw] px-0 md:px-4 overflow-hidden",
       isPublicMode && "mt-6"
     )}>
       {/* Header and all action buttons on same line */}
@@ -664,19 +857,51 @@ const CustomerListContent = ({
 
       {!(isFetching && !isLoading) && displayedData.length > 0 && (
         <>
-          <div className="w-full overflow-x-auto relative">
-            {/* Mobile scroll indicator - shows there's more content to the right */}
-            <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-background/95 via-background/60 to-transparent pointer-events-none z-10 md:hidden flex items-center justify-end pr-2">
-              <div className="flex flex-col gap-1 animate-pulse">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
-                <div className="w-1.5 h-1.5 rounded-full bg-primary/70" />
-              </div>
-            </div>
-            <div className="min-w-[1000px]">
+          <div className="w-full overflow-x-auto" ref={tableContainerRef}>
+            <div className="min-w-[800px] md:min-w-[1000px]">
               <Table>
-                <TableHeader>
+                  <TableHeader>
                   <TableRow className="hover:bg-transparent">
+                    {/* Selection column - sticky on mobile for visibility while scrolling */}
+                    <TableHead className="w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-0 z-20 bg-background">
+                      <div className="flex items-center justify-center gap-1" data-selection-control>
+                        {isSelectionMode ? (
+                          <div className="flex items-center gap-1 bg-muted/50 rounded-md p-0.5">
+                            <button
+                              onClick={toggleSelectAll}
+                              className="p-1.5 rounded hover:bg-primary/20 transition-colors border border-transparent hover:border-primary/30"
+                              data-selection-control
+                              title={language === 'en' ? 'Select All' : language === 'es' ? 'Seleccionar Todo' : 'ყველას არჩევა'}
+                            >
+                              {allCurrentPageSelected ? (
+                                <CheckSquare className="h-4 w-4 text-primary" />
+                              ) : (
+                                <Square className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </button>
+                            {selectedCustomerIds.size > 0 && (
+                              <button
+                                onClick={openBulkDeleteDialog}
+                                className="p-1.5 rounded hover:bg-destructive/20 transition-colors text-destructive border border-transparent hover:border-destructive/30"
+                                data-selection-control
+                                title={`${language === 'en' ? 'Delete' : language === 'es' ? 'Eliminar' : 'წაშლა'} (${selectedCustomerIds.size})`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <button
+                            onClick={toggleSelectionMode}
+                            className="p-1.5 rounded hover:bg-primary/20 transition-colors border border-border/50 hover:border-primary/50"
+                            data-selection-control
+                            title={language === 'en' ? 'Select' : language === 'es' ? 'Seleccionar' : 'არჩევა'}
+                          >
+                            <CheckSquare className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                          </button>
+                        )}
+                      </div>
+                    </TableHead>
                     <TableHead className="w-[180px]">
                       {isGeorgian ? (
                         <GeorgianAuthText fontWeight="medium">სრული სახელი</GeorgianAuthText>
@@ -701,13 +926,28 @@ const CustomerListContent = ({
                     <TableHead className="w-[150px]">{t("crm.addingDate")}</TableHead>
                     <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
                     <TableHead className="w-[180px]">{t("common.attachments")}</TableHead>
-                    <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
+                    <TableHead className="w-[100px] hidden md:table-cell">{t("crm.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 
                 <TableBody>
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">
+                      {/* Selection checkbox cell - sticky on mobile */}
+                      <TableCell className="py-2 w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-0 z-10 bg-background">
+                        <div className="flex items-center justify-center" data-selection-control>
+                          {isSelectionMode ? (
+                            <Checkbox
+                              checked={selectedCustomerIds.has(customer.id)}
+                              onCheckedChange={() => toggleCustomerSelection(customer.id)}
+                              className="h-4 w-4 transition-all duration-200 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                              data-selection-control
+                            />
+                          ) : (
+                            <div className="w-4 h-4" />
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="py-2">
                         <div 
                           className="flex items-start gap-2 group relative pr-6"
@@ -811,7 +1051,8 @@ const CustomerListContent = ({
                           </div>
                         ) : '-'}
                       </TableCell>
-                      <TableCell className="py-2">
+                      {/* Actions column - hidden on mobile */}
+                      <TableCell className="py-2 hidden md:table-cell">
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
@@ -900,6 +1141,52 @@ const CustomerListContent = ({
             <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk delete confirmation dialog */}
+      <AlertDialog open={isBulkDeleteConfirmOpen} onOpenChange={(open) => {
+        if (!open) {
+          idsToDeleteRef.current = []; // Clear ref when dialog closes
+        }
+        setIsBulkDeleteConfirmOpen(open);
+      }}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              {language === 'en' 
+                ? 'Delete Selected Items?' 
+                : language === 'es' 
+                ? '¿Eliminar elementos seleccionados?' 
+                : 'წაიშალოს არჩეული ჩანაწერები?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              {language === 'en' 
+                ? `You are about to delete ${idsToDeleteRef.current.length} selected item${idsToDeleteRef.current.length > 1 ? 's' : ''}. This action cannot be undone.`
+                : language === 'es'
+                ? `Está a punto de eliminar ${idsToDeleteRef.current.length} elemento${idsToDeleteRef.current.length > 1 ? 's' : ''} seleccionado${idsToDeleteRef.current.length > 1 ? 's' : ''}. Esta acción no se puede deshacer.`
+                : `თქვენ აპირებთ ${idsToDeleteRef.current.length} არჩეული ჩანაწერის წაშლას. ეს მოქმედება შეუქცევადია.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-0">
+            <AlertDialogCancel>
+              {language === 'en' ? 'Cancel' : language === 'es' ? 'Cancelar' : 'გაუქმება'}
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleBulkDelete();
+              }} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {language === 'en' 
+                ? `Delete ${idsToDeleteRef.current.length} item${idsToDeleteRef.current.length > 1 ? 's' : ''}`
+                : language === 'es' 
+                ? `Eliminar ${idsToDeleteRef.current.length} elemento${idsToDeleteRef.current.length > 1 ? 's' : ''}`
+                : `წაშლა (${idsToDeleteRef.current.length})`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

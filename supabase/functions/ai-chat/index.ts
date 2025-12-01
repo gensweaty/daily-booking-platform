@@ -110,59 +110,6 @@ serve(async (req) => {
       );
     }
 
-    // 🔥 CRITICAL FIX: Save user message to database for persistence across refreshes
-    // This ensures chat history is not lost when user refreshes the page
-    console.log('💾 Saving user message to database...');
-    
-    // Determine requester identity for the user message
-    const requesterType = senderType || 'admin';
-    const baseName = senderName || 'User';
-    
-    // Insert user message
-    const { data: userMsgData, error: userMsgError } = await supabaseAdmin
-      .from('chat_messages')
-      .insert({
-        channel_id: channelId,
-        owner_id: ownerId,
-        sender_type: requesterType,
-        sender_name: baseName,
-        content: prompt,
-        message_type: 'text',
-        has_attachments: attachments && attachments.length > 0
-      })
-      .select('id')
-      .single();
-    
-    if (userMsgError) {
-      console.error('❌ Failed to save user message:', userMsgError);
-      // Continue anyway - don't block AI response, just log the error
-    } else {
-      console.log('✅ User message saved with ID:', userMsgData?.id);
-      
-      // Link any attachments to the user message
-      if (attachments && attachments.length > 0 && userMsgData?.id) {
-        console.log('📎 Linking', attachments.length, 'attachments to user message');
-        
-        const attachmentRecords = attachments.map((att: any) => ({
-          message_id: userMsgData.id,
-          filename: att.filename,
-          file_path: att.file_path,
-          content_type: att.content_type || null,
-          size: att.size || null
-        }));
-        
-        const { error: attError } = await supabaseAdmin
-          .from('chat_message_files')
-          .insert(attachmentRecords);
-        
-        if (attError) {
-          console.error('❌ Failed to link attachments:', attError);
-        } else {
-          console.log('✅ Attachments linked successfully');
-        }
-      }
-    }
-
     // Detect user language from the LATEST user message BEFORE processing (needed for fast-paths)
     const detectLanguage = (text: string): string => {
       // Check for Cyrillic characters (Russian, etc.)
@@ -1483,7 +1430,7 @@ User: "move task X to done"
         type: "function",
         function: {
           name: "send_direct_email",
-          description: "Send a direct email or message to a specific email address with custom text. Use this when user explicitly asks to send an email or message to someone (not a reminder). Works across all languages. Can be sent immediately or scheduled for a specific time using offset_minutes (for relative times like 'in 5 minutes') or absolute_local (for specific times like '4:30 PM').",
+          description: "Send a direct email or message to a specific email address with custom text. Use this when user explicitly asks to send an email or message to someone (not a reminder). Works across all languages. Can be sent immediately or scheduled for a specific time using offset_minutes (for relative times like 'in 5 minutes') or absolute_local (for specific times like '4:30 PM'). When user uploads files and asks to send them via email, set include_attachments to true.",
           parameters: {
             type: "object",
             properties: {
@@ -1498,6 +1445,10 @@ User: "move task X to done"
               subject: { 
                 type: "string", 
                 description: "Optional custom email subject" 
+              },
+              include_attachments: {
+                type: "boolean",
+                description: "Set to true to include any files the user uploaded in the chat with this email. Use when user says things like 'send this file', 'attach the document', 'email with the file I uploaded'."
               },
               offset_minutes: {
                 type: "number",
@@ -4741,9 +4692,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
             }
 
             case 'send_direct_email': {
-              const { recipient_email, message, subject, offset_minutes, absolute_local, send_at } = args;
+              const { recipient_email, message, subject, offset_minutes, absolute_local, send_at, include_attachments } = args;
               
-              console.log('📧 Processing email request:', { recipient_email, has_message: !!message, offset_minutes, absolute_local, send_at });
+              console.log('📧 Processing email request:', { recipient_email, has_message: !!message, offset_minutes, absolute_local, send_at, include_attachments, attachmentsAvailable: attachments?.length || 0 });
               
               if (!recipient_email || !message) {
                 toolResult = { 
@@ -4761,6 +4712,38 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                   error: 'Invalid email address format' 
                 };
                 break;
+              }
+              
+              // Prepare attachments if requested and available
+              let emailAttachments: { filename: string; content: string; content_type?: string }[] = [];
+              if (include_attachments && attachments && attachments.length > 0) {
+                console.log('📎 Preparing attachments for email...');
+                for (const att of attachments) {
+                  try {
+                    const { data: fileBlob, error: downloadError } = await supabaseAdmin.storage
+                      .from('chat_attachments')
+                      .download(att.file_path);
+                    
+                    if (downloadError || !fileBlob) {
+                      console.error(`  ❌ Failed to download ${att.filename}:`, downloadError);
+                      continue;
+                    }
+                    
+                    // Convert blob to base64
+                    const arrayBuffer = await fileBlob.arrayBuffer();
+                    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+                    
+                    emailAttachments.push({
+                      filename: att.filename,
+                      content: base64,
+                      content_type: att.content_type || 'application/octet-stream'
+                    });
+                    console.log(`  ✅ Prepared attachment: ${att.filename}`);
+                  } catch (attErr) {
+                    console.error(`  ❌ Error processing attachment ${att.filename}:`, attErr);
+                  }
+                }
+                console.log(`📎 Total attachments prepared: ${emailAttachments.length}`);
               }
               
               // Check if scheduling is requested (support both new and legacy formats)
@@ -4935,7 +4918,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 const senderEmail = requesterIdentity?.email || '';
                 const businessName = businessProfile?.business_name || null;
                 
-                console.log('📧 Sender info:', { baseName, senderEmail, businessName });
+                console.log('📧 Sender info:', { baseName, senderEmail, businessName, attachmentsCount: emailAttachments.length });
                 
                 const { data: emailData, error: emailError } = await supabaseAdmin.functions.invoke(
                   'send-direct-email',
@@ -4947,7 +4930,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       language: userLanguage,
                       sender_name: baseName,
                       sender_email: senderEmail,
-                      business_name: businessName
+                      business_name: businessName,
+                      attachments: emailAttachments.length > 0 ? emailAttachments : undefined
                     }
                   }
                 );
