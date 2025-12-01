@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { format, parseISO, endOfDay, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { fetchAllRecords } from '@/lib/supabasePagination';
 
 interface OptimizedTaskStats {
   total: number;
@@ -82,7 +83,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
   };
 
   // Optimized task stats with better error handling and direct query fallback
-  const { data: taskStats, isLoading: isLoadingTaskStats } = useQuery({
+  const { data: taskStats, isLoading: isLoadingTaskStats, isFetching: isFetchingTaskStats } = useQuery({
     queryKey: ['optimized-task-stats', userId],
     queryFn: async (): Promise<OptimizedTaskStats> => {
       if (!userId) return { total: 0, completed: 0, inProgress: 0, todo: 0 };
@@ -176,7 +177,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
   });
 
   // Fixed event stats query to properly handle booking requests in statistics - filter by start_date
-  const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
+  const { data: eventStats, isLoading: isLoadingEventStats, isFetching: isFetchingEventStats } = useQuery({
     queryKey: ['optimized-event-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedEventStats> => {
       if (!userId) return {
@@ -1036,7 +1037,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
   });
 
   // Fixed customer stats query to properly count booking request customers - filter by start_date
-  const { data: customerStats, isLoading: isLoadingCustomerStats } = useQuery({
+  const { data: customerStats, isLoading: isLoadingCustomerStats, isFetching: isFetchingCustomerStats } = useQuery({
     queryKey: ['optimized-customer-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedCustomerStats> => {
       if (!userId) return { total: 0, withBooking: 0, withoutBooking: 0 };
@@ -1114,24 +1115,31 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
       }
 
       // Get standalone CRM customers (customers without events, added in date range)
-      const { data: standaloneCrmCustomers, error: standaloneCrmError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('user_id', userId)
-        .is('event_id', null) // Not associated with events (primary filter)
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
-        .is('deleted_at', null);
-
-      if (standaloneCrmError) {
+      // CRITICAL: Use pagination to fetch ALL records beyond 1000 limit
+      let standaloneCrmCustomers: any[] = [];
+      try {
+        standaloneCrmCustomers = await fetchAllRecords(async (from, to) => {
+          return supabase
+            .from('customers')
+            .select('*')
+            .eq('user_id', userId)
+            .is('event_id', null) // Not associated with events (primary filter)
+            .gte('created_at', startDateStr)
+            .lte('created_at', endDateStr)
+            .is('deleted_at', null)
+            .range(from, to);
+        });
+        console.log(`Fetched ${standaloneCrmCustomers.length} standalone CRM customers with pagination`);
+      } catch (standaloneCrmError) {
         console.error('Error fetching standalone CRM customers:', standaloneCrmError);
-      } else if (standaloneCrmCustomers) {
+      }
+
+      if (standaloneCrmCustomers.length > 0) {
         // Standalone CRM customers (WITHOUT booking)
         standaloneCrmCustomers.forEach(customer => {
           const customerKey = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
           uniqueCustomers.add(customerKey);
           withoutBookingSet.add(customerKey);
-          console.log('Added standalone CRM customer:', { email: customer.social_network_link, phone: customer.user_number, name: customer.user_surname || customer.title });
         });
       }
 
@@ -1182,13 +1190,16 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         ? await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).eq('type', 'customer').in('event_id', currEventIds).is('deleted_at', null)
         : { data: [] };
       
-      const { data: currStandaloneCrm } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', currStartStr).lte('created_at', currEndStr).is('deleted_at', null);
+      // Use pagination for current period standalone customers
+      const currStandaloneCrm = await fetchAllRecords(async (from, to) => {
+        return supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', currStartStr).lte('created_at', currEndStr).is('deleted_at', null).range(from, to);
+      });
       
       const currCustSet = new Set<string>();
       currCustEvents?.forEach(e => currCustSet.add(`${e.social_network_link || 'no-email'}_${e.user_number || 'no-phone'}_${e.user_surname || 'no-name'}`));
       currBookingReqs?.forEach(b => currCustSet.add(`${b.requester_email || 'no-email'}_${b.requester_phone || 'no-phone'}_${b.requester_name || 'no-name'}`));
       currCrmCustomers?.forEach(c => currCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
-      currStandaloneCrm?.forEach(c => currCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
+      currStandaloneCrm.forEach(c => currCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
       
       // Previous period: 1st of previous month to same day (or last day if previous month is shorter)
       const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
@@ -1213,13 +1224,16 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
         ? await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).eq('type', 'customer').in('event_id', prevEventIds).is('deleted_at', null)
         : { data: [] };
       
-      const { data: prevStandaloneCrm } = await supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', prevStartStr).lte('created_at', prevEndStr).is('deleted_at', null);
+      // Use pagination for previous period standalone customers
+      const prevStandaloneCrm = await fetchAllRecords(async (from, to) => {
+        return supabase.from('customers').select('social_network_link, user_number, user_surname, title').eq('user_id', userId).is('event_id', null).gte('created_at', prevStartStr).lte('created_at', prevEndStr).is('deleted_at', null).range(from, to);
+      });
       
       const prevCustSet = new Set<string>();
       prevCustEvents?.forEach(e => prevCustSet.add(`${e.social_network_link || 'no-email'}_${e.user_number || 'no-phone'}_${e.user_surname || 'no-name'}`));
       prevBookingReqs?.forEach(b => prevCustSet.add(`${b.requester_email || 'no-email'}_${b.requester_phone || 'no-phone'}_${b.requester_name || 'no-name'}`));
       prevCrmCustomers?.forEach(c => prevCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
-      prevStandaloneCrm?.forEach(c => prevCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
+      prevStandaloneCrm.forEach(c => prevCustSet.add(`${c.social_network_link || 'no-email'}_${c.user_number || 'no-phone'}_${c.user_surname || c.title || 'no-name'}`));
 
       console.log('📊 CUSTOMER STATS - Period Comparison Results:', {
         currentPeriod: {
@@ -1255,6 +1269,11 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     taskStats, 
     eventStats,
     customerStats,
-    isLoading: isLoadingTaskStats || isLoadingEventStats || isLoadingCustomerStats
+    // isLoading is true only on initial load (no cached data)
+    isLoading: isLoadingTaskStats || isLoadingEventStats || isLoadingCustomerStats,
+    // isFetching is true on any fetch including background refetches
+    isFetching: isFetchingTaskStats || isFetchingEventStats || isFetchingCustomerStats,
+    // hasData indicates if we have any cached data to show
+    hasData: !!(taskStats && eventStats && customerStats)
   };
 };

@@ -11,6 +11,7 @@ import { StatsHeader } from "@/components/Statistics/StatsHeader";
 import { StatsCards } from "@/components/Statistics/StatsCards";
 import { useExcelExport } from "@/components/Statistics/ExcelExport";
 import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns';
+import { fetchAllRecords } from '@/lib/supabasePagination';
 
 interface PublicStatisticsListProps {
   boardUserId: string;
@@ -825,16 +826,26 @@ export const PublicStatisticsList = ({
       }
 
       // Get standalone CRM customers (customers without events, added in date range)
-      const { data: standaloneCrmCustomers, error: standaloneCrmError } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('user_id', boardUserId)
-        .is('event_id', null)
-        .gte('created_at', startDateStr)
-        .lte('created_at', endDateStr)
-        .is('deleted_at', null);
+      // CRITICAL: Use pagination to fetch ALL records beyond 1000 limit
+      let standaloneCrmCustomers: any[] = [];
+      try {
+        standaloneCrmCustomers = await fetchAllRecords(async (from, to) => {
+          return supabase
+            .from('customers')
+            .select('*')
+            .eq('user_id', boardUserId)
+            .is('event_id', null)
+            .gte('created_at', startDateStr)
+            .lte('created_at', endDateStr)
+            .is('deleted_at', null)
+            .range(from, to);
+        });
+        console.log(`Fetched ${standaloneCrmCustomers.length} standalone CRM customers with pagination`);
+      } catch (standaloneCrmError) {
+        console.error('Error fetching standalone CRM customers:', standaloneCrmError);
+      }
 
-      if (!standaloneCrmError && standaloneCrmCustomers) {
+      if (standaloneCrmCustomers.length > 0) {
         // Standalone CRM customers (WITHOUT booking)
         standaloneCrmCustomers.forEach(customer => {
           const customerKey = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
@@ -894,16 +905,20 @@ export const PublicStatisticsList = ({
         });
       }
 
-      const { data: currStandaloneCrm } = await supabase
-        .from('customers')
-        .select('social_network_link, user_number, user_surname, title')
-        .eq('user_id', boardUserId)
-        .is('event_id', null)
-        .is('deleted_at', null)
-        .gte('created_at', currentMonthStart.toISOString())
-        .lte('created_at', currentDayEnd.toISOString());
+      // Use pagination for current period standalone customers
+      const currStandaloneCrm = await fetchAllRecords(async (from, to) => {
+        return supabase
+          .from('customers')
+          .select('social_network_link, user_number, user_surname, title')
+          .eq('user_id', boardUserId)
+          .is('event_id', null)
+          .is('deleted_at', null)
+          .gte('created_at', currentMonthStart.toISOString())
+          .lte('created_at', currentDayEnd.toISOString())
+          .range(from, to);
+      });
 
-      (currStandaloneCrm || []).forEach(customer => {
+      currStandaloneCrm.forEach(customer => {
         const key = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
         currCustSet.add(key);
       });
@@ -950,16 +965,20 @@ export const PublicStatisticsList = ({
         });
       }
 
-      const { data: prevStandaloneCrm } = await supabase
-        .from('customers')
-        .select('social_network_link, user_number, user_surname, title')
-        .eq('user_id', boardUserId)
-        .is('event_id', null)
-        .is('deleted_at', null)
-        .gte('created_at', prevMonthDate.toISOString())
-        .lte('created_at', prevMonthEnd.toISOString());
+      // Use pagination for previous period standalone customers
+      const prevStandaloneCrm = await fetchAllRecords(async (from, to) => {
+        return supabase
+          .from('customers')
+          .select('social_network_link, user_number, user_surname, title')
+          .eq('user_id', boardUserId)
+          .is('event_id', null)
+          .is('deleted_at', null)
+          .gte('created_at', prevMonthDate.toISOString())
+          .lte('created_at', prevMonthEnd.toISOString())
+          .range(from, to);
+      });
 
-      (prevStandaloneCrm || []).forEach(customer => {
+      prevStandaloneCrm.forEach(customer => {
         const key = `${customer.social_network_link || 'no-email'}_${customer.user_number || 'no-phone'}_${customer.user_surname || customer.title || 'no-name'}`;
         prevCustSet.add(key);
       });
@@ -988,7 +1007,7 @@ export const PublicStatisticsList = ({
         regularEventsCount: regularEvents?.length || 0,
         bookingRequestsCount: bookingRequests?.length || 0,
         crmCustomersCount: eventIdsInRange.length,
-        standaloneCrmCustomersCount: standaloneCrmCustomers?.length || 0,
+        standaloneCrmCustomersCount: standaloneCrmCustomers.length,
         currentPeriod: { total: currCustSet.size },
         previousPeriod: { total: prevCustSet.size }
       });
@@ -1006,6 +1025,10 @@ export const PublicStatisticsList = ({
   });
 
   const isLoading = isLoadingTasks || isLoadingEvents || isLoadingCustomers;
+  
+  // Determine if we should show skeletons - only on initial load when no data exists
+  const hasData = !!(taskStats && eventStats && customerStats);
+  const showSkeletons = isLoading && !hasData;
 
   // Set up real-time subscriptions for statistics changes
   useEffect(() => {
@@ -1117,8 +1140,8 @@ export const PublicStatisticsList = ({
   const currentEventStats = eventStats || defaultEventStats;
   const currentCustomerStats = customerStats || defaultCustomerStats;
 
-  // Loading skeleton
-  if (isLoading) {
+  // Loading skeleton - only show on initial load when no cached data
+  if (showSkeletons) {
     return (
       <motion.div 
         className="space-y-6"
