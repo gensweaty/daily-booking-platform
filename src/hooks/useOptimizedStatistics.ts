@@ -83,7 +83,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
   };
 
   // Optimized task stats with better error handling and direct query fallback
-  const { data: taskStats, isLoading: isLoadingTaskStats } = useQuery({
+  const { data: taskStats, isLoading: isLoadingTaskStats, isFetching: isFetchingTaskStats } = useQuery({
     queryKey: ['optimized-task-stats', userId],
     queryFn: async (): Promise<OptimizedTaskStats> => {
       if (!userId) return { total: 0, completed: 0, inProgress: 0, todo: 0 };
@@ -177,7 +177,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
   });
 
   // Fixed event stats query to properly handle booking requests in statistics - filter by start_date
-  const { data: eventStats, isLoading: isLoadingEventStats } = useQuery({
+  const { data: eventStats, isLoading: isLoadingEventStats, isFetching: isFetchingEventStats } = useQuery({
     queryKey: ['optimized-event-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedEventStats> => {
       if (!userId) return {
@@ -1037,7 +1037,7 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
   });
 
   // Fixed customer stats query to properly count booking request customers - filter by start_date
-  const { data: customerStats, isLoading: isLoadingCustomerStats } = useQuery({
+  const { data: customerStats, isLoading: isLoadingCustomerStats, isFetching: isFetchingCustomerStats } = useQuery({
     queryKey: ['optimized-customer-stats', userId, dateRange.start.toISOString(), dateRange.end.toISOString()],
     queryFn: async (): Promise<OptimizedCustomerStats> => {
       if (!userId) return { total: 0, withBooking: 0, withoutBooking: 0 };
@@ -1269,6 +1269,11 @@ export const useOptimizedStatistics = (userId: string | undefined, dateRange: { 
     taskStats, 
     eventStats,
     customerStats,
-    isLoading: isLoadingTaskStats || isLoadingEventStats || isLoadingCustomerStats
+    // isLoading is true only on initial load (no cached data)
+    isLoading: isLoadingTaskStats || isLoadingEventStats || isLoadingCustomerStats,
+    // isFetching is true on any fetch including background refetches
+    isFetching: isFetchingTaskStats || isFetchingEventStats || isFetchingCustomerStats,
+    // hasData indicates if we have any cached data to show
+    hasData: !!(taskStats && eventStats && customerStats)
   };
 };
