@@ -926,7 +926,7 @@ const CustomerListContent = ({
                     <TableHead className="w-[150px]">{t("crm.addingDate")}</TableHead>
                     <TableHead className="w-[120px]">{t("crm.comment")}</TableHead>
                     <TableHead className="w-[180px]">{t("common.attachments")}</TableHead>
-                    <TableHead className="w-[100px] hidden md:table-cell">{t("crm.actions")}</TableHead>
+                    <TableHead className="w-[100px]">{t("crm.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 
@@ -1051,8 +1051,8 @@ const CustomerListContent = ({
                           </div>
                         ) : '-'}
                       </TableCell>
-                      {/* Actions column - hidden on mobile */}
-                      <TableCell className="py-2 hidden md:table-cell">
+                      {/* Actions column */}
+                      <TableCell className="py-2">
                         <div className="flex items-center gap-2">
                           <Button
                             variant="ghost"
