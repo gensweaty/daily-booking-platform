@@ -65,9 +65,12 @@ const StatisticsContent = () => {
   const userId = useMemo(() => user?.id, [user?.id]);
   
   // Use optimized hooks instead of original ones
-  const { taskStats, eventStats, customerStats, isLoading } = useOptimizedStatistics(userId, dateRange);
+  const { taskStats, eventStats, customerStats, isLoading, hasData } = useOptimizedStatistics(userId, dateRange);
   const { combinedData, isLoading: isLoadingCRM } = useOptimizedCRMData(userId, dateRange);
   const { exportToExcel } = useExcelExport();
+
+  // Determine if we should show skeletons - only on initial load when no data exists
+  const showSkeletons = isLoading && !hasData;
 
   // Add effect to validate eventStats and totalIncome specifically
   useEffect(() => {
@@ -103,9 +106,6 @@ const StatisticsContent = () => {
     // Refresh data immediately when component mounts
     refreshAllStatistics();
 
-    // Set up periodic refresh every 30 seconds for real-time updates
-    const intervalId = setInterval(refreshAllStatistics, 30000);
-
     // Listen for page visibility changes to refresh when user returns to tab
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -125,7 +125,6 @@ const StatisticsContent = () => {
     window.addEventListener('focus', handleFocus);
 
     return () => {
-      clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
@@ -205,12 +204,12 @@ const StatisticsContent = () => {
         dateRange={dateRange}
         onDateChange={handleDateChange}
         onExport={handleExport}
-        isLoading={isLoading || isLoadingCRM}
+        isLoading={showSkeletons}
         onlineUsers={onlineUsers}
         currentUserEmail={user?.email}
       />
       
-      {isLoading || isLoadingCRM ? (
+      {showSkeletons ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (

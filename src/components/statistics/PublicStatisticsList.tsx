@@ -1025,6 +1025,10 @@ export const PublicStatisticsList = ({
   });
 
   const isLoading = isLoadingTasks || isLoadingEvents || isLoadingCustomers;
+  
+  // Determine if we should show skeletons - only on initial load when no data exists
+  const hasData = !!(taskStats && eventStats && customerStats);
+  const showSkeletons = isLoading && !hasData;
 
   // Set up real-time subscriptions for statistics changes
   useEffect(() => {
@@ -1136,8 +1140,8 @@ export const PublicStatisticsList = ({
   const currentEventStats = eventStats || defaultEventStats;
   const currentCustomerStats = customerStats || defaultCustomerStats;
 
-  // Loading skeleton
-  if (isLoading) {
+  // Loading skeleton - only show on initial load when no cached data
+  if (showSkeletons) {
     return (
       <motion.div 
         className="space-y-6"
