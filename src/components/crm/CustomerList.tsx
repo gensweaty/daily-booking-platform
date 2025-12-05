@@ -862,13 +862,10 @@ const CustomerListContent = ({
               <Table>
                   <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    {/* Row number column - sticky on mobile */}
-                    <TableHead className="w-[24px] min-w-[24px] md:w-[32px] md:min-w-[32px] px-0 text-center sticky left-0 z-20 bg-background text-xs text-muted-foreground">
-                      #
-                    </TableHead>
-                    {/* Selection column - sticky on mobile for visibility while scrolling */}
-                    <TableHead className="w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-[24px] md:left-[32px] z-20 bg-background">
-                      <div className="flex items-center justify-center gap-1" data-selection-control>
+                    {/* Selection column with row numbers - sticky on mobile for visibility while scrolling */}
+                    <TableHead className="w-[48px] min-w-[48px] md:w-[64px] md:min-w-[64px] px-1 sticky left-0 z-20 bg-background">
+                      <div className="flex items-center gap-1" data-selection-control>
+                        <span className="text-xs text-muted-foreground w-4 md:w-5 text-right shrink-0">#</span>
                         {isSelectionMode ? (
                           <div className="flex items-center gap-1 bg-muted/50 rounded-md p-0.5">
                             <button
@@ -937,13 +934,12 @@ const CustomerListContent = ({
                 <TableBody>
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">
-                      {/* Row number cell - sticky on mobile */}
-                      <TableCell className="py-2 w-[24px] min-w-[24px] md:w-[32px] md:min-w-[32px] px-0 text-center sticky left-0 z-10 bg-background text-xs text-muted-foreground">
-                        {(currentPage - 1) * pageSize + paginatedData.indexOf(customer) + 1}
-                      </TableCell>
-                      {/* Selection checkbox cell - sticky on mobile */}
-                      <TableCell className="py-2 w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-[24px] md:left-[32px] z-10 bg-background">
-                        <div className="flex items-center justify-center" data-selection-control>
+                      {/* Selection checkbox cell with row number - sticky on mobile */}
+                      <TableCell className="py-2 w-[48px] min-w-[48px] md:w-[64px] md:min-w-[64px] px-1 sticky left-0 z-10 bg-background">
+                        <div className="flex items-center gap-1" data-selection-control>
+                          <span className="text-xs text-muted-foreground w-4 md:w-5 text-right shrink-0">
+                            {(currentPage - 1) * pageSize + paginatedData.indexOf(customer) + 1}
+                          </span>
                           {isSelectionMode ? (
                             <Checkbox
                               checked={selectedCustomerIds.has(customer.id)}
