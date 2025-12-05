@@ -862,8 +862,12 @@ const CustomerListContent = ({
               <Table>
                   <TableHeader>
                   <TableRow className="hover:bg-transparent">
+                    {/* Row number column - sticky on mobile */}
+                    <TableHead className="w-[24px] min-w-[24px] md:w-[32px] md:min-w-[32px] px-0 text-center sticky left-0 z-20 bg-background text-xs text-muted-foreground">
+                      #
+                    </TableHead>
                     {/* Selection column - sticky on mobile for visibility while scrolling */}
-                    <TableHead className="w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-0 z-20 bg-background">
+                    <TableHead className="w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-[24px] md:left-[32px] z-20 bg-background">
                       <div className="flex items-center justify-center gap-1" data-selection-control>
                         {isSelectionMode ? (
                           <div className="flex items-center gap-1 bg-muted/50 rounded-md p-0.5">
@@ -933,8 +937,12 @@ const CustomerListContent = ({
                 <TableBody>
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">
+                      {/* Row number cell - sticky on mobile */}
+                      <TableCell className="py-2 w-[24px] min-w-[24px] md:w-[32px] md:min-w-[32px] px-0 text-center sticky left-0 z-10 bg-background text-xs text-muted-foreground">
+                        {(currentPage - 1) * pageSize + paginatedData.indexOf(customer) + 1}
+                      </TableCell>
                       {/* Selection checkbox cell - sticky on mobile */}
-                      <TableCell className="py-2 w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-0 z-10 bg-background">
+                      <TableCell className="py-2 w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-[24px] md:left-[32px] z-10 bg-background">
                         <div className="flex items-center justify-center" data-selection-control>
                           {isSelectionMode ? (
                             <Checkbox
