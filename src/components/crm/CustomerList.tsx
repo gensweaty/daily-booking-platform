@@ -862,9 +862,10 @@ const CustomerListContent = ({
               <Table>
                   <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    {/* Selection column - sticky on mobile for visibility while scrolling */}
-                    <TableHead className="w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-0 z-20 bg-background">
-                      <div className="flex items-center justify-center gap-1" data-selection-control>
+                    {/* Selection column with row numbers - sticky on mobile for visibility while scrolling */}
+                    <TableHead className="w-[48px] min-w-[48px] md:w-[64px] md:min-w-[64px] px-1 sticky left-0 z-20 bg-background">
+                      <div className="flex items-center gap-1" data-selection-control>
+                        <span className="text-xs text-muted-foreground w-4 md:w-5 text-right shrink-0">#</span>
                         {isSelectionMode ? (
                           <div className="flex items-center gap-1 bg-muted/50 rounded-md p-0.5">
                             <button
@@ -933,9 +934,12 @@ const CustomerListContent = ({
                 <TableBody>
                   {paginatedData.map((customer: any) => (
                     <TableRow key={customer.id} className="h-auto min-h-[4rem]">
-                      {/* Selection checkbox cell - sticky on mobile */}
-                      <TableCell className="py-2 w-[28px] min-w-[28px] md:w-[48px] md:min-w-[48px] px-0 md:px-1 sticky left-0 z-10 bg-background">
-                        <div className="flex items-center justify-center" data-selection-control>
+                      {/* Selection checkbox cell with row number - sticky on mobile */}
+                      <TableCell className="py-2 w-[48px] min-w-[48px] md:w-[64px] md:min-w-[64px] px-1 sticky left-0 z-10 bg-background">
+                        <div className="flex items-center gap-1" data-selection-control>
+                          <span className="text-xs text-muted-foreground w-4 md:w-5 text-right shrink-0">
+                            {(currentPage - 1) * pageSize + paginatedData.indexOf(customer) + 1}
+                          </span>
                           {isSelectionMode ? (
                             <Checkbox
                               checked={selectedCustomerIds.has(customer.id)}
