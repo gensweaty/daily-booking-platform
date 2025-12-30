@@ -44,6 +44,7 @@ type Message = {
 
 interface ChatAreaProps {
   onMessageInputFocus?: () => void;
+  isMinimized?: boolean;
 }
 
 // near the top (after imports / hooks)
@@ -54,7 +55,7 @@ const MSG_COLUMNS = `
   sender_name, sender_avatar_url, has_attachments, message_type, is_deleted
 ` as const;
 
-export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
+export const ChatAreaLegacy = ({ onMessageInputFocus, isMinimized = false }: ChatAreaProps = {}) => {
   const { me, currentChannelId, boardOwnerId, isInitialized, realtimeEnabled } = useChat();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -1438,54 +1439,59 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
   }
 
   return (
-    <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
-      {/* Header */}
-      <div className="border-b p-4 bg-muted/30 relative">
+    <div className={`grid h-full overflow-hidden bg-background ${isMinimized ? 'grid-rows-[auto,1fr,auto]' : 'grid-rows-[auto,1fr,auto]'}`}>
+      {/* Header - compact when minimized */}
+      <div className={`border-b bg-muted/30 relative ${isMinimized ? 'p-2' : 'p-4'}`}>
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {channelInfo?.is_ai ? (
-              <div className="h-10 w-10 rounded-full overflow-hidden flex-shrink-0 shadow-sm">
-                <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
-              </div>
-            ) : channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
-              <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                <img
-                  src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
-                  alt={channelInfo.dmPartner.name}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ) : !channelInfo?.isDM && channelInfo?.avatar_url ? (
-              <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                <img
-                  src={channelInfo.avatar_url}
-                  alt={channelInfo.name}
-                  className="h-full w-full object-cover"
-                />
-              </div>
-            ) : channelInfo?.isDM ? (
-              <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-semibold text-foreground">
-                  {(channelInfo?.dmPartner?.name || "U").slice(0, 2).toUpperCase()}
-                </span>
-              </div>
-            ) : (
-              <MessageCircle className="h-5 w-5" />
+          <div className="flex items-center space-x-2 min-w-0 flex-1">
+            {!isMinimized && (
+              channelInfo?.is_ai ? (
+                <div className="h-10 w-10 rounded-full overflow-hidden flex-shrink-0 shadow-sm">
+                  <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
+                </div>
+              ) : channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
+                <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                  <img
+                    src={resolveAvatarUrl(channelInfo.dmPartner.avatar)!}
+                    alt={channelInfo.dmPartner.name}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : !channelInfo?.isDM && channelInfo?.avatar_url ? (
+                <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                  <img
+                    src={channelInfo.avatar_url}
+                    alt={channelInfo.name}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : channelInfo?.isDM ? (
+                <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-semibold text-foreground">
+                    {(channelInfo?.dmPartner?.name || "U").slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+              ) : (
+                <MessageCircle className="h-5 w-5 flex-shrink-0" />
+              )
             )}
-            <div>
+            {isMinimized && (
+              <MessageCircle className="h-4 w-4 flex-shrink-0" />
+            )}
+            <div className="min-w-0 flex-1">
               <button
                 onClick={() => setShowParticipants(!showParticipants)}
-                className="flex items-center space-x-2 hover:bg-accent/50 px-2 py-1 rounded transition-colors"
+                className={`flex items-center space-x-2 hover:bg-accent/50 rounded transition-colors min-w-0 ${isMinimized ? 'px-1 py-0.5' : 'px-2 py-1'}`}
                 data-participant-trigger
               >
-                <h2 className="font-semibold">
+                <h2 className={`font-semibold truncate ${isMinimized ? 'text-sm' : ''}`}>
                   {channelInfo?.is_ai
                     ? t('chat.smartbooklyAI')
                     : channelInfo?.isDM
                     ? (channelInfo?.dmPartner?.name || t('chat.directMessage'))
                     : (channelInfo?.name || t('chat.general'))}
                 </h2>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                {!isMinimized && <Users className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
               </button>
             </div>
           </div>
@@ -1499,10 +1505,10 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         />
       </div>
 
-      {/* Messages */}
-      <div className="overflow-hidden">
+      {/* Messages - ensure proper text wrapping */}
+      <div className="overflow-hidden min-h-0">
         <ScrollArea className="h-full">
-          <div className="p-4">
+          <div className={`${isMinimized ? 'p-2' : 'p-4'}`}>
             <MessageList
               messages={messages.map(m => ({
                 ...m,
@@ -1525,8 +1531,8 @@ export const ChatAreaLegacy = ({ onMessageInputFocus }: ChatAreaProps = {}) => {
         </ScrollArea>
       </div>
 
-      {/* Input */}
-      <div onFocus={onMessageInputFocus}>
+      {/* Input - compact when minimized */}
+      <div onFocus={onMessageInputFocus} className={isMinimized ? 'border-t' : ''}>
         <MessageInput 
           onSendMessage={send}
           onEditMessage={handleEditMessage}

@@ -115,8 +115,8 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       case 'minimized':
         return {
           ...baseStyle,
-          width: 'min(350px, calc(100vw - 16px))',
-          height: '56px'
+          width: 'min(400px, calc(100vw - 16px))',
+          height: 'min(300px, calc(100vh - 100px))'
         };
       case 'maximized':
         return {
@@ -214,9 +214,12 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       </div>
 
       {/* Chat Content */}
-      {windowState !== 'minimized' && (
-        <div className="grid grid-cols-[auto,1fr] overflow-hidden min-h-0">
-          {/* Sidebar */}
+      <div className={cn(
+        "grid overflow-hidden min-h-0",
+        windowState === 'minimized' ? "grid-cols-1" : "grid-cols-[auto,1fr]"
+      )}>
+        {/* Sidebar - hidden when minimized */}
+        {windowState !== 'minimized' && (
           <div className={cn(
             "border-r overflow-hidden bg-muted/20",
             isSidebarCollapsed ? "w-0" : "w-64",
@@ -233,15 +236,19 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
               />
             )}
           </div>
-          
-          {/* Main Chat Area */}
-          <div className="min-w-0 overflow-hidden">
-            <ChatArea 
-              onMessageInputFocus={handleMobileSidebarAutoClose}
-            />
-          </div>
+        )}
+        
+        {/* Main Chat Area - always visible, compact when minimized */}
+        <div className={cn(
+          "min-w-0 overflow-hidden",
+          windowState === 'minimized' && "flex flex-col"
+        )}>
+          <ChatArea 
+            onMessageInputFocus={handleMobileSidebarAutoClose}
+            isMinimized={windowState === 'minimized'}
+          />
         </div>
-      )}
+      </div>
       
     </Card>
   );
