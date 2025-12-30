@@ -86,3 +86,21 @@
     transition: none;
   }
 }
+
+/* Chat text wrapping utilities */
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Minimized chat responsive improvements */
+.chat-minimized-content {
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.chat-minimized-content .message-text {
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
