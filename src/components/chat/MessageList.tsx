@@ -249,8 +249,8 @@ export const MessageList = ({
                 )}
               </div>
 
-              {/* Body */}
-              <div className="flex-1 min-w-0">
+              {/* Body - ensure proper text wrapping */}
+              <div className="flex-1 min-w-0 overflow-hidden">
                 {/* Header row (name • time • edited) — Admin badge removed */}
                 {isFirstInGroup && (
                   <div className="flex items-center gap-2 mb-1">
@@ -286,8 +286,8 @@ export const MessageList = ({
                   </div>
                 )}
 
-                {/* Text */}
-                <div className={`text-sm leading-relaxed ${deleted ? 'text-muted-foreground italic' : 'text-foreground'}`}>
+                {/* Text - ensure proper word wrapping */}
+                <div className={`text-sm leading-relaxed break-words overflow-wrap-anywhere ${deleted ? 'text-muted-foreground italic' : 'text-foreground'}`}>
                   {deleted ? (
                     `[${t('chat.messageDeleted')}]`
                   ) : (
@@ -296,15 +296,18 @@ export const MessageList = ({
                         a: ({ node, ...props }) => (
                           <a
                             {...props}
-                            className="text-primary hover:underline font-medium"
+                            className="text-primary hover:underline font-medium break-all"
                             target="_blank"
                             rel="noopener noreferrer"
                           />
                         ),
-                        p: ({ node, ...props }) => <p {...props} className="mb-2 last:mb-0" />,
+                        p: ({ node, ...props }) => <p {...props} className="mb-2 last:mb-0 break-words" />,
                         strong: ({ node, ...props }) => <strong {...props} className="font-semibold" />,
                         code: ({ node, ...props }) => (
-                          <code {...props} className="bg-muted px-1 py-0.5 rounded text-sm" />
+                          <code {...props} className="bg-muted px-1 py-0.5 rounded text-sm break-all whitespace-pre-wrap" />
+                        ),
+                        pre: ({ node, ...props }) => (
+                          <pre {...props} className="bg-muted p-2 rounded text-sm overflow-x-auto whitespace-pre-wrap break-words" />
                         ),
                       }}
                     >

@@ -1827,7 +1827,6 @@ export type Database = {
       create_custom_chat:
         | {
             Args: {
-              p_avatar_url?: string
               p_creator_id: string
               p_creator_type: string
               p_name: string
@@ -1838,6 +1837,7 @@ export type Database = {
           }
         | {
             Args: {
+              p_avatar_url?: string
               p_creator_id: string
               p_creator_type: string
               p_name: string
@@ -2498,18 +2498,18 @@ export type Database = {
         | {
             Args: {
               p_board_owner_id: string
+              p_other_id: string
+              p_other_type: string
               p_sender_email: string
-              p_target_id: string
-              p_target_type: string
             }
             Returns: string
           }
         | {
             Args: {
               p_board_owner_id: string
-              p_other_id: string
-              p_other_type: string
               p_sender_email: string
+              p_target_id: string
+              p_target_type: string
             }
             Returns: string
           }
