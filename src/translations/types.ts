@@ -544,6 +544,15 @@ export interface TranslationType {
     addEvent: string;
     bookNow: string;
     weekOf: string;
+    days: {
+      monday: string;
+      tuesday: string;
+      wednesday: string;
+      thursday: string;
+      friday: string;
+      saturday: string;
+      sunday: string;
+    };
   };
   common: {
     cancel: string;

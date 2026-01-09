@@ -549,7 +549,16 @@ export const translations: TranslationType = {
     month: "Mes",
     addEvent: "Agregar Evento",
     bookNow: "Reservar Ahora",
-    weekOf: "Semana de"
+    weekOf: "Semana de",
+    days: {
+      monday: "Lun",
+      tuesday: "Mar",
+      wednesday: "Mié",
+      thursday: "Jue",
+      friday: "Vie",
+      saturday: "Sáb",
+      sunday: "Dom"
+    }
   },
   common: {
     cancel: "Cancelar",

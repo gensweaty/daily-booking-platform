@@ -549,7 +549,16 @@ export const translations: TranslationType = {
     month: "თვე",
     addEvent: "მოვლენის დამატება",
     bookNow: "დაჯავშნეთ ახლა",
-    weekOf: "კვირა"
+    weekOf: "კვირა",
+    days: {
+      monday: "ორშ",
+      tuesday: "სამ",
+      wednesday: "ოთხ",
+      thursday: "ხუთ",
+      friday: "პარ",
+      saturday: "შაბ",
+      sunday: "კვი"
+    }
   },
   common: {
     cancel: "გაუქმება",
