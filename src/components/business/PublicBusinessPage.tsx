@@ -379,9 +379,9 @@ export const PublicBusinessPage = () => {
 
       <div className="container mx-auto px-4 py-6">
         <div id="calendar-section" className="bg-background">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-3 sm:mb-4">
             <h2 
-              className={cn("text-2xl font-bold", isGeorgian ? "font-georgian" : "")}
+              className={cn("text-lg sm:text-2xl font-bold leading-tight", isGeorgian ? "font-georgian" : "")}
               style={applyGeorgianFont(isGeorgian)}
             >
               <LanguageText>{t("business.availableTimes")}</LanguageText>
