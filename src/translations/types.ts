@@ -371,6 +371,7 @@ export interface TranslationType {
   };
   dashboard: {
     welcome: string;
+    productivityHub: string;
     greeting: string;
     goodMorning: string;
     goodAfternoon: string;

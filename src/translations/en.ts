@@ -366,6 +366,7 @@ export const translations: TranslationType = {
   },
   dashboard: {
     welcome: "Welcome back",
+    productivityHub: "Your productivity hub",
     greeting: "Hello",
     goodMorning: "Good morning",
     goodAfternoon: "Good afternoon",

@@ -377,6 +377,7 @@ export const translations: TranslationType = {
   },
   dashboard: {
     welcome: "კეთილი იყოს თქვენი დაბრუნება",
+    productivityHub: "თქვენი პროდუქტიულობის ცენტრი",
     greeting: "გამარჯობა",
     goodMorning: "დილა მშვიდობისა",
     goodAfternoon: "საღამო მშვიდობისა",
