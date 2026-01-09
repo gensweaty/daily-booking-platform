@@ -96,7 +96,12 @@ export const PublicBusinessPage = () => {
         if (cachedBusiness) {
           try {
             const parsed = JSON.parse(cachedBusiness);
-            setBusiness(parsed);
+            // Parse working_hours properly from cache too
+            const parsedCached: BusinessProfile = {
+              ...parsed,
+              working_hours: parsed.working_hours as WorkingHoursConfig | null
+            } as BusinessProfile;
+            setBusiness(parsedCached);
             if (parsed.cover_photo_url) {
               setCoverPhotoUrl(parsed.cover_photo_url);
             }
@@ -143,7 +148,14 @@ export const PublicBusinessPage = () => {
         }
         
         console.log("[PublicBusinessPage] Fetched business profile:", data);
-        setBusiness(data as BusinessProfile);
+        
+        // Parse working_hours from JSON if it exists
+        const parsedBusiness: BusinessProfile = {
+          ...data,
+          working_hours: data.working_hours as WorkingHoursConfig | null
+        } as BusinessProfile;
+        
+        setBusiness(parsedBusiness);
         
         // Cache the business profile for fast subsequent loads
         try {
@@ -329,6 +341,24 @@ export const PublicBusinessPage = () => {
                   >
                     {business.contact_website.replace(/^https?:\/\//, '')}
                   </a>
+                </div>
+              )}
+              
+              {/* Working Hours Display */}
+              {business.working_hours?.enabled && (
+                <div className="flex items-start gap-3 md:col-span-2">
+                  <Clock className="h-5 w-5 text-blue-100 mt-0.5" />
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-white text-sm">
+                    {DAYS_OF_WEEK.map((day) => {
+                      const dayConfig = business.working_hours?.days?.[day as DayOfWeek];
+                      if (!dayConfig?.enabled) return null;
+                      return (
+                        <span key={day} className="whitespace-nowrap">
+                          {t(`calendar.days.${day}`)}: {dayConfig.start} - {dayConfig.end}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
