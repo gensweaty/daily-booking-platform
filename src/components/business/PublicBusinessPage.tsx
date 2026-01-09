@@ -415,7 +415,7 @@ export const PublicBusinessPage = () => {
                     </div>
                   </motion.button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-4" align="start">
+                <PopoverContent className="w-80 p-4 bg-card border-border shadow-xl" align="start">
                   <div className="space-y-3">
                     <p className="text-sm font-medium">{t("business.email") || "Email"}</p>
                     <p className="text-sm text-muted-foreground break-words">{business.contact_email}</p>
@@ -465,7 +465,7 @@ export const PublicBusinessPage = () => {
                     </div>
                   </motion.button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-4" align="start">
+                <PopoverContent className="w-80 p-4 bg-card border-border shadow-xl" align="start">
                   <div className="space-y-3">
                     <p className="text-sm font-medium">{t("business.phone") || "Phone"}</p>
                     <p className="text-sm text-muted-foreground break-words">{business.contact_phone}</p>
@@ -515,7 +515,7 @@ export const PublicBusinessPage = () => {
                     </div>
                   </motion.button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-4" align="start">
+                <PopoverContent className="w-80 p-4 bg-card border-border shadow-xl" align="start">
                   <div className="space-y-3">
                     <p className="text-sm font-medium">{t("business.fullAddress") || "Full Address"}</p>
                     <p className="text-sm text-muted-foreground break-words">{business.contact_address}</p>
