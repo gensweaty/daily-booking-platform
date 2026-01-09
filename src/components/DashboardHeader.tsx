@@ -348,40 +348,19 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
     return planType === 'monthly' ? t('subscription.monthlyPlan') : t('subscription.annualPlan');
   };
 
-  // Get display name - use profile username first, then prop username, then email
-  const displayName = userProfileName || username || user?.email?.split('@')[0] || '';
-
   return (
     <header className="mb-4">
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-2">
-            <img 
-              src={theme === 'dark' 
-                ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
-                : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
-              }
-              alt="SmartBookly Logo" 
-              className="h-8 md:h-10 w-auto"
-            />
-          </Link>
-          <div className="hidden md:block border-l border-border pl-4">
-            <h1 className="text-lg font-bold text-foreground">
-              {isGeorgian ? (
-                <GeorgianAuthText fontWeight="bold">{t('dashboard.welcome')}, {displayName}</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t('dashboard.welcome')}, {displayName}</LanguageText>
-              )}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {isGeorgian ? (
-                <GeorgianAuthText>{t('dashboard.productivityHub')}</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t('dashboard.productivityHub')}</LanguageText>
-              )}
-            </p>
-          </div>
-        </div>
+        <Link to="/" className="flex items-center gap-2">
+          <img 
+            src={theme === 'dark' 
+              ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
+              : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+            }
+            alt="SmartBookly Logo" 
+            className="h-8 md:h-10 w-auto"
+          />
+        </Link>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
           <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
@@ -653,16 +632,16 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           <div className="space-y-1">
             <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
               {isGeorgian ? (
-                <GeorgianAuthText fontWeight="bold">მოგესალმებით</GeorgianAuthText>
+                <GeorgianAuthText fontWeight="bold">მოგესალმებით, {userProfileName || username}</GeorgianAuthText>
               ) : (
-                <LanguageText>{t('dashboard.welcome')}</LanguageText>
+                <LanguageText>{t('dashboard.welcome')}, {userProfileName || username}</LanguageText>
               )}
             </h1>
             <p className="text-xs sm:text-sm md:text-base font-medium text-muted-foreground">
               {isGeorgian ? (
                 <GeorgianAuthText fontWeight="medium">თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
               ) : (
-                <LanguageText>{t('dashboard.subtitle')}</LanguageText>
+                <LanguageText>{t('dashboard.productivityHub')}</LanguageText>
               )}
             </p>
           </div>
