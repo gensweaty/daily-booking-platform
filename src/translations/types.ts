@@ -358,6 +358,11 @@ export interface TranslationType {
     availableTimes: string;
     clickToRequest: string;
     contactInformation: string;
+    workingHours: string;
+    workingHoursDescription: string;
+    workingHoursDisplay: string;
+    closed: string;
+    allTimesAvailable: string;
   };
   dashboard: {
     welcome: string;

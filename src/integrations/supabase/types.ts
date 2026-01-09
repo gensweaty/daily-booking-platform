@@ -137,6 +137,7 @@ export type Database = {
           slug: string
           updated_at: string | null
           user_id: string
+          working_hours: Json | null
         }
         Insert: {
           business_name: string
@@ -151,6 +152,7 @@ export type Database = {
           slug: string
           updated_at?: string | null
           user_id: string
+          working_hours?: Json | null
         }
         Update: {
           business_name?: string
@@ -165,6 +167,7 @@ export type Database = {
           slug?: string
           updated_at?: string | null
           user_id?: string
+          working_hours?: Json | null
         }
         Relationships: []
       }
