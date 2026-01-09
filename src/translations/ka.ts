@@ -614,7 +614,8 @@ export const translations: TranslationType = {
     created: "შექმნილია",
     lastUpdated: "ბოლოს განახლდა",
     by: "მიერ",
-    
+    scroll: "გადახვევა",
+    poweredBy: "შექმნილია",
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",

@@ -616,7 +616,8 @@ export const translations: TranslationType = {
     created: "Created:",
     lastUpdated: "Last updated:",
     by: "by",
-    
+    scroll: "Scroll",
+    poweredBy: "Powered by",
   },
   auth: {
     welcome: "Welcome to SmartBookly",

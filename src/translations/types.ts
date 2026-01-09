@@ -608,6 +608,8 @@ export interface TranslationType {
     created: string;
     lastUpdated: string;
     by: string;
+    scroll: string;
+    poweredBy: string;
   };
   auth: {
     welcome: string;
