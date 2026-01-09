@@ -69,7 +69,7 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
       <div className="hidden md:flex items-center gap-3">
         <Button 
           onClick={handleDashboardClick}
-          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm flex items-center gap-2 glass-morphism animate-pulse-glow"
+          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm flex items-center gap-2 glass-morphism animate-pulse-glow text-white dark:text-white"
         >
           <MemoizedAvatar className="h-6 w-6">
             <AvatarImage src={user?.user_metadata?.avatar_url} />
