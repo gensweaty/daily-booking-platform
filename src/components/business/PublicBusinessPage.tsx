@@ -389,20 +389,20 @@ export const PublicBusinessPage = () => {
       
       {/* Contact Information Bar - Modern glassmorphism design */}
       <div id="contact-section" className="bg-card/50 dark:bg-card/30 backdrop-blur-xl border-y border-border/50">
-        <div className="container mx-auto px-4 md:px-6 py-6">
+        <div className="container mx-auto px-4 md:px-6 py-4">
           <motion.div 
             variants={staggerContainer}
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, margin: "-50px" }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3"
           >
             {business.contact_email && (
               <Popover>
                 <PopoverTrigger asChild>
                   <motion.button 
                     variants={contactItemVariant}
-                    className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer text-left w-full"
+                    className="group flex items-center gap-3 p-3 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer text-left w-full"
                   >
                     <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                       <Mail className="w-5 h-5 text-primary" />
@@ -452,7 +452,7 @@ export const PublicBusinessPage = () => {
                 <PopoverTrigger asChild>
                   <motion.button 
                     variants={contactItemVariant}
-                    className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer text-left w-full"
+                    className="group flex items-center gap-3 p-3 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer text-left w-full"
                   >
                     <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
                       <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -502,7 +502,7 @@ export const PublicBusinessPage = () => {
                 <PopoverTrigger asChild>
                   <motion.button 
                     variants={contactItemVariant}
-                    className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer text-left w-full"
+                    className="group flex items-center gap-3 p-3 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer text-left w-full"
                   >
                     <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
                       <MapPin className="w-5 h-5 text-orange-600 dark:text-orange-400" />
@@ -542,7 +542,7 @@ export const PublicBusinessPage = () => {
                 href={business.contact_website} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
+                className="group flex items-center gap-3 p-3 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
               >
                 <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
                   <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -564,7 +564,7 @@ export const PublicBusinessPage = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="mt-6 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50"
+              className="mt-4 p-3 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50"
             >
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
@@ -604,7 +604,7 @@ export const PublicBusinessPage = () => {
       )}
 
       {/* Calendar Section with enhanced styling */}
-      <div className="container mx-auto px-4 md:px-6 py-8 md:py-12">
+      <div className="container mx-auto px-4 md:px-6 py-6 md:py-8">
         <motion.div 
           id="calendar-section" 
           initial={{ opacity: 0, y: 30 }}
