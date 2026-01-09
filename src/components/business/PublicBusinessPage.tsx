@@ -5,7 +5,7 @@ import { forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LoaderCircle, Globe, Mail, Phone, MapPin, Clock } from "lucide-react";
+import { LoaderCircle, Globe, Mail, Phone, MapPin, Clock, Calendar, ChevronDown } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { BusinessSEO } from './BusinessSEO';
 import { WorkingHoursConfig, DAYS_OF_WEEK, DayOfWeek } from "@/types/workingHours";
+import { motion } from "framer-motion";
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -245,135 +246,260 @@ export const PublicBusinessPage = () => {
     } : undefined;
   };
 
+  // Animation variants
+  const fadeInUp = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+  };
+
+  const staggerContainer = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const contactItemVariant = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.4 } }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {business && <BusinessSEO business={business} />}
       
-      {/* Header controls with semi-transparent background for visibility on cover */}
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2">
+      {/* Header controls with glassmorphism effect */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-white/10 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 rounded-full px-4 py-2.5 shadow-lg"
+      >
         <ThemeToggle />
+        <div className="w-px h-5 bg-white/30" />
         <LanguageSwitcher />
+      </motion.div>
+      
+      {/* Hero section with enhanced design */}
+      <div className="relative min-h-[60vh] md:min-h-[65vh] overflow-hidden">
+        {/* Background image with better overlay */}
+        <div 
+          className="absolute inset-0 bg-gradient-to-br from-primary/90 via-primary/70 to-accent/80"
+          style={{
+            backgroundImage: imageLoaded ? `url(${displayCoverUrl})` : `url(${defaultCoverUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+          }}
+        />
+        
+        {/* Enhanced gradient overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-transparent" />
+        
+        {/* Subtle pattern overlay for texture */}
+        <div className="absolute inset-0 opacity-5" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+          backgroundSize: '32px 32px'
+        }} />
+        
+        {/* Main content container */}
+        <div className="relative h-full min-h-[60vh] md:min-h-[65vh] flex flex-col justify-end">
+          <div className="container mx-auto px-4 md:px-6 pb-8">
+            <motion.div 
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              className="max-w-3xl"
+            >
+              {/* Avatar and business name */}
+              <motion.div variants={fadeInUp} className="flex items-center gap-4 md:gap-6 mb-4">
+                {business.avatar_url && (
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-full bg-primary/50 blur-xl animate-pulse" />
+                    <img
+                      src={business.avatar_url}
+                      alt={`${business.business_name} logo`}
+                      className="relative w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/30 shadow-2xl ring-4 ring-white/10"
+                    />
+                  </div>
+                )}
+                <div>
+                  <h1 
+                    className={cn(
+                      "text-3xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight",
+                      isGeorgian ? "font-georgian" : ""
+                    )}
+                    style={applyGeorgianFont(isGeorgian)}
+                  >
+                    {business.business_name}
+                  </h1>
+                </div>
+              </motion.div>
+              
+              {/* Description */}
+              {business.description && (
+                <motion.p 
+                  variants={fadeInUp}
+                  className={cn(
+                    "text-lg md:text-xl text-white/80 max-w-2xl mb-6 leading-relaxed",
+                    isGeorgian ? "font-georgian" : ""
+                  )}
+                  style={applyGeorgianFont(isGeorgian)}
+                >
+                  {business.description}
+                </motion.p>
+              )}
+              
+              {/* CTA Button */}
+              <motion.div variants={fadeInUp} className="flex flex-wrap gap-3 mb-8">
+                <Button 
+                  size="lg" 
+                  className={cn(
+                    "group relative overflow-hidden bg-white text-primary hover:bg-white/95 shadow-xl shadow-black/20 font-semibold px-8 py-6 text-lg rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl",
+                    isGeorgian ? "georgian-text-fix font-georgian" : ""
+                  )}
+                  style={applyGeorgianFont(isGeorgian)}
+                  onClick={() => {
+                    document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <Calendar className="w-5 h-5 mr-2 transition-transform group-hover:scale-110" />
+                  <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
+                </Button>
+              </motion.div>
+            </motion.div>
+          </div>
+          
+          {/* Scroll indicator */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1, duration: 0.5 }}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center gap-2 text-white/60"
+          >
+            <span className="text-xs uppercase tracking-widest">{t("common.scroll") || "Scroll"}</span>
+            <ChevronDown className="w-5 h-5 animate-bounce" />
+          </motion.div>
+        </div>
       </div>
       
-      {/* Hero section with cover photo - optimized loading */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white dark:from-blue-800 dark:to-indigo-900"
-        style={{
-          backgroundImage: imageLoaded ? `url(${displayCoverUrl})` : `url(${defaultCoverUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          minHeight: '44vh',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between'
-        }}
-      >
-        <div className="absolute inset-0 bg-black bg-opacity-50"></div>
-        
-        <div className="container mx-auto px-4 relative h-full flex flex-col justify-end">
-          {/* Business info moved lower in the cover section */}
-          <div className="py-16 mb-16">
-            {/* Business name with optional avatar */}
-            <div className="flex items-center gap-4 mb-6">
-              {business.avatar_url && (
-                <img
-                  src={business.avatar_url}
-                  alt={`${business.business_name} logo`}
-                  className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-white shadow-lg"
-                />
-              )}
-              <h1 
-                className={cn("text-4xl md:text-5xl font-bold", isGeorgian ? "font-georgian" : "")}
-                style={applyGeorgianFont(isGeorgian)}
+      {/* Contact Information Bar - Modern glassmorphism design */}
+      <div className="bg-card/50 dark:bg-card/30 backdrop-blur-xl border-y border-border/50">
+        <div className="container mx-auto px-4 md:px-6 py-6">
+          <motion.div 
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            {business.contact_email && (
+              <motion.a 
+                variants={contactItemVariant}
+                href={`mailto:${business.contact_email}`} 
+                className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
               >
-                {business.business_name}
-              </h1>
-            </div>
-            {business.description && (
-              <p 
-                className={cn("text-lg opacity-90 max-w-2xl mb-8", isGeorgian ? "font-georgian" : "")}
-                style={applyGeorgianFont(isGeorgian)}
-              >
-                {business.description}
-              </p>
+                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Mail className="w-5 h-5 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.email") || "Email"}</p>
+                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                    {business.contact_email}
+                  </p>
+                </div>
+              </motion.a>
             )}
             
-            <div className="flex gap-4 mb-6">
-              <Button 
-                size="lg" 
-                className={cn("bg-white text-blue-700 hover:bg-blue-50 dark:bg-white/90 dark:hover:bg-white", isGeorgian ? "georgian-text-fix font-georgian" : "")}
-                style={applyGeorgianFont(isGeorgian)}
-                onClick={() => {
-                  document.getElementById('calendar-section')?.scrollIntoView({ behavior: 'smooth' });
-                }}
+            {business.contact_phone && (
+              <motion.a 
+                variants={contactItemVariant}
+                href={`tel:${business.contact_phone}`}
+                className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
               >
-                <LanguageText withFont={true}>{t("calendar.bookNow")}</LanguageText>
-              </Button>
-            </div>
-          </div>
-        </div>
-          
-        {/* Contact information moved to bottom of the hero section as requested */}
-        <div className="bg-white/15 backdrop-blur-sm mt-auto dark:bg-black/30">
-          <div className="container mx-auto px-4">
-            <div className="grid md:grid-cols-2 gap-6 py-4">
-              {business.contact_email && (
-                <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-blue-100" />
-                  <a href={`mailto:${business.contact_email}`} className="hover:underline text-white">
-                    {business.contact_email}
-                  </a>
+                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                  <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
-              )}
-              
-              {business.contact_phone && (
-                <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-blue-100" />
-                  <a href={`tel:${business.contact_phone}`} className="hover:underline text-white">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.phone") || "Phone"}</p>
+                  <p className="text-sm font-medium text-foreground truncate group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
                     {business.contact_phone}
-                  </a>
+                  </p>
                 </div>
-              )}
-              
-              {business.contact_address && (
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-5 w-5 text-blue-100" />
-                  <span className="text-white">{business.contact_address}</span>
+              </motion.a>
+            )}
+            
+            {business.contact_address && (
+              <motion.div 
+                variants={contactItemVariant}
+                className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50"
+              >
+                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center">
+                  <MapPin className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                 </div>
-              )}
-              
-              {business.contact_website && (
-                <div className="flex items-center gap-3">
-                  <Globe className="h-5 w-5 text-blue-100" />
-                  <a 
-                    href={business.contact_website} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="hover:underline text-white"
-                  >
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.address") || "Address"}</p>
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {business.contact_address}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+            
+            {business.contact_website && (
+              <motion.a 
+                variants={contactItemVariant}
+                href={business.contact_website} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
+              >
+                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                  <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.website") || "Website"}</p>
+                  <p className="text-sm font-medium text-foreground truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                     {business.contact_website.replace(/^https?:\/\//, '')}
-                  </a>
+                  </p>
                 </div>
-              )}
-              
-              {/* Working Hours Display */}
-              {business.working_hours?.enabled && (
-                <div className="flex items-start gap-3 md:col-span-2">
-                  <Clock className="h-5 w-5 text-blue-100 mt-0.5" />
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-white text-sm">
-                    {DAYS_OF_WEEK.map((day) => {
-                      const dayConfig = business.working_hours?.days?.[day as DayOfWeek];
-                      if (!dayConfig?.enabled) return null;
-                      return (
-                        <span key={day} className="whitespace-nowrap">
-                          {t(`calendar.days.${day}`)}: {dayConfig.start} - {dayConfig.end}
-                        </span>
-                      );
-                    })}
-                  </div>
+              </motion.a>
+            )}
+          </motion.div>
+          
+          {/* Working Hours - Separate section with better layout */}
+          {business.working_hours?.enabled && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mt-6 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
-              )}
-            </div>
-          </div>
+                <p className="text-sm font-medium text-foreground">{t("business.workingHours") || "Working Hours"}</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {DAYS_OF_WEEK.map((day) => {
+                  const dayConfig = business.working_hours?.days?.[day as DayOfWeek];
+                  if (!dayConfig?.enabled) return null;
+                  return (
+                    <div 
+                      key={day} 
+                      className="px-3 py-1.5 rounded-lg bg-muted/50 text-sm"
+                    >
+                      <span className="font-medium text-foreground">{t(`calendar.days.${day}`)}</span>
+                      <span className="text-muted-foreground ml-2">{dayConfig.start} - {dayConfig.end}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
 
@@ -388,22 +514,38 @@ export const PublicBusinessPage = () => {
         />
       )}
 
-      <div className="container mx-auto px-4 py-6">
-        <div id="calendar-section" className="bg-background">
+      {/* Calendar Section with enhanced styling */}
+      <div className="container mx-auto px-4 md:px-6 py-8 md:py-12">
+        <motion.div 
+          id="calendar-section" 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.6 }}
+          className="bg-background"
+        >
           <div className={cn(
-            "flex justify-between items-center mb-3 sm:mb-4",
-            isGeorgian && "flex-col sm:flex-row gap-1 sm:gap-0"
+            "flex justify-between items-center mb-4 md:mb-6",
+            isGeorgian && "flex-col sm:flex-row gap-2 sm:gap-0"
           )}>
-            <h2 
-              className={cn("text-lg sm:text-2xl font-bold leading-tight", isGeorgian ? "font-georgian" : "")}
-              style={applyGeorgianFont(isGeorgian)}
-            >
-              <LanguageText>{t("business.availableTimes")}</LanguageText>
-            </h2>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+                <Calendar className="w-5 h-5 text-primary" />
+              </div>
+              <h2 
+                className={cn(
+                  "text-xl sm:text-2xl md:text-3xl font-bold text-foreground",
+                  isGeorgian ? "font-georgian" : ""
+                )}
+                style={applyGeorgianFont(isGeorgian)}
+              >
+                <LanguageText>{t("business.availableTimes")}</LanguageText>
+              </h2>
+            </div>
             <div 
               className={cn(
-                "text-sm text-muted-foreground",
-                isGeorgian ? "font-georgian ml-0 sm:ml-4" : ""
+                "text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-full",
+                isGeorgian ? "font-georgian" : ""
               )}
               style={applyGeorgianFont(isGeorgian)}
             >
@@ -411,9 +553,37 @@ export const PublicBusinessPage = () => {
             </div>
           </div>
           
-          {business.id && (
-            <ExternalCalendar businessId={business.id} workingHours={business.working_hours} />
-          )}
+          <div className="rounded-2xl border border-border/50 overflow-hidden shadow-sm bg-card/30">
+            {business.id && (
+              <ExternalCalendar businessId={business.id} workingHours={business.working_hours} />
+            )}
+          </div>
+        </motion.div>
+      </div>
+      
+      {/* Footer with business branding */}
+      <div className="border-t border-border/50 bg-muted/30">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              {business.avatar_url && (
+                <img
+                  src={business.avatar_url}
+                  alt=""
+                  className="w-6 h-6 rounded-full object-cover"
+                />
+              )}
+              <span className={cn("font-medium", isGeorgian ? "font-georgian" : "")} style={applyGeorgianFont(isGeorgian)}>
+                {business.business_name}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>{t("business.poweredBy") || "Powered by"}</span>
+              <a href="https://smartbookly.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">
+                Smartbookly
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
