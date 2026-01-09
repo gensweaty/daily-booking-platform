@@ -45,6 +45,7 @@ const formSchema = z.object({
   }),
   description: z.string().optional(),
   coverPhoto: z.string().optional(),
+  avatarPhoto: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email().optional(),
   website: z.string()
@@ -59,9 +60,10 @@ export const BusinessProfileForm = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
   const [workingHours, setWorkingHours] = useState<WorkingHoursConfig>(DEFAULT_WORKING_HOURS);
-  const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, uploadCoverPhoto } = useBusinessProfile();
+  const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, uploadCoverPhoto, uploadAvatarPhoto } = useBusinessProfile();
   const isGeorgian = language === 'ka';
 
   useEffect(() => {
@@ -75,6 +77,7 @@ export const BusinessProfileForm = () => {
       slug: "",
       description: "",
       coverPhoto: "",
+      avatarPhoto: "",
       phone: "",
       email: "",
       website: "",
@@ -90,6 +93,7 @@ export const BusinessProfileForm = () => {
         slug: businessProfile.slug || "",
         description: businessProfile.description || "",
         coverPhoto: businessProfile.cover_photo_url || "",
+        avatarPhoto: businessProfile.avatar_url || "",
         phone: businessProfile.contact_phone || "",
         email: businessProfile.contact_email || "",
         website: businessProfile.contact_website || "",
@@ -128,6 +132,27 @@ export const BusinessProfileForm = () => {
     }
   };
 
+  const handleAvatarPhotoUpload = async (file: File) => {
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const { url } = await uploadAvatarPhoto(file);
+      if (url) {
+        form.setValue("avatarPhoto", url);
+      }
+    } catch (error) {
+      console.error("Error uploading avatar photo:", error);
+      toast({
+        title: t("common.error"),
+        description: t("business.uploadError"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       // Format the website value to ensure it has a protocol if needed
@@ -141,6 +166,7 @@ export const BusinessProfileForm = () => {
         slug: values.slug,
         description: values.description,
         cover_photo_url: values.coverPhoto,
+        avatar_url: values.avatarPhoto,
         contact_phone: values.phone,
         contact_email: values.email,
         contact_website: websiteValue,
@@ -251,6 +277,39 @@ export const BusinessProfileForm = () => {
                   acceptedFileTypes="image/*"
                   isUploading={isUploading}
                   disabled={isUploading}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Avatar Photo (Logo) */}
+        <FormField
+          control={form.control}
+          name="avatarPhoto"
+          render={({ field: { value, onChange, ...field } }) => (
+            <FormItem>
+              <FormLabel>
+                <LanguageText>{t("business.avatarPhoto")}</LanguageText>
+              </FormLabel>
+              <FormDescription>
+                <LanguageText>{t("business.avatarPhotoDescription")}</LanguageText>
+              </FormDescription>
+              <FormControl>
+                <FileUploadField
+                  imageUrl={value}
+                  onUpload={(url) => onChange(url)}
+                  onFileSelect={handleAvatarPhotoUpload}
+                  bucket="business_covers"
+                  uploadText={t("business.uploadAvatarPhoto")}
+                  chooseFileText={t("business.chooseFile")}
+                  noFileText={t("business.noFileChosen")}
+                  maxSizeMB={2}
+                  acceptedFileTypes="image/*"
+                  isUploading={isUploadingAvatar}
+                  disabled={isUploadingAvatar}
                   {...field}
                 />
               </FormControl>

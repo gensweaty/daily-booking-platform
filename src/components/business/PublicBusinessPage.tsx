@@ -249,7 +249,8 @@ export const PublicBusinessPage = () => {
     <div className="min-h-screen bg-background">
       {business && <BusinessSEO business={business} />}
       
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+      {/* Header controls with semi-transparent background for visibility on cover */}
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-3 py-2">
         <ThemeToggle />
         <LanguageSwitcher />
       </div>
@@ -271,12 +272,22 @@ export const PublicBusinessPage = () => {
         <div className="container mx-auto px-4 relative h-full flex flex-col justify-end">
           {/* Business info moved lower in the cover section */}
           <div className="py-16 mb-16">
-            <h1 
-              className={cn("text-4xl md:text-5xl font-bold mb-6", isGeorgian ? "font-georgian" : "")}
-              style={applyGeorgianFont(isGeorgian)}
-            >
-              {business.business_name}
-            </h1>
+            {/* Business name with optional avatar */}
+            <div className="flex items-center gap-4 mb-6">
+              {business.avatar_url && (
+                <img
+                  src={business.avatar_url}
+                  alt={`${business.business_name} logo`}
+                  className="w-16 h-16 md:w-20 md:h-20 rounded-full object-cover border-2 border-white shadow-lg"
+                />
+              )}
+              <h1 
+                className={cn("text-4xl md:text-5xl font-bold", isGeorgian ? "font-georgian" : "")}
+                style={applyGeorgianFont(isGeorgian)}
+              >
+                {business.business_name}
+              </h1>
+            </div>
             {business.description && (
               <p 
                 className={cn("text-lg opacity-90 max-w-2xl mb-8", isGeorgian ? "font-georgian" : "")}
@@ -379,7 +390,10 @@ export const PublicBusinessPage = () => {
 
       <div className="container mx-auto px-4 py-6">
         <div id="calendar-section" className="bg-background">
-          <div className="flex justify-between items-center mb-3 sm:mb-4">
+          <div className={cn(
+            "flex justify-between items-center mb-3 sm:mb-4",
+            isGeorgian && "flex-col sm:flex-row gap-1 sm:gap-0"
+          )}>
             <h2 
               className={cn("text-lg sm:text-2xl font-bold leading-tight", isGeorgian ? "font-georgian" : "")}
               style={applyGeorgianFont(isGeorgian)}
@@ -387,7 +401,10 @@ export const PublicBusinessPage = () => {
               <LanguageText>{t("business.availableTimes")}</LanguageText>
             </h2>
             <div 
-              className={cn("text-sm text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+              className={cn(
+                "text-sm text-muted-foreground",
+                isGeorgian ? "font-georgian ml-0 sm:ml-4" : ""
+              )}
               style={applyGeorgianFont(isGeorgian)}
             >
               <LanguageText>{t("business.clickToRequest")}</LanguageText>

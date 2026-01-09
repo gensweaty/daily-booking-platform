@@ -125,6 +125,7 @@ export type Database = {
       }
       business_profiles: {
         Row: {
+          avatar_url: string | null
           business_name: string
           contact_address: string | null
           contact_email: string | null
@@ -140,6 +141,7 @@ export type Database = {
           working_hours: Json | null
         }
         Insert: {
+          avatar_url?: string | null
           business_name: string
           contact_address?: string | null
           contact_email?: string | null
@@ -155,6 +157,7 @@ export type Database = {
           working_hours?: Json | null
         }
         Update: {
+          avatar_url?: string | null
           business_name?: string
           contact_address?: string | null
           contact_email?: string | null
