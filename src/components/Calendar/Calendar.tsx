@@ -33,6 +33,7 @@ import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { supabase } from "@/lib/supabase";
 import { WorkingHoursConfig, isWithinWorkingHours, isWorkingDay } from "@/types/workingHours";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -86,6 +87,7 @@ const CalendarContent = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   // Add presence tracking for internal calendar
   const [boardKey, setBoardKey] = useState<string | null>(null);
