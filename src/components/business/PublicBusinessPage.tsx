@@ -372,20 +372,23 @@ export const PublicBusinessPage = () => {
           </div>
           
           {/* Scroll indicator */}
-          <motion.div 
+          <motion.button 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1, duration: 0.5 }}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center gap-2 text-white/60"
+            onClick={() => {
+              document.getElementById('contact-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 hidden md:flex flex-col items-center gap-2 text-white/60 hover:text-white transition-colors cursor-pointer"
           >
             <span className="text-xs uppercase tracking-widest">{t("common.scroll") || "Scroll"}</span>
             <ChevronDown className="w-5 h-5 animate-bounce" />
-          </motion.div>
+          </motion.button>
         </div>
       </div>
       
       {/* Contact Information Bar - Modern glassmorphism design */}
-      <div className="bg-card/50 dark:bg-card/30 backdrop-blur-xl border-y border-border/50">
+      <div id="contact-section" className="bg-card/50 dark:bg-card/30 backdrop-blur-xl border-y border-border/50">
         <div className="container mx-auto px-4 md:px-6 py-6">
           <motion.div 
             variants={staggerContainer}
@@ -395,39 +398,103 @@ export const PublicBusinessPage = () => {
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
           >
             {business.contact_email && (
-              <motion.a 
-                variants={contactItemVariant}
-                href={`mailto:${business.contact_email}`} 
-                className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
-              >
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                  <Mail className="w-5 h-5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.email") || "Email"}</p>
-                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                    {business.contact_email}
-                  </p>
-                </div>
-              </motion.a>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <motion.button 
+                    variants={contactItemVariant}
+                    className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer text-left w-full"
+                  >
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 dark:bg-primary/20 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <Mail className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.email") || "Email"}</p>
+                      <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                        {business.contact_email}
+                      </p>
+                    </div>
+                  </motion.button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="start">
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">{t("business.email") || "Email"}</p>
+                    <p className="text-sm text-muted-foreground break-words">{business.contact_email}</p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          navigator.clipboard.writeText(business.contact_email || '');
+                          toast.success(t("common.copied") || "Copied to clipboard");
+                        }}
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        {t("common.copy") || "Copy"}
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => window.location.href = `mailto:${business.contact_email}`}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        {t("common.send") || "Send"}
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
             
             {business.contact_phone && (
-              <motion.a 
-                variants={contactItemVariant}
-                href={`tel:${business.contact_phone}`}
-                className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02]"
-              >
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
-                  <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.phone") || "Phone"}</p>
-                  <p className="text-sm font-medium text-foreground truncate group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                    {business.contact_phone}
-                  </p>
-                </div>
-              </motion.a>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <motion.button 
+                    variants={contactItemVariant}
+                    className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer text-left w-full"
+                  >
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                      <Phone className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.phone") || "Phone"}</p>
+                      <p className="text-sm font-medium text-foreground truncate group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                        {business.contact_phone}
+                      </p>
+                    </div>
+                  </motion.button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="start">
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">{t("business.phone") || "Phone"}</p>
+                    <p className="text-sm text-muted-foreground break-words">{business.contact_phone}</p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => {
+                          navigator.clipboard.writeText(business.contact_phone || '');
+                          toast.success(t("common.copied") || "Copied to clipboard");
+                        }}
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        {t("common.copy") || "Copy"}
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => window.location.href = `tel:${business.contact_phone}`}
+                      >
+                        <Phone className="w-4 h-4 mr-2" />
+                        {t("common.call") || "Call"}
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
             
             {business.contact_address && (
