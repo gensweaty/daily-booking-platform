@@ -443,6 +443,11 @@ const CalendarContent = ({
 };
 
 export const Calendar = (props: CalendarProps) => {
+  // Public business page (external calendar) should not depend on auth/sub-user permissions.
+  if (props.isExternalCalendar) {
+    return <CalendarContent {...props} />;
+  }
+
   return (
     <PermissionGate requiredPermission="calendar">
       <CalendarContent {...props} />
