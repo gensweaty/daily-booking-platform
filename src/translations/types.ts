@@ -613,6 +613,9 @@ export interface TranslationType {
     poweredBy: string;
     copied: string;
     copyAddress: string;
+    copy: string;
+    send: string;
+    call: string;
   };
   auth: {
     welcome: string;

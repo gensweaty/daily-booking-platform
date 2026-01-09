@@ -621,6 +621,9 @@ export const translations: TranslationType = {
     poweredBy: "Powered by",
     copied: "Copied to clipboard",
     copyAddress: "Copy Address",
+    copy: "Copy",
+    send: "Send",
+    call: "Call",
   },
   auth: {
     welcome: "Welcome to SmartBookly",

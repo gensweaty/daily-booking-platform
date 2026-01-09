@@ -619,6 +619,9 @@ export const translations: TranslationType = {
     poweredBy: "შექმნილია",
     copied: "კოპირებულია",
     copyAddress: "მისამართის კოპირება",
+    copy: "კოპირება",
+    send: "გაგზავნა",
+    call: "დარეკვა",
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",
