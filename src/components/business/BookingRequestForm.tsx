@@ -16,6 +16,7 @@ import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { Asterisk } from 'lucide-react';
 import { getGeorgianFontStyle } from '@/lib/font-utils';
 import { getCurrencySymbol } from '@/lib/currency';
+import { WorkingHoursConfig, isWorkingDay, isWithinWorkingHours, getWorkingHoursForDay } from '@/types/workingHours';
 
 export interface BookingRequestFormProps {
   businessId: string;
@@ -26,6 +27,7 @@ export interface BookingRequestFormProps {
   isExternalBooking?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  workingHours?: WorkingHoursConfig | null;
 }
 
 export const BookingRequestForm = ({
@@ -36,7 +38,8 @@ export const BookingRequestForm = ({
   onSuccess,
   isExternalBooking = false,
   open,
-  onOpenChange
+  onOpenChange,
+  workingHours
 }: BookingRequestFormProps) => {
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
@@ -212,6 +215,38 @@ export const BookingRequestForm = ({
         });
         setIsSubmitting(false);
         return;
+      }
+
+      // Working hours validation for external bookings
+      if (isExternalBooking && workingHours && workingHours.enabled) {
+        // Check if it's a working day
+        if (!isWorkingDay(startDateTime, workingHours)) {
+          toast({
+            translateKeys: {
+              titleKey: "events.timeSlotNotAvailable",
+              descriptionKey: "business.outsideWorkingHours"
+            }
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Check if the time is within working hours
+        const startHour = startDateTime.getHours();
+        if (!isWithinWorkingHours(startDateTime, startHour, workingHours)) {
+          const dayWorkingHours = getWorkingHoursForDay(startDateTime, workingHours);
+          const workingHoursMessage = dayWorkingHours 
+            ? `${dayWorkingHours.start} - ${dayWorkingHours.end}`
+            : '';
+          
+          toast({
+            title: t("events.timeSlotNotAvailable"),
+            description: `${t("business.outsideWorkingHours")} ${workingHoursMessage}`,
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
       }
 
       // Process payment amount - Parse numeric value only without currency symbol

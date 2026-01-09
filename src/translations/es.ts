@@ -368,7 +368,8 @@ export const translations: TranslationType = {
     workingHoursDescription: "Establece los horarios de operación de tu negocio. Las solicitudes de reserva externas solo se permitirán durante estos horarios.",
     workingHoursDisplay: "Horarios de Trabajo",
     closed: "Cerrado",
-    allTimesAvailable: "Todos los horarios disponibles"
+    allTimesAvailable: "Todos los horarios disponibles",
+    outsideWorkingHours: "Por favor seleccione un horario dentro del horario laboral."
   },
   dashboard: {
     welcome: "Bienvenido de nuevo",

@@ -357,7 +357,8 @@ export const translations: TranslationType = {
     workingHoursDescription: "Set your business operating hours. External booking requests will only be allowed during these times.",
     workingHoursDisplay: "Working Hours",
     closed: "Closed",
-    allTimesAvailable: "All times available"
+    allTimesAvailable: "All times available",
+    outsideWorkingHours: "Please select a time within working hours."
   },
   dashboard: {
     welcome: "Welcome back",

@@ -5,6 +5,7 @@ import { CalendarGrid } from "./CalendarGrid";
 import { formatDate, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "next-themes";
+import { WorkingHoursConfig } from "@/types/workingHours";
 
 interface CalendarViewProps {
   days: Date[];
@@ -14,6 +15,7 @@ interface CalendarViewProps {
   onDayClick?: (date: Date, hour?: number) => void;
   onEventClick?: (event: CalendarEventType) => void;
   isExternalCalendar?: boolean;
+  workingHours?: WorkingHoursConfig | null;
 }
 
 export function CalendarView({
@@ -24,6 +26,7 @@ export function CalendarView({
   onDayClick,
   onEventClick,
   isExternalCalendar = false,
+  workingHours,
 }: CalendarViewProps) {
   const { t } = useLanguage();
   const { theme, resolvedTheme } = useTheme();
@@ -131,6 +134,7 @@ export function CalendarView({
         onEventClick={onEventClick}
         isExternalCalendar={isExternalCalendar}
         theme={currentTheme}
+        workingHours={workingHours}
       />
     </div>
   );
