@@ -350,6 +350,9 @@ export interface TranslationType {
     urlSlug: string;
     description: string;
     coverPhoto: string;
+    avatarPhoto: string;
+    avatarPhotoDescription: string;
+    uploadAvatarPhoto: string;
     phone: string;
     email: string;
     website: string;

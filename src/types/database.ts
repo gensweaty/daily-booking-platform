@@ -39,6 +39,7 @@ export interface BusinessProfile {
   contact_address?: string;
   contact_website?: string;
   cover_photo_url?: string;
+  avatar_url?: string;
   slug: string;
   created_at: string;
   updated_at: string;
