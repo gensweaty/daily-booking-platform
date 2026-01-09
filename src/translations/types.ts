@@ -363,6 +363,7 @@ export interface TranslationType {
     workingHoursDisplay: string;
     closed: string;
     allTimesAvailable: string;
+    outsideWorkingHours: string;
   };
   dashboard: {
     welcome: string;

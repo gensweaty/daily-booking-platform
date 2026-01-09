@@ -1,8 +1,10 @@
 import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Ban } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useLocalizedDate } from "@/hooks/useLocalizedDate";
+import { WorkingHoursConfig, isWorkingDay, isWithinWorkingHours } from "@/types/workingHours";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarGridProps {
   days: Date[];
@@ -13,6 +15,7 @@ interface CalendarGridProps {
   onEventClick?: (event: CalendarEventType) => void;
   isExternalCalendar?: boolean;
   theme?: string;
+  workingHours?: WorkingHoursConfig | null;
 }
 
 const getBookingHours = (event: CalendarEventType) => {
@@ -34,11 +37,13 @@ export const CalendarGrid = ({
   onEventClick,
   isExternalCalendar = false,
   theme,
+  workingHours,
 }: CalendarGridProps) => {
   const startDate = startOfWeek(days[0]);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isDarkTheme = theme === "dark";
   const { getWeekdayName, formatDate } = useLocalizedDate();
+  const { t } = useLanguage();
   
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const dayDate = addDays(startDate, i);
@@ -46,6 +51,14 @@ export const CalendarGrid = ({
   });
 
   const selectedDate = new Date(formattedSelectedDate);
+  
+  // Helper to check if a day is a non-working day (for external calendar)
+  const isNonWorkingDay = (date: Date): boolean => {
+    if (!isExternalCalendar || !workingHours || !workingHours.enabled) {
+      return false;
+    }
+    return !isWorkingDay(date, workingHours);
+  };
   
   const selectedMonthEnd = endOfMonth(selectedDate);
   const lastDayOfGrid = endOfWeek(selectedMonthEnd);
@@ -340,61 +353,75 @@ export const CalendarGrid = ({
           const isOtherMonth = !isSameMonth(day, selectedDate);
           const eventsToShow = dayEvents.slice(0, 2);
           const hiddenEventsCount = Math.max(0, dayEvents.length - 2);
+          const nonWorkingDay = isNonWorkingDay(day);
           
           return (
             <div
               key={day.toISOString()}
               className={`${
-                isDarkTheme 
-                  ? (isOtherMonth 
-                      ? 'bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-100' 
-                      : 'bg-gray-900 hover:bg-gray-800 border-gray-800 text-gray-400')
-                  : (isOtherMonth 
-                      ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-400' 
-                      : 'bg-white hover:bg-gray-50 text-gray-900')
-              } p-1 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] cursor-pointer border-r border-b`}
+                nonWorkingDay
+                  ? (isDarkTheme 
+                      ? 'bg-gray-800/60 border-gray-700 cursor-not-allowed' 
+                      : 'bg-gray-200/80 border-gray-300 cursor-not-allowed')
+                  : isDarkTheme 
+                    ? (isOtherMonth 
+                        ? 'bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-100' 
+                        : 'bg-gray-900 hover:bg-gray-800 border-gray-800 text-gray-400')
+                    : (isOtherMonth 
+                        ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-400' 
+                        : 'bg-white hover:bg-gray-50 text-gray-900')
+              } p-1 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] ${nonWorkingDay ? 'cursor-not-allowed' : 'cursor-pointer'} border-r border-b relative`}
               style={{ height: '160px' }}
-              onClick={() => onDayClick?.(day)}
+              onClick={() => !nonWorkingDay && onDayClick?.(day)}
             >
-              <div className={`font-medium text-xs sm:text-sm ${isDarkTheme ? 'text-gray-100' : ''}`}>
+              <div className={`font-medium text-xs sm:text-sm ${nonWorkingDay ? (isDarkTheme ? 'text-gray-500' : 'text-gray-400') : (isDarkTheme ? 'text-gray-100' : '')}`}>
                 {format(day, "d")}
               </div>
-              <div className="flex flex-col flex-1 min-h-0 justify-center">
-                {dayEvents.length > 0 ? (
-                  <>
-                    <div className="flex flex-col flex-1 min-h-0 justify-stretch">
-                      {eventsToShow.map((event) => (
-                        <div
-                          key={event.id}
-                          className={`flex-1 min-h-0 flex items-center overflow-hidden mb-1 last:mb-0 text-[0.7rem] sm:text-[0.84rem] p-1 sm:p-2 rounded ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${isOtherMonth ? 'opacity-60' : ''}`}
-                          style={{ maxHeight: "calc(50% - 0.25rem)" }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEventClick?.(event);
-                          }}
-                        >
-                          {isMobile ? (
-                            <div className="flex flex-col items-center w-full">
-                              <CalendarIcon className="h-4 w-4 mb-0.5" />
-                              {renderEventContent(event)}
-                            </div>
-                          ) : (
-                            <div className="flex w-full items-center">
-                              <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
-                              {renderEventContent(event, true)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    {hiddenEventsCount > 0 && (
-                      <div className={`mt-0.5 text-[0.7rem] sm:text-xs ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium ${isOtherMonth ? 'opacity-60' : ''}`}>
-                        +{hiddenEventsCount} more
+              {nonWorkingDay ? (
+                <div className="flex flex-col flex-1 min-h-0 justify-center items-center">
+                  <Ban className={`h-5 w-5 ${isDarkTheme ? 'text-gray-600' : 'text-gray-400'}`} />
+                  <span className={`text-[0.65rem] sm:text-xs mt-1 ${isDarkTheme ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {t("business.closed")}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex flex-col flex-1 min-h-0 justify-center">
+                  {dayEvents.length > 0 ? (
+                    <>
+                      <div className="flex flex-col flex-1 min-h-0 justify-stretch">
+                        {eventsToShow.map((event) => (
+                          <div
+                            key={event.id}
+                            className={`flex-1 min-h-0 flex items-center overflow-hidden mb-1 last:mb-0 text-[0.7rem] sm:text-[0.84rem] p-1 sm:p-2 rounded ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${isOtherMonth ? 'opacity-60' : ''}`}
+                            style={{ maxHeight: "calc(50% - 0.25rem)" }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEventClick?.(event);
+                            }}
+                          >
+                            {isMobile ? (
+                              <div className="flex flex-col items-center w-full">
+                                <CalendarIcon className="h-4 w-4 mb-0.5" />
+                                {renderEventContent(event)}
+                              </div>
+                            ) : (
+                              <div className="flex w-full items-center">
+                                <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                                {renderEventContent(event, true)}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </>
-                ) : null}
-              </div>
+                      {hiddenEventsCount > 0 && (
+                        <div className={`mt-0.5 text-[0.7rem] sm:text-xs ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium ${isOtherMonth ? 'opacity-60' : ''}`}>
+                          +{hiddenEventsCount} more
+                        </div>
+                      )}
+                    </>
+                  ) : null}
+                </div>
+              )}
             </div>
           );
         })}

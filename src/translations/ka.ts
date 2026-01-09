@@ -368,7 +368,8 @@ export const translations: TranslationType = {
     workingHoursDescription: "დააყენეთ თქვენი ბიზნესის სამუშაო საათები. გარე დაჯავშნის მოთხოვნები მხოლოდ ამ დროის განმავლობაში იქნება დაშვებული.",
     workingHoursDisplay: "სამუშაო საათები",
     closed: "დაკეტილი",
-    allTimesAvailable: "ყველა დრო ხელმისაწვდომია"
+    allTimesAvailable: "ყველა დრო ხელმისაწვდომია",
+    outsideWorkingHours: "გთხოვთ აირჩიოთ დრო სამუშაო საათების ფარგლებში."
   },
   dashboard: {
     welcome: "კეთილი იყოს თქვენი დაბრუნება",

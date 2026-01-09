@@ -394,6 +394,7 @@ const CalendarContent = ({
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
             onEventClick={handleEventClick}
             isExternalCalendar={isExternalCalendar}
+            workingHours={workingHours}
           />
         </div>
       </div>
@@ -433,6 +434,7 @@ const CalendarContent = ({
                 endTime={bookingEndTime}
                 onSuccess={handleBookingSuccess}
                 isExternalBooking={true}
+                workingHours={workingHours}
               />
             )}
           </DialogContent>
