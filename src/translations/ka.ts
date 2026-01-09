@@ -363,6 +363,7 @@ export const translations: TranslationType = {
     email: "ელფოსტა",
     website: "ვებგვერდი",
     address: "მისამართი",
+    fullAddress: "სრული მისამართი",
     updateProfile: "პროფილის განახლება",
     availableTimes: "ხელმისაწვდომი დროები",
     clickToRequest: "დააჭირეთ ნებისმიერ დროის ინტერვალს დაჯავშნის მოთხოვნის გასაგზავნად",
@@ -616,6 +617,8 @@ export const translations: TranslationType = {
     by: "მიერ",
     scroll: "გადახვევა",
     poweredBy: "შექმნილია",
+    copied: "კოპირებულია",
+    copyAddress: "მისამართის კოპირება",
   },
   auth: {
     welcome: "კეთილი იყოს თქვენი მობრძანება SmartBookly-ში",

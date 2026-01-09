@@ -357,6 +357,7 @@ export interface TranslationType {
     email: string;
     website: string;
     address: string;
+    fullAddress: string;
     updateProfile: string;
     availableTimes: string;
     clickToRequest: string;
@@ -610,6 +611,8 @@ export interface TranslationType {
     by: string;
     scroll: string;
     poweredBy: string;
+    copied: string;
+    copyAddress: string;
   };
   auth: {
     welcome: string;

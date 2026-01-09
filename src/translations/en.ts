@@ -352,6 +352,7 @@ export const translations: TranslationType = {
     email: "Email",
     website: "Website",
     address: "Address",
+    fullAddress: "Full Address",
     updateProfile: "Update Profile",
     availableTimes: "Available Times",
     clickToRequest: "Click any timeslot to request a booking",
@@ -618,6 +619,8 @@ export const translations: TranslationType = {
     by: "by",
     scroll: "Scroll",
     poweredBy: "Powered by",
+    copied: "Copied to clipboard",
+    copyAddress: "Copy Address",
   },
   auth: {
     welcome: "Welcome to SmartBookly",

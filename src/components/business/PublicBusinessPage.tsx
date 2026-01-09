@@ -5,7 +5,9 @@ import { forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LoaderCircle, Globe, Mail, Phone, MapPin, Clock, Calendar, ChevronDown } from "lucide-react";
+import { LoaderCircle, Globe, Mail, Phone, MapPin, Clock, Calendar, ChevronDown, Copy, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toast } from "sonner";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -312,29 +314,27 @@ export const PublicBusinessPage = () => {
               animate="visible"
               className="max-w-3xl"
             >
-              {/* Avatar and business name */}
-              <motion.div variants={fadeInUp} className="flex items-center gap-4 md:gap-6 mb-4">
+              {/* Avatar and business name - vertical layout */}
+              <motion.div variants={fadeInUp} className="flex flex-col items-start mb-4">
                 {business.avatar_url && (
-                  <div className="relative">
+                  <div className="relative mb-4">
                     <div className="absolute inset-0 rounded-full bg-primary/50 blur-xl animate-pulse" />
                     <img
                       src={business.avatar_url}
                       alt={`${business.business_name} logo`}
-                      className="relative w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/30 shadow-2xl ring-4 ring-white/10"
+                      className="relative w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-white/30 shadow-2xl ring-4 ring-white/10"
                     />
                   </div>
                 )}
-                <div>
-                  <h1 
-                    className={cn(
-                      "text-3xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight",
-                      isGeorgian ? "font-georgian" : ""
-                    )}
-                    style={applyGeorgianFont(isGeorgian)}
-                  >
-                    {business.business_name}
-                  </h1>
-                </div>
+                <h1 
+                  className={cn(
+                    "text-3xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight",
+                    isGeorgian ? "font-georgian" : ""
+                  )}
+                  style={applyGeorgianFont(isGeorgian)}
+                >
+                  {business.business_name}
+                </h1>
               </motion.div>
               
               {/* Description */}
@@ -431,20 +431,42 @@ export const PublicBusinessPage = () => {
             )}
             
             {business.contact_address && (
-              <motion.div 
-                variants={contactItemVariant}
-                className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50"
-              >
-                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center">
-                  <MapPin className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.address") || "Address"}</p>
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {business.contact_address}
-                  </p>
-                </div>
-              </motion.div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <motion.button 
+                    variants={contactItemVariant}
+                    className="group flex items-center gap-4 p-4 rounded-xl bg-background/60 dark:bg-background/40 border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-300 hover:scale-[1.02] cursor-pointer text-left w-full"
+                  >
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-orange-500/10 dark:bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                      <MapPin className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{t("business.address") || "Address"}</p>
+                      <p className="text-sm font-medium text-foreground truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                        {business.contact_address}
+                      </p>
+                    </div>
+                  </motion.button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="start">
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">{t("business.fullAddress") || "Full Address"}</p>
+                    <p className="text-sm text-muted-foreground break-words">{business.contact_address}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        navigator.clipboard.writeText(business.contact_address || '');
+                        toast.success(t("common.copied") || "Copied to clipboard");
+                      }}
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      {t("common.copyAddress") || "Copy Address"}
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
             
             {business.contact_website && (
