@@ -5,7 +5,7 @@ import { forceBucketCreation } from "@/lib/supabase";
 import { BusinessProfile } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LoaderCircle, Globe, Mail, Phone, MapPin } from "lucide-react";
+import { LoaderCircle, Globe, Mail, Phone, MapPin, Clock } from "lucide-react";
 import { ExternalCalendar } from "../Calendar/ExternalCalendar";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -14,6 +14,7 @@ import { LanguageText } from "@/components/shared/LanguageText";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
 import { BusinessSEO } from './BusinessSEO';
+import { WorkingHoursConfig, DAYS_OF_WEEK, DayOfWeek } from "@/types/workingHours";
 
 export const PublicBusinessPage = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -364,7 +365,7 @@ export const PublicBusinessPage = () => {
           </div>
           
           {business.id && (
-            <ExternalCalendar businessId={business.id} />
+            <ExternalCalendar businessId={business.id} workingHours={business.working_hours} />
           )}
         </div>
       </div>

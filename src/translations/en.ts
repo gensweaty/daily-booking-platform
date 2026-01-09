@@ -352,7 +352,12 @@ export const translations: TranslationType = {
     updateProfile: "Update Profile",
     availableTimes: "Available Times",
     clickToRequest: "Click any timeslot to request a booking",
-    contactInformation: "Contact Information"
+    contactInformation: "Contact Information",
+    workingHours: "Working Days & Hours",
+    workingHoursDescription: "Set your business operating hours. External booking requests will only be allowed during these times.",
+    workingHoursDisplay: "Working Hours",
+    closed: "Closed",
+    allTimesAvailable: "All times available"
   },
   dashboard: {
     welcome: "Welcome back",

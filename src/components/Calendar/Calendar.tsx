@@ -32,6 +32,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { supabase } from "@/lib/supabase";
+import { WorkingHoursConfig, isWithinWorkingHours, isWorkingDay } from "@/types/workingHours";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -46,6 +47,7 @@ interface CalendarProps {
   isPublicMode?: boolean;
   externalUserName?: string;
   externalUserEmail?: string;
+  workingHours?: WorkingHoursConfig | null;
 }
 
 const CalendarContent = ({ 
@@ -61,6 +63,7 @@ const CalendarContent = ({
   showAllEvents = false,
   allowBookingRequests = false,
   directEvents,
+  workingHours,
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<CalendarViewType>(defaultView);
@@ -236,7 +239,29 @@ const CalendarContent = ({
     
     clickedDate.setHours(hour !== undefined ? hour : 9, 0, 0, 0);
     
+    // Check working hours for external calendar
     if (isExternalCalendar && allowBookingRequests) {
+      const hourToCheck = hour !== undefined ? hour : 9;
+      
+      // Check if the day/hour is within working hours
+      if (!isWorkingDay(clickedDate, workingHours)) {
+        toast({
+          title: t("events.timeSlotNotAvailable"),
+          description: t("business.closed"),
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (!isWithinWorkingHours(clickedDate, hourToCheck, workingHours)) {
+        toast({
+          title: t("events.timeSlotNotAvailable"),
+          description: t("business.closed"),
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setBookingDate(clickedDate);
       
       const startHour = format(clickedDate, "HH:mm");

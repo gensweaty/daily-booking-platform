@@ -363,7 +363,12 @@ export const translations: TranslationType = {
     updateProfile: "პროფილის განახლება",
     availableTimes: "ხელმისაწვდომი დროები",
     clickToRequest: "დააჭირეთ ნებისმიერ დროის ინტერვალს დაჯავშნის მოთხოვნის გასაგზავნად",
-    contactInformation: "კონტაქტის ინფორმაცია"
+    contactInformation: "კონტაქტის ინფორმაცია",
+    workingHours: "სამუშაო დღეები და საათები",
+    workingHoursDescription: "დააყენეთ თქვენი ბიზნესის სამუშაო საათები. გარე დაჯავშნის მოთხოვნები მხოლოდ ამ დროის განმავლობაში იქნება დაშვებული.",
+    workingHoursDisplay: "სამუშაო საათები",
+    closed: "დაკეტილი",
+    allTimesAvailable: "ყველა დრო ხელმისაწვდომია"
   },
   dashboard: {
     welcome: "კეთილი იყოს თქვენი დაბრუნება",

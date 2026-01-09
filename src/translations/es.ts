@@ -363,7 +363,12 @@ export const translations: TranslationType = {
     updateProfile: "Actualizar Perfil",
     availableTimes: "Tiempos Disponibles",
     clickToRequest: "Haga clic en cualquier franja horaria para solicitar una reserva",
-    contactInformation: "Información de Contacto"
+    contactInformation: "Información de Contacto",
+    workingHours: "Días y Horarios de Trabajo",
+    workingHoursDescription: "Establece los horarios de operación de tu negocio. Las solicitudes de reserva externas solo se permitirán durante estos horarios.",
+    workingHoursDisplay: "Horarios de Trabajo",
+    closed: "Cerrado",
+    allTimesAvailable: "Todos los horarios disponibles"
   },
   dashboard: {
     welcome: "Bienvenido de nuevo",

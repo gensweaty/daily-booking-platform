@@ -11,8 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
+import { WorkingHoursSelector } from "./WorkingHoursSelector";
+import { WorkingHoursConfig, DEFAULT_WORKING_HOURS } from "@/types/workingHours";
 
 // Custom function to validate website input
 const websiteValidator = (value: string) => {
@@ -58,6 +60,7 @@ export const BusinessProfileForm = () => {
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
+  const [workingHours, setWorkingHours] = useState<WorkingHoursConfig>(DEFAULT_WORKING_HOURS);
   const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, uploadCoverPhoto } = useBusinessProfile();
   const isGeorgian = language === 'ka';
 
@@ -92,8 +95,17 @@ export const BusinessProfileForm = () => {
         website: businessProfile.contact_website || "",
         address: businessProfile.contact_address || "",
       });
+      // Load working hours if available
+      if (businessProfile.working_hours) {
+        setWorkingHours(businessProfile.working_hours);
+      }
     }
   }, [businessProfile, form]);
+
+  // Memoized handler for working hours changes
+  const handleWorkingHoursChange = useCallback((newWorkingHours: WorkingHoursConfig) => {
+    setWorkingHours(newWorkingHours);
+  }, []);
 
   const handleCoverPhotoUpload = async (file: File) => {
     if (!file) return;
@@ -133,6 +145,7 @@ export const BusinessProfileForm = () => {
         contact_email: values.email,
         contact_website: websiteValue,
         contact_address: values.address,
+        working_hours: workingHours,
       };
 
       if (businessProfile) {
@@ -315,6 +328,12 @@ export const BusinessProfileForm = () => {
               <FormMessage />
             </FormItem>
           )}
+        />
+
+        {/* Working Hours */}
+        <WorkingHoursSelector 
+          value={workingHours}
+          onChange={handleWorkingHoursChange}
         />
 
         <Button type="submit" className="w-full md:w-auto" disabled={isLoading || isUploading}>

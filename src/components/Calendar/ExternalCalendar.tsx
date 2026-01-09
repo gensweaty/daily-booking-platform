@@ -7,8 +7,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { getUnifiedCalendarEvents, clearCalendarCache } from "@/services/calendarService";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQueryClient } from '@tanstack/react-query';
+import { WorkingHoursConfig } from "@/types/workingHours";
 
-export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
+interface ExternalCalendarProps {
+  businessId: string;
+  workingHours?: WorkingHoursConfig | null;
+}
+
+export const ExternalCalendar = ({ businessId, workingHours }: ExternalCalendarProps) => {
   const [view, setView] = useState<CalendarViewType>("month");
   const [events, setEvents] = useState<CalendarEventType[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -232,6 +238,7 @@ export const ExternalCalendar = ({ businessId }: { businessId: string }) => {
             showAllEvents={true}
             allowBookingRequests={true}
             directEvents={events}
+            workingHours={workingHours}
           />
         </div>
       </CardContent>
