@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatArea } from './ChatArea';
-import { useChat } from './ChatProvider';
+import { useChatSafe } from './ChatProvider';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LanguageText } from '@/components/shared/LanguageText';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -24,9 +24,16 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   const cardRef = useRef<HTMLDivElement>(null);
-  const { isInitialized } = useChat();
+  const chatContext = useChatSafe();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  // If context is not available, don't render
+  if (!chatContext) {
+    return null;
+  }
+
+  const { isInitialized } = chatContext;
 
   // Set state on mount - normal on first open for desktop, maximized for mobile
   useEffect(() => {
