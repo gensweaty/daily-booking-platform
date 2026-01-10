@@ -162,19 +162,19 @@ export const CalendarGrid = ({
     ];
     
     return (
-      <div className={`grid grid-cols-1 h-full overflow-y-auto ${isDarkTheme ? 'border-2 border-border/60 bg-background/30' : 'border border-border/40 bg-card/20'} rounded-2xl shadow-xl`}>
+      <div className={`grid grid-cols-1 h-full overflow-y-auto ${isDarkTheme ? 'bg-background/20 border border-border/15' : 'border border-border/30 bg-card/10'} rounded-xl`}>
         {view === 'week' && (
-          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-muted/50 text-foreground border-border/60' : 'bg-muted/60 text-foreground/90 border-border/40'} sticky top-0 z-20 border-b-2 h-10 ${isMobile ? 'text-[0.7rem]' : ''}`}>
+          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-transparent border-border/15' : 'bg-muted/30 border-border/25'} sticky top-0 z-20 border-b h-10 ${isMobile ? 'text-[0.7rem]' : ''}`}>
             {days.map((day, index) => {
               const isTodayDate = isToday(day);
               return (
                 <div 
                   key={`header-${index}`} 
-                  className={`p-1.5 text-center font-bold ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'} tracking-wide uppercase ${
+                  className={`p-1.5 text-center font-medium ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'} tracking-wide ${
                     isTodayDate 
-                      ? 'text-primary bg-primary/10' 
-                      : isDarkTheme ? 'text-foreground' : 'text-foreground/80'
-                  } ${index < 6 ? (isDarkTheme ? 'border-r border-border/50' : 'border-r border-border/35') : ''}`}
+                      ? 'text-primary' 
+                      : isDarkTheme ? 'text-muted-foreground/70' : 'text-foreground/70'
+                  } ${index < 6 ? 'border-r border-border/10' : ''}`}
                 >
                   {isMobile ? 
                     `${getWeekdayName(day, true, true)} ${day.getDate()}` : 
@@ -187,8 +187,8 @@ export const CalendarGrid = ({
         )}
         
         {view === 'day' && (
-          <div className={`${isDarkTheme ? 'bg-muted/50 text-foreground border-border/60' : 'bg-muted/60 text-foreground/90 border-border/40'} sticky top-0 z-20 border-b-2 h-10`}>
-            <div className={`p-1.5 text-center font-bold text-xs sm:text-sm tracking-wide ${isToday(days[0]) ? 'text-primary' : ''}`}>
+          <div className={`${isDarkTheme ? 'bg-transparent border-border/15' : 'bg-muted/30 border-border/25'} sticky top-0 z-20 border-b h-10`}>
+            <div className={`p-1.5 text-center font-medium text-xs sm:text-sm tracking-wide ${isToday(days[0]) ? 'text-primary' : 'text-muted-foreground/70'}`}>
               {isMobile ? 
                 `${getWeekdayName(days[0], true, true)} ${days[0].getDate()}` : 
                 formatDate(days[0], "full")
@@ -197,14 +197,14 @@ export const CalendarGrid = ({
           </div>
         )}
         
-        <div className={`grid ${isDarkTheme ? 'border-l-2 border-border/60 bg-background/40' : 'border-l border-border/40 bg-card/50'} rounded-b-xl overflow-hidden`} style={{ 
+        <div className={`grid ${isDarkTheme ? 'bg-transparent' : 'bg-card/30'} rounded-b-xl overflow-hidden`} style={{ 
           gridTemplateRows: `repeat(${HOURS.length}, 3rem)`,
           height: `${HOURS.length * 3}rem`
         }}>
           {HOURS.map((hourIndex, rowIndex) => (
             <div 
               key={hourIndex} 
-              className={`grid border-b ${isDarkTheme ? 'border-border/50' : 'border-border/35'}`}
+              className={`grid border-b ${isDarkTheme ? 'border-border/10' : 'border-border/20'}`}
               style={{ 
                 gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
                 height: '3rem'
@@ -213,7 +213,7 @@ export const CalendarGrid = ({
               {view === 'day' ? (
                 <div
                   key={`${days[0].toISOString()}-${hourIndex}`}
-                  className={`${isDarkTheme ? 'border-border/50 hover:bg-muted/25 bg-background/60' : 'border-border/35 hover:bg-muted/35 bg-card/90'} border-r p-1 relative transition-all duration-200 cursor-pointer`}
+                  className={`${isDarkTheme ? 'hover:bg-muted/10' : 'hover:bg-muted/20'} p-1 relative transition-colors duration-150 cursor-pointer`}
                   onClick={() => onDayClick?.(days[0], hourIndex)}
                 >
                   {events
@@ -283,7 +283,7 @@ export const CalendarGrid = ({
                 days.map((day, colIndex) => (
                   <div
                     key={`${day.toISOString()}-${hourIndex}`}
-                    className={`${isDarkTheme ? 'border-border/50 hover:bg-muted/25 bg-background/60' : 'border-border/35 hover:bg-muted/35 bg-card/90'} ${colIndex < days.length - 1 ? 'border-r' : ''} p-1 relative transition-all duration-200 cursor-pointer ${
+                    className={`${isDarkTheme ? 'hover:bg-muted/10' : 'hover:bg-muted/20'} ${colIndex < days.length - 1 ? 'border-r border-border/10' : ''} p-1 relative transition-colors duration-150 cursor-pointer ${
                       !isSameMonth(day, selectedDate) ? 'opacity-40' : ''
                     }`}
                     onClick={() => onDayClick?.(day, hourIndex)}
@@ -362,11 +362,11 @@ export const CalendarGrid = ({
 
   if (view === 'month') {
     return (
-      <div className={`grid grid-cols-7 ${isDarkTheme ? 'border-2 border-border/70 bg-background/50' : 'border border-border/50 bg-card/30'} rounded-2xl overflow-hidden shadow-xl`}>
+      <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-background/20 border border-border/15' : 'border border-border/30 bg-card/10'} rounded-xl overflow-hidden`}>
         {weekDays.map((day, idx) => (
           <div 
             key={day} 
-            className={`${isDarkTheme ? 'bg-muted/50 text-foreground border-b-2 border-r border-border/60' : 'bg-muted/70 text-foreground/90 border-b border-r border-border/40'} ${idx === 6 ? 'border-r-0' : ''} py-3 sm:py-3.5 text-center font-bold text-[0.7rem] sm:text-xs uppercase tracking-widest`}
+            className={`${isDarkTheme ? 'bg-transparent text-muted-foreground/60 border-b border-r border-border/10' : 'bg-muted/20 text-foreground/70 border-b border-r border-border/20'} ${idx === 6 ? 'border-r-0' : ''} py-2.5 sm:py-3 text-center font-medium text-[0.65rem] sm:text-xs uppercase tracking-wider`}
           >
             {day}
           </div>
@@ -388,16 +388,16 @@ export const CalendarGrid = ({
               className={`${
                 nonWorkingDay
                   ? (isDarkTheme 
-                      ? 'bg-muted/15 cursor-not-allowed' 
-                      : 'bg-muted/40 cursor-not-allowed')
+                      ? 'bg-muted/5 cursor-not-allowed' 
+                      : 'bg-muted/20 cursor-not-allowed')
                   : isDarkTheme 
                     ? (isOtherMonth 
-                        ? 'bg-background/40 hover:bg-muted/25' 
-                        : 'bg-background/70 hover:bg-muted/35')
+                        ? 'hover:bg-muted/10' 
+                        : 'hover:bg-muted/15')
                     : (isOtherMonth 
-                        ? 'bg-card/60 hover:bg-muted/25' 
-                        : 'bg-card hover:bg-muted/45')
-              } ${isDarkTheme ? 'border-b border-r border-border/60' : 'border-b border-r border-border/40'} ${isLastInRow ? 'border-r-0' : ''} p-1.5 sm:p-2.5 flex flex-col min-h-[140px] sm:min-h-[160px] ${nonWorkingDay ? 'cursor-not-allowed' : 'cursor-pointer'} transition-all duration-200 relative`}
+                        ? 'bg-card/40 hover:bg-muted/15' 
+                        : 'hover:bg-muted/25')
+              } ${isDarkTheme ? 'border-b border-r border-border/10' : 'border-b border-r border-border/20'} ${isLastInRow ? 'border-r-0' : ''} p-1.5 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] ${nonWorkingDay ? 'cursor-not-allowed' : 'cursor-pointer'} transition-colors duration-150 relative`}
               style={{ height: '160px' }}
               onClick={() => !nonWorkingDay && onDayClick?.(day)}
             >
