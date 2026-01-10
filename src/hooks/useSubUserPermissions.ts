@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface SubUserPermissions {
+  tasks_permission: boolean;
   calendar_permission: boolean;
   crm_permission: boolean;
   statistics_permission: boolean;
@@ -20,6 +21,7 @@ export interface UserWithPermissions extends SubUserPermissions {
 export const useSubUserPermissions = () => {
   const { user } = useAuth();
   const [currentUserPermissions, setCurrentUserPermissions] = useState<SubUserPermissions>({
+    tasks_permission: true,
     calendar_permission: false,
     crm_permission: false,
     statistics_permission: false,
@@ -40,7 +42,7 @@ export const useSubUserPermissions = () => {
     try {
       const { data: subUserData, error } = await supabase
         .from('sub_users')
-        .select('calendar_permission, crm_permission, statistics_permission')
+        .select('tasks_permission, calendar_permission, crm_permission, statistics_permission')
         .ilike('email', user.email.trim().toLowerCase())
         .maybeSingle();
 
@@ -48,6 +50,7 @@ export const useSubUserPermissions = () => {
         console.error("Error checking sub user permissions:", error);
         setIsSubUser(false);
         setCurrentUserPermissions({
+          tasks_permission: true,
           calendar_permission: false,
           crm_permission: false,
           statistics_permission: false,
@@ -55,6 +58,7 @@ export const useSubUserPermissions = () => {
       } else if (subUserData) {
         setIsSubUser(true);
         setCurrentUserPermissions({
+          tasks_permission: subUserData.tasks_permission !== false,
           calendar_permission: subUserData.calendar_permission || false,
           crm_permission: subUserData.crm_permission || false,
           statistics_permission: subUserData.statistics_permission || false,
@@ -63,6 +67,7 @@ export const useSubUserPermissions = () => {
         // User is admin (not a sub-user)
         setIsSubUser(false);
         setCurrentUserPermissions({
+          tasks_permission: true,
           calendar_permission: true,
           crm_permission: true,
           statistics_permission: true,
@@ -72,6 +77,7 @@ export const useSubUserPermissions = () => {
       console.error("Error in checkSubUserPermissions:", error);
       setIsSubUser(false);
       setCurrentUserPermissions({
+        tasks_permission: true,
         calendar_permission: false,
         crm_permission: false,
         statistics_permission: false,
@@ -96,10 +102,12 @@ export const useSubUserPermissions = () => {
     }
   };
 
-  const hasPermission = (page: 'calendar' | 'crm' | 'statistics') => {
+  const hasPermission = (page: 'tasks' | 'calendar' | 'crm' | 'statistics') => {
     if (!isSubUser) return true; // Admin has all permissions
     
     switch (page) {
+      case 'tasks':
+        return currentUserPermissions.tasks_permission;
       case 'calendar':
         return currentUserPermissions.calendar_permission;
       case 'crm':

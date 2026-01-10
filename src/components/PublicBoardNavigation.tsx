@@ -33,6 +33,7 @@ interface PublicBoardNavigationProps {
 }
 
 interface SubUserPermissions {
+  tasks_permission: boolean;
   calendar_permission: boolean;
   crm_permission: boolean;
   statistics_permission: boolean;
@@ -70,8 +71,9 @@ export const PublicBoardNavigation = ({
   onlineUsers
 }: PublicBoardNavigationProps) => {
   const { t, language } = useLanguage();
-  const [activeTab, setActiveTab] = useState("tasks");
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<SubUserPermissions>({
+    tasks_permission: true,
     calendar_permission: false,
     crm_permission: false,
     statistics_permission: false,
@@ -93,11 +95,10 @@ export const PublicBoardNavigation = ({
         // Check if this user is a sub-user for this board
         const { data: subUserData, error } = await supabase
           .from('sub_users')
-          .select('calendar_permission, crm_permission, statistics_permission')
+          .select('tasks_permission, calendar_permission, crm_permission, statistics_permission')
           .eq('board_owner_id', boardUserId)
           .ilike('email', email.trim().toLowerCase())
           .maybeSingle();
-
         console.log('📋 Sub-user data:', { subUserData, error });
 
         if (error) {
@@ -105,6 +106,7 @@ export const PublicBoardNavigation = ({
           // If error, assume not a sub-user (admin)
           setIsSubUser(false);
           setPermissions({
+            tasks_permission: true,
             calendar_permission: true,
             crm_permission: true,
             statistics_permission: true,
@@ -114,6 +116,7 @@ export const PublicBoardNavigation = ({
           setIsSubUser(true);
           // Use actual permissions from database
           const finalPermissions = {
+            tasks_permission: subUserData.tasks_permission !== false,
             calendar_permission: subUserData.calendar_permission || false,
             crm_permission: subUserData.crm_permission || false,
             statistics_permission: subUserData.statistics_permission || false,
@@ -125,6 +128,7 @@ export const PublicBoardNavigation = ({
           // User is not found as sub-user, assume admin
           setIsSubUser(false);
           setPermissions({
+            tasks_permission: true,
             calendar_permission: true,
             crm_permission: true,
             statistics_permission: true,
@@ -136,6 +140,7 @@ export const PublicBoardNavigation = ({
         // On error, assume admin permissions
         setIsSubUser(false);
         setPermissions({
+          tasks_permission: true,
           calendar_permission: true,
           crm_permission: true,
           statistics_permission: true,
@@ -148,7 +153,7 @@ export const PublicBoardNavigation = ({
     fetchPermissions();
   }, [email, boardUserId]);
 
-  const hasPermission = (permission: 'calendar' | 'crm' | 'statistics') => {
+  const hasPermission = (permission: 'tasks' | 'calendar' | 'crm' | 'statistics') => {
     if (!isSubUser) return true; // Admin has all permissions
     
     return permissions[`${permission}_permission`];
@@ -162,26 +167,74 @@ export const PublicBoardNavigation = ({
     );
   }
 
-  // Count available tabs
+  // Build available tabs based on permissions - calendar first if available, then tasks
   const availableTabs = [
-    { id: "tasks", label: isGeorgian ? "დავალებები" : t("dashboard.tasks"), icon: ListTodo, always: true },
     { id: "calendar", label: t("dashboard.bookingCalendar"), icon: CalendarIcon, permission: "calendar" as const },
+    { id: "tasks", label: isGeorgian ? "დავალებები" : t("dashboard.tasks"), icon: ListTodo, permission: "tasks" as const },
     { id: "crm", label: isGeorgian ? "მომხმარებლების მართვა" : t("dashboard.crm"), icon: Users, permission: "crm" as const },
     { id: "statistics", label: isGeorgian ? "სტატისტიკა" : t("dashboard.statistics"), icon: BarChart, permission: "statistics" as const }
-  ].filter(tab => tab.always || hasPermission(tab.permission!));
+  ].filter(tab => hasPermission(tab.permission));
 
-  // If only task board is available, show just the task list without tabs
+  // Set default tab based on available tabs (calendar first if available)
+  useEffect(() => {
+    if (availableTabs.length > 0 && activeTab === null) {
+      setActiveTab(availableTabs[0].id);
+    }
+  }, [availableTabs.length, activeTab]);
+
+  // If only one page is available, show just that content without tabs
   if (availableTabs.length === 1) {
+    const singleTab = availableTabs[0];
     return (
       <PublicBoardAuthContext.Provider value={{ user: { id: boardUserId, email } }}>
         <TaskFiltersProvider>
           <div className="w-full max-w-[98%] xl:max-w-[96%] 2xl:max-w-[94%] mx-auto">
-            <PublicTaskList 
-              boardUserId={boardUserId}
-              externalUserName={fullName}
-              externalUserEmail={email}
-              onlineUsers={onlineUsers}
-            />
+            {singleTab.id === 'tasks' && (
+              <PublicTaskList 
+                boardUserId={boardUserId}
+                externalUserName={fullName}
+                externalUserEmail={email}
+                onlineUsers={onlineUsers}
+              />
+            )}
+            {singleTab.id === 'calendar' && (
+              <Card className="min-h-[calc(100vh-12rem)] overflow-hidden">
+                <CardContent className="p-6 pt-0">
+                  <PublicCalendarList 
+                    boardUserId={boardUserId}
+                    externalUserName={fullName}
+                    externalUserEmail={email}
+                    onlineUsers={onlineUsers}
+                    hasPermissions={true}
+                  />
+                </CardContent>
+              </Card>
+            )}
+            {singleTab.id === 'crm' && (
+              <Card className="min-h-[calc(100vh-12rem)]">
+                <CardContent className="p-6 pt-0">
+                  <PublicCRMList 
+                    boardUserId={boardUserId}
+                    externalUserName={fullName}
+                    externalUserEmail={email}
+                    onlineUsers={onlineUsers}
+                    hasPermissions={true}
+                  />
+                </CardContent>
+              </Card>
+            )}
+            {singleTab.id === 'statistics' && (
+              <Card className="min-h-[calc(100vh-12rem)]">
+                <CardContent className="p-6 pt-0">
+                  <PublicStatisticsList 
+                    boardUserId={boardUserId}
+                    externalUserName={fullName}
+                    externalUserEmail={email}
+                    onlineUsers={onlineUsers}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TaskFiltersProvider>
       </PublicBoardAuthContext.Provider>
@@ -224,27 +277,29 @@ export const PublicBoardNavigation = ({
           </div>
 
           <AnimatePresence mode="wait">
-            <TabsContent key="tasks" value="tasks" className="mt-0">
-              <motion.div
-                variants={tabVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
+            {hasPermission("tasks") && (
+              <TabsContent key="tasks" value="tasks" className="mt-0">
                 <motion.div
-                  variants={cardVariants}
+                  variants={tabVariants}
                   initial="hidden"
                   animate="visible"
+                  exit="exit"
                 >
-                  <PublicTaskList 
-                    boardUserId={boardUserId}
-                    externalUserName={fullName}
-                    externalUserEmail={email}
-                    onlineUsers={onlineUsers}
-                  />
+                  <motion.div
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate="visible"
+                  >
+                    <PublicTaskList 
+                      boardUserId={boardUserId}
+                      externalUserName={fullName}
+                      externalUserEmail={email}
+                      onlineUsers={onlineUsers}
+                    />
+                  </motion.div>
                 </motion.div>
-              </motion.div>
-            </TabsContent>
+              </TabsContent>
+            )}
 
             {hasPermission("calendar") && (
               <TabsContent key="calendar" value="calendar" className="mt-0">

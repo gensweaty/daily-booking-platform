@@ -1507,6 +1507,7 @@ export type Database = {
           password_hash: string | null
           password_salt: string | null
           statistics_permission: boolean | null
+          tasks_permission: boolean | null
           updated_at: string
         }
         Insert: {
@@ -1522,6 +1523,7 @@ export type Database = {
           password_hash?: string | null
           password_salt?: string | null
           statistics_permission?: boolean | null
+          tasks_permission?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -1537,6 +1539,7 @@ export type Database = {
           password_hash?: string | null
           password_salt?: string | null
           statistics_permission?: boolean | null
+          tasks_permission?: boolean | null
           updated_at?: string
         }
         Relationships: []
