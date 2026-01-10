@@ -67,21 +67,21 @@ export const CalendarGrid = ({
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
       return isDarkTheme 
-        ? "bg-gradient-to-r from-emerald-600/70 to-emerald-500/60 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/15" 
-        : "bg-gradient-to-r from-emerald-500/80 to-emerald-400/70 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/20";
+        ? "bg-gradient-to-r from-emerald-600/50 to-emerald-500/40 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/10" 
+        : "bg-gradient-to-r from-emerald-500/60 to-emerald-400/50 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/15";
     } else {
       if (event.type === "booking_request") {
         return isDarkTheme 
-          ? "bg-gradient-to-r from-emerald-600/70 to-emerald-500/60 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/15" 
-          : "bg-gradient-to-r from-emerald-500/80 to-emerald-400/70 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/20";
+          ? "bg-gradient-to-r from-emerald-600/50 to-emerald-500/40 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/10" 
+          : "bg-gradient-to-r from-emerald-500/60 to-emerald-400/50 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/15";
       } else if (event.type === "birthday") {
         return isDarkTheme 
-          ? "bg-gradient-to-r from-blue-600/70 to-blue-500/60 backdrop-blur-sm text-white border-l-4 border-blue-400 shadow-lg shadow-blue-500/15" 
-          : "bg-gradient-to-r from-blue-500/20 to-blue-400/15 text-blue-700 border-l-4 border-blue-500 shadow-md shadow-blue-500/10";
+          ? "bg-gradient-to-r from-blue-600/50 to-blue-500/40 backdrop-blur-sm text-white border-l-4 border-blue-400 shadow-lg shadow-blue-500/10" 
+          : "bg-gradient-to-r from-blue-500/15 to-blue-400/10 text-blue-700 border-l-4 border-blue-500 shadow-md shadow-blue-500/10";
       } else {
         return isDarkTheme 
-          ? "bg-gradient-to-r from-primary/70 to-primary/50 backdrop-blur-sm text-primary-foreground border-l-4 border-primary shadow-lg shadow-primary/15" 
-          : "bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-l-4 border-primary shadow-md shadow-primary/15";
+          ? "bg-gradient-to-r from-primary/50 to-primary/35 backdrop-blur-sm text-primary-foreground border-l-4 border-primary shadow-lg shadow-primary/10" 
+          : "bg-gradient-to-r from-primary/15 to-primary/8 text-primary border-l-4 border-primary shadow-md shadow-primary/10";
       }
     }
   };
@@ -486,8 +486,8 @@ export const CalendarGrid = ({
             key={day.toISOString()}
             className={`${
               isDarkTheme 
-                ? (isOtherMonth ? 'bg-background/40 hover:bg-muted/25' : 'bg-background/70 hover:bg-muted/35')
-                : (isOtherMonth ? 'bg-card/60 hover:bg-muted/25' : 'bg-card hover:bg-muted/45')
+                ? (isOtherMonth ? 'bg-background/40 hover:bg-primary/15 hover:border-primary/30' : 'bg-background/70 hover:bg-primary/20 hover:border-primary/40')
+                : (isOtherMonth ? 'bg-card/60 hover:bg-primary/10' : 'bg-card hover:bg-primary/15')
             } ${isDarkTheme ? 'border-b border-r border-border/60' : 'border-b border-r border-border/40'} ${isLastInRow ? 'border-r-0' : ''} p-1.5 sm:p-3 min-h-[90px] sm:min-h-[120px] cursor-pointer transition-all duration-200`}
             onClick={() => onDayClick?.(day)}
           >

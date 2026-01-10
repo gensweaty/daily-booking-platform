@@ -68,8 +68,9 @@ export const CalendarHeader = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
-      <div className="flex items-center gap-4 flex-1">
+    <div className="flex flex-col gap-4">
+      {/* Top row: Navigation and date */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button 
             variant="outline" 
@@ -95,26 +96,27 @@ export const CalendarHeader = ({
           </h2>
         </div>
         
-        {/* Presence circles inline with date on mobile */}
+        {/* Presence circles on right */}
         {onlineUsers.length > 0 && (
-          <div className="ml-auto">
+          <div>
             <PresenceCircles users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center w-full sm:w-auto mt-2 sm:mt-0">
-        {/* Centered pill-shaped view switcher with glow effect */}
-        <div className="flex gap-0.5 mx-auto sm:mx-0 bg-muted/40 dark:bg-muted/20 backdrop-blur-sm rounded-full p-1 border border-border/30 dark:border-border/20">
+      {/* Bottom row: Centered switcher with Add Event on right */}
+      <div className="flex items-center justify-center relative">
+        {/* Centered pill-shaped view switcher with glow effect - more prominent */}
+        <div className="flex gap-1 bg-muted/50 dark:bg-muted/30 backdrop-blur-md rounded-full p-1.5 border border-border/40 dark:border-border/30 shadow-lg">
           <Button
             variant={view === "day" ? "default" : "ghost"}
             size="sm"
             onClick={() => onViewChange("day")}
             className={cn(
-              "px-4 sm:px-5 rounded-full transition-all duration-300 font-medium",
+              "px-5 sm:px-6 py-2 rounded-full transition-all duration-300 font-semibold text-sm",
               view === "day" 
-                ? "shadow-lg shadow-primary/30 dark:shadow-primary/40 bg-primary hover:bg-primary/90" 
-                : "hover:bg-muted/60 dark:hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
+                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
             )}
           >
             {renderButtonText("day")}
@@ -124,10 +126,10 @@ export const CalendarHeader = ({
             size="sm"
             onClick={() => onViewChange("week")}
             className={cn(
-              "px-4 sm:px-5 rounded-full transition-all duration-300 font-medium",
+              "px-5 sm:px-6 py-2 rounded-full transition-all duration-300 font-semibold text-sm",
               view === "week" 
-                ? "shadow-lg shadow-primary/30 dark:shadow-primary/40 bg-primary hover:bg-primary/90" 
-                : "hover:bg-muted/60 dark:hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
+                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
             )}
           >
             {renderButtonText("week")}
@@ -137,18 +139,18 @@ export const CalendarHeader = ({
             size="sm"
             onClick={() => onViewChange("month")}
             className={cn(
-              "px-4 sm:px-5 rounded-full transition-all duration-300 font-medium",
+              "px-5 sm:px-6 py-2 rounded-full transition-all duration-300 font-semibold text-sm",
               view === "month" 
-                ? "shadow-lg shadow-primary/30 dark:shadow-primary/40 bg-primary hover:bg-primary/90" 
-                : "hover:bg-muted/60 dark:hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
+                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
             )}
           >
             {renderButtonText("month")}
           </Button>
         </div>
-        
-        <div className="flex items-center gap-2">
-          {onAddEvent && (
+        {/* Add Event button positioned on right */}
+        {onAddEvent && (
+          <div className="absolute right-0">
             <Button 
               onClick={onAddEvent}
               size="sm" 
@@ -162,9 +164,8 @@ export const CalendarHeader = ({
               <Plus className="h-4 w-4" />
               {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
             </Button>
-          )}
-        </div>
-        
+          </div>
+        )}
       </div>
     </div>
   );
