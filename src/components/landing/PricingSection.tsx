@@ -129,7 +129,7 @@ export const PricingSection = () => {
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white enhanced-gradient-text drop-shadow-lg">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white drop-shadow-lg">
             <LanguageText>{t('cta.title')}</LanguageText>
           </h2>
           <p className="text-lg text-gray-200 mb-6 max-w-2xl mx-auto drop-shadow-sm">
@@ -178,7 +178,7 @@ export const PricingSection = () => {
               <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-ultra-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
-              <h3 className="text-xl font-bold text-white enhanced-gradient-text">
+              <h3 className="text-xl font-bold text-white">
                 <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
               </h3>
               <div className="mt-3">
@@ -238,7 +238,7 @@ export const PricingSection = () => {
               <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-ultra-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
-              <h3 className="text-xl font-bold text-white enhanced-gradient-text">
+              <h3 className="text-xl font-bold text-white">
                 <LanguageText>{t('subscription.annualPlan')}</LanguageText>
               </h3>
               <div className="mt-3">
@@ -297,7 +297,7 @@ export const PricingSection = () => {
                 <LanguageText>{t('auth.noAccount')}</LanguageText>{' '}
                 <button 
                   onClick={() => navigate('/signup')}
-                  className="underline hover:text-white transition-colors font-medium hover:drop-shadow-lg enhanced-gradient-text"
+                  className="underline hover:text-white transition-colors font-medium hover:drop-shadow-lg text-primary"
                 >
                   <LanguageText>{t('auth.signUpCta')}</LanguageText>
                 </button>
