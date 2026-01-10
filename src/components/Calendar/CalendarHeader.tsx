@@ -43,10 +43,10 @@ export const CalendarHeader = ({
       case "month":
         return formatDate(selectedDate, "monthYear");
       case "week":
-        // Remove the redundant "კვირა" prefix since formatDate already includes it
-        return formatDate(selectedDate, "weekOf");
+        // Shorter format for week
+        return formatDate(selectedDate, "dayMonth");
       case "day":
-        return formatDate(selectedDate, "full");
+        return formatDate(selectedDate, "dayMonth");
       default:
         return "";
     }
@@ -68,103 +68,95 @@ export const CalendarHeader = ({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Top row: Navigation and date */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={onPrevious}
-            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={onNext}
-            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <h2 className={cn(
-            "text-xl font-semibold ml-2 tracking-tight",
-            isGeorgian ? "font-georgian" : ""
-          )}>
-            {getFormattedDate()}
-          </h2>
-        </div>
-        
-        {/* Presence circles on right */}
-        {onlineUsers.length > 0 && (
-          <div>
-            <PresenceCircles users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
-          </div>
-        )}
+    <div className="flex items-center justify-between gap-2 flex-wrap">
+      {/* Left: Navigation arrows and date */}
+      <div className="flex items-center gap-2 shrink-0">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={onPrevious}
+          className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={onNext}
+          className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <h2 className={cn(
+          "text-sm sm:text-base font-semibold ml-1 tracking-tight whitespace-nowrap",
+          isGeorgian ? "font-georgian" : ""
+        )}>
+          {getFormattedDate()}
+        </h2>
       </div>
 
-      {/* Bottom row: Centered switcher with Add Event on right */}
-      <div className="flex items-center justify-center relative">
-        {/* Centered pill-shaped view switcher with glow effect - more prominent */}
-        <div className="flex gap-1 bg-muted/50 dark:bg-muted/30 backdrop-blur-md rounded-full p-1.5 border border-border/40 dark:border-border/30 shadow-lg">
-          <Button
-            variant={view === "day" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("day")}
-            className={cn(
-              "px-5 sm:px-6 py-2 rounded-full transition-all duration-300 font-semibold text-sm",
-              view === "day" 
-                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
-                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
-            )}
-          >
-            {renderButtonText("day")}
-          </Button>
-          <Button
-            variant={view === "week" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("week")}
-            className={cn(
-              "px-5 sm:px-6 py-2 rounded-full transition-all duration-300 font-semibold text-sm",
-              view === "week" 
-                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
-                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
-            )}
-          >
-            {renderButtonText("week")}
-          </Button>
-          <Button
-            variant={view === "month" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("month")}
-            className={cn(
-              "px-5 sm:px-6 py-2 rounded-full transition-all duration-300 font-semibold text-sm",
-              view === "month" 
-                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
-                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
-            )}
-          >
-            {renderButtonText("month")}
-          </Button>
-        </div>
-        {/* Add Event button positioned on right */}
+      {/* Center: View switcher */}
+      <div className="flex gap-1 bg-muted/50 dark:bg-muted/30 backdrop-blur-md rounded-full p-1 border border-border/40 dark:border-border/30 shadow-lg">
+        <Button
+          variant={view === "day" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => onViewChange("day")}
+          className={cn(
+            "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm",
+            view === "day" 
+              ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
+              : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
+          )}
+        >
+          {renderButtonText("day")}
+        </Button>
+        <Button
+          variant={view === "week" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => onViewChange("week")}
+          className={cn(
+            "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm",
+            view === "week" 
+              ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
+              : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
+          )}
+        >
+          {renderButtonText("week")}
+        </Button>
+        <Button
+          variant={view === "month" ? "default" : "ghost"}
+          size="sm"
+          onClick={() => onViewChange("month")}
+          className={cn(
+            "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm",
+            view === "month" 
+              ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
+              : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
+          )}
+        >
+          {renderButtonText("month")}
+        </Button>
+      </div>
+
+      {/* Right: Presence + Add Event */}
+      <div className="flex items-center gap-2 shrink-0">
+        {onlineUsers.length > 0 && (
+          <PresenceCircles users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
+        )}
         {onAddEvent && (
-          <div className="absolute right-0">
-            <Button 
-              onClick={onAddEvent}
-              size="sm" 
-              variant="dynamic"
-              className={cn(
-                "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]",
-                isGeorgian ? "font-georgian" : ""
-              )}
-              type="button"
-            >
-              <Plus className="h-4 w-4" />
-              {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
-            </Button>
-          </div>
+          <Button 
+            onClick={onAddEvent}
+            size="sm" 
+            variant="dynamic"
+            className={cn(
+              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]",
+              isGeorgian ? "font-georgian" : ""
+            )}
+            type="button"
+          >
+            <Plus className="h-4 w-4" />
+            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+          </Button>
         )}
       </div>
     </div>
