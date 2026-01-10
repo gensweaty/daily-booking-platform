@@ -78,9 +78,9 @@ export const CalendarHeader = ({
   };
 
   return (
-    <div className="flex flex-col gap-2 sm:gap-0">
-      {/* Mobile: Two rows layout */}
-      {/* Row 1: Navigation arrows + Date + Add Event button */}
+    <div className="flex flex-col gap-1.5 sm:gap-0">
+      {/* Mobile: Three rows layout */}
+      {/* Row 1: Navigation arrows + Add Event button */}
       <div className="flex sm:hidden items-center justify-between">
         <div className="flex items-center gap-1">
           <Button 
@@ -99,12 +99,6 @@ export const CalendarHeader = ({
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <h2 className={cn(
-            "text-sm font-semibold ml-1 tracking-tight whitespace-nowrap",
-            isGeorgian ? "font-georgian" : ""
-          )}>
-            {getFormattedDate()}
-          </h2>
         </div>
         
         {onAddEvent && (
@@ -122,6 +116,16 @@ export const CalendarHeader = ({
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>
         )}
+      </div>
+      
+      {/* Row 2: Date centered (Mobile only) */}
+      <div className="flex sm:hidden items-center justify-center">
+        <h2 className={cn(
+          "text-sm font-semibold tracking-tight whitespace-nowrap",
+          isGeorgian ? "font-georgian" : ""
+        )}>
+          {getFormattedDate()}
+        </h2>
       </div>
       
       {/* Row 2: View switcher + Pin (Mobile only) */}
