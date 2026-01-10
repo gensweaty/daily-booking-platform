@@ -126,7 +126,6 @@ export const FeatureCard = ({
             <div className="hover-tilt transition-all duration-300">
               <ImageCarousel 
                 images={carousel} 
-                className="mx-[-1rem]"
                 permanentArrows={true}
                 objectFit={getObjectFit()}
                 imageHeight={getImageHeight()}

@@ -134,53 +134,54 @@ export const ImageCarousel = ({
   const getArrowLeftPosition = () => {
     if (isMobile) return "left-2";
     if (arrowsInside) return "left-4";
-    // For hero slider on desktop, position arrows inside to avoid text overlap
-    if (isHeroSlider) return "left-4";
-    return "-left-14"; // Outside for desktop hero
+    // For hero slider on desktop, arrows outside but constrained to slider area
+    return "-left-12";
   };
   
   const getArrowRightPosition = () => {
     if (isMobile) return "right-2";
     if (arrowsInside) return "right-4";
-    if (isHeroSlider) return "right-4";
-    return "-right-14";
+    return "-right-12";
   };
 
+  // For feature sliders with arrows inside, we need less margin
+  const containerClass = arrowsInside 
+    ? "w-full relative group" 
+    : "w-full relative group";
+
   return (
-    <div className={cn("w-full relative group", className)}>
+    <div className={cn(containerClass, className)}>
       <Carousel
         opts={{
-          align: "center",
+          align: "start",
           loop: true,
         }}
         setApi={setApi}
         className="w-full"
       >
-        <CarouselContent className="flex items-center">
+        <CarouselContent className="-ml-0">
           {images.map((image, index) => (
-            <CarouselItem key={index} className="md:basis-full flex justify-center">
-              <div className="p-1 w-full">
+            <CarouselItem key={index} className="pl-0">
+              <div className={cn(
+                "rounded-xl overflow-hidden transition-shadow duration-200 hover:shadow-lg",
+                responsiveHeight
+              )}>
                 <div className={cn(
-                  "rounded-xl overflow-hidden transition-shadow duration-200 hover:shadow-lg mx-auto",
-                  responsiveHeight
+                  "relative h-full w-full flex items-center justify-center bg-gradient-to-br from-white/90 to-white/70",
+                  image.customPadding || 'p-0'
                 )}>
-                  <div className={cn(
-                    "relative h-full w-full flex items-center justify-center bg-gradient-to-br from-white/90 to-white/70",
-                    image.customPadding || 'p-0'
-                  )}>
-                    <CarouselImage
-                      src={image.src}
-                      alt={image.alt}
-                      customStyle={image.customStyle}
-                      objectFit={objectFit}
-                      loading={index === 0 ? 'eager' : 'lazy'}
-                    />
-                    {showTitles && image.title && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4 text-center">
-                        <span className="font-medium">{image.title}</span>
-                      </div>
-                    )}
-                  </div>
+                  <CarouselImage
+                    src={image.src}
+                    alt={image.alt}
+                    customStyle={image.customStyle}
+                    objectFit={objectFit}
+                    loading={index === 0 ? 'eager' : 'lazy'}
+                  />
+                  {showTitles && image.title && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4 text-center">
+                      <span className="font-medium">{image.title}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </CarouselItem>
