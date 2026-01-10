@@ -70,10 +70,10 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
     )}>
       <div className="space-y-3 md:space-y-4 animate-fade-in">
         <article className="space-y-2 md:space-y-4">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold enhanced-gradient-text drop-shadow-lg">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground transition-colors duration-300 hover:enhanced-gradient-text [&:hover]:bg-gradient-to-r [&:hover]:from-orange-500 [&:hover]:via-pink-500 [&:hover]:to-purple-500 [&:hover]:bg-clip-text [&:hover]:text-transparent">
             <LanguageText>{t('hero.title')}</LanguageText>
           </h1>
-          <h2 className="text-xl md:text-2xl font-semibold text-foreground/90 drop-shadow-sm">
+          <h2 className="text-xl md:text-2xl font-semibold text-foreground/90 transition-colors duration-300 hover:text-primary">
             <LanguageText>{t('hero.subtitle')}</LanguageText>
           </h2>
           <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
@@ -100,14 +100,16 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           </Link>
         </div>
       </div>
-      <div className="animate-fade-in transition-transform duration-500 hover:scale-[1.01]">
-        <MemoizedImageCarousel 
-          images={productImages} 
-          permanentArrows={true} 
-          imageHeight="h-[480px]"
-          objectFit="object-contain"
-          isHeroSlider={true}
-        />
+      <div className="animate-fade-in group">
+        <div className="transition-transform duration-700 ease-out group-hover:scale-[1.02]">
+          <MemoizedImageCarousel 
+            images={productImages} 
+            permanentArrows={true} 
+            imageHeight="h-[480px]"
+            objectFit="object-contain"
+            isHeroSlider={true}
+          />
+        </div>
       </div>
     </main>
   );

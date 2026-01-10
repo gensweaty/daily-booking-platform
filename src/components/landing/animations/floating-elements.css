@@ -1,10 +1,11 @@
 
-/* Floating Shapes */
+/* Floating Shapes - Static for performance, animations only on desktop */
 .floating-shape {
   position: absolute;
   border-radius: 50%;
   opacity: 0.03;
   pointer-events: none;
+  will-change: auto;
 }
 
 .floating-shape-1 {
@@ -13,7 +14,6 @@
   background: linear-gradient(45deg, #9b87f5, #f97316);
   top: 20%;
   right: 10%;
-  animation: float 12s ease-in-out infinite;
 }
 
 .floating-shape-2 {
@@ -22,7 +22,6 @@
   background: linear-gradient(45deg, #4ade80, #9b87f5);
   top: 60%;
   left: 5%;
-  animation: floatSlow 15s ease-in-out infinite reverse;
 }
 
 .floating-shape-3 {
@@ -31,5 +30,17 @@
   background: linear-gradient(45deg, #f97316, #4ade80);
   top: 80%;
   right: 20%;
-  animation: float 10s ease-in-out infinite 2s;
+}
+
+/* Only animate on desktop with no reduced motion preference */
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .floating-shape-1 {
+    animation: float 12s ease-in-out infinite;
+  }
+  .floating-shape-2 {
+    animation: floatSlow 15s ease-in-out infinite reverse;
+  }
+  .floating-shape-3 {
+    animation: float 10s ease-in-out infinite 2s;
+  }
 }
