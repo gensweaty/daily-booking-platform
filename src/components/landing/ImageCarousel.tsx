@@ -167,23 +167,27 @@ export const ImageCarousel = ({
           ))}
         </CarouselContent>
         
-        {/* Simplified navigation arrows */}
+        {/* Simplified navigation arrows - positioned inside image on mobile */}
         <CarouselPrevious 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             "transition-opacity duration-200",
-            "absolute left-2 md:-left-16 bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
+            "absolute -translate-y-1/2 top-1/2",
+            "left-4 sm:left-2 md:-left-16",
+            "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
             "border border-gray-200 dark:border-gray-700 shadow-lg",
-            "w-8 h-8 md:w-10 md:h-10 rounded-full"
+            "w-10 h-10 md:w-10 md:h-10 rounded-full"
           )}
         />
         <CarouselNext 
           className={cn(
             permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             "transition-opacity duration-200",
-            "absolute right-2 md:-right-16 bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
+            "absolute -translate-y-1/2 top-1/2",
+            "right-4 sm:right-2 md:-right-16",
+            "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
             "border border-gray-200 dark:border-gray-700 shadow-lg",
-            "w-8 h-8 md:w-10 md:h-10 rounded-full"
+            "w-10 h-10 md:w-10 md:h-10 rounded-full"
           )}
         />
       </Carousel>
