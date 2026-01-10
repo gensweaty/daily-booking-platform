@@ -1,4 +1,4 @@
-import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter } from "date-fns";
+import { format, isSameDay, isSameMonth, startOfWeek, endOfWeek, addDays, endOfMonth, isBefore, isAfter, isToday } from "date-fns";
 import { CalendarEventType } from "@/lib/types/calendar";
 import { Calendar as CalendarIcon, Ban } from "lucide-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -63,16 +63,25 @@ export const CalendarGrid = ({
   const selectedMonthEnd = endOfMonth(selectedDate);
   const lastDayOfGrid = endOfWeek(selectedMonthEnd);
 
+  // Modern event styles with gradient accents and left border
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
-      return isDarkTheme ? "bg-emerald-500 text-white" : "bg-green-500 text-white";
+      return isDarkTheme 
+        ? "bg-gradient-to-r from-emerald-600/90 to-emerald-500/80 text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/20" 
+        : "bg-gradient-to-r from-emerald-500 to-emerald-400 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/25";
     } else {
       if (event.type === "booking_request") {
-        return isDarkTheme ? "bg-emerald-500 text-white" : "bg-green-500 text-white"; 
+        return isDarkTheme 
+          ? "bg-gradient-to-r from-emerald-600/90 to-emerald-500/80 text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/20" 
+          : "bg-gradient-to-r from-emerald-500 to-emerald-400 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/25";
       } else if (event.type === "birthday") {
-        return isDarkTheme ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-700";
+        return isDarkTheme 
+          ? "bg-gradient-to-r from-blue-600/90 to-blue-500/80 text-white border-l-4 border-blue-400 shadow-lg shadow-blue-500/20" 
+          : "bg-gradient-to-r from-blue-500/20 to-blue-400/20 text-blue-700 border-l-4 border-blue-500 shadow-md shadow-blue-500/10";
       } else {
-        return isDarkTheme ? "bg-purple-500 text-white" : "bg-purple-100 text-purple-700";
+        return isDarkTheme 
+          ? "bg-gradient-to-r from-primary/90 to-primary/70 text-primary-foreground border-l-4 border-primary shadow-lg shadow-primary/20" 
+          : "bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-l-4 border-primary shadow-md shadow-primary/15";
       }
     }
   };
@@ -155,21 +164,31 @@ export const CalendarGrid = ({
     return (
       <div className="grid grid-cols-1 h-full overflow-y-auto">
         {view === 'week' && (
-          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-gray-800 text-gray-200 border-gray-600' : 'bg-white'} sticky top-0 z-20 border-b ${isDarkTheme ? 'border-gray-600' : 'border-gray-200'} h-8 ${isMobile ? 'text-[0.7rem]' : ''}`}>
-            {days.map((day, index) => (
-              <div key={`header-${index}`} className={`p-1 text-center font-semibold ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>
-                {isMobile ? 
-                  `${getWeekdayName(day, true, true)} ${day.getDate()}` : 
-                  `${getWeekdayName(day, true)} ${day.getDate()}`
-                }
-              </div>
-            ))}
+          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-card/80 backdrop-blur-sm text-foreground border-border/30' : 'bg-card/90 backdrop-blur-sm border-border/40'} sticky top-0 z-20 border-b h-8 ${isMobile ? 'text-[0.7rem]' : ''}`}>
+            {days.map((day, index) => {
+              const isTodayDate = isToday(day);
+              return (
+                <div 
+                  key={`header-${index}`} 
+                  className={`p-1 text-center font-semibold ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'} tracking-wide uppercase ${
+                    isTodayDate 
+                      ? 'text-primary' 
+                      : isDarkTheme ? 'text-foreground/80' : 'text-foreground/70'
+                  }`}
+                >
+                  {isMobile ? 
+                    `${getWeekdayName(day, true, true)} ${day.getDate()}` : 
+                    `${getWeekdayName(day, true)} ${day.getDate()}`
+                  }
+                </div>
+              );
+            })}
           </div>
         )}
         
         {view === 'day' && (
-          <div className={`${isDarkTheme ? 'bg-gray-800 text-gray-200 border-gray-600' : 'bg-white'} sticky top-0 z-20 border-b ${isDarkTheme ? 'border-gray-600' : 'border-gray-200'} h-8`}>
-            <div className="p-1 text-center font-semibold text-xs sm:text-sm">
+          <div className={`${isDarkTheme ? 'bg-card/80 backdrop-blur-sm text-foreground border-border/30' : 'bg-card/90 backdrop-blur-sm border-border/40'} sticky top-0 z-20 border-b h-8`}>
+            <div className={`p-1 text-center font-semibold text-xs sm:text-sm tracking-wide ${isToday(days[0]) ? 'text-primary' : ''}`}>
               {isMobile ? 
                 `${getWeekdayName(days[0], true, true)} ${days[0].getDate()}` : 
                 formatDate(days[0], "full")
@@ -185,7 +204,7 @@ export const CalendarGrid = ({
           {HOURS.map((hourIndex, rowIndex) => (
             <div 
               key={hourIndex} 
-              className={`grid ${isDarkTheme ? 'border-gray-600' : 'border-gray-200'} border-b`}
+              className={`grid border-b ${isDarkTheme ? 'border-border/20' : 'border-border/30'}`}
               style={{ 
                 gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
                 height: '3rem'
@@ -194,7 +213,7 @@ export const CalendarGrid = ({
               {view === 'day' ? (
                 <div
                   key={`${days[0].toISOString()}-${hourIndex}`}
-                  className={`${isDarkTheme ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'} border-r p-1 relative transition-colors cursor-pointer`}
+                  className={`${isDarkTheme ? 'border-border/20 hover:bg-muted/30' : 'border-border/20 hover:bg-muted/40'} border-r border-dashed p-1 relative transition-all duration-200 cursor-pointer`}
                   onClick={() => onDayClick?.(days[0], hourIndex)}
                 >
                   {events
@@ -220,7 +239,7 @@ export const CalendarGrid = ({
                           return (
                             <div 
                               key={`more-${event.id}`} 
-                              className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium absolute bottom-0 left-1 right-1`}
+                              className={`text-[0.65rem] ${isDarkTheme ? 'text-muted-foreground/60' : 'text-muted-foreground'} font-medium absolute bottom-0 left-1 right-1`}
                             >
                               +{events.filter(e => {
                                 const eDate = new Date(e.start_date);
@@ -232,14 +251,14 @@ export const CalendarGrid = ({
                         return null;
                       }
                       
-                        return (
-                          <div
-                            key={event.id}
-                            className={`${getEventStyles(event)} rounded cursor-pointer absolute top-0.5 left-0.5 right-0.5 overflow-hidden p-0.5 sm:p-1`}
-                            style={{ 
-                              height: `${Math.min(durationHours * 3 - 0.25, 2.75)}rem`,
-                              zIndex: 10
-                            }}
+                      return (
+                        <div
+                          key={event.id}
+                          className={`${getEventStyles(event)} rounded-lg cursor-pointer absolute top-0.5 left-0.5 right-0.5 overflow-hidden p-0.5 sm:p-1 transition-transform duration-200 hover:scale-[1.02]`}
+                          style={{ 
+                            height: `${Math.min(durationHours * 3 - 0.25, 2.75)}rem`,
+                            zIndex: 10
+                          }}
                           onClick={(e) => {
                             e.stopPropagation();
                             onEventClick?.(event);
@@ -247,12 +266,12 @@ export const CalendarGrid = ({
                         >
                           {isMobile ? (
                             <div className="flex flex-col items-center">
-                              <CalendarIcon className="h-4 w-4 mb-0.5" />
+                              <CalendarIcon className="h-4 w-4 mb-0.5 opacity-80" />
                               {renderEventContent(event)}
                             </div>
                           ) : (
                             <div className="flex items-center mb-0.5">
-                              <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                              <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0 opacity-80" />
                               {renderEventContent(event, true)}
                             </div>
                           )}
@@ -264,8 +283,8 @@ export const CalendarGrid = ({
                 days.map((day) => (
                   <div
                     key={`${day.toISOString()}-${hourIndex}`}
-                    className={`${isDarkTheme ? 'border-gray-600 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-50'} border-r p-1 relative transition-colors cursor-pointer ${
-                      !isSameMonth(day, selectedDate) ? isDarkTheme ? "text-gray-500" : "text-gray-400" : ""
+                    className={`${isDarkTheme ? 'border-border/20 hover:bg-muted/30' : 'border-border/20 hover:bg-muted/40'} border-r border-dashed p-1 relative transition-all duration-200 cursor-pointer ${
+                      !isSameMonth(day, selectedDate) ? 'opacity-50' : ''
                     }`}
                     onClick={() => onDayClick?.(day, hourIndex)}
                   >
@@ -292,7 +311,7 @@ export const CalendarGrid = ({
                             return (
                               <div 
                                 key={`more-${event.id}`} 
-                                className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium absolute bottom-0 left-1 right-1`}
+                                className={`text-[0.65rem] ${isDarkTheme ? 'text-muted-foreground/60' : 'text-muted-foreground'} font-medium absolute bottom-0 left-1 right-1`}
                               >
                                 +{events.filter(e => {
                                   const eDate = new Date(e.start_date);
@@ -304,14 +323,14 @@ export const CalendarGrid = ({
                           return null;
                         }
                         
-                          return (
-                            <div
-                              key={event.id}
-                              className={`${getEventStyles(event)} rounded cursor-pointer absolute top-0.5 left-0.5 right-0.5 overflow-hidden p-0.5 sm:p-1`}
-                              style={{ 
-                                height: `${Math.min(durationHours * 3 - 0.25, 2.75)}rem`,
-                                zIndex: 10
-                              }}
+                        return (
+                          <div
+                            key={event.id}
+                            className={`${getEventStyles(event)} rounded-lg cursor-pointer absolute top-0.5 left-0.5 right-0.5 overflow-hidden p-0.5 sm:p-1 transition-transform duration-200 hover:scale-[1.02]`}
+                            style={{ 
+                              height: `${Math.min(durationHours * 3 - 0.25, 2.75)}rem`,
+                              zIndex: 10
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
                               onEventClick?.(event);
@@ -319,12 +338,12 @@ export const CalendarGrid = ({
                           >
                             {isMobile ? (
                               <div className="flex flex-col items-center">
-                                <CalendarIcon className="h-4 w-4 mb-0.5" />
+                                <CalendarIcon className="h-4 w-4 mb-0.5 opacity-80" />
                                 {renderEventContent(event)}
                               </div>
                             ) : (
                               <div className="flex items-center mb-0.5">
-                                <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                                <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0 opacity-80" />
                                 {renderEventContent(event, true)}
                               </div>
                             )}
@@ -343,9 +362,12 @@ export const CalendarGrid = ({
 
   if (view === 'month') {
     return (
-      <div className={`grid grid-cols-7 gap-px ${isDarkTheme ? 'bg-gray-700' : 'bg-gray-200'} rounded-lg overflow-hidden`}>
-        {weekDays.map((day) => (
-          <div key={day} className={`${isDarkTheme ? 'bg-gray-800 text-gray-100 border-gray-600' : 'bg-white'} p-2 sm:p-4 text-center font-semibold text-xs sm:text-sm border-b`}>
+      <div className={`grid grid-cols-7 gap-[1px] ${isDarkTheme ? 'bg-border/30' : 'bg-border/40'} rounded-xl overflow-hidden shadow-sm`}>
+        {weekDays.map((day, idx) => (
+          <div 
+            key={day} 
+            className={`${isDarkTheme ? 'bg-card text-foreground/80' : 'bg-card/80 text-foreground/70'} py-2 sm:py-3 text-center font-semibold text-[0.65rem] sm:text-xs uppercase tracking-wider border-b border-border/30`}
+          >
             {day}
           </div>
         ))}
@@ -355,6 +377,7 @@ export const CalendarGrid = ({
           const eventsToShow = dayEvents.slice(0, 2);
           const hiddenEventsCount = Math.max(0, dayEvents.length - 2);
           const nonWorkingDay = isNonWorkingDay(day);
+          const isTodayDate = isToday(day);
           
           return (
             <div
@@ -362,38 +385,47 @@ export const CalendarGrid = ({
               className={`${
                 nonWorkingDay
                   ? (isDarkTheme 
-                      ? 'bg-gray-800/60 border-gray-700 cursor-not-allowed' 
-                      : 'bg-gray-200/80 border-gray-300 cursor-not-allowed')
+                      ? 'bg-muted/20 cursor-not-allowed' 
+                      : 'bg-muted/40 cursor-not-allowed')
                   : isDarkTheme 
                     ? (isOtherMonth 
-                        ? 'bg-gray-800 hover:bg-gray-700 border-gray-700 text-gray-100' 
-                        : 'bg-gray-900 hover:bg-gray-800 border-gray-800 text-gray-400')
+                        ? 'bg-card/50 hover:bg-muted/30' 
+                        : 'bg-card hover:bg-muted/40')
                     : (isOtherMonth 
-                        ? 'bg-gray-100 hover:bg-gray-200 border-gray-200 text-gray-400' 
-                        : 'bg-white hover:bg-gray-50 text-gray-900')
-              } p-1 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] ${nonWorkingDay ? 'cursor-not-allowed' : 'cursor-pointer'} border-r border-b relative`}
+                        ? 'bg-card/60 hover:bg-muted/30' 
+                        : 'bg-card hover:bg-muted/50')
+              } p-1.5 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] ${nonWorkingDay ? 'cursor-not-allowed' : 'cursor-pointer'} transition-all duration-200 relative`}
               style={{ height: '160px' }}
               onClick={() => !nonWorkingDay && onDayClick?.(day)}
             >
-              <div className={`font-medium text-xs sm:text-sm ${nonWorkingDay ? (isDarkTheme ? 'text-gray-500' : 'text-gray-400') : (isDarkTheme ? 'text-gray-100' : '')}`}>
+              {/* Day number with modern styling */}
+              <div className={`font-semibold text-xs sm:text-sm mb-1 ${
+                isTodayDate 
+                  ? 'w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md' 
+                  : nonWorkingDay 
+                    ? (isDarkTheme ? 'text-muted-foreground/40' : 'text-muted-foreground/50') 
+                    : isOtherMonth 
+                      ? 'text-muted-foreground/50' 
+                      : 'text-foreground'
+              }`}>
                 {format(day, "d")}
               </div>
               {nonWorkingDay ? (
                 <div className="flex flex-col flex-1 min-h-0 justify-center items-center">
-                  <Ban className={`h-5 w-5 ${isDarkTheme ? 'text-gray-600' : 'text-gray-400'}`} />
-                  <span className={`text-[0.65rem] sm:text-xs mt-1 ${isDarkTheme ? 'text-gray-500' : 'text-gray-400'}`}>
+                  <Ban className={`h-5 w-5 ${isDarkTheme ? 'text-muted-foreground/30' : 'text-muted-foreground/40'}`} />
+                  <span className={`text-[0.65rem] sm:text-xs mt-1 ${isDarkTheme ? 'text-muted-foreground/40' : 'text-muted-foreground/50'}`}>
                     {t("business.closed")}
                   </span>
                 </div>
               ) : (
-                <div className="flex flex-col flex-1 min-h-0 justify-center">
+                <div className="flex flex-col flex-1 min-h-0 justify-start gap-1">
                   {dayEvents.length > 0 ? (
                     <>
-                      <div className="flex flex-col flex-1 min-h-0 justify-stretch">
+                      <div className="flex flex-col flex-1 min-h-0 gap-1">
                         {eventsToShow.map((event) => (
                           <div
                             key={event.id}
-                            className={`flex-1 min-h-0 flex items-center overflow-hidden mb-1 last:mb-0 text-[0.7rem] sm:text-[0.84rem] p-1 sm:p-2 rounded ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${isOtherMonth ? 'opacity-60' : ''}`}
+                            className={`flex-1 min-h-0 flex items-center overflow-hidden text-[0.7rem] sm:text-[0.8rem] p-1 sm:p-1.5 rounded-lg ${getEventStyles(event)} cursor-pointer truncate transition-transform duration-200 hover:scale-[1.02] ${isOtherMonth ? 'opacity-50' : ''}`}
                             style={{ maxHeight: "calc(50% - 0.25rem)" }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -402,12 +434,12 @@ export const CalendarGrid = ({
                           >
                             {isMobile ? (
                               <div className="flex flex-col items-center w-full">
-                                <CalendarIcon className="h-4 w-4 mb-0.5" />
+                                <CalendarIcon className="h-3.5 w-3.5 mb-0.5 opacity-80" />
                                 {renderEventContent(event)}
                               </div>
                             ) : (
                               <div className="flex w-full items-center">
-                                <CalendarIcon className="h-4 w-4 mr-1.5 shrink-0" />
+                                <CalendarIcon className="h-3.5 w-3.5 mr-1 shrink-0 opacity-80" />
                                 {renderEventContent(event, true)}
                               </div>
                             )}
@@ -415,7 +447,7 @@ export const CalendarGrid = ({
                         ))}
                       </div>
                       {hiddenEventsCount > 0 && (
-                        <div className={`mt-0.5 text-[0.7rem] sm:text-xs ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium ${isOtherMonth ? 'opacity-60' : ''}`}>
+                        <div className={`text-[0.65rem] sm:text-xs ${isDarkTheme ? 'text-muted-foreground/60' : 'text-muted-foreground'} font-medium bg-muted/50 rounded px-1.5 py-0.5 w-fit ${isOtherMonth ? 'opacity-50' : ''}`}>
                           +{hiddenEventsCount} more
                         </div>
                       )}
@@ -431,40 +463,48 @@ export const CalendarGrid = ({
   }
 
   return (
-    <div className={`grid grid-cols-7 gap-px ${isDarkTheme ? 'bg-gray-700' : 'bg-gray-200'} rounded-lg overflow-hidden`}>
-      {weekDays.map((day) => (
-        <div key={day} className={`${isDarkTheme ? 'bg-gray-800 text-gray-100 border-gray-600' : 'bg-white'} p-2 sm:p-4 text-center font-semibold text-xs sm:text-sm border-b`}>
+    <div className={`grid grid-cols-7 gap-[1px] ${isDarkTheme ? 'bg-border/30' : 'bg-border/40'} rounded-xl overflow-hidden shadow-sm`}>
+      {weekDays.map((day, idx) => (
+        <div 
+          key={day} 
+          className={`${isDarkTheme ? 'bg-card text-foreground/80' : 'bg-card/80 text-foreground/70'} py-2 sm:py-3 text-center font-semibold text-[0.65rem] sm:text-xs uppercase tracking-wider border-b border-border/30`}
+        >
           {day}
         </div>
       ))}
       {days.map((day) => {
         const dayEvents = events.filter((event) => isSameDay(new Date(event.start_date), day));
         const isOtherMonth = !isSameMonth(day, selectedDate);
+        const isTodayDate = isToday(day);
         
         return (
           <div
             key={day.toISOString()}
             className={`${
               isDarkTheme 
-                ? 'bg-gray-800 hover:bg-gray-700 border-gray-600' 
-                : 'bg-white hover:bg-gray-50'
-            } p-1 sm:p-4 min-h-[90px] sm:min-h-[120px] cursor-pointer ${
-              isOtherMonth ? isDarkTheme ? "text-gray-600" : "text-gray-400" : ""
-            } border-r border-b`}
+                ? (isOtherMonth ? 'bg-card/50 hover:bg-muted/30' : 'bg-card hover:bg-muted/40')
+                : (isOtherMonth ? 'bg-card/60 hover:bg-muted/30' : 'bg-card hover:bg-muted/50')
+            } p-1.5 sm:p-3 min-h-[90px] sm:min-h-[120px] cursor-pointer transition-all duration-200`}
             onClick={() => onDayClick?.(day)}
           >
-            <div className={`font-medium text-xs sm:text-sm ${isDarkTheme ? 'text-gray-100' : ''}`}>
+            <div className={`font-semibold text-xs sm:text-sm mb-1 ${
+              isTodayDate 
+                ? 'w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md' 
+                : isOtherMonth 
+                  ? 'text-muted-foreground/50' 
+                  : 'text-foreground'
+            }`}>
               {format(day, "d")}
             </div>
-            <div className="mt-1 sm:mt-2 space-y-0.5 sm:space-y-1">
+            <div className="mt-1 sm:mt-2 space-y-1">
               {dayEvents.length > 0 ? (
                 isMobile ? (
                   <>
                     {dayEvents.slice(0, 2).map((event) => (
                       <div
                         key={event.id}
-                        className={`text-[0.65rem] sm:text-sm p-1 sm:p-2 rounded ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
-                          isOtherMonth ? 'opacity-60' : ''
+                        className={`text-[0.65rem] sm:text-sm p-1 sm:p-1.5 rounded-lg ${getEventStyles(event)} cursor-pointer truncate transition-transform duration-200 hover:scale-[1.02] ${
+                          isOtherMonth ? 'opacity-50' : ''
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -472,35 +512,47 @@ export const CalendarGrid = ({
                         }}
                       >
                         <div className="flex flex-col items-center">
-                          <CalendarIcon className="h-4 w-4 mb-0.5" />
+                          <CalendarIcon className="h-3.5 w-3.5 mb-0.5 opacity-80" />
                           {renderEventContent(event)}
                         </div>
                       </div>
                     ))}
                     {dayEvents.length > 2 && (
-                      <div className={`text-[0.65rem] ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'} font-medium pl-1 ${
-                        isOtherMonth ? 'opacity-60' : ''
+                      <div className={`text-[0.65rem] ${isDarkTheme ? 'text-muted-foreground/60' : 'text-muted-foreground'} font-medium bg-muted/50 rounded px-1.5 py-0.5 w-fit ${
+                        isOtherMonth ? 'opacity-50' : ''
                       }`}>
                         +{dayEvents.length - 2} more
                       </div>
                     )}
                   </>
                 ) : (
-                  dayEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className={`text-sm p-2 rounded flex items-center gap-2 ${getEventStyles(event)} cursor-pointer truncate shadow-sm ${
-                        isOtherMonth ? 'opacity-60' : ''
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEventClick?.(event);
-                      }}
-                    >
-                      <CalendarIcon className="h-4 w-4" />
-                      {renderEventContent(event, true)}
-                    </div>
-                  ))
+                  dayEvents.slice(0, 3).map((event, idx) => {
+                    if (idx === 2 && dayEvents.length > 3) {
+                      return (
+                        <div 
+                          key={event.id}
+                          className={`text-[0.7rem] ${isDarkTheme ? 'text-muted-foreground/60' : 'text-muted-foreground'} font-medium bg-muted/50 rounded px-1.5 py-0.5 w-fit ${isOtherMonth ? 'opacity-50' : ''}`}
+                        >
+                          +{dayEvents.length - 2} more
+                        </div>
+                      );
+                    }
+                    return (
+                      <div
+                        key={event.id}
+                        className={`text-sm p-1.5 rounded-lg flex items-center gap-1.5 ${getEventStyles(event)} cursor-pointer truncate transition-transform duration-200 hover:scale-[1.02] ${
+                          isOtherMonth ? 'opacity-50' : ''
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEventClick?.(event);
+                        }}
+                      >
+                        <CalendarIcon className="h-3.5 w-3.5 opacity-80" />
+                        {renderEventContent(event, true)}
+                      </div>
+                    );
+                  })
                 )
               ) : null}
             </div>
