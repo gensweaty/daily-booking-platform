@@ -63,7 +63,7 @@ export const FeatureCard = ({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
-      className={`grid md:grid-cols-2 gap-8 md:gap-12 items-center mb-16 md:mb-20 relative ${
+      className={`grid md:grid-cols-2 gap-6 md:gap-12 items-center mb-8 md:mb-20 relative ${
         reverse ? 'md:flex-row-reverse' : ''
       }`}
     >
@@ -84,7 +84,7 @@ export const FeatureCard = ({
           >
             <Icon className="w-5 h-5 md:w-6 md:h-6 text-primary animate-pulse" />
           </motion.div>
-          <h3 className="text-xl md:text-2xl font-bold enhanced-gradient-text">
+          <h3 className="text-xl md:text-2xl font-bold text-primary">
             <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>
