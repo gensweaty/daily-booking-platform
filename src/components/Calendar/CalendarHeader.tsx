@@ -71,13 +71,26 @@ export const CalendarHeader = ({
     <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
       <div className="flex items-center gap-4 flex-1">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={onPrevious}>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={onPrevious}
+            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200"
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={onNext}>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={onNext}
+            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200"
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <h2 className={cn("text-xl font-semibold ml-2", isGeorgian ? "font-georgian" : "")}>
+          <h2 className={cn(
+            "text-xl font-semibold ml-2 tracking-tight",
+            isGeorgian ? "font-georgian" : ""
+          )}>
             {getFormattedDate()}
           </h2>
         </div>
@@ -91,28 +104,37 @@ export const CalendarHeader = ({
       </div>
 
       <div className="flex flex-wrap gap-2 justify-between w-full sm:w-auto mt-2 sm:mt-0">
-        <div className="flex gap-1 mr-auto sm:mr-2">
+        <div className="flex gap-1 mr-auto sm:mr-2 bg-muted/30 rounded-xl p-1">
           <Button
-            variant={view === "day" ? "default" : "outline"}
+            variant={view === "day" ? "default" : "ghost"}
             size="sm"
             onClick={() => onViewChange("day")}
-            className={cn("px-2 sm:px-4")}
+            className={cn(
+              "px-3 sm:px-4 rounded-lg transition-all duration-200",
+              view === "day" ? "shadow-md" : "hover:bg-muted/50"
+            )}
           >
             {renderButtonText("day")}
           </Button>
           <Button
-            variant={view === "week" ? "default" : "outline"}
+            variant={view === "week" ? "default" : "ghost"}
             size="sm"
             onClick={() => onViewChange("week")}
-            className={cn("px-2 sm:px-4")}
+            className={cn(
+              "px-3 sm:px-4 rounded-lg transition-all duration-200",
+              view === "week" ? "shadow-md" : "hover:bg-muted/50"
+            )}
           >
             {renderButtonText("week")}
           </Button>
           <Button
-            variant={view === "month" ? "default" : "outline"}
+            variant={view === "month" ? "default" : "ghost"}
             size="sm"
             onClick={() => onViewChange("month")}
-            className={cn("px-2 sm:px-4")}
+            className={cn(
+              "px-3 sm:px-4 rounded-lg transition-all duration-200",
+              view === "month" ? "shadow-md" : "hover:bg-muted/50"
+            )}
           >
             {renderButtonText("month")}
           </Button>
@@ -124,7 +146,10 @@ export const CalendarHeader = ({
               onClick={onAddEvent}
               size="sm" 
               variant="dynamic"
-              className={cn("font-semibold", isGeorgian ? "font-georgian" : "")}
+              className={cn(
+                "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]",
+                isGeorgian ? "font-georgian" : ""
+              )}
               type="button"
             >
               <Plus className="h-4 w-4" />
