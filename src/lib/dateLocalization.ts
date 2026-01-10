@@ -52,20 +52,28 @@ export const getLocalizedMonthName = (date: Date, language: Language): string =>
   }
 };
 
-export const getLocalizedWeekdayName = (date: Date, language: Language, short: boolean = false, single: boolean = false): string => {
+export const getLocalizedWeekdayName = (date: Date, language: Language, short: boolean = false, single: boolean = false, twoLetter: boolean = false): string => {
   const dayIndex = date.getDay();
+  
+  // Two-letter abbreviations for week view headers
+  const englishTwoLetter = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const spanishTwoLetter = ["Do", "Lu", "Ma", "Mi", "Ju", "Vi", "Sá"];
+  const georgianTwoLetter = ["კვ", "ორ", "სა", "ოთ", "ხუ", "პა", "შა"];
   
   switch (language) {
     case 'ka':
       if (single) return georgianWeekdaysSingle[dayIndex];
+      if (twoLetter) return georgianTwoLetter[dayIndex];
       if (short) return georgianWeekdaysShort[dayIndex];
       return georgianWeekdays[dayIndex];
     case 'es':
       if (single) return spanishWeekdaysShort[dayIndex].charAt(0);
+      if (twoLetter) return spanishTwoLetter[dayIndex];
       if (short) return spanishWeekdaysShort[dayIndex];
       return spanishWeekdays[dayIndex];
     default:
       if (single) return format(date, "EEEEE");
+      if (twoLetter) return englishTwoLetter[dayIndex];
       if (short) return format(date, "EEE");
       return format(date, "EEEE");
   }
