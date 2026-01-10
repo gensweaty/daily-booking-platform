@@ -12,9 +12,9 @@ export const TimeIndicator = () => {
   const isMobile = useMediaQuery("(max-width: 640px)");
   
   return (
-    <div className="w-14 sm:w-16 flex-shrink-0 border-r-2 border-border/60 bg-muted/40">
+    <div className="w-12 sm:w-14 flex-shrink-0 border-r border-border/20 bg-transparent">
       {/* Adding a spacer for the week/day header that exists in the main grid */}
-      <div className="h-10 border-b-2 border-border/60 bg-muted/50"></div>
+      <div className="h-10 border-b border-border/15"></div>
       
       {HOURS.map((hour) => {
         const date = new Date();
@@ -23,9 +23,9 @@ export const TimeIndicator = () => {
         return (
           <div
             key={hour}
-            className="h-12 border-b border-border/50 text-xs flex items-start justify-end bg-muted/20"
+            className="h-12 border-b border-border/10 text-[0.65rem] sm:text-xs flex items-start justify-end"
           >
-            <div className="pr-2 sm:pr-3 pt-1 font-semibold text-muted-foreground">
+            <div className="pr-1.5 sm:pr-2 pt-0.5 font-medium text-muted-foreground/60">
               {isMobile ? format(date, 'ha').replace('am', '').replace('pm', '') : format(date, 'h a')}
             </div>
           </div>
