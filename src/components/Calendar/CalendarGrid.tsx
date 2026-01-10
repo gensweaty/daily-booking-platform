@@ -179,8 +179,8 @@ export const CalendarGrid = ({
         )}
         
         <div className="grid" style={{ 
-          gridTemplateRows: `repeat(${HOURS.length}, 6rem)`,
-          height: `${HOURS.length * 6}rem`
+          gridTemplateRows: `repeat(${HOURS.length}, 3rem)`,
+          height: `${HOURS.length * 3}rem`
         }}>
           {HOURS.map((hourIndex, rowIndex) => (
             <div 
@@ -188,7 +188,7 @@ export const CalendarGrid = ({
               className={`grid ${isDarkTheme ? 'border-gray-600' : 'border-gray-200'} border-b`}
               style={{ 
                 gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
-                height: '6rem'
+                height: '3rem'
               }}
             >
               {view === 'day' ? (
@@ -232,14 +232,14 @@ export const CalendarGrid = ({
                         return null;
                       }
                       
-                      return (
-                        <div
-                          key={event.id}
-                          className={`${getEventStyles(event)} rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden p-1 sm:p-2`}
-                          style={{ 
-                            height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
-                            zIndex: 10
-                          }}
+                        return (
+                          <div
+                            key={event.id}
+                            className={`${getEventStyles(event)} rounded cursor-pointer absolute top-0.5 left-0.5 right-0.5 overflow-hidden p-0.5 sm:p-1`}
+                            style={{ 
+                              height: `${Math.min(durationHours * 3 - 0.25, 2.75)}rem`,
+                              zIndex: 10
+                            }}
                           onClick={(e) => {
                             e.stopPropagation();
                             onEventClick?.(event);
@@ -304,14 +304,14 @@ export const CalendarGrid = ({
                           return null;
                         }
                         
-                        return (
-                          <div
-                            key={event.id}
-                            className={`${getEventStyles(event)} rounded cursor-pointer absolute top-1 left-1 right-1 overflow-hidden p-1 sm:p-2`}
-                            style={{ 
-                              height: `${Math.min(durationHours * 6 - 0.5, 5.5)}rem`,
-                              zIndex: 10
-                            }}
+                          return (
+                            <div
+                              key={event.id}
+                              className={`${getEventStyles(event)} rounded cursor-pointer absolute top-0.5 left-0.5 right-0.5 overflow-hidden p-0.5 sm:p-1`}
+                              style={{ 
+                                height: `${Math.min(durationHours * 3 - 0.25, 2.75)}rem`,
+                                zIndex: 10
+                              }}
                             onClick={(e) => {
                               e.stopPropagation();
                               onEventClick?.(event);
