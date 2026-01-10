@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Trash2, Clock, Mail, User, Settings, Calendar, BarChart3, UserCog } from "lucide-react";
+import { Users, Trash2, Clock, Mail, User, Settings, Calendar, BarChart3, UserCog, ListTodo } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -219,6 +219,12 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                         
                         {/* Permission indicators */}
                         <div className="flex items-center gap-1 flex-wrap">
+                          {subUser.tasks_permission !== false && (
+                            <div className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200 rounded-full text-xs">
+                              <ListTodo className="h-3 w-3" />
+                              Tasks
+                            </div>
+                          )}
                           {subUser.calendar_permission && (
                             <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 rounded-full text-xs">
                               <Calendar className="h-3 w-3" />
@@ -278,6 +284,19 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                           
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
+                              <ListTodo className="h-4 w-4 text-orange-600" />
+                              <span className="text-sm">Tasks Access</span>
+                            </div>
+                            <Switch
+                              checked={subUser.tasks_permission !== false}
+                              onCheckedChange={(checked) => 
+                                handlePermissionUpdate(subUser.id, 'tasks_permission', checked)
+                              }
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
                               <Calendar className="h-4 w-4 text-blue-600" />
                               <span className="text-sm">Calendar Access</span>
                             </div>
@@ -316,7 +335,7 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                           </div>
                           
                           <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted/50 rounded">
-                            <strong>Note:</strong> Task board access is automatically granted to all sub-users. Business page access is admin-only.
+                            <strong>Note:</strong> Business page access is admin-only.
                           </div>
                         </motion.div>
                       )}
