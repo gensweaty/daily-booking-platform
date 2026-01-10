@@ -206,11 +206,11 @@ export const PublicBoardSettings = ({ isOpen: externalIsOpen, onOpenChange: exte
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            {t("publicBoard.boardSettings")}
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto mx-auto">
+        <DialogHeader className="pr-8">
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Globe className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
+            <span className="truncate">{t("publicBoard.boardSettings")}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -309,26 +309,30 @@ export const PublicBoardSettings = ({ isOpen: externalIsOpen, onOpenChange: exte
                 <Label className="text-sm font-medium">
                   {t("publicBoard.publicLink")}
                 </Label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <Input
                     value={publicUrl}
                     readOnly
-                    className="flex-1 bg-muted"
+                    className="flex-1 bg-muted text-sm truncate"
                   />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard(publicUrl)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openInNewTab(publicUrl)}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(publicUrl)}
+                      className="flex-1 sm:flex-none"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openInNewTab(publicUrl)}
+                      className="flex-1 sm:flex-none"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </motion.div>
             )}
