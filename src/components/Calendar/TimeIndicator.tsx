@@ -23,7 +23,7 @@ export const TimeIndicator = () => {
         return (
           <div
             key={hour}
-            className="h-24 border-b border-border text-xs text-muted-foreground flex items-start"
+            className="h-12 border-b border-border text-xs text-muted-foreground flex items-start"
           >
             {/* Precise vertical alignment for mobile and desktop */}
             <div className={`${isMobile ? 'pl-0.5' : 'pl-2'} transform -translate-y-[1px]`}>
