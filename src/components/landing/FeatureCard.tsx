@@ -62,7 +62,7 @@ const FeatureCardComponent = ({
           <div className="p-2 rounded-lg bg-primary/10 glass-morphism transition-transform duration-300 group-hover/header:scale-110">
             <Icon className="w-5 h-5 md:w-6 md:h-6 text-primary transition-transform duration-300 group-hover/header:rotate-12" />
           </div>
-          <h3 className="text-xl md:text-2xl font-bold text-foreground transition-all duration-300 hover:bg-gradient-to-r hover:from-orange-500 hover:via-pink-500 hover:to-purple-500 hover:bg-clip-text hover:text-transparent">
+          <h3 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 bg-clip-text text-transparent transition-all duration-300 hover:from-purple-500 hover:via-pink-500 hover:to-orange-500">
             <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>

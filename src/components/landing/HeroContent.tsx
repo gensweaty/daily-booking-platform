@@ -70,7 +70,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
     )}>
       <div className="space-y-3 md:space-y-4 animate-fade-in">
         <article className="space-y-2 md:space-y-4">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground transition-colors duration-300 hover:enhanced-gradient-text [&:hover]:bg-gradient-to-r [&:hover]:from-orange-500 [&:hover]:via-pink-500 [&:hover]:to-purple-500 [&:hover]:bg-clip-text [&:hover]:text-transparent">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 bg-clip-text text-transparent transition-all duration-300 hover:from-purple-500 hover:via-pink-500 hover:to-orange-500">
             <LanguageText>{t('hero.title')}</LanguageText>
           </h1>
           <h2 className="text-xl md:text-2xl font-semibold text-foreground/90 transition-colors duration-300 hover:text-primary">
