@@ -103,15 +103,18 @@ export const CalendarHeader = ({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-between w-full sm:w-auto mt-2 sm:mt-0">
-        <div className="flex gap-1 mr-auto sm:mr-2 bg-muted/30 rounded-xl p-1">
+      <div className="flex flex-wrap gap-2 justify-center w-full sm:w-auto mt-2 sm:mt-0">
+        {/* Centered pill-shaped view switcher with glow effect */}
+        <div className="flex gap-0.5 mx-auto sm:mx-0 bg-muted/40 dark:bg-muted/20 backdrop-blur-sm rounded-full p-1 border border-border/30 dark:border-border/20">
           <Button
             variant={view === "day" ? "default" : "ghost"}
             size="sm"
             onClick={() => onViewChange("day")}
             className={cn(
-              "px-3 sm:px-4 rounded-lg transition-all duration-200",
-              view === "day" ? "shadow-md" : "hover:bg-muted/50"
+              "px-4 sm:px-5 rounded-full transition-all duration-300 font-medium",
+              view === "day" 
+                ? "shadow-lg shadow-primary/30 dark:shadow-primary/40 bg-primary hover:bg-primary/90" 
+                : "hover:bg-muted/60 dark:hover:bg-muted/30 text-muted-foreground hover:text-foreground"
             )}
           >
             {renderButtonText("day")}
@@ -121,8 +124,10 @@ export const CalendarHeader = ({
             size="sm"
             onClick={() => onViewChange("week")}
             className={cn(
-              "px-3 sm:px-4 rounded-lg transition-all duration-200",
-              view === "week" ? "shadow-md" : "hover:bg-muted/50"
+              "px-4 sm:px-5 rounded-full transition-all duration-300 font-medium",
+              view === "week" 
+                ? "shadow-lg shadow-primary/30 dark:shadow-primary/40 bg-primary hover:bg-primary/90" 
+                : "hover:bg-muted/60 dark:hover:bg-muted/30 text-muted-foreground hover:text-foreground"
             )}
           >
             {renderButtonText("week")}
@@ -132,8 +137,10 @@ export const CalendarHeader = ({
             size="sm"
             onClick={() => onViewChange("month")}
             className={cn(
-              "px-3 sm:px-4 rounded-lg transition-all duration-200",
-              view === "month" ? "shadow-md" : "hover:bg-muted/50"
+              "px-4 sm:px-5 rounded-full transition-all duration-300 font-medium",
+              view === "month" 
+                ? "shadow-lg shadow-primary/30 dark:shadow-primary/40 bg-primary hover:bg-primary/90" 
+                : "hover:bg-muted/60 dark:hover:bg-muted/30 text-muted-foreground hover:text-foreground"
             )}
           >
             {renderButtonText("month")}

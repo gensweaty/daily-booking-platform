@@ -63,24 +63,24 @@ export const CalendarGrid = ({
   const selectedMonthEnd = endOfMonth(selectedDate);
   const lastDayOfGrid = endOfWeek(selectedMonthEnd);
 
-  // Modern event styles with gradient accents and left border
+  // Modern event styles with gradient accents and left border - more transparent cards
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
       return isDarkTheme 
-        ? "bg-gradient-to-r from-emerald-600/90 to-emerald-500/80 text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/20" 
-        : "bg-gradient-to-r from-emerald-500 to-emerald-400 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/25";
+        ? "bg-gradient-to-r from-emerald-600/70 to-emerald-500/60 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/15" 
+        : "bg-gradient-to-r from-emerald-500/80 to-emerald-400/70 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/20";
     } else {
       if (event.type === "booking_request") {
         return isDarkTheme 
-          ? "bg-gradient-to-r from-emerald-600/90 to-emerald-500/80 text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/20" 
-          : "bg-gradient-to-r from-emerald-500 to-emerald-400 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/25";
+          ? "bg-gradient-to-r from-emerald-600/70 to-emerald-500/60 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/15" 
+          : "bg-gradient-to-r from-emerald-500/80 to-emerald-400/70 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/20";
       } else if (event.type === "birthday") {
         return isDarkTheme 
-          ? "bg-gradient-to-r from-blue-600/90 to-blue-500/80 text-white border-l-4 border-blue-400 shadow-lg shadow-blue-500/20" 
-          : "bg-gradient-to-r from-blue-500/20 to-blue-400/20 text-blue-700 border-l-4 border-blue-500 shadow-md shadow-blue-500/10";
+          ? "bg-gradient-to-r from-blue-600/70 to-blue-500/60 backdrop-blur-sm text-white border-l-4 border-blue-400 shadow-lg shadow-blue-500/15" 
+          : "bg-gradient-to-r from-blue-500/20 to-blue-400/15 text-blue-700 border-l-4 border-blue-500 shadow-md shadow-blue-500/10";
       } else {
         return isDarkTheme 
-          ? "bg-gradient-to-r from-primary/90 to-primary/70 text-primary-foreground border-l-4 border-primary shadow-lg shadow-primary/20" 
+          ? "bg-gradient-to-r from-primary/70 to-primary/50 backdrop-blur-sm text-primary-foreground border-l-4 border-primary shadow-lg shadow-primary/15" 
           : "bg-gradient-to-r from-primary/20 to-primary/10 text-primary border-l-4 border-primary shadow-md shadow-primary/15";
       }
     }
@@ -162,19 +162,19 @@ export const CalendarGrid = ({
     ];
     
     return (
-      <div className={`grid grid-cols-1 h-full overflow-y-auto ${isDarkTheme ? 'bg-background/20 border border-border/15' : 'border border-border/30 bg-card/10'} rounded-xl`}>
+      <div className={`grid grid-cols-1 h-full overflow-y-auto ${isDarkTheme ? 'bg-background/30 border border-border/25' : 'border border-border/35 bg-card/15'} rounded-xl`}>
         {view === 'week' && (
-          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-transparent border-border/15' : 'bg-muted/30 border-border/25'} sticky top-0 z-20 border-b h-10 ${isMobile ? 'text-[0.7rem]' : ''}`}>
+          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-muted/10 border-border/25' : 'bg-muted/35 border-border/30'} sticky top-0 z-20 border-b h-10 ${isMobile ? 'text-[0.7rem]' : ''}`}>
             {days.map((day, index) => {
               const isTodayDate = isToday(day);
               return (
                 <div 
                   key={`header-${index}`} 
-                  className={`p-1.5 text-center font-medium ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'} tracking-wide ${
+                  className={`p-1.5 text-center font-semibold ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'} tracking-wide ${
                     isTodayDate 
                       ? 'text-primary' 
-                      : isDarkTheme ? 'text-muted-foreground/70' : 'text-foreground/70'
-                  } ${index < 6 ? 'border-r border-border/10' : ''}`}
+                      : isDarkTheme ? 'text-foreground/90' : 'text-foreground/80'
+                  } ${index < 6 ? 'border-r border-border/20' : ''}`}
                 >
                   {isMobile ? 
                     `${getWeekdayName(day, true, true)} ${day.getDate()}` : 
@@ -187,8 +187,8 @@ export const CalendarGrid = ({
         )}
         
         {view === 'day' && (
-          <div className={`${isDarkTheme ? 'bg-transparent border-border/15' : 'bg-muted/30 border-border/25'} sticky top-0 z-20 border-b h-10`}>
-            <div className={`p-1.5 text-center font-medium text-xs sm:text-sm tracking-wide ${isToday(days[0]) ? 'text-primary' : 'text-muted-foreground/70'}`}>
+          <div className={`${isDarkTheme ? 'bg-muted/10 border-border/25' : 'bg-muted/35 border-border/30'} sticky top-0 z-20 border-b h-10`}>
+            <div className={`p-1.5 text-center font-semibold text-xs sm:text-sm tracking-wide ${isToday(days[0]) ? 'text-primary' : isDarkTheme ? 'text-foreground/90' : 'text-foreground/80'}`}>
               {isMobile ? 
                 `${getWeekdayName(days[0], true, true)} ${days[0].getDate()}` : 
                 formatDate(days[0], "full")
@@ -204,7 +204,7 @@ export const CalendarGrid = ({
           {HOURS.map((hourIndex, rowIndex) => (
             <div 
               key={hourIndex} 
-              className={`grid border-b ${isDarkTheme ? 'border-border/10' : 'border-border/20'}`}
+              className={`grid border-b ${isDarkTheme ? 'border-border/25' : 'border-border/30'}`}
               style={{ 
                 gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
                 height: '3rem'
@@ -213,7 +213,7 @@ export const CalendarGrid = ({
               {view === 'day' ? (
                 <div
                   key={`${days[0].toISOString()}-${hourIndex}`}
-                  className={`${isDarkTheme ? 'hover:bg-muted/10' : 'hover:bg-muted/20'} p-1 relative transition-colors duration-150 cursor-pointer`}
+                  className={`${isDarkTheme ? 'hover:bg-primary/8 hover:border-l-2 hover:border-l-primary/40' : 'hover:bg-primary/5 hover:border-l-2 hover:border-l-primary/30'} p-1 relative transition-all duration-200 cursor-pointer`}
                   onClick={() => onDayClick?.(days[0], hourIndex)}
                 >
                   {events
@@ -283,7 +283,7 @@ export const CalendarGrid = ({
                 days.map((day, colIndex) => (
                   <div
                     key={`${day.toISOString()}-${hourIndex}`}
-                    className={`${isDarkTheme ? 'hover:bg-muted/10' : 'hover:bg-muted/20'} ${colIndex < days.length - 1 ? 'border-r border-border/10' : ''} p-1 relative transition-colors duration-150 cursor-pointer ${
+                    className={`${isDarkTheme ? 'hover:bg-primary/8 hover:border-l-2 hover:border-l-primary/40' : 'hover:bg-primary/5 hover:border-l-2 hover:border-l-primary/30'} ${colIndex < days.length - 1 ? 'border-r border-border/20' : ''} p-1 relative transition-all duration-200 cursor-pointer ${
                       !isSameMonth(day, selectedDate) ? 'opacity-40' : ''
                     }`}
                     onClick={() => onDayClick?.(day, hourIndex)}
@@ -362,11 +362,11 @@ export const CalendarGrid = ({
 
   if (view === 'month') {
     return (
-      <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-background/20 border border-border/15' : 'border border-border/30 bg-card/10'} rounded-xl overflow-hidden`}>
+      <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-background/30 border border-border/25' : 'border border-border/35 bg-card/15'} rounded-xl overflow-hidden`}>
         {weekDays.map((day, idx) => (
           <div 
             key={day} 
-            className={`${isDarkTheme ? 'bg-transparent text-muted-foreground/60 border-b border-r border-border/10' : 'bg-muted/20 text-foreground/70 border-b border-r border-border/20'} ${idx === 6 ? 'border-r-0' : ''} py-2.5 sm:py-3 text-center font-medium text-[0.65rem] sm:text-xs uppercase tracking-wider`}
+            className={`${isDarkTheme ? 'bg-muted/10 text-foreground/90 border-b border-r border-border/25' : 'bg-muted/25 text-foreground/80 border-b border-r border-border/30'} ${idx === 6 ? 'border-r-0' : ''} py-2.5 sm:py-3 text-center font-semibold text-[0.65rem] sm:text-xs uppercase tracking-wider`}
           >
             {day}
           </div>
@@ -392,12 +392,12 @@ export const CalendarGrid = ({
                       : 'bg-muted/20 cursor-not-allowed')
                   : isDarkTheme 
                     ? (isOtherMonth 
-                        ? 'hover:bg-muted/10' 
-                        : 'hover:bg-muted/15')
+                        ? 'hover:bg-primary/5' 
+                        : 'hover:bg-primary/8')
                     : (isOtherMonth 
-                        ? 'bg-card/40 hover:bg-muted/15' 
-                        : 'hover:bg-muted/25')
-              } ${isDarkTheme ? 'border-b border-r border-border/10' : 'border-b border-r border-border/20'} ${isLastInRow ? 'border-r-0' : ''} p-1.5 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] ${nonWorkingDay ? 'cursor-not-allowed' : 'cursor-pointer'} transition-colors duration-150 relative`}
+                        ? 'bg-card/40 hover:bg-primary/5' 
+                        : 'hover:bg-primary/8')
+              } ${isDarkTheme ? 'border-b border-r border-border/25' : 'border-b border-r border-border/30'} ${isLastInRow ? 'border-r-0' : ''} p-1.5 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] ${nonWorkingDay ? 'cursor-not-allowed' : 'cursor-pointer'} transition-all duration-200 relative`}
               style={{ height: '160px' }}
               onClick={() => !nonWorkingDay && onDayClick?.(day)}
             >
