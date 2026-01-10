@@ -392,11 +392,11 @@ export const CalendarGrid = ({
                       : 'bg-muted/20 cursor-not-allowed')
                   : isDarkTheme 
                     ? (isOtherMonth 
-                        ? 'hover:bg-primary/5' 
-                        : 'hover:bg-primary/8')
+                        ? 'hover:bg-primary/10 hover:shadow-inner' 
+                        : 'hover:bg-primary/15 hover:shadow-inner')
                     : (isOtherMonth 
-                        ? 'bg-card/40 hover:bg-primary/5' 
-                        : 'hover:bg-primary/8')
+                        ? 'bg-card/40 hover:bg-primary/10' 
+                        : 'hover:bg-primary/12')
               } ${isDarkTheme ? 'border-b border-r border-border/25' : 'border-b border-r border-border/30'} ${isLastInRow ? 'border-r-0' : ''} p-1.5 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] ${nonWorkingDay ? 'cursor-not-allowed' : 'cursor-pointer'} transition-all duration-200 relative`}
               style={{ height: '160px' }}
               onClick={() => !nonWorkingDay && onDayClick?.(day)}
