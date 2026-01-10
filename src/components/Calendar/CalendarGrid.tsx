@@ -47,8 +47,8 @@ export const CalendarGrid = ({
   
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const dayDate = addDays(startDate, i);
-    // Mobile: 2-letter abbreviations, Desktop: 3-letter abbreviations
-    return isMobile ? getWeekdayName(dayDate, false, false, true) : getWeekdayName(dayDate, true, false, false);
+    // Mobile month view: 3-letter abbreviations, Desktop: 3-letter abbreviations
+    return isMobile ? getWeekdayName(dayDate, true, false, false) : getWeekdayName(dayDate, true, false, false);
   });
 
   const selectedDate = new Date(formattedSelectedDate);
@@ -165,20 +165,26 @@ export const CalendarGrid = ({
     return (
       <div className={`grid grid-cols-1 h-full overflow-y-auto ${isDarkTheme ? 'bg-background/30 border border-border/25' : 'border border-border/35 bg-card/15'} rounded-xl`}>
         {view === 'week' && (
-          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-muted/10 border-border/25' : 'bg-muted/35 border-border/30'} sticky top-0 z-20 border-b h-10 ${isMobile ? 'text-[0.7rem]' : ''}`}>
+          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-muted/10 border-border/25' : 'bg-muted/35 border-border/30'} sticky top-0 z-20 border-b ${isMobile ? 'h-12' : 'h-10'} ${isMobile ? 'text-[0.7rem]' : ''}`}>
             {days.map((day, index) => {
               const isTodayDate = isToday(day);
               return (
                 <div 
                   key={`header-${index}`} 
-                  className={`p-1.5 text-center font-semibold ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'} tracking-wide ${
+                  className={`p-1 text-center font-semibold ${isMobile ? 'text-xs flex flex-col items-center justify-center' : 'text-xs sm:text-sm p-1.5'} tracking-wide ${
                     isTodayDate 
                       ? 'text-primary' 
                       : isDarkTheme ? 'text-foreground/90' : 'text-foreground/80'
                   } ${index < 6 ? 'border-r border-border/20' : ''}`}
                 >
-                  {/* Both mobile and desktop use 2-letter abbreviations for week view */}
-                  {`${getWeekdayName(day, false, false, true)} ${day.getDate()}`}
+                  {isMobile ? (
+                    <>
+                      <span>{getWeekdayName(day, false, false, true)}</span>
+                      <span>{day.getDate()}</span>
+                    </>
+                  ) : (
+                    `${getWeekdayName(day, false, false, true)} ${day.getDate()}`
+                  )}
                 </div>
               );
             })}
