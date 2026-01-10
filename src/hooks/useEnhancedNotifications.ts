@@ -70,6 +70,16 @@ export const useEnhancedNotifications = () => {
 
   const showSingleNotification = useCallback(async (data: NotificationData) => {
     console.log('🔔 Showing enhanced notification:', data);
+
+    // Emit to Dynamic Island
+    window.dispatchEvent(new CustomEvent('dashboard-notification', {
+      detail: {
+        type: 'chat',
+        title: data.title,
+        message: data.body,
+        actionData: { channelId: data.channelId }
+      }
+    }));
     
     // Play a short ping, but never more often than once per 1200ms
     try {

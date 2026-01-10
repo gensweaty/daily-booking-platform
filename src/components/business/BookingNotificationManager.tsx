@@ -104,12 +104,25 @@ export const BookingNotificationManager = ({
     const isGeorgian = language === 'ka';
     
     console.log('Showing toast notification for new booking request:', request.id);
+
+    const title = isGeorgian ? "ახალი ჯავშნის მოთხოვნა!" : "New Booking Request!";
+    const description = isGeorgian 
+      ? `${request.requester_name}-ისგან: ${request.title}`
+      : `From ${request.requester_name}: ${request.title}`;
+
+    // Emit to Dynamic Island
+    window.dispatchEvent(new CustomEvent('dashboard-notification', {
+      detail: {
+        type: 'booking',
+        title,
+        message: description,
+        actionData: { bookingId: request.id }
+      }
+    }));
     
     toast({
-      title: isGeorgian ? "ახალი ჯავშნის მოთხოვნა!" : "New Booking Request!",
-      description: isGeorgian 
-        ? `${request.requester_name}-ისგან: ${request.title}`
-        : `From ${request.requester_name}: ${request.title}`,
+      title,
+      description,
       duration: 15000, // Show for 15 seconds to ensure visibility
       className: "bg-orange-50 border-orange-200 text-orange-900 shadow-lg",
       action: (
