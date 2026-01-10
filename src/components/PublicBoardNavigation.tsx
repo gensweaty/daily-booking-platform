@@ -13,6 +13,7 @@ import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { PresenceAvatars } from "@/components/PresenceAvatars";
 import { supabase } from "@/lib/supabase";
 import { TaskFiltersProvider } from "@/hooks/useTaskFilters";
+import { PublicDynamicIsland } from "@/components/dashboard/PublicDynamicIsland";
 
 // Create a context for public board auth
 export const PublicBoardAuthContext = createContext<{
@@ -200,8 +201,14 @@ export const PublicBoardNavigation = ({
       <PublicBoardAuthContext.Provider value={{ user: { id: boardUserId, email } }}>
         <TaskFiltersProvider>
           <div className="w-full max-w-[98%] xl:max-w-[96%] 2xl:max-w-[94%] mx-auto">
+            {/* Dynamic Island for sub-users */}
+            <PublicDynamicIsland 
+              username={fullName} 
+              boardUserId={boardUserId}
+            />
+            
             {singleTab.id === 'tasks' && (
-              <PublicTaskList 
+              <PublicTaskList
                 boardUserId={boardUserId}
                 externalUserName={fullName}
                 externalUserEmail={email}
@@ -256,6 +263,12 @@ export const PublicBoardNavigation = ({
     <PublicBoardAuthContext.Provider value={{ user: { id: boardUserId, email } }}>
       <TaskFiltersProvider>
         <div className="w-full max-w-[98%] xl:max-w-[96%] 2xl:max-w-[94%] mx-auto">
+          {/* Dynamic Island for sub-users */}
+          <PublicDynamicIsland 
+            username={fullName} 
+            boardUserId={boardUserId}
+          />
+          
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">
             <TabsList className="grid w-full bg-transparent p-0 gap-1 h-auto" style={{ gridTemplateColumns: `repeat(${availableTabs.length}, minmax(0, 1fr))` }}>
