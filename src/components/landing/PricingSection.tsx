@@ -113,8 +113,8 @@ export const PricingSection = () => {
 
   return (
     <section id="pricing" className="py-16 bg-gradient-to-br from-slate-900 via-primary/20 to-slate-800 text-white relative overflow-hidden">
-      {/* Reduced Background Elements */}
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-600/5 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
+      {/* Simplified Background - removed heavy animations */}
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-600/5" />
       <div 
         className="absolute top-0 left-0 w-full h-full opacity-10"
         style={{
@@ -122,10 +122,9 @@ export const PricingSection = () => {
         }}
       />
       
-      {/* Reduced Floating Shapes */}
-      <div className="absolute top-10 left-10 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-xl animate-ultra-gentle-float" />
-      <div className="absolute bottom-20 right-20 w-12 h-12 bg-gradient-to-br from-accent/10 to-primary/10 rounded-full blur-xl animate-ultra-gentle-float" style={{animationDelay: '6s'}} />
-      <div className="absolute top-1/2 left-1/4 w-8 h-8 bg-gradient-to-br from-primary/5 to-accent/5 rounded-full blur-lg animate-ultra-gentle-float" style={{animationDelay: '12s'}} />
+      {/* Simplified decorative elements - static instead of animated */}
+      <div className="absolute top-10 left-10 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-xl" />
+      <div className="absolute bottom-20 right-20 w-12 h-12 bg-gradient-to-br from-accent/10 to-primary/10 rounded-full blur-xl" />
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-10">
@@ -166,16 +165,16 @@ export const PricingSection = () => {
           </div>
         </div>
 
-        {/* Enhanced Pricing Cards */}
+        {/* Optimized Pricing Cards - removed heavy animations */}
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Monthly Plan */}
-          <div className={`relative enhanced-card bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 transform-3d ${!isYearly ? 'ring-2 ring-primary shadow-primary/25' : ''}`}>
-            {/* Floating decorative elements */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent/40 rounded-full animate-ultra-gentle-float blur-sm" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary/40 rounded-full animate-ultra-gentle-float blur-sm" style={{animationDelay: '9s'}} />
+          <div className={`relative bg-slate-800/80 backdrop-blur-sm border border-slate-600 text-white transition-all duration-300 hover:scale-[1.02] hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 ${!isYearly ? 'ring-2 ring-primary shadow-primary/25' : ''}`}>
+            {/* Static decorative elements */}
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent/40 rounded-full blur-sm" />
+            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary/40 rounded-full blur-sm" />
             
             <div className="text-center pb-3">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-ultra-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
+              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
               <h3 className="text-xl font-bold text-white">
@@ -197,8 +196,8 @@ export const PricingSection = () => {
             <div className="pt-0">
               <ul className="space-y-2 mb-4">
                 {features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-2 stagger-child" style={{animationDelay: `${index * 50}ms`}}>
-                    <Check className="h-4 w-4 text-green-400 flex-shrink-0 drop-shadow-sm" />
+                  <li key={index} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
                     <span className="text-gray-200 text-sm">{feature}</span>
                   </li>
                 ))}
@@ -206,17 +205,7 @@ export const PricingSection = () => {
               <Button
                 onClick={() => handleSubscribe('monthly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-white/90 to-gray-100/90 text-slate-900 hover:from-gray-100/90 hover:to-white/90 font-semibold py-2 transition-all duration-1500 text-sm ripple-container hover:scale-101 animate-ultra-subtle-shimmer" 
-                style={{backgroundSize: '200% 100%'}}
-                onMouseDown={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const ripple = document.createElement('span');
-                  ripple.classList.add('ripple-effect');
-                  ripple.style.left = `${e.clientX - rect.left}px`;
-                  ripple.style.top = `${e.clientY - rect.top}px`;
-                  e.currentTarget.appendChild(ripple);
-                  setTimeout(() => ripple.remove(), 600);
-                }}
+                className="w-full bg-gradient-to-r from-white/90 to-gray-100/90 text-slate-900 hover:from-gray-100/90 hover:to-white/90 font-semibold py-2 transition-colors duration-300 text-sm"
               >
                 <LanguageText>
                   {loading === 'monthly' ? t('subscription.processing') : t('subscription.startFreeTrial')}
@@ -229,13 +218,13 @@ export const PricingSection = () => {
           </div>
 
           {/* Yearly Plan */}
-          <div className={`relative enhanced-card bg-slate-800/80 backdrop-blur-sm border-slate-600 text-white transition-all duration-300 hover:scale-105 hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 transform-3d hover-tilt ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25' : ''}`}>
-            {/* Floating decorative elements */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400/40 rounded-full animate-ultra-gentle-float blur-sm" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-orange-400/40 rounded-full animate-ultra-gentle-float blur-sm" style={{animationDelay: '6s'}} />
+          <div className={`relative bg-slate-800/80 backdrop-blur-sm border border-slate-600 text-white transition-all duration-300 hover:scale-[1.02] hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25' : ''}`}>
+            {/* Static decorative elements */}
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400/40 rounded-full blur-sm" />
+            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-orange-400/40 rounded-full blur-sm" />
             
             <div className="text-center pb-3">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2 animate-ultra-subtle-shimmer" style={{backgroundSize: '200% 100%'}}>
+              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
               <h3 className="text-xl font-bold text-white">
@@ -257,8 +246,8 @@ export const PricingSection = () => {
             <div className="pt-0">
               <ul className="space-y-2 mb-4">
                 {features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-2 stagger-child" style={{animationDelay: `${index * 50}ms`}}>
-                    <Check className="h-4 w-4 text-green-400 flex-shrink-0 drop-shadow-sm" />
+                  <li key={index} className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
                     <span className="text-gray-200 text-sm">{feature}</span>
                   </li>
                 ))}
@@ -266,17 +255,7 @@ export const PricingSection = () => {
               <Button
                 onClick={() => handleSubscribe('yearly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-black hover:from-yellow-400/90 hover:to-orange-400/90 font-semibold py-2 transition-all duration-1500 text-sm ripple-container hover:scale-101 animate-ultra-subtle-shimmer"
-                style={{backgroundSize: '200% 100%'}}
-                onMouseDown={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const ripple = document.createElement('span');
-                  ripple.classList.add('ripple-effect');
-                  ripple.style.left = `${e.clientX - rect.left}px`;
-                  ripple.style.top = `${e.clientY - rect.top}px`;
-                  e.currentTarget.appendChild(ripple);
-                  setTimeout(() => ripple.remove(), 600);
-                }}
+                className="w-full bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-black hover:from-yellow-400/90 hover:to-orange-400/90 font-semibold py-2 transition-colors duration-300 text-sm"
               >
                 <LanguageText>
                   {loading === 'yearly' ? t('subscription.processing') : t('subscription.startFreeTrial')}
