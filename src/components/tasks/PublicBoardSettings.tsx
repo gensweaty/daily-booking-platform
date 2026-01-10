@@ -206,11 +206,11 @@ export const PublicBoardSettings = ({ isOpen: externalIsOpen, onOpenChange: exte
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-y-auto mx-auto">
-        <DialogHeader className="pr-8">
-          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+      <DialogContent className="w-[92vw] sm:w-[90vw] max-w-2xl max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
+        <DialogHeader className="pr-6">
+          <DialogTitle className="flex items-center gap-2 text-sm sm:text-lg pr-4">
             <Globe className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
-            <span className="truncate">{t("publicBoard.boardSettings")}</span>
+            <span className="line-clamp-2 sm:truncate">{t("publicBoard.boardSettings")}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -219,7 +219,7 @@ export const PublicBoardSettings = ({ isOpen: externalIsOpen, onOpenChange: exte
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
             {/* Public/Private Toggle */}
             <div className="flex items-center justify-between">
               <div className="space-y-1">
@@ -245,13 +245,13 @@ export const PublicBoardSettings = ({ isOpen: externalIsOpen, onOpenChange: exte
                 exit={{ opacity: 0, height: 0 }}
                 className="space-y-6"
               >
-                <div className="grid gap-6">
+                <div className="grid gap-4 sm:gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="slug" className="text-sm font-medium">
                       {t("publicBoard.boardSlug")} *
                     </Label>
                     <div className="space-y-2">
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-xs sm:text-sm text-muted-foreground break-all">
                         {window.location.origin}/board/
                       </div>
                       <Input
@@ -260,7 +260,7 @@ export const PublicBoardSettings = ({ isOpen: externalIsOpen, onOpenChange: exte
                         value={slug}
                         onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/--+/g, '-'))}
                         placeholder={t("publicBoard.enterSlug")}
-                        className="w-full text-base px-3 py-2"
+                        className="w-full text-sm sm:text-base px-3 py-2"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -278,15 +278,16 @@ export const PublicBoardSettings = ({ isOpen: externalIsOpen, onOpenChange: exte
                       value={magicWord}
                       onChange={(e) => setMagicWord(e.target.value)}
                       placeholder={t("publicBoard.enterMagicWord")}
-                      className="w-full text-base px-3 py-2"
+                      className="w-full text-sm sm:text-base px-3 py-2"
                     />
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-start gap-2 mt-2">
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
                         onClick={() => copyToClipboard(magicWord)}
                         disabled={!magicWord.trim()}
+                        className="shrink-0"
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
