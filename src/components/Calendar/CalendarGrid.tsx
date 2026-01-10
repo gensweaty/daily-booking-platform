@@ -63,25 +63,25 @@ export const CalendarGrid = ({
   const selectedMonthEnd = endOfMonth(selectedDate);
   const lastDayOfGrid = endOfWeek(selectedMonthEnd);
 
-  // Modern event styles with gradient accents and left border - more transparent cards
+  // Modern event styles with gradient accents and left border - more visible cards in light mode
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
       return isDarkTheme 
         ? "bg-gradient-to-r from-emerald-600/50 to-emerald-500/40 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/10" 
-        : "bg-gradient-to-r from-emerald-500/60 to-emerald-400/50 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/15";
+        : "bg-gradient-to-r from-emerald-500/80 to-emerald-400/70 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/20";
     } else {
       if (event.type === "booking_request") {
         return isDarkTheme 
           ? "bg-gradient-to-r from-emerald-600/50 to-emerald-500/40 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/10" 
-          : "bg-gradient-to-r from-emerald-500/60 to-emerald-400/50 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/15";
+          : "bg-gradient-to-r from-emerald-500/80 to-emerald-400/70 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/20";
       } else if (event.type === "birthday") {
         return isDarkTheme 
           ? "bg-gradient-to-r from-blue-600/50 to-blue-500/40 backdrop-blur-sm text-white border-l-4 border-blue-400 shadow-lg shadow-blue-500/10" 
-          : "bg-gradient-to-r from-blue-500/15 to-blue-400/10 text-blue-700 border-l-4 border-blue-500 shadow-md shadow-blue-500/10";
+          : "bg-gradient-to-r from-blue-500/35 to-blue-400/25 text-blue-800 border-l-4 border-blue-500 shadow-md shadow-blue-500/15";
       } else {
         return isDarkTheme 
           ? "bg-gradient-to-r from-primary/50 to-primary/35 backdrop-blur-sm text-primary-foreground border-l-4 border-primary shadow-lg shadow-primary/10" 
-          : "bg-gradient-to-r from-primary/15 to-primary/8 text-primary border-l-4 border-primary shadow-md shadow-primary/10";
+          : "bg-gradient-to-r from-primary/35 to-primary/25 text-primary border-l-4 border-primary shadow-md shadow-primary/15";
       }
     }
   };
@@ -395,8 +395,8 @@ export const CalendarGrid = ({
                         ? 'hover:bg-primary/10 hover:shadow-inner' 
                         : 'hover:bg-primary/15 hover:shadow-inner')
                     : (isOtherMonth 
-                        ? 'bg-card/40 hover:bg-primary/10' 
-                        : 'hover:bg-primary/12')
+                        ? 'bg-card/40 hover:bg-primary/15 hover:shadow-inner' 
+                        : 'hover:bg-primary/20 hover:shadow-inner')
               } ${isDarkTheme ? 'border-b border-r border-border/25' : 'border-b border-r border-border/30'} ${isLastInRow ? 'border-r-0' : ''} p-1.5 sm:p-2 flex flex-col min-h-[140px] sm:min-h-[160px] ${nonWorkingDay ? 'cursor-not-allowed' : 'cursor-pointer'} transition-all duration-200 relative`}
               style={{ height: '160px' }}
               onClick={() => !nonWorkingDay && onDayClick?.(day)}
