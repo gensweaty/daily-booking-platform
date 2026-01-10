@@ -7,11 +7,25 @@ import { lazy, Suspense, memo, useEffect, useState, useMemo } from "react";
 import "@/components/landing/animations.css";
 
 // Simplified lazy loading with proper default exports
-const LazyFeatureSection = lazy(() => import("@/components/landing/FeatureSection"));
-const LazyPricingSection = lazy(() => import("@/components/landing/PricingSection"));
+const LazyFeatureSection = lazy(() => 
+  import("@/components/landing/FeatureSection").then(module => {
+    console.log('[DEBUG] FeatureSection loaded:', module);
+    return { default: module.FeatureSection || module.default };
+  })
+);
+
+const LazyPricingSection = lazy(() => 
+  import("@/components/landing/PricingSection").then(module => {
+    console.log('[DEBUG] PricingSection loaded:', module);
+    return { default: module.PricingSection || module.default };
+  })
+);
 
 const LazyFooterSection = lazy(() => 
-  import("@/components/landing/FooterSection")
+  import("@/components/landing/FooterSection").then(module => {
+    console.log('[DEBUG] FooterSection loaded:', module);
+    return { default: module.default };
+  })
 );
 
 // Optimized loading placeholder with reduced DOM complexity

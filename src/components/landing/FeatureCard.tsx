@@ -109,3 +109,5 @@ const FeatureCardComponent = ({
 
 export const FeatureCard = memo(FeatureCardComponent);
 FeatureCard.displayName = 'FeatureCard';
+
+export default FeatureCard;
