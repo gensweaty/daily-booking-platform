@@ -78,27 +78,27 @@ export const CalendarHeader = ({
   };
 
   return (
-    <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="flex items-center justify-between gap-1 sm:gap-2 flex-wrap">
       {/* Left: Navigation arrows and date */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         <Button 
           variant="outline" 
           size="icon" 
           onClick={onPrevious}
-          className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+          className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-7 w-7 sm:h-8 sm:w-8"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
         <Button 
           variant="outline" 
           size="icon" 
           onClick={onNext}
-          className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+          className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-7 w-7 sm:h-8 sm:w-8"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </Button>
         <h2 className={cn(
-          "text-sm sm:text-base font-semibold ml-1 tracking-tight whitespace-nowrap",
+          "text-xs sm:text-base font-semibold ml-0.5 sm:ml-1 tracking-tight whitespace-nowrap",
           isGeorgian ? "font-georgian" : ""
         )}>
           {getFormattedDate()}
@@ -106,14 +106,14 @@ export const CalendarHeader = ({
       </div>
 
       {/* Center: View switcher */}
-      <div className="flex items-center gap-1.5">
-        <div className="flex gap-1 bg-muted/50 dark:bg-muted/30 backdrop-blur-md rounded-full p-1.5 border border-border/40 dark:border-border/30 shadow-lg">
+      <div className="flex items-center gap-0.5 sm:gap-1.5">
+        <div className="flex gap-0.5 sm:gap-1 bg-muted/50 dark:bg-muted/30 backdrop-blur-md rounded-full p-1 sm:p-1.5 border border-border/40 dark:border-border/30 shadow-lg">
           <Button
             variant={view === "day" ? "default" : "ghost"}
             size="sm"
             onClick={() => onViewChange("day")}
             className={cn(
-              "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm relative",
+              "px-2 sm:px-5 py-1 sm:py-1.5 rounded-full transition-all duration-300 font-semibold text-[0.65rem] sm:text-sm relative",
               view === "day" 
                 ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
                 : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
@@ -129,7 +129,7 @@ export const CalendarHeader = ({
             size="sm"
             onClick={() => onViewChange("week")}
             className={cn(
-              "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm relative",
+              "px-2 sm:px-5 py-1 sm:py-1.5 rounded-full transition-all duration-300 font-semibold text-[0.65rem] sm:text-sm relative",
               view === "week" 
                 ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
                 : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
@@ -145,7 +145,7 @@ export const CalendarHeader = ({
             size="sm"
             onClick={() => onViewChange("month")}
             className={cn(
-              "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm relative",
+              "px-2 sm:px-5 py-1 sm:py-1.5 rounded-full transition-all duration-300 font-semibold text-[0.65rem] sm:text-sm relative",
               view === "month" 
                 ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
                 : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
@@ -168,14 +168,14 @@ export const CalendarHeader = ({
                   size="icon"
                   onClick={() => onSetPreferredView(view)}
                   className={cn(
-                    "h-8 w-8 rounded-full transition-all duration-200",
+                    "h-7 w-7 sm:h-8 sm:w-8 rounded-full transition-all duration-200",
                     preferredView === view 
                       ? "text-primary bg-primary/10" 
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
                   <Pin className={cn(
-                    "h-3.5 w-3.5 transition-transform",
+                    "h-3 w-3 sm:h-3.5 sm:w-3.5 transition-transform",
                     preferredView === view && "fill-current"
                   )} />
                 </Button>
@@ -192,24 +192,39 @@ export const CalendarHeader = ({
       </div>
 
       {/* Right: Presence + Add Event */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         {onlineUsers.length > 0 && (
           <PresenceCircles users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
         )}
         {onAddEvent && (
-          <Button 
-            onClick={onAddEvent}
-            size="sm" 
-            variant="dynamic"
-            className={cn(
-              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]",
-              isGeorgian ? "font-georgian" : ""
-            )}
-            type="button"
-          >
-            <Plus className="h-4 w-4" />
-            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
-          </Button>
+          <>
+            {/* Mobile: Icon only button */}
+            <Button 
+              onClick={onAddEvent}
+              size="icon" 
+              variant="dynamic"
+              className={cn(
+                "sm:hidden font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] h-7 w-7"
+              )}
+              type="button"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            {/* Desktop: Full button with text */}
+            <Button 
+              onClick={onAddEvent}
+              size="sm" 
+              variant="dynamic"
+              className={cn(
+                "hidden sm:flex font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]",
+                isGeorgian ? "font-georgian" : ""
+              )}
+              type="button"
+            >
+              <Plus className="h-4 w-4" />
+              {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+            </Button>
+          </>
         )}
       </div>
     </div>
