@@ -47,8 +47,8 @@ export const CalendarGrid = ({
   
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const dayDate = addDays(startDate, i);
-    // Use 2-letter abbreviations for month view headers
-    return getWeekdayName(dayDate, false, false, true);
+    // Mobile: 2-letter abbreviations, Desktop: 3-letter abbreviations
+    return isMobile ? getWeekdayName(dayDate, false, false, true) : getWeekdayName(dayDate, true, false, false);
   });
 
   const selectedDate = new Date(formattedSelectedDate);
