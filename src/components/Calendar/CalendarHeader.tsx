@@ -79,26 +79,34 @@ export const CalendarHeader = ({
 
   return (
     <div className="flex flex-col gap-1.5 sm:gap-0">
-      {/* Mobile: Three rows layout */}
-      {/* Row 1: Navigation arrows + Add Event button */}
-      <div className="flex sm:hidden items-center justify-between">
-        <div className="flex items-center gap-1">
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={onPrevious}
-            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="outline" 
-            size="icon" 
-            onClick={onNext}
-            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {/* Mobile: Two rows layout */}
+      {/* Row 1: Navigation arrows with date below (grouped) + Add Event button */}
+      <div className="flex sm:hidden items-start justify-between">
+        <div className="flex flex-col items-start gap-0.5">
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={onPrevious}
+              className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={onNext}
+              className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <h2 className={cn(
+            "text-sm font-semibold tracking-tight whitespace-nowrap pl-1",
+            isGeorgian ? "font-georgian" : ""
+          )}>
+            {getFormattedDate()}
+          </h2>
         </div>
         
         {onAddEvent && (
@@ -116,16 +124,6 @@ export const CalendarHeader = ({
             {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
           </Button>
         )}
-      </div>
-      
-      {/* Row 2: Date centered (Mobile only) */}
-      <div className="flex sm:hidden items-center justify-center">
-        <h2 className={cn(
-          "text-sm font-semibold tracking-tight whitespace-nowrap",
-          isGeorgian ? "font-georgian" : ""
-        )}>
-          {getFormattedDate()}
-        </h2>
       </div>
       
       {/* Row 2: View switcher + Pin (Mobile only) */}
