@@ -60,6 +60,11 @@ export const useChat = () => {
   return ctx;
 };
 
+// Safe version that returns null instead of throwing
+export const useChatSafe = () => {
+  return useContext(ChatContext);
+};
+
 // Helper to read localStorage access
 const getPublicAccess = (path: string) => {
   try {
