@@ -103,19 +103,6 @@ export const CalendarHeader = ({
         )}>
           {getFormattedDate()}
         </h2>
-        
-        {/* Mobile only: Add Event button next to date */}
-        {onAddEvent && (
-          <Button 
-            onClick={onAddEvent}
-            size="icon" 
-            variant="dynamic"
-            className="sm:hidden font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-7 w-7 ml-1"
-            type="button"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        )}
       </div>
 
       {/* Center: View switcher */}
@@ -204,26 +191,38 @@ export const CalendarHeader = ({
         )}
       </div>
 
-      {/* Right: Presence + Add Event (Desktop only) */}
+      {/* Right: Presence + Add Event */}
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         {onlineUsers.length > 0 && (
           <PresenceCircles users={onlineUsers} currentUserEmail={currentUserEmail} max={5} />
         )}
-        {/* Desktop: Full button with text */}
         {onAddEvent && (
-          <Button 
-            onClick={onAddEvent}
-            size="sm" 
-            variant="dynamic"
-            className={cn(
-              "hidden sm:flex font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]",
-              isGeorgian ? "font-georgian" : ""
-            )}
-            type="button"
-          >
-            <Plus className="h-4 w-4" />
-            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
-          </Button>
+          <>
+            {/* Mobile: Icon only button */}
+            <Button 
+              onClick={onAddEvent}
+              size="icon" 
+              variant="dynamic"
+              className="sm:hidden font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-7 w-7"
+              type="button"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            {/* Desktop: Full button with text */}
+            <Button 
+              onClick={onAddEvent}
+              size="sm" 
+              variant="dynamic"
+              className={cn(
+                "hidden sm:flex font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]",
+                isGeorgian ? "font-georgian" : ""
+              )}
+              type="button"
+            >
+              <Plus className="h-4 w-4" />
+              {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+            </Button>
+          </>
         )}
       </div>
     </div>
