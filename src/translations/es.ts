@@ -557,6 +557,10 @@ export const translations: TranslationType = {
     bookNow: "Reservar Ahora",
     weekOf: "Semana de",
     defaultViewSaved: "Vista predeterminada guardada",
+    viewWillBeDefault: "{{view}} será tu vista predeterminada",
+    dayView: "Día",
+    weekView: "Semana",
+    monthView: "Mes",
     setAsDefault: "Establecer como vista predeterminada",
     currentDefault: "Vista predeterminada actual",
     days: {

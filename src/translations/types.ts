@@ -551,6 +551,10 @@ export interface TranslationType {
     bookNow: string;
     weekOf: string;
     defaultViewSaved: string;
+    viewWillBeDefault: string;
+    dayView: string;
+    weekView: string;
+    monthView: string;
     setAsDefault: string;
     currentDefault: string;
     days: {
