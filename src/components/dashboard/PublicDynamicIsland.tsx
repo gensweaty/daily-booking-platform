@@ -9,13 +9,13 @@ import { LanguageText } from '@/components/shared/LanguageText';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-interface DynamicIslandProps {
+interface PublicDynamicIslandProps {
   username: string;
-  userProfileName?: string;
+  boardUserId: string;
 }
 
-export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps) => {
-  const { language, t } = useLanguage();
+export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIslandProps) => {
+  const { language } = useLanguage();
   const [isExpanded, setIsExpanded] = useState(false);
   const { 
     notifications, 
@@ -27,11 +27,12 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
   } = useDashboardNotifications();
 
   const isGeorgian = language === 'ka';
-  const displayName = userProfileName || username;
+  const displayName = username;
 
   const handleNotificationClick = useCallback((notification: typeof notifications[0]) => {
     markAsRead(notification.id);
     
+    // For public board, we dispatch events that the PublicBoardNavigation can handle
     switch (notification.type) {
       case 'comment':
       case 'task_reminder':
@@ -42,19 +43,11 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
         }
         break;
       case 'chat':
-        if (notification.actionData?.channelId) {
-          window.dispatchEvent(new CustomEvent('open-chat-channel', { 
-            detail: { channelId: notification.actionData.channelId } 
-          }));
-        }
-        break;
-      case 'booking':
-        window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
-          detail: { tab: 'business' } 
-        }));
+        // Chat notifications in public board - could open chat if available
         break;
       case 'event_reminder':
-        window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
+        // Switch to calendar tab
+        window.dispatchEvent(new CustomEvent('switch-public-tab', { 
           detail: { tab: 'calendar' } 
         }));
         break;
