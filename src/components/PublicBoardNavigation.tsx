@@ -71,7 +71,6 @@ export const PublicBoardNavigation = ({
   onlineUsers
 }: PublicBoardNavigationProps) => {
   const { t, language } = useLanguage();
-  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [permissions, setPermissions] = useState<SubUserPermissions>({
     tasks_permission: true,
     calendar_permission: false,
@@ -81,6 +80,29 @@ export const PublicBoardNavigation = ({
   const [loading, setLoading] = useState(true);
   const [isSubUser, setIsSubUser] = useState(false);
   const isGeorgian = language === 'ka';
+  
+  const hasPermission = (permission: 'tasks' | 'calendar' | 'crm' | 'statistics') => {
+    if (!isSubUser) return true; // Admin has all permissions
+    return permissions[`${permission}_permission`];
+  };
+  
+  // Build available tabs based on permissions - calendar first if available, then tasks
+  const getAvailableTabs = () => {
+    const allTabs = [
+      { id: "calendar", label: t("dashboard.bookingCalendar"), icon: CalendarIcon, permission: "calendar" as const },
+      { id: "tasks", label: isGeorgian ? "დავალებები" : t("dashboard.tasks"), icon: ListTodo, permission: "tasks" as const },
+      { id: "crm", label: isGeorgian ? "მომხმარებლების მართვა" : t("dashboard.crm"), icon: Users, permission: "crm" as const },
+      { id: "statistics", label: isGeorgian ? "სტატისტიკა" : t("dashboard.statistics"), icon: BarChart, permission: "statistics" as const }
+    ];
+    return allTabs.filter(tab => hasPermission(tab.permission));
+  };
+  
+  // Compute available tabs
+  const availableTabs = getAvailableTabs();
+  
+  // Set default to first available tab (calendar first if permission exists)
+  const defaultTab = availableTabs.length > 0 ? availableTabs[0].id : "tasks";
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
 
   useEffect(() => {
     const fetchPermissions = async () => {
@@ -153,11 +175,15 @@ export const PublicBoardNavigation = ({
     fetchPermissions();
   }, [email, boardUserId]);
 
-  const hasPermission = (permission: 'tasks' | 'calendar' | 'crm' | 'statistics') => {
-    if (!isSubUser) return true; // Admin has all permissions
-    
-    return permissions[`${permission}_permission`];
-  };
+  // Update activeTab when permissions change and current tab becomes unavailable
+  useEffect(() => {
+    if (!loading && availableTabs.length > 0) {
+      const currentTabAvailable = availableTabs.some(tab => tab.id === activeTab);
+      if (!currentTabAvailable) {
+        setActiveTab(availableTabs[0].id);
+      }
+    }
+  }, [loading, permissions, isSubUser]);
 
   if (loading) {
     return (
@@ -166,21 +192,6 @@ export const PublicBoardNavigation = ({
       </div>
     );
   }
-
-  // Build available tabs based on permissions - calendar first if available, then tasks
-  const availableTabs = [
-    { id: "calendar", label: t("dashboard.bookingCalendar"), icon: CalendarIcon, permission: "calendar" as const },
-    { id: "tasks", label: isGeorgian ? "დავალებები" : t("dashboard.tasks"), icon: ListTodo, permission: "tasks" as const },
-    { id: "crm", label: isGeorgian ? "მომხმარებლების მართვა" : t("dashboard.crm"), icon: Users, permission: "crm" as const },
-    { id: "statistics", label: isGeorgian ? "სტატისტიკა" : t("dashboard.statistics"), icon: BarChart, permission: "statistics" as const }
-  ].filter(tab => hasPermission(tab.permission));
-
-  // Set default tab based on available tabs (calendar first if available)
-  useEffect(() => {
-    if (availableTabs.length > 0 && activeTab === null) {
-      setActiveTab(availableTabs[0].id);
-    }
-  }, [availableTabs.length, activeTab]);
 
   // If only one page is available, show just that content without tabs
   if (availableTabs.length === 1) {
