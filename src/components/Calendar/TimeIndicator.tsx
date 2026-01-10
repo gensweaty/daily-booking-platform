@@ -2,10 +2,10 @@
 import { format } from "date-fns";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
-// Reorder hours to start from 6 AM
+// Reorder hours to start from 9 AM
 const HOURS = [
-  ...Array.from({ length: 18 }, (_, i) => i + 6), // 6 AM to 23 PM
-  ...Array.from({ length: 6 }, (_, i) => i) // 0 AM to 5 AM
+  ...Array.from({ length: 15 }, (_, i) => i + 9), // 9 AM to 23 (11 PM)
+  ...Array.from({ length: 9 }, (_, i) => i) // 0 AM to 8 AM
 ];
 
 export const TimeIndicator = () => {
