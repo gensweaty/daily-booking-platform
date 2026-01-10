@@ -78,6 +78,8 @@ const CarouselImage = memo(({
   );
 });
 
+CarouselImage.displayName = 'CarouselImage';
+
 export const ImageCarousel = ({ 
   images, 
   className,
@@ -238,3 +240,5 @@ export const ImageCarousel = ({
     </div>
   );
 };
+
+export default ImageCarousel;
