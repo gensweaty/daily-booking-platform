@@ -22,7 +22,7 @@ interface FeatureCardProps {
   translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website' | 'teamChat' | 'aiAssistant';
 }
 
-export const FeatureCard = memo(({
+const FeatureCardComponent = ({
   icon: Icon,
   title,
   description,
@@ -105,6 +105,7 @@ export const FeatureCard = memo(({
       </div>
     </div>
   );
-});
+};
 
+export const FeatureCard = memo(FeatureCardComponent);
 FeatureCard.displayName = 'FeatureCard';
