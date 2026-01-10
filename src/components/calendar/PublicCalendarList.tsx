@@ -29,6 +29,20 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "framer-motion";
 
+const PUBLIC_CALENDAR_VIEW_STORAGE_KEY = 'lovable-public-calendar-preferred-view';
+
+const getPreferredView = (): CalendarViewType => {
+  try {
+    const stored = localStorage.getItem(PUBLIC_CALENDAR_VIEW_STORAGE_KEY);
+    if (stored && ['day', 'week', 'month'].includes(stored)) {
+      return stored as CalendarViewType;
+    }
+  } catch (e) {
+    console.warn('Could not read preferred view from localStorage');
+  }
+  return 'month';
+};
+
 interface PublicCalendarListProps {
   boardUserId: string;
   externalUserName: string;
@@ -52,7 +66,8 @@ export const PublicCalendarList = ({
   
   // Calendar state
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState<CalendarViewType>("month");
+  const [view, setView] = useState<CalendarViewType>(() => getPreferredView());
+  const [preferredView, setPreferredView] = useState<CalendarViewType>(getPreferredView);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
 
@@ -130,6 +145,20 @@ export const PublicCalendarList = ({
 
   const handleViewChange = (newView: CalendarViewType) => {
     setView(newView);
+  };
+
+  const handleSetPreferredView = (viewToSet: CalendarViewType) => {
+    try {
+      localStorage.setItem(PUBLIC_CALENDAR_VIEW_STORAGE_KEY, viewToSet);
+      setPreferredView(viewToSet);
+      const viewName = t(`calendar.${viewToSet}View`) || viewToSet;
+      toast({
+        title: t("calendar.defaultViewSaved") || "Default view saved",
+        description: t("calendar.viewWillBeDefault", { view: viewName }) || `${viewName} view will be your default`,
+      });
+    } catch (e) {
+      console.warn('Could not save preferred view to localStorage');
+    }
   };
 
   // Event handlers - EXACT same pattern as dashboard
@@ -289,6 +318,8 @@ export const PublicCalendarList = ({
           isExternalCalendar={!hasPermissions}
           onlineUsers={onlineUsers}
           currentUserEmail={externalUserEmail}
+          preferredView={preferredView}
+          onSetPreferredView={handleSetPreferredView}
         />
 
         <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
