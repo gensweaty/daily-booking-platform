@@ -1,12 +1,18 @@
 
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Pin } from "lucide-react";
 import { CalendarViewType } from "@/lib/types/calendar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
 import { useLocalizedDate } from "@/hooks/useLocalizedDate";
 import { PresenceCircles } from "@/components/presence/PresenceCircles";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface CalendarHeaderProps {
   selectedDate: Date;
@@ -18,6 +24,8 @@ interface CalendarHeaderProps {
   isExternalCalendar?: boolean;
   onlineUsers?: Array<{ email?: string | null; name?: string | null; avatar_url?: string | null; online_at?: string | null }>;
   currentUserEmail?: string;
+  preferredView?: CalendarViewType;
+  onSetPreferredView?: (view: CalendarViewType) => void;
 }
 
 export const CalendarHeader = ({
@@ -30,6 +38,8 @@ export const CalendarHeader = ({
   isExternalCalendar = false,
   onlineUsers = [],
   currentUserEmail,
+  preferredView,
+  onSetPreferredView,
 }: CalendarHeaderProps) => {
   const { t, language } = useLanguage();
   const { formatDate } = useLocalizedDate();
@@ -96,46 +106,89 @@ export const CalendarHeader = ({
       </div>
 
       {/* Center: View switcher */}
-      <div className="flex gap-1 bg-muted/50 dark:bg-muted/30 backdrop-blur-md rounded-full p-1 border border-border/40 dark:border-border/30 shadow-lg">
-        <Button
-          variant={view === "day" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => onViewChange("day")}
-          className={cn(
-            "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm",
-            view === "day" 
-              ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
-              : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
-          )}
-        >
-          {renderButtonText("day")}
-        </Button>
-        <Button
-          variant={view === "week" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => onViewChange("week")}
-          className={cn(
-            "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm",
-            view === "week" 
-              ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
-              : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
-          )}
-        >
-          {renderButtonText("week")}
-        </Button>
-        <Button
-          variant={view === "month" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => onViewChange("month")}
-          className={cn(
-            "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm",
-            view === "month" 
-              ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
-              : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
-          )}
-        >
-          {renderButtonText("month")}
-        </Button>
+      <div className="flex items-center gap-1.5">
+        <div className="flex gap-1 bg-muted/50 dark:bg-muted/30 backdrop-blur-md rounded-full p-1.5 border border-border/40 dark:border-border/30 shadow-lg">
+          <Button
+            variant={view === "day" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onViewChange("day")}
+            className={cn(
+              "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm relative",
+              view === "day" 
+                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
+                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
+            )}
+          >
+            {renderButtonText("day")}
+            {preferredView === "day" && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border border-background" />
+            )}
+          </Button>
+          <Button
+            variant={view === "week" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onViewChange("week")}
+            className={cn(
+              "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm relative",
+              view === "week" 
+                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
+                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
+            )}
+          >
+            {renderButtonText("week")}
+            {preferredView === "week" && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border border-background" />
+            )}
+          </Button>
+          <Button
+            variant={view === "month" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onViewChange("month")}
+            className={cn(
+              "px-4 sm:px-5 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs sm:text-sm relative",
+              view === "month" 
+                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
+                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
+            )}
+          >
+            {renderButtonText("month")}
+            {preferredView === "month" && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border border-background" />
+            )}
+          </Button>
+        </div>
+        
+        {/* Pin button to save current view as default */}
+        {onSetPreferredView && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onSetPreferredView(view)}
+                  className={cn(
+                    "h-8 w-8 rounded-full transition-all duration-200",
+                    preferredView === view 
+                      ? "text-primary bg-primary/10" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  <Pin className={cn(
+                    "h-3.5 w-3.5 transition-transform",
+                    preferredView === view && "fill-current"
+                  )} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-xs">
+                {preferredView === view 
+                  ? t("calendar.currentDefault") || "Current default view"
+                  : t("calendar.setAsDefault") || "Set as default view"
+                }
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {/* Right: Presence + Add Event */}
