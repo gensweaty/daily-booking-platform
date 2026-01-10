@@ -80,49 +80,49 @@ export const CalendarHeader = ({
   return (
     <div className="flex flex-col gap-1.5 sm:gap-0">
       {/* Mobile: Two rows layout */}
-      {/* Row 1: Navigation arrows with date below (grouped) + Add Event button */}
-      <div className="flex sm:hidden flex-col items-start w-full">
-        <div className="flex items-center justify-between w-full gap-1">
-          <div className="flex items-center gap-1">
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={onPrevious}
-              className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={onNext}
-              className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-          {onAddEvent && (
-            <Button 
-              onClick={onAddEvent}
-              size="sm" 
-              variant="dynamic"
-              className={cn(
-                "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-8 px-3",
-                isGeorgian ? "font-georgian" : ""
-              )}
-              type="button"
-            >
-              <Plus className="h-4 w-4" />
-              {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
-            </Button>
-          )}
+      {/* Row 1: Navigation arrows + Date (left) + Add Event (right) */}
+      <div className="flex sm:hidden items-center justify-between w-full -mt-2">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={onPrevious}
+            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={onNext}
+            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+
+          <h2 className={cn(
+            "text-sm font-semibold tracking-tight whitespace-nowrap truncate max-w-[45vw]",
+            isGeorgian ? "font-georgian" : ""
+          )}>
+            {getFormattedDate()}
+          </h2>
         </div>
-        <h2 className={cn(
-          "text-sm font-semibold tracking-tight whitespace-nowrap pl-1 mt-0.5",
-          isGeorgian ? "font-georgian" : ""
-        )}>
-          {getFormattedDate()}
-        </h2>
+
+        {onAddEvent && (
+          <Button 
+            onClick={onAddEvent}
+            size="sm" 
+            variant="dynamic"
+            className={cn(
+              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-8 px-3",
+              isGeorgian ? "font-georgian" : ""
+            )}
+            type="button"
+          >
+            <Plus className="h-4 w-4" />
+            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+          </Button>
+        )}
       </div>
       
       {/* Row 2: View switcher + Pin (Mobile only) */}
