@@ -70,7 +70,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
     )}>
       <div className="space-y-3 md:space-y-4 animate-fade-in">
         <article className="space-y-2 md:space-y-4">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary drop-shadow-lg">
+          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold enhanced-gradient-text drop-shadow-lg">
             <LanguageText>{t('hero.title')}</LanguageText>
           </h1>
           <h2 className="text-xl md:text-2xl font-semibold text-foreground/90 drop-shadow-sm">
@@ -107,6 +107,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
             permanentArrows={true} 
             imageHeight="h-[480px]"
             objectFit="object-contain"
+            isHeroSlider={true}
           />
         </div>
       </div>

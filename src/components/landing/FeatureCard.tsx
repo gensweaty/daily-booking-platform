@@ -84,7 +84,7 @@ export const FeatureCard = ({
           >
             <Icon className="w-5 h-5 md:w-6 md:h-6 text-primary animate-pulse" />
           </motion.div>
-          <h3 className="text-xl md:text-2xl font-bold text-primary">
+          <h3 className="text-xl md:text-2xl font-bold enhanced-gradient-text">
             <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>
@@ -130,6 +130,7 @@ export const FeatureCard = ({
                 permanentArrows={true}
                 objectFit={getObjectFit()}
                 imageHeight={getImageHeight()}
+                arrowsInside={true}
               />
             </div>
           ) : (

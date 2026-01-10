@@ -1,14 +1,16 @@
 
-/* Enhanced Text Gradients */
+/* Enhanced Text Gradients - Static version for performance */
 .enhanced-gradient-text {
-  background: linear-gradient(45deg, #f97316, #4ade80, #9b87f5, #f97316);
-  background-size: 300% 300%;
+  background: linear-gradient(135deg, #f97316 0%, #ec4899 50%, #9b87f5 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: gradientLoadAnimation 2s ease forwards;
 }
 
-.enhanced-gradient-text:hover {
-  animation: gradientTextShift 4s ease infinite;
+/* Static gradient - no animation for performance */
+.static-gradient-text {
+  background: linear-gradient(135deg, #f97316 0%, #ec4899 50%, #9b87f5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

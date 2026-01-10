@@ -28,7 +28,7 @@ export const FeatureButtons = () => {
   return (
     <div className="mb-16">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-semibold text-primary drop-shadow-lg">
+        <h2 className="text-2xl font-semibold enhanced-gradient-text drop-shadow-lg">
           <LanguageText>{t('features.title')}</LanguageText>
         </h2>
       </div>

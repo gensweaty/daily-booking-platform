@@ -25,6 +25,8 @@ interface ImageCarouselProps {
   permanentArrows?: boolean;
   objectFit?: "object-contain" | "object-cover" | "object-fill";
   imageHeight?: string;
+  arrowsInside?: boolean; // New prop: true = arrows inside image, false = arrows outside
+  isHeroSlider?: boolean; // New prop: for main hero slider specific styling
 }
 
 // Simplified image component with better loading handling
@@ -82,7 +84,9 @@ export const ImageCarousel = ({
   showTitles = false,
   permanentArrows = false,
   objectFit = "object-contain",
-  imageHeight = "h-[400px]"
+  imageHeight = "h-[400px]",
+  arrowsInside = false,
+  isHeroSlider = false
 }: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
@@ -126,22 +130,38 @@ export const ImageCarousel = ({
       ? "h-[350px]" 
       : imageHeight;
 
+  // Determine arrow positioning based on props
+  const getArrowLeftPosition = () => {
+    if (isMobile) return "left-2";
+    if (arrowsInside) return "left-4";
+    // For hero slider on desktop, position arrows inside to avoid text overlap
+    if (isHeroSlider) return "left-4";
+    return "-left-14"; // Outside for desktop hero
+  };
+  
+  const getArrowRightPosition = () => {
+    if (isMobile) return "right-2";
+    if (arrowsInside) return "right-4";
+    if (isHeroSlider) return "right-4";
+    return "-right-14";
+  };
+
   return (
     <div className={cn("w-full relative group", className)}>
       <Carousel
         opts={{
-          align: "start",
+          align: "center",
           loop: true,
         }}
         setApi={setApi}
         className="w-full"
       >
-        <CarouselContent>
+        <CarouselContent className="flex items-center">
           {images.map((image, index) => (
-            <CarouselItem key={index} className="md:basis-1/1">
-              <div className="p-1">
+            <CarouselItem key={index} className="md:basis-full flex justify-center">
+              <div className="p-1 w-full">
                 <div className={cn(
-                  "rounded-xl overflow-hidden transition-shadow duration-200 hover:shadow-lg",
+                  "rounded-xl overflow-hidden transition-shadow duration-200 hover:shadow-lg mx-auto",
                   responsiveHeight
                 )}>
                   <div className={cn(
@@ -167,29 +187,33 @@ export const ImageCarousel = ({
           ))}
         </CarouselContent>
         
-        {/* Simplified navigation arrows - positioned inside image on mobile */}
-        <CarouselPrevious 
-          className={cn(
-            permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-opacity duration-200",
-            "absolute -translate-y-1/2 top-1/2",
-            "left-4 sm:left-2 md:-left-16",
-            "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
-            "border border-gray-200 dark:border-gray-700 shadow-lg",
-            "w-10 h-10 md:w-10 md:h-10 rounded-full"
-          )}
-        />
-        <CarouselNext 
-          className={cn(
-            permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            "transition-opacity duration-200",
-            "absolute -translate-y-1/2 top-1/2",
-            "right-4 sm:right-2 md:-right-16",
-            "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
-            "border border-gray-200 dark:border-gray-700 shadow-lg",
-            "w-10 h-10 md:w-10 md:h-10 rounded-full"
-          )}
-        />
+        {/* Navigation arrows - position based on slider type */}
+        {images.length > 1 && (
+          <>
+            <CarouselPrevious 
+              className={cn(
+                permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                "transition-opacity duration-200",
+                "absolute -translate-y-1/2 top-1/2",
+                getArrowLeftPosition(),
+                "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
+                "border border-gray-200 dark:border-gray-700 shadow-lg",
+                "w-10 h-10 rounded-full z-10"
+              )}
+            />
+            <CarouselNext 
+              className={cn(
+                permanentArrows ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                "transition-opacity duration-200",
+                "absolute -translate-y-1/2 top-1/2",
+                getArrowRightPosition(),
+                "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
+                "border border-gray-200 dark:border-gray-700 shadow-lg",
+                "w-10 h-10 rounded-full z-10"
+              )}
+            />
+          </>
+        )}
       </Carousel>
       
       {/* Simplified Carousel Indicators */}
