@@ -558,6 +558,9 @@ export const translations: TranslationType = {
     addEvent: "Add Event",
     bookNow: "Book Now",
     weekOf: "Week of",
+    defaultViewSaved: "Default view saved",
+    setAsDefault: "Set as default view",
+    currentDefault: "Current default view",
     days: {
       monday: "Mon",
       tuesday: "Tue",

@@ -556,6 +556,9 @@ export const translations: TranslationType = {
     addEvent: "Agregar Evento",
     bookNow: "Reservar Ahora",
     weekOf: "Semana de",
+    defaultViewSaved: "Vista predeterminada guardada",
+    setAsDefault: "Establecer como vista predeterminada",
+    currentDefault: "Vista predeterminada actual",
     days: {
       monday: "Lun",
       tuesday: "Mar",

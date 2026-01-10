@@ -550,6 +550,9 @@ export interface TranslationType {
     addEvent: string;
     bookNow: string;
     weekOf: string;
+    defaultViewSaved: string;
+    setAsDefault: string;
+    currentDefault: string;
     days: {
       monday: string;
       tuesday: string;

@@ -556,6 +556,9 @@ export const translations: TranslationType = {
     addEvent: "მოვლენის დამატება",
     bookNow: "დაჯავშნეთ ახლა",
     weekOf: "კვირა",
+    defaultViewSaved: "ნაგულისხმევი ხედი შენახულია",
+    setAsDefault: "დააყენეთ ნაგულისხმევად",
+    currentDefault: "ამჟამინდელი ნაგულისხმევი ხედი",
     days: {
       monday: "ორშ",
       tuesday: "სამ",
