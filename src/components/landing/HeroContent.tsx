@@ -100,16 +100,14 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           </Link>
         </div>
       </div>
-      <div className="animate-fade-in transform-3d">
-        <div className="hover-tilt transition-all duration-300">
-          <MemoizedImageCarousel 
-            images={productImages} 
-            permanentArrows={true} 
-            imageHeight="h-[480px]"
-            objectFit="object-contain"
-            isHeroSlider={true}
-          />
-        </div>
+      <div className="animate-fade-in">
+        <MemoizedImageCarousel 
+          images={productImages} 
+          permanentArrows={true} 
+          imageHeight="h-[480px]"
+          objectFit="object-contain"
+          isHeroSlider={true}
+        />
       </div>
     </main>
   );
