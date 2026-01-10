@@ -58,11 +58,11 @@ const FeatureCardComponent = ({
       }`}
     >
       <div className={`space-y-4 md:space-y-6 ${reverse ? 'md:order-2' : ''} order-1 relative z-10`}>
-        <div className="flex items-center gap-3 mb-3 md:mb-4">
-          <div className="p-2 rounded-lg bg-primary/10 glass-morphism">
-            <Icon className="w-5 h-5 md:w-6 md:h-6 text-primary" />
+        <div className="flex items-center gap-3 mb-3 md:mb-4 group/header">
+          <div className="p-2 rounded-lg bg-primary/10 glass-morphism transition-transform duration-300 group-hover/header:scale-110">
+            <Icon className="w-5 h-5 md:w-6 md:h-6 text-primary transition-transform duration-300 group-hover/header:rotate-12" />
           </div>
-          <h3 className="text-xl md:text-2xl font-bold enhanced-gradient-text">
+          <h3 className="text-xl md:text-2xl font-bold text-foreground transition-all duration-300 hover:bg-gradient-to-r hover:from-orange-500 hover:via-pink-500 hover:to-purple-500 hover:bg-clip-text hover:text-transparent">
             <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>
@@ -73,10 +73,10 @@ const FeatureCardComponent = ({
           {benefits.map((benefit, idx) => (
             <li
               key={idx}
-              className="flex items-start gap-2 group"
+              className="flex items-start gap-2 group/item"
             >
-              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-primary mt-1 flex-shrink-0" />
-              <span className="text-base group-hover:text-primary transition-colors">
+              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-primary mt-1 flex-shrink-0 transition-transform duration-200 group-hover/item:scale-110" />
+              <span className="text-base group-hover/item:text-primary transition-colors duration-200">
                 <LanguageText>{t(getTranslationKey(`feature${idx + 1}`))}</LanguageText>
               </span>
             </li>
