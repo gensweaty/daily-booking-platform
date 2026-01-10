@@ -177,8 +177,8 @@ export const CalendarGrid = ({
                   } ${index < 6 ? 'border-r border-border/20' : ''}`}
                 >
                   {isMobile ? 
-                    `${getWeekdayName(day, true, true)} ${day.getDate()}` : 
-                    `${getWeekdayName(day, true)} ${day.getDate()}`
+                    `${getWeekdayName(day, false, true)} ${day.getDate()}` : 
+                    `${getWeekdayName(day, false, false, true)} ${day.getDate()}`
                   }
                 </div>
               );
@@ -190,7 +190,7 @@ export const CalendarGrid = ({
           <div className={`${isDarkTheme ? 'bg-muted/10 border-border/25' : 'bg-muted/35 border-border/30'} sticky top-0 z-20 border-b h-10`}>
             <div className={`p-1.5 text-center font-semibold text-xs sm:text-sm tracking-wide ${isToday(days[0]) ? 'text-primary' : isDarkTheme ? 'text-foreground/90' : 'text-foreground/80'}`}>
               {isMobile ? 
-                `${getWeekdayName(days[0], true, true)} ${days[0].getDate()}` : 
+                `${getWeekdayName(days[0], false, false, true)} ${days[0].getDate()}` : 
                 formatDate(days[0], "full")
               }
             </div>
