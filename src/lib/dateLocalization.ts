@@ -111,7 +111,7 @@ export const getLocalizedDateFormat = (date: Date, language: Language, formatTyp
         case 'monthYear':
           return format(date, "MMMM yyyy");
         case 'dayMonth':
-          return format(date, "MMM d");
+          return format(date, "MMMM d");
         case 'weekOf':
           return format(date, "MMM d, yyyy");
         default:
