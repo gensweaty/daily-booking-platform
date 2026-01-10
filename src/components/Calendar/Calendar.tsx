@@ -259,9 +259,10 @@ const CalendarContent = ({
     try {
       localStorage.setItem(CALENDAR_VIEW_STORAGE_KEY, viewToSet);
       setPreferredView(viewToSet);
+      const viewName = t(`calendar.${viewToSet}View`) || viewToSet;
       toast({
         title: t("calendar.defaultViewSaved") || "Default view saved",
-        description: `${viewToSet.charAt(0).toUpperCase() + viewToSet.slice(1)} view will be your default`,
+        description: t("calendar.viewWillBeDefault", { view: viewName }) || `${viewName} view will be your default`,
       });
     } catch (e) {
       console.warn('Could not save preferred view to localStorage');

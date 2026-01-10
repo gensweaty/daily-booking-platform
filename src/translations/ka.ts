@@ -557,6 +557,10 @@ export const translations: TranslationType = {
     bookNow: "დაჯავშნეთ ახლა",
     weekOf: "კვირა",
     defaultViewSaved: "ნაგულისხმევი ხედი შენახულია",
+    viewWillBeDefault: "{{view}} ხედი დაყენებულია ნაგულისხმევად",
+    dayView: "დღე",
+    weekView: "კვირა",
+    monthView: "თვე",
     setAsDefault: "დააყენეთ ნაგულისხმევად",
     currentDefault: "ამჟამინდელი ნაგულისხმევი ხედი",
     days: {
