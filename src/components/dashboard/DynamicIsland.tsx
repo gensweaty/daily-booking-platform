@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, X, CheckCheck, Trash2, Sparkles } from 'lucide-react';
 import { useDashboardNotifications } from '@/hooks/useDashboardNotifications';
 import { NotificationItem } from './NotificationItem';
@@ -65,99 +65,125 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
     setIsExpanded(false);
   }, [markAsRead]);
 
+  const toggleExpanded = useCallback(() => {
+    setIsExpanded(prev => !prev);
+  }, []);
+
   return (
     <div className="flex justify-center mb-2 relative px-4">
-      <div
-        className={`relative overflow-hidden transition-all duration-300 ease-out ${
-          isExpanded 
-            ? 'rounded-2xl w-full max-w-[420px]' 
-            : 'rounded-full max-w-[340px] cursor-pointer hover:opacity-90 active:scale-[0.98]'
-        }`}
+      <motion.div
+        layout
+        className="relative overflow-hidden cursor-pointer"
         style={{
           background: 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))',
           border: '1px solid hsl(var(--primary) / 0.2)',
           boxShadow: unreadCount > 0 
             ? '0 0 20px hsl(var(--primary) / 0.15), 0 4px 20px hsl(0 0% 0% / 0.3)'
             : '0 4px 20px hsl(0 0% 0% / 0.25)',
+          borderRadius: isExpanded ? 16 : 9999,
+          width: isExpanded ? '100%' : 'auto',
+          maxWidth: isExpanded ? 420 : 340,
         }}
-        onClick={!isExpanded ? () => setIsExpanded(true) : undefined}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        onClick={!isExpanded ? toggleExpanded : undefined}
+        whileHover={!isExpanded ? { scale: 1.02 } : undefined}
+        whileTap={!isExpanded ? { scale: 0.98 } : undefined}
       >
         {/* Collapsed State */}
-        {!isExpanded && (
-          <div className="flex items-center gap-3 px-4 py-2.5">
-            {/* Icon */}
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
-              unreadCount > 0 ? 'bg-primary/20' : 'bg-muted/30'
-            }`}>
-              {unreadCount > 0 ? (
-                <Sparkles className="h-4 w-4 text-primary" />
-              ) : (
-                <Bell className="h-4 w-4 text-muted-foreground" />
-              )}
-            </div>
+        <AnimatePresence mode="wait">
+          {!isExpanded && (
+            <motion.div 
+              key="collapsed"
+              className="flex items-center gap-3 px-4 py-2.5"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              {/* Icon */}
+              <div className={`flex items-center justify-center w-8 h-8 rounded-full shrink-0 ${
+                unreadCount > 0 ? 'bg-primary/20' : 'bg-muted/30'
+              }`}>
+                {unreadCount > 0 ? (
+                  <Sparkles className="h-4 w-4 text-primary" />
+                ) : (
+                  <Bell className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              {latestNotification ? (
-                <NotificationItem 
-                  notification={latestNotification} 
-                  onClick={() => handleNotificationClick(latestNotification)}
-                  compact 
-                />
-              ) : (
-                <div className="text-left">
-                  <h1 className="text-sm font-semibold text-foreground truncate">
-                    {isGeorgian ? (
-                      <GeorgianAuthText fontWeight="bold">მოგესალმებით, {displayName}</GeorgianAuthText>
-                    ) : (
-                      <LanguageText>{t('dashboard.welcome')}, {displayName}</LanguageText>
-                    )}
-                  </h1>
-                  <p className="text-[11px] text-muted-foreground/70 truncate">
-                    {isGeorgian ? (
-                      <GeorgianAuthText fontWeight="medium">თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
-                    ) : (
-                      <LanguageText>{t('dashboard.subtitle')}</LanguageText>
-                    )}
-                  </p>
-                </div>
-              )}
-            </div>
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                {latestNotification ? (
+                  <NotificationItem 
+                    notification={latestNotification} 
+                    onClick={() => handleNotificationClick(latestNotification)}
+                    compact 
+                  />
+                ) : (
+                  <div className="text-left">
+                    <h1 className="text-xs font-medium text-primary/80 tracking-wide uppercase">
+                      {isGeorgian ? (
+                        <GeorgianAuthText fontWeight="medium">მოგესალმებით</GeorgianAuthText>
+                      ) : (
+                        <span className="bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                          Welcome back
+                        </span>
+                      )}
+                    </h1>
+                    <p className="text-sm font-semibold text-foreground truncate mt-0.5">
+                      {isGeorgian ? (
+                        <GeorgianAuthText fontWeight="bold">{displayName}</GeorgianAuthText>
+                      ) : (
+                        <LanguageText>{displayName}</LanguageText>
+                      )}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">
+                      {isGeorgian ? (
+                        <GeorgianAuthText fontWeight="medium">შეამოწმეთ შეტყობინებები</GeorgianAuthText>
+                      ) : (
+                        'Check your latest notifications'
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
 
-            {/* Badge & Arrow */}
-            <div className="flex items-center gap-2 shrink-0">
-              {unreadCount > 0 && (
-                <div className="flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </div>
-              )}
-              <svg 
-                width="12" 
-                height="12" 
-                viewBox="0 0 12 12" 
-                className="text-muted-foreground/50"
-              >
-                <path 
-                  d="M2.5 4.5L6 8L9.5 4.5" 
-                  stroke="currentColor" 
-                  strokeWidth="1.5" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                  fill="none"
-                />
-              </svg>
-            </div>
-          </div>
-        )}
+              {/* Badge & Arrow */}
+              <div className="flex items-center gap-2 shrink-0">
+                {unreadCount > 0 && (
+                  <div className="flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </div>
+                )}
+                <svg 
+                  width="12" 
+                  height="12" 
+                  viewBox="0 0 12 12" 
+                  className="text-muted-foreground/50"
+                >
+                  <path 
+                    d="M2.5 4.5L6 8L9.5 4.5" 
+                    stroke="currentColor" 
+                    strokeWidth="1.5" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                </svg>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Expanded State */}
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {isExpanded && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
+              key="expanded"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3">
@@ -259,7 +285,7 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </motion.div>
     </div>
   );
 };
