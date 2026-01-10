@@ -54,7 +54,7 @@ const CarouselImage = memo(({
           alt={alt}
           loading={loading}
           className={cn(
-            "w-full h-full transition-transform duration-300 hover:scale-105",
+            "w-full h-full transition-opacity duration-300",
             customStyle || objectFit,
             isLoaded ? "opacity-100" : "opacity-0"
           )}
