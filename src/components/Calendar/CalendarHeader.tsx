@@ -81,8 +81,8 @@ export const CalendarHeader = ({
     <div className="flex flex-col gap-1.5 sm:gap-0">
       {/* Mobile: Two rows layout */}
       {/* Row 1: Navigation arrows with date below (grouped) + Add Event button */}
-      <div className="flex sm:hidden items-start justify-between">
-        <div className="flex flex-col items-start gap-0.5">
+      <div className="flex sm:hidden flex-col items-start w-full">
+        <div className="flex items-center justify-between w-full gap-1">
           <div className="flex items-center gap-1">
             <Button 
               variant="outline" 
@@ -101,29 +101,28 @@ export const CalendarHeader = ({
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <h2 className={cn(
-            "text-sm font-semibold tracking-tight whitespace-nowrap pl-1",
-            isGeorgian ? "font-georgian" : ""
-          )}>
-            {getFormattedDate()}
-          </h2>
+          {onAddEvent && (
+            <Button 
+              onClick={onAddEvent}
+              size="sm" 
+              variant="dynamic"
+              className={cn(
+                "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-8 px-3",
+                isGeorgian ? "font-georgian" : ""
+              )}
+              type="button"
+            >
+              <Plus className="h-4 w-4" />
+              {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+            </Button>
+          )}
         </div>
-        
-        {onAddEvent && (
-          <Button 
-            onClick={onAddEvent}
-            size="sm" 
-            variant="dynamic"
-            className={cn(
-              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-8 px-3",
-              isGeorgian ? "font-georgian" : ""
-            )}
-            type="button"
-          >
-            <Plus className="h-4 w-4" />
-            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
-          </Button>
-        )}
+        <h2 className={cn(
+          "text-sm font-semibold tracking-tight whitespace-nowrap pl-1 mt-0.5",
+          isGeorgian ? "font-georgian" : ""
+        )}>
+          {getFormattedDate()}
+        </h2>
       </div>
       
       {/* Row 2: View switcher + Pin (Mobile only) */}
