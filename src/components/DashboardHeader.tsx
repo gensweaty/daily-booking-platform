@@ -26,6 +26,7 @@ import { AvatarUpload } from "./AvatarUpload";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ProfileButton } from "./dashboard/ProfileButton";
 import { PublicBoardSettings } from "./tasks/PublicBoardSettings";
+import { DynamicIsland } from "./dashboard/DynamicIsland";
 
 interface DashboardHeaderProps {
   username: string;
@@ -627,26 +628,10 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         </div>
       </div>
       
-      <div className="text-center mb-2 relative">
-        <div className="relative rounded-xl bg-gradient-to-r from-background/90 to-background/70 backdrop-blur-sm border border-border/30 p-4 shadow-sm">
-          <div className="space-y-1">
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">
-              {isGeorgian ? (
-                <GeorgianAuthText fontWeight="bold">მოგესალმებით</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t('dashboard.welcome')}</LanguageText>
-              )}
-            </h1>
-            <p className="text-xs sm:text-sm md:text-base font-medium text-muted-foreground">
-              {isGeorgian ? (
-                <GeorgianAuthText fontWeight="medium">თქვენი პროდუქტიულობის ცენტრი</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t('dashboard.subtitle')}</LanguageText>
-              )}
-            </p>
-          </div>
-        </div>
-      </div>
+      <DynamicIsland 
+        username={username} 
+        userProfileName={userProfileName} 
+      />
 
       <ManageSubscriptionDialog 
         open={isManageSubscriptionOpen} 

@@ -198,6 +198,104 @@ export const useBusinessProfile = () => {
     }
   };
 
+  const uploadAvatarPhoto = async (file: File) => {
+    if (!user) throw new Error("User must be authenticated to upload an avatar photo");
+    
+    try {
+      console.log("Starting avatar photo upload process...");
+      
+      // Force bucket verification before upload
+      await forceBucketCreation();
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `avatar_${user.id}_${Date.now()}.${fileExt}`;
+      const filePath = fileName;
+
+      console.log(`Uploading avatar file: ${filePath} (Size: ${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+      
+      // Remove old avatar photo if it exists
+      if (businessProfile?.avatar_url) {
+        try {
+          const oldUrl = new URL(businessProfile.avatar_url);
+          const pathSegments = oldUrl.pathname.split('/');
+          const oldFileName = pathSegments[pathSegments.length - 1];
+          
+          if (oldFileName) {
+            console.log(`Attempting to remove old avatar file: ${oldFileName}`);
+            const { error: removeError } = await supabase.storage
+              .from('business_covers')
+              .remove([oldFileName]);
+              
+            if (removeError) {
+              console.warn("Could not remove old avatar file, continuing anyway:", removeError);
+            } else {
+              console.log("Old avatar file removed successfully");
+            }
+          }
+        } catch (e) {
+          console.warn("Error parsing old avatar file URL, skipping removal:", e);
+        }
+      }
+      
+      // Upload the new file
+      const { error, data } = await supabase.storage
+        .from('business_covers')
+        .upload(filePath, file, {
+          cacheControl: 'no-cache',
+          upsert: true
+        });
+      
+      if (error) {
+        console.error("Avatar upload failed:", error);
+        throw error;
+      }
+
+      console.log("Avatar file uploaded successfully:", data);
+
+      // Get the public URL with a timestamp to prevent caching
+      const { data: urlData } = supabase.storage
+        .from('business_covers')
+        .getPublicUrl(filePath);
+
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      
+      console.log("Generated avatar public URL with cache-busting:", publicUrl);
+
+      if (businessProfile) {
+        console.log("Updating business profile with new avatar URL");
+        
+        const { error: updateError } = await supabase
+          .from("business_profiles")
+          .update({ 
+            avatar_url: publicUrl,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", businessProfile.id);
+          
+        if (updateError) {
+          console.error("Error updating business profile with avatar:", updateError);
+          toast({
+            title: "Update Error",
+            description: "Failed to update profile with new avatar",
+            variant: "destructive",
+          });
+        } else {
+          await queryClient.invalidateQueries({ queryKey: ["businessProfile", user?.id] });
+        }
+      }
+
+      return { url: publicUrl };
+    } catch (error: any) {
+      console.error("Avatar photo upload error:", error);
+      toast({
+        title: "Upload Error",
+        description: error.message || "Failed to upload avatar",
+        variant: "destructive",
+      });
+      return { url: null };
+    }
+  };
+
   const getPublicBusinessUrl = (slug: string) => {
     // Use absolute URLs that work across all environments
     const isProduction = window.location.hostname === 'smartbookly.com' || 
@@ -281,6 +379,7 @@ export const useBusinessProfile = () => {
     updateBusinessProfile: updateProfileMutation.mutate,
     generateSlug,
     uploadCoverPhoto,
+    uploadAvatarPhoto,
     getPublicBusinessUrl,
   };
 };

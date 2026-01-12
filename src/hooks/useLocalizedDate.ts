@@ -13,8 +13,8 @@ export const useLocalizedDate = () => {
     return getLocalizedMonthName(date, language);
   };
 
-  const getWeekdayName = (date: Date, short: boolean = false, single: boolean = false) => {
-    return getLocalizedWeekdayName(date, language, short, single);
+  const getWeekdayName = (date: Date, short: boolean = false, single: boolean = false, twoLetter: boolean = false) => {
+    return getLocalizedWeekdayName(date, language, short, single, twoLetter);
   };
 
   return {

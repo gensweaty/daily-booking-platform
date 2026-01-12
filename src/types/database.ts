@@ -27,6 +27,8 @@ export interface Note {
   user_id: string;
 }
 
+import { WorkingHoursConfig } from './workingHours';
+
 export interface BusinessProfile {
   id: string;
   user_id: string;
@@ -37,9 +39,11 @@ export interface BusinessProfile {
   contact_address?: string;
   contact_website?: string;
   cover_photo_url?: string;
+  avatar_url?: string;
   slug: string;
   created_at: string;
   updated_at: string;
+  working_hours?: WorkingHoursConfig | null;
 }
 
 export interface BookingRequest {

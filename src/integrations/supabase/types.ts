@@ -125,6 +125,7 @@ export type Database = {
       }
       business_profiles: {
         Row: {
+          avatar_url: string | null
           business_name: string
           contact_address: string | null
           contact_email: string | null
@@ -137,8 +138,10 @@ export type Database = {
           slug: string
           updated_at: string | null
           user_id: string
+          working_hours: Json | null
         }
         Insert: {
+          avatar_url?: string | null
           business_name: string
           contact_address?: string | null
           contact_email?: string | null
@@ -151,8 +154,10 @@ export type Database = {
           slug: string
           updated_at?: string | null
           user_id: string
+          working_hours?: Json | null
         }
         Update: {
+          avatar_url?: string | null
           business_name?: string
           contact_address?: string | null
           contact_email?: string | null
@@ -165,6 +170,7 @@ export type Database = {
           slug?: string
           updated_at?: string | null
           user_id?: string
+          working_hours?: Json | null
         }
         Relationships: []
       }
@@ -1501,6 +1507,7 @@ export type Database = {
           password_hash: string | null
           password_salt: string | null
           statistics_permission: boolean | null
+          tasks_permission: boolean | null
           updated_at: string
         }
         Insert: {
@@ -1516,6 +1523,7 @@ export type Database = {
           password_hash?: string | null
           password_salt?: string | null
           statistics_permission?: boolean | null
+          tasks_permission?: boolean | null
           updated_at?: string
         }
         Update: {
@@ -1531,6 +1539,7 @@ export type Database = {
           password_hash?: string | null
           password_salt?: string | null
           statistics_permission?: boolean | null
+          tasks_permission?: boolean | null
           updated_at?: string
         }
         Relationships: []

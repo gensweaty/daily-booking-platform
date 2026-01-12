@@ -2,19 +2,19 @@
 import { format } from "date-fns";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
-// Reorder hours to start from 6 AM
+// Reorder hours to start from 9 AM
 const HOURS = [
-  ...Array.from({ length: 18 }, (_, i) => i + 6), // 6 AM to 23 PM
-  ...Array.from({ length: 6 }, (_, i) => i) // 0 AM to 5 AM
+  ...Array.from({ length: 15 }, (_, i) => i + 9), // 9 AM to 23 (11 PM)
+  ...Array.from({ length: 9 }, (_, i) => i) // 0 AM to 8 AM
 ];
 
 export const TimeIndicator = () => {
   const isMobile = useMediaQuery("(max-width: 640px)");
   
   return (
-    <div className={`${isMobile ? 'w-10' : 'w-16'} flex-shrink-0 border-r border-border bg-background`}>
+    <div className="w-12 sm:w-14 flex-shrink-0 border-r border-border/30 bg-muted/10">
       {/* Adding a spacer for the week/day header that exists in the main grid */}
-      <div className="h-8 border-b border-gray-200"></div>
+      <div className="h-10 border-b border-border/25"></div>
       
       {HOURS.map((hour) => {
         const date = new Date();
@@ -23,10 +23,9 @@ export const TimeIndicator = () => {
         return (
           <div
             key={hour}
-            className="h-24 border-b border-border text-xs text-muted-foreground flex items-start"
+            className="h-12 border-b border-border/20 text-[0.65rem] sm:text-xs flex items-start justify-end"
           >
-            {/* Precise vertical alignment for mobile and desktop */}
-            <div className={`${isMobile ? 'pl-0.5' : 'pl-2'} transform -translate-y-[1px]`}>
+            <div className="pr-1.5 sm:pr-2 pt-0.5 font-medium text-foreground/50">
               {isMobile ? format(date, 'ha').replace('am', '').replace('pm', '') : format(date, 'h a')}
             </div>
           </div>

@@ -32,6 +32,8 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { supabase } from "@/lib/supabase";
+import { WorkingHoursConfig, isWithinWorkingHours, isWorkingDay } from "@/types/workingHours";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarProps {
   defaultView?: CalendarViewType;
@@ -46,10 +48,25 @@ interface CalendarProps {
   isPublicMode?: boolean;
   externalUserName?: string;
   externalUserEmail?: string;
+  workingHours?: WorkingHoursConfig | null;
 }
 
+const CALENDAR_VIEW_STORAGE_KEY = 'lovable-calendar-preferred-view';
+
+const getPreferredView = (): CalendarViewType => {
+  try {
+    const stored = localStorage.getItem(CALENDAR_VIEW_STORAGE_KEY);
+    if (stored && ['day', 'week', 'month'].includes(stored)) {
+      return stored as CalendarViewType;
+    }
+  } catch (e) {
+    console.warn('Could not read preferred view from localStorage');
+  }
+  return 'month'; // Default to month view
+};
+
 const CalendarContent = ({ 
-  defaultView = "week", 
+  defaultView = "month", 
   currentView,
   onViewChange,
   isExternalCalendar = false,
@@ -61,9 +78,15 @@ const CalendarContent = ({
   showAllEvents = false,
   allowBookingRequests = false,
   directEvents,
+  workingHours,
 }: CalendarProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [view, setView] = useState<CalendarViewType>(defaultView);
+  // Use stored preferred view or default to month
+  const [view, setView] = useState<CalendarViewType>(() => {
+    if (currentView) return currentView;
+    return getPreferredView();
+  });
+  const [preferredView, setPreferredView] = useState<CalendarViewType>(getPreferredView);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const { theme } = useTheme();
   
@@ -83,6 +106,7 @@ const CalendarContent = ({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   // Add presence tracking for internal calendar
   const [boardKey, setBoardKey] = useState<string | null>(null);
@@ -231,12 +255,48 @@ const CalendarContent = ({
     }
   };
 
+  const handleSetPreferredView = (viewToSet: CalendarViewType) => {
+    try {
+      localStorage.setItem(CALENDAR_VIEW_STORAGE_KEY, viewToSet);
+      setPreferredView(viewToSet);
+      const viewName = t(`calendar.${viewToSet}View`) || viewToSet;
+      toast({
+        title: t("calendar.defaultViewSaved") || "Default view saved",
+        description: t("calendar.viewWillBeDefault", { view: viewName }) || `${viewName} view will be your default`,
+      });
+    } catch (e) {
+      console.warn('Could not save preferred view to localStorage');
+    }
+  };
+
   const handleCalendarDayClick = (date: Date, hour?: number) => {
     const clickedDate = new Date(date);
     
     clickedDate.setHours(hour !== undefined ? hour : 9, 0, 0, 0);
     
+    // Check working hours for external calendar
     if (isExternalCalendar && allowBookingRequests) {
+      const hourToCheck = hour !== undefined ? hour : 9;
+      
+      // Check if the day/hour is within working hours
+      if (!isWorkingDay(clickedDate, workingHours)) {
+        toast({
+          title: t("events.timeSlotNotAvailable"),
+          description: t("business.closed"),
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (!isWithinWorkingHours(clickedDate, hourToCheck, workingHours)) {
+        toast({
+          title: t("events.timeSlotNotAvailable"),
+          description: t("business.closed"),
+          variant: "destructive",
+        });
+        return;
+      }
+      
       setBookingDate(clickedDate);
       
       const startHour = format(clickedDate, "HH:mm");
@@ -354,6 +414,8 @@ const CalendarContent = ({
         isExternalCalendar={isExternalCalendar}
         onlineUsers={!isExternalCalendar ? onlineUsers : []}
         currentUserEmail={!isExternalCalendar ? user?.email : undefined}
+        preferredView={preferredView}
+        onSetPreferredView={!isExternalCalendar ? handleSetPreferredView : undefined}
       />
 
       <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
@@ -367,6 +429,7 @@ const CalendarContent = ({
             onDayClick={(isExternalCalendar && allowBookingRequests) || !isExternalCalendar ? handleCalendarDayClick : undefined}
             onEventClick={handleEventClick}
             isExternalCalendar={isExternalCalendar}
+            workingHours={workingHours}
           />
         </div>
       </div>
@@ -406,6 +469,7 @@ const CalendarContent = ({
                 endTime={bookingEndTime}
                 onSuccess={handleBookingSuccess}
                 isExternalBooking={true}
+                workingHours={workingHours}
               />
             )}
           </DialogContent>
@@ -416,6 +480,11 @@ const CalendarContent = ({
 };
 
 export const Calendar = (props: CalendarProps) => {
+  // Public business page (external calendar) should not depend on auth/sub-user permissions.
+  if (props.isExternalCalendar) {
+    return <CalendarContent {...props} />;
+  }
+
   return (
     <PermissionGate requiredPermission="calendar">
       <CalendarContent {...props} />

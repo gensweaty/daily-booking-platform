@@ -105,6 +105,16 @@ export function CustomReminderNotifications() {
         
         // Show dashboard notification
         showDashboardNotification(reminder.title, reminder.message);
+
+        // Emit to Dynamic Island
+        window.dispatchEvent(new CustomEvent('dashboard-notification', {
+          detail: {
+            type: 'custom_reminder',
+            title: `🔔 Reminder: ${reminder.title}`,
+            message: reminder.message || 'Time for your scheduled reminder',
+            actionData: { reminderId: reminder.id }
+          }
+        }));
         
         // Show system notification
         if ('Notification' in window && Notification.permission === 'granted') {

@@ -350,17 +350,28 @@ export interface TranslationType {
     urlSlug: string;
     description: string;
     coverPhoto: string;
+    avatarPhoto: string;
+    avatarPhotoDescription: string;
+    uploadAvatarPhoto: string;
     phone: string;
     email: string;
     website: string;
     address: string;
+    fullAddress: string;
     updateProfile: string;
     availableTimes: string;
     clickToRequest: string;
     contactInformation: string;
+    workingHours: string;
+    workingHoursDescription: string;
+    workingHoursDisplay: string;
+    closed: string;
+    allTimesAvailable: string;
+    outsideWorkingHours: string;
   };
   dashboard: {
     welcome: string;
+    productivityHub: string;
     greeting: string;
     goodMorning: string;
     goodAfternoon: string;
@@ -539,6 +550,22 @@ export interface TranslationType {
     addEvent: string;
     bookNow: string;
     weekOf: string;
+    defaultViewSaved: string;
+    viewWillBeDefault: string;
+    dayView: string;
+    weekView: string;
+    monthView: string;
+    setAsDefault: string;
+    currentDefault: string;
+    days: {
+      monday: string;
+      tuesday: string;
+      wednesday: string;
+      thursday: string;
+      friday: string;
+      saturday: string;
+      sunday: string;
+    };
   };
   common: {
     cancel: string;
@@ -590,6 +617,13 @@ export interface TranslationType {
     created: string;
     lastUpdated: string;
     by: string;
+    scroll: string;
+    poweredBy: string;
+    copied: string;
+    copyAddress: string;
+    copy: string;
+    send: string;
+    call: string;
   };
   auth: {
     welcome: string;

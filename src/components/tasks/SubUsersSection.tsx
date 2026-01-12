@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Trash2, Clock, Mail, User, Settings, Calendar, BarChart3, UserCog } from "lucide-react";
+import { Users, Trash2, Clock, Mail, User, Settings, Calendar, BarChart3, UserCog, ListTodo } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -197,21 +197,21 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                 transition={{ duration: 0.2 }}
               >
                 <Card className="border border-border/50 hover:border-border transition-colors">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 space-y-2">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1 min-w-0 space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium text-sm">{subUser.fullname}</span>
+                          <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="font-medium text-sm truncate">{subUser.fullname}</span>
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          <Mail className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-xs text-muted-foreground">{subUser.email}</span>
+                          <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <span className="text-xs text-muted-foreground truncate">{subUser.email}</span>
                         </div>
                         
                         <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                            <span className="text-xs text-muted-foreground">
                              {t("publicBoard.lastLogin")}: {formatLastLogin(subUser.last_login_at)}
                            </span>
@@ -219,20 +219,26 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                         
                         {/* Permission indicators */}
                         <div className="flex items-center gap-1 flex-wrap">
+                          {subUser.tasks_permission !== false && (
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-200 rounded-full text-xs">
+                              <ListTodo className="h-3 w-3" />
+                              Tasks
+                            </div>
+                          )}
                           {subUser.calendar_permission && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 rounded-full text-xs">
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200 rounded-full text-xs">
                               <Calendar className="h-3 w-3" />
                               Calendar
                             </div>
                           )}
                           {subUser.crm_permission && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200 rounded-full text-xs">
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-200 rounded-full text-xs">
                               <UserCog className="h-3 w-3" />
                               CRM
                             </div>
                           )}
                           {subUser.statistics_permission && (
-                            <div className="flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 rounded-full text-xs">
+                            <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-200 rounded-full text-xs">
                               <BarChart3 className="h-3 w-3" />
                               Statistics
                             </div>
@@ -240,7 +246,7 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                         <Button
                           size="sm"
                           variant="outline"
@@ -275,6 +281,19 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                           className="mt-4 pt-4 border-t border-border space-y-3"
                         >
                           <div className="text-sm font-medium text-foreground mb-2">Page Permissions:</div>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ListTodo className="h-4 w-4 text-orange-600" />
+                              <span className="text-sm">Tasks Access</span>
+                            </div>
+                            <Switch
+                              checked={subUser.tasks_permission !== false}
+                              onCheckedChange={(checked) => 
+                                handlePermissionUpdate(subUser.id, 'tasks_permission', checked)
+                              }
+                            />
+                          </div>
                           
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -316,7 +335,7 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
                           </div>
                           
                           <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted/50 rounded">
-                            <strong>Note:</strong> Task board access is automatically granted to all sub-users. Business page access is admin-only.
+                            <strong>Note:</strong> Business page access is admin-only.
                           </div>
                         </motion.div>
                       )}

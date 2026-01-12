@@ -1405,10 +1405,10 @@ export const EventDialog = ({
             />
             
             {(initialData || currentEventData) && (
-              <div className="px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-border bg-card text-card-foreground w-fit mb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
-                  <div className="flex items-center">
-                    <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+              <div className="px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-border bg-card text-card-foreground w-full max-w-full overflow-hidden mb-4">
+                <div className="flex flex-col space-y-1 text-xs text-muted-foreground">
+                  <div className="flex items-center min-w-0">
+                    <Clock className="w-3 h-3 mr-1 flex-shrink-0" />
                     <span className="truncate">
                       {t("common.created")} {format(parseISO((currentEventData || initialData)?.created_at || ''), 'MM/dd/yy HH:mm')}
                       {(currentEventData || initialData)?.created_by_name && (
@@ -1420,8 +1420,8 @@ export const EventDialog = ({
                       )}
                     </span>
                   </div>
-                  <div className="flex items-center">
-                    <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                  <div className="flex items-center min-w-0">
+                    <History className="w-3 h-3 mr-1 flex-shrink-0" />
                     <span className="truncate">
                       {t("common.lastUpdated")} {format(parseISO((currentEventData || initialData)?.updated_at || (currentEventData || initialData)?.created_at || ''), 'MM/dd/yy HH:mm')}
                       {(currentEventData || initialData)?.last_edited_by_name && (currentEventData || initialData)?.updated_at && (

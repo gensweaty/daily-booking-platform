@@ -11,8 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
+import { WorkingHoursSelector } from "./WorkingHoursSelector";
+import { WorkingHoursConfig, DEFAULT_WORKING_HOURS } from "@/types/workingHours";
 
 // Custom function to validate website input
 const websiteValidator = (value: string) => {
@@ -43,6 +45,7 @@ const formSchema = z.object({
   }),
   description: z.string().optional(),
   coverPhoto: z.string().optional(),
+  avatarPhoto: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email().optional(),
   website: z.string()
@@ -57,8 +60,10 @@ export const BusinessProfileForm = () => {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
-  const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, uploadCoverPhoto } = useBusinessProfile();
+  const [workingHours, setWorkingHours] = useState<WorkingHoursConfig>(DEFAULT_WORKING_HOURS);
+  const { businessProfile, isLoading, createBusinessProfile, updateBusinessProfile, uploadCoverPhoto, uploadAvatarPhoto } = useBusinessProfile();
   const isGeorgian = language === 'ka';
 
   useEffect(() => {
@@ -72,6 +77,7 @@ export const BusinessProfileForm = () => {
       slug: "",
       description: "",
       coverPhoto: "",
+      avatarPhoto: "",
       phone: "",
       email: "",
       website: "",
@@ -87,13 +93,23 @@ export const BusinessProfileForm = () => {
         slug: businessProfile.slug || "",
         description: businessProfile.description || "",
         coverPhoto: businessProfile.cover_photo_url || "",
+        avatarPhoto: businessProfile.avatar_url || "",
         phone: businessProfile.contact_phone || "",
         email: businessProfile.contact_email || "",
         website: businessProfile.contact_website || "",
         address: businessProfile.contact_address || "",
       });
+      // Load working hours if available
+      if (businessProfile.working_hours) {
+        setWorkingHours(businessProfile.working_hours);
+      }
     }
   }, [businessProfile, form]);
+
+  // Memoized handler for working hours changes
+  const handleWorkingHoursChange = useCallback((newWorkingHours: WorkingHoursConfig) => {
+    setWorkingHours(newWorkingHours);
+  }, []);
 
   const handleCoverPhotoUpload = async (file: File) => {
     if (!file) return;
@@ -116,6 +132,27 @@ export const BusinessProfileForm = () => {
     }
   };
 
+  const handleAvatarPhotoUpload = async (file: File) => {
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const { url } = await uploadAvatarPhoto(file);
+      if (url) {
+        form.setValue("avatarPhoto", url);
+      }
+    } catch (error) {
+      console.error("Error uploading avatar photo:", error);
+      toast({
+        title: t("common.error"),
+        description: t("business.uploadError"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       // Format the website value to ensure it has a protocol if needed
@@ -129,10 +166,12 @@ export const BusinessProfileForm = () => {
         slug: values.slug,
         description: values.description,
         cover_photo_url: values.coverPhoto,
+        avatar_url: values.avatarPhoto,
         contact_phone: values.phone,
         contact_email: values.email,
         contact_website: websiteValue,
         contact_address: values.address,
+        working_hours: workingHours,
       };
 
       if (businessProfile) {
@@ -246,6 +285,39 @@ export const BusinessProfileForm = () => {
           )}
         />
 
+        {/* Avatar Photo (Logo) */}
+        <FormField
+          control={form.control}
+          name="avatarPhoto"
+          render={({ field: { value, onChange, ...field } }) => (
+            <FormItem>
+              <FormLabel>
+                <LanguageText>{t("business.avatarPhoto")}</LanguageText>
+              </FormLabel>
+              <FormDescription>
+                <LanguageText>{t("business.avatarPhotoDescription")}</LanguageText>
+              </FormDescription>
+              <FormControl>
+                <FileUploadField
+                  imageUrl={value}
+                  onUpload={(url) => onChange(url)}
+                  onFileSelect={handleAvatarPhotoUpload}
+                  bucket="business_covers"
+                  uploadText={t("business.uploadAvatarPhoto")}
+                  chooseFileText={t("business.chooseFile")}
+                  noFileText={t("business.noFileChosen")}
+                  maxSizeMB={2}
+                  acceptedFileTypes="image/*"
+                  isUploading={isUploadingAvatar}
+                  disabled={isUploadingAvatar}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {/* Phone */}
         <FormField
           control={form.control}
@@ -315,6 +387,12 @@ export const BusinessProfileForm = () => {
               <FormMessage />
             </FormItem>
           )}
+        />
+
+        {/* Working Hours */}
+        <WorkingHoursSelector 
+          value={workingHours}
+          onChange={handleWorkingHoursChange}
         />
 
         <Button type="submit" className="w-full md:w-auto" disabled={isLoading || isUploading}>

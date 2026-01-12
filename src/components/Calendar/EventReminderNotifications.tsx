@@ -208,11 +208,23 @@ export const EventReminderNotifications = () => {
           
           // Show dashboard notification
           showDashboardNotification(event.title || event.user_surname || 'Event');
+
+          const eventTitle = event.title || event.user_surname || 'Event';
+
+          // Emit to Dynamic Island
+          window.dispatchEvent(new CustomEvent('dashboard-notification', {
+            detail: {
+              type: 'event_reminder',
+              title: '📅 Event Reminder',
+              message: `${t('events.eventReminder')}: ${eventTitle}`,
+              actionData: { eventId: event.id }
+            }
+          }));
           
           // Show system notification
           const result = await platformNotificationManager.createNotification({
             title: "📅 Event Reminder",
-            body: `${t('events.eventReminder')}: ${event.title || event.user_surname || 'Event'}`,
+            body: `${t('events.eventReminder')}: ${eventTitle}`,
             icon: "/favicon.ico",
             tag: `event-reminder-${event.id}`,
             requireInteraction: true,
