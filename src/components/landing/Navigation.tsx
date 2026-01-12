@@ -83,7 +83,7 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
         <Button
           onClick={handlePricingClick}
           variant="outline" 
-          className="hover:scale-105 transition-transform text-sm glass-morphism hover:bg-accent/10"
+          className="hover:scale-105 transition-transform text-sm"
         >
           {t('nav.pricing')}
         </Button>
@@ -91,14 +91,14 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
         <Button 
           onClick={handleSignOut}
           variant="outline" 
-          className="hover:scale-105 transition-transform text-sm flex items-center gap-2 glass-morphism hover:bg-primary/10"
+          className="hover:scale-105 transition-transform text-sm flex items-center gap-2"
         >
           <LogOut className="h-4 w-4" />
           <LanguageText>{language === 'ka' ? "გამოსვლა" : t('nav.signOut')}</LanguageText>
         </Button>
         
         <Link to="/contact">
-          <Button variant="outline" className="hover:scale-105 transition-transform text-sm glass-morphism hover:bg-accent/10">
+          <Button variant="outline" className="hover:scale-105 transition-transform text-sm">
             {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
           </Button>
         </Link>
@@ -109,7 +109,7 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
           onClick={handleDashboardClick}
           variant="ghost"
           size="sm"
-          className="p-2 glass-morphism hover:bg-primary/20 transition-all hover:scale-105"
+          className="p-2 transition-all hover:scale-105"
           aria-label="Go to Dashboard"
         >
           <MemoizedAvatar className="h-7 w-7">
@@ -124,13 +124,13 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
           onClick={handleSignOut}
           variant="outline" 
           size="sm"
-          className="p-2 glass-morphism hover:bg-primary/10 transition-all hover:scale-105"
+          className="p-2 transition-all hover:scale-105"
           aria-label={language === 'ka' ? "გამოსვლა" : t('nav.signOut')}
         >
           <LogOut className="h-4 w-4" />
         </Button>
         
-        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu" className="glass-morphism hover:bg-accent/10 transition-all hover:scale-105">
+        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu" className="transition-all hover:scale-105">
           {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </Button>
       </div>
@@ -144,7 +144,7 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
       
       <div className="hidden md:flex items-center space-x-3 lg:space-x-4" role="navigation">
         <Link to="/login">
-          <Button variant="outline" className="hover:scale-105 transition-all text-sm md:text-base glass-morphism hover:bg-primary/10 ripple-container">
+          <Button variant="outline" className="hover:scale-105 transition-all text-sm md:text-base ripple-container">
             {language === 'ka' ? "შესვლა" : t('nav.signin')}
           </Button>
         </Link>
@@ -156,19 +156,19 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
         <Button 
           onClick={handlePricingClick}
           variant="outline" 
-          className="hover:scale-105 transition-all text-sm md:text-base glass-morphism hover:bg-accent/10"
+          className="hover:scale-105 transition-all text-sm md:text-base"
         >
           {t('nav.pricing')}
         </Button>
         <Link to="/contact">
-          <Button variant="outline" className="hover:scale-105 transition-all text-sm md:text-base glass-morphism hover:bg-accent/10">
+          <Button variant="outline" className="hover:scale-105 transition-all text-sm md:text-base">
             {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
           </Button>
         </Link>
       </div>
 
       <div className="flex items-center gap-3 md:hidden">
-        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu" className="glass-morphism hover:bg-accent/10 transition-all hover:scale-105">
+        <Button variant="ghost" size="sm" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} aria-expanded={isMobileMenuOpen} aria-controls="mobile-menu" aria-label="Toggle menu" className="transition-all hover:scale-105">
           {isMobileMenuOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
         </Button>
       </div>
