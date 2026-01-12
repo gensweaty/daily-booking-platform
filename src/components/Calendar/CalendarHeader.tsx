@@ -112,9 +112,8 @@ export const CalendarHeader = ({
           <Button 
             onClick={onAddEvent}
             size="sm" 
-            variant="dynamic"
             className={cn(
-              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-8 px-3",
+              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90",
               isGeorgian ? "font-georgian" : ""
             )}
             type="button"
@@ -332,9 +331,8 @@ export const CalendarHeader = ({
             <Button 
               onClick={onAddEvent}
               size="sm" 
-              variant="dynamic"
               className={cn(
-                "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02]",
+                "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] bg-primary text-primary-foreground hover:bg-primary/90",
                 isGeorgian ? "font-georgian" : ""
               )}
               type="button"

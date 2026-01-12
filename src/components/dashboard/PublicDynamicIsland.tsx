@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Bell, X, CheckCheck, Trash2, Sparkles } from 'lucide-react';
 import { useDashboardNotifications } from '@/hooks/useDashboardNotifications';
 import { NotificationItem } from './NotificationItem';
@@ -65,35 +65,36 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
   return (
     <div className="flex justify-center mb-2 relative px-4">
       <motion.div
-        layout
         className="relative overflow-hidden cursor-pointer"
+        initial={false}
+        animate={{
+          borderRadius: isExpanded ? 16 : 9999,
+          width: isExpanded ? '100%' : 'auto',
+          maxWidth: isExpanded ? 420 : 380,
+          minWidth: isExpanded ? 320 : 340,
+        }}
         style={{
           background: 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))',
           border: '1px solid hsl(var(--primary) / 0.2)',
           boxShadow: unreadCount > 0 
             ? '0 0 20px hsl(var(--primary) / 0.15), 0 4px 20px hsl(0 0% 0% / 0.3)'
             : '0 4px 20px hsl(0 0% 0% / 0.25)',
-          borderRadius: isExpanded ? 16 : 9999,
-          width: isExpanded ? '100%' : 'auto',
-          maxWidth: isExpanded ? 420 : 380,
-          minWidth: isExpanded ? undefined : 340,
         }}
-        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
         onClick={!isExpanded ? toggleExpanded : undefined}
         whileHover={!isExpanded ? { scale: 1.02 } : undefined}
         whileTap={!isExpanded ? { scale: 0.98 } : undefined}
       >
         {/* Collapsed State */}
-        <AnimatePresence mode="wait">
-          {!isExpanded && (
-            <motion.div 
-              key="collapsed"
-              className="flex items-center gap-3 px-4 py-2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
+        {!isExpanded && (
+          <motion.div 
+            key="collapsed"
+            className="flex items-center gap-3 px-4 py-2"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
               {/* Icon */}
               <div className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${
                 unreadCount > 0 ? 'bg-primary/20' : 'bg-muted/30'
@@ -167,20 +168,18 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
                   />
                 </svg>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          </motion.div>
+        )}
 
         {/* Expanded State */}
-        <AnimatePresence mode="wait">
-          {isExpanded && (
-            <motion.div
-              key="expanded"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
+        {isExpanded && (
+          <motion.div
+            key="expanded"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -280,7 +279,6 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
               )}
             </motion.div>
           )}
-        </AnimatePresence>
       </motion.div>
     </div>
   );

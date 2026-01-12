@@ -64,25 +64,25 @@ export const CalendarGrid = ({
   const selectedMonthEnd = endOfMonth(selectedDate);
   const lastDayOfGrid = endOfWeek(selectedMonthEnd);
 
-  // Modern event styles with gradient accents and left border - more visible cards in light mode
+  // Modern event styles - solid, more visible cards with sharp text
   const getEventStyles = (event: CalendarEventType) => {
     if (isExternalCalendar) {
       return isDarkTheme 
-        ? "bg-gradient-to-r from-emerald-600/50 to-emerald-500/40 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/10" 
-        : "bg-gradient-to-r from-emerald-500/80 to-emerald-400/70 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/20";
+        ? "bg-emerald-600 text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/20 font-medium" 
+        : "bg-emerald-600 text-white border-l-4 border-emerald-700 shadow-md shadow-emerald-500/25 font-medium";
     } else {
       if (event.type === "booking_request") {
         return isDarkTheme 
-          ? "bg-gradient-to-r from-emerald-600/50 to-emerald-500/40 backdrop-blur-sm text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/10" 
-          : "bg-gradient-to-r from-emerald-500/80 to-emerald-400/70 text-white border-l-4 border-emerald-600 shadow-md shadow-emerald-500/20";
+          ? "bg-emerald-600 text-white border-l-4 border-emerald-400 shadow-lg shadow-emerald-500/20 font-medium" 
+          : "bg-emerald-600 text-white border-l-4 border-emerald-700 shadow-md shadow-emerald-500/25 font-medium";
       } else if (event.type === "birthday") {
         return isDarkTheme 
-          ? "bg-gradient-to-r from-blue-600/50 to-blue-500/40 backdrop-blur-sm text-white border-l-4 border-blue-400 shadow-lg shadow-blue-500/10" 
-          : "bg-gradient-to-r from-blue-500/35 to-blue-400/25 text-blue-800 border-l-4 border-blue-500 shadow-md shadow-blue-500/15";
+          ? "bg-blue-600 text-white border-l-4 border-blue-400 shadow-lg shadow-blue-500/20 font-medium" 
+          : "bg-blue-600 text-white border-l-4 border-blue-700 shadow-md shadow-blue-500/25 font-medium";
       } else {
         return isDarkTheme 
-          ? "bg-gradient-to-r from-primary/50 to-primary/35 backdrop-blur-sm text-primary-foreground border-l-4 border-primary shadow-lg shadow-primary/10" 
-          : "bg-gradient-to-r from-primary/35 to-primary/25 text-primary border-l-4 border-primary shadow-md shadow-primary/15";
+          ? "bg-primary/80 text-white border-l-4 border-primary shadow-lg shadow-primary/20 font-medium" 
+          : "bg-primary text-primary-foreground border-l-4 border-primary/80 shadow-md shadow-primary/25 font-medium";
       }
     }
   };
