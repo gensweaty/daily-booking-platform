@@ -3,10 +3,10 @@ import { useEffect } from "react";
 
 export const CursorFollower = () => {
   useEffect(() => {
-    // Create the ball elements
+    // Create the ball elements - z-index set low so it stays behind interactive elements
     const blur = document.createElement("div");
     blur.style.position = "fixed";
-    blur.style.zIndex = "999999";
+    blur.style.zIndex = "1";
     blur.style.pointerEvents = "none";
     blur.style.width = "32px";
     blur.style.height = "32px";
@@ -21,7 +21,7 @@ export const CursorFollower = () => {
     
     const dot = document.createElement("div");
     dot.style.position = "fixed";
-    dot.style.zIndex = "999999";
+    dot.style.zIndex = "1";
     dot.style.pointerEvents = "none";
     dot.style.width = "8px";
     dot.style.height = "8px";
