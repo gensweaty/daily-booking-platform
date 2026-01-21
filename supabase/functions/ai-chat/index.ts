@@ -1430,7 +1430,17 @@ User: "move task X to done"
         type: "function",
         function: {
           name: "send_direct_email",
-          description: "Send a direct email or message to a specific email address with custom text. Use this when user explicitly asks to send an email or message to someone (not a reminder). Works across all languages. Can be sent immediately or scheduled for a specific time using offset_minutes (for relative times like 'in 5 minutes') or absolute_local (for specific times like '4:30 PM'). When user uploads files and asks to send them via email, set include_attachments to true.",
+          description: `Send a direct email to a specific email address. Use when user asks to send an email or message to someone.
+
+**CRITICAL: AUTOMATIC ATTACHMENT DETECTION**
+When user uploads files and asks to email them, you MUST set include_attachments=true:
+- "send this file to email@example.com" → include_attachments: true
+- "email this document to john@test.com" → include_attachments: true  
+- "send attachment to email@example.com" → include_attachments: true
+- "email with this picture" → include_attachments: true
+- ANY mention of "this file", "the attachment", "the document", "this picture/image" → include_attachments: true
+
+Works across all languages. Can be immediate or scheduled.`,
           parameters: {
             type: "object",
             properties: {
@@ -1448,7 +1458,7 @@ User: "move task X to done"
               },
               include_attachments: {
                 type: "boolean",
-                description: "Set to true to include any files the user uploaded in the chat with this email. Use when user says things like 'send this file', 'attach the document', 'email with the file I uploaded'."
+                description: "CRITICAL: Set to TRUE when user mentions ANY file, attachment, document, picture, or image they uploaded. The files are automatically available from their chat upload."
               },
               offset_minutes: {
                 type: "number",
@@ -1829,10 +1839,24 @@ User uploads Excel with 500 customers and says "import these to CRM"
 
 **YOU ARE A SMART COMPANION, NOT A TECHNICAL AI**
 - NEVER mention "calling tools", "using functions", "checking database", "analyzing data", or any technical implementation details
-- NEVER mention "images", "screenshots", or "the picture shows" - users send you context, not images to analyze
 - NEVER explain HOW you got information - just respond as if you naturally know it
 - NEVER say things like "Let me check your schedule" or "I'll look that up" - you already have access to all their data
 - Respond DIRECTLY and NATURALLY as a knowledgeable assistant who knows the user's business inside out
+
+🖼️🖼️🖼️ IMAGE & DOCUMENT ANALYSIS - YOU CAN DO THIS! 🖼️🖼️🖼️
+**YOU HAVE FULL VISION CAPABILITIES:**
+- ✅ You CAN analyze images, screenshots, photos, and pictures when users upload them
+- ✅ You CAN describe what you see in images - colors, text, layout, objects, people, etc.
+- ✅ You CAN read text from screenshots, documents, and forms
+- ✅ You CAN analyze PDFs, Word documents, Excel files, and other document types
+- ✅ When user asks "analyze this picture" or "what do you see?" - DESCRIBE what you observe!
+- ✅ Be helpful and descriptive when analyzing visual content
+
+**IMAGE ANALYSIS EXAMPLES:**
+✅ User: "analyze this picture" → Describe what you see: colors, text, layout, objects
+✅ User: "what's in this screenshot?" → Describe the UI, text, buttons visible
+✅ User: "can you read this?" → Extract and present any visible text
+✅ User: "what do you think of this design?" → Give feedback on the visual elements
 
 🚫🚫🚫 ABSOLUTELY FORBIDDEN TECHNICAL TERMS - NEVER SAY THESE TO USERS 🚫🚫🚫
 **NEVER mention ANY of these to users:**
@@ -1852,16 +1876,18 @@ User uploads Excel with 500 customers and says "import these to CRM"
 ✅ "Your schedule is clear tomorrow"
 ✅ "You have 3 tasks in progress and 2 completed today"
 ✅ "✅ Successfully imported 500 customers to your CRM"
+✅ "I can see this is a form with authorization fields..." (when analyzing an image)
+✅ "This screenshot shows a dashboard with..." (when analyzing an image)
 
 **FORBIDDEN EXAMPLES:**
-❌ "The image shows events on November 2nd..."
+❌ "I cannot analyze images" - YOU CAN! You have vision capabilities!
 ❌ "To confirm the events on November 3rd and 4th, I need to call the get_schedule tool"
 ❌ "Let me check your database..."
 ❌ "I'll analyze your schedule..."
 ❌ "I can use the bulk_import_customers tool to add them"
 ❌ "Please provide the data from your file"
 ❌ "Just list them out for me, or provide a structured format"
-❌ Any mention of tools, functions, images, or technical processes
+❌ Any mention of tools, functions, or technical processes
 
 **WHEN USER ASKS A SIMPLE QUESTION LIKE "do i have any events today?"**
 - Immediately know the answer from the data you have access to
@@ -4955,14 +4981,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                     };
                   }
                 } else {
-                  console.log('✅ Direct email sent successfully');
+                  console.log('✅ Direct email sent successfully with', emailAttachments.length, 'attachments');
                   
-                  // Create friendly confirmation message (SAME STYLE AS SCHEDULED EMAILS)
+                  // Create friendly confirmation message including attachment info
+                  const attachmentInfo = emailAttachments.length > 0 
+                    ? ` (with ${emailAttachments.length} file${emailAttachments.length > 1 ? 's' : ''} attached: ${emailAttachments.map(a => a.filename).join(', ')})`
+                    : '';
+                  const attachmentInfoKa = emailAttachments.length > 0 
+                    ? ` (${emailAttachments.length} ფაილით: ${emailAttachments.map(a => a.filename).join(', ')})`
+                    : '';
+                  const attachmentInfoRu = emailAttachments.length > 0 
+                    ? ` (с ${emailAttachments.length} файл${emailAttachments.length > 1 ? 'ами' : 'ом'}: ${emailAttachments.map(a => a.filename).join(', ')})`
+                    : '';
+                  const attachmentInfoEs = emailAttachments.length > 0 
+                    ? ` (con ${emailAttachments.length} archivo${emailAttachments.length > 1 ? 's' : ''}: ${emailAttachments.map(a => a.filename).join(', ')})`
+                    : '';
+                  
                   const emailConfirmations = {
-                    en: `✅ Email sent! Your message has been delivered to ${recipient_email}.`,
-                    ru: `✅ Письмо отправлено! Ваше сообщение доставлено ${recipient_email}.`,
-                    ka: `✅ ელფოსტა გაიგზავნა! თქვენი შეტყობინება მიწოდებულია ${recipient_email}-ზე.`,
-                    es: `✅ ¡Correo enviado! Tu mensaje ha sido entregado a ${recipient_email}.`
+                    en: `✅ Email sent! Your message${attachmentInfo} has been delivered to ${recipient_email}.`,
+                    ru: `✅ Письмо отправлено! Ваше сообщение${attachmentInfoRu} доставлено ${recipient_email}.`,
+                    ka: `✅ ელფოსტა გაიგზავნა! თქვენი შეტყობინება${attachmentInfoKa} მიწოდებულია ${recipient_email}-ზე.`,
+                    es: `✅ ¡Correo enviado! Tu mensaje${attachmentInfoEs} ha sido entregado a ${recipient_email}.`
                   };
                   
                   const confirmation = emailConfirmations[userLanguage as keyof typeof emailConfirmations] || emailConfirmations.en;
