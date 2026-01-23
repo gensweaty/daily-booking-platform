@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, X, CheckCheck, Trash2, Sparkles } from 'lucide-react';
 import { useDashboardNotifications } from '@/hooks/useDashboardNotifications';
@@ -8,6 +8,7 @@ import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { LanguageText } from '@/components/shared/LanguageText';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useTheme } from 'next-themes';
 
 interface PublicDynamicIslandProps {
   username: string;
@@ -16,7 +17,10 @@ interface PublicDynamicIslandProps {
 
 export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIslandProps) => {
   const { language } = useLanguage();
+  const { resolvedTheme, theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState<string>('dark');
   const { 
     notifications, 
     latestNotification, 
@@ -28,6 +32,44 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
 
   const isGeorgian = language === 'ka';
   const displayName = username;
+
+  // Handle theme detection after mount
+  useEffect(() => {
+    setMounted(true);
+    
+    const updateTheme = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setCurrentTheme(isDark ? 'dark' : 'light');
+    };
+    
+    // Initial check
+    updateTheme();
+    
+    // Listen for theme changes
+    const handleThemeChange = () => updateTheme();
+    document.addEventListener('themeChanged', handleThemeChange);
+    document.addEventListener('themeInit', handleThemeChange);
+    
+    // Also use MutationObserver to catch class changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          updateTheme();
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, { attributes: true });
+    
+    return () => {
+      document.removeEventListener('themeChanged', handleThemeChange);
+      document.removeEventListener('themeInit', handleThemeChange);
+      observer.disconnect();
+    };
+  }, []);
+
+  // Determine actual theme for styling
+  const isDarkMode = mounted ? currentTheme === 'dark' : true;
 
   const handleNotificationClick = useCallback((notification: typeof notifications[0]) => {
     markAsRead(notification.id);
@@ -74,11 +116,19 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
           minWidth: isExpanded ? 320 : 340,
         }}
         style={{
-          background: 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))',
-          border: '1px solid hsl(var(--primary) / 0.2)',
+          background: isDarkMode 
+            ? 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))'
+            : 'linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 96%))',
+          border: isDarkMode 
+            ? '1px solid hsl(var(--primary) / 0.2)' 
+            : '1px solid hsl(220 14% 90%)',
           boxShadow: unreadCount > 0 
-            ? '0 0 20px hsl(var(--primary) / 0.15), 0 4px 20px hsl(0 0% 0% / 0.3)'
-            : '0 4px 20px hsl(0 0% 0% / 0.25)',
+            ? isDarkMode
+              ? '0 0 20px hsl(var(--primary) / 0.15), 0 4px 20px hsl(0 0% 0% / 0.3)'
+              : '0 0 20px hsl(var(--primary) / 0.1), 0 4px 16px hsl(220 14% 50% / 0.15)'
+            : isDarkMode
+              ? '0 4px 20px hsl(0 0% 0% / 0.25)'
+              : '0 4px 16px hsl(220 14% 50% / 0.12)',
         }}
         transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
         onClick={!isExpanded ? toggleExpanded : undefined}
