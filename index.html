@@ -119,6 +119,34 @@
     }
     </script>
     
+    <!-- Synchronous theme initialization to prevent FOUC (Flash of Unstyled Content) -->
+    <script>
+      (function() {
+        try {
+          var storedTheme = localStorage.getItem('vite-ui-theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = storedTheme || (prefersDark ? 'dark' : 'light');
+          
+          // Apply theme immediately before any rendering
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          document.documentElement.setAttribute('data-theme', theme);
+          
+          // Store theme if not already stored
+          if (!storedTheme) {
+            localStorage.setItem('vite-ui-theme', theme);
+          }
+        } catch (e) {
+          // Fallback to dark theme on error
+          document.documentElement.classList.add('dark');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+    
     <!-- Early route detection for public business pages -->
     <script>
       (function() {
