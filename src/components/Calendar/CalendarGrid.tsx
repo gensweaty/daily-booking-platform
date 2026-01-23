@@ -162,10 +162,18 @@ export const CalendarGrid = ({
       ...Array.from({ length: 9 }, (_, i) => i) // 0 AM to 8 AM
     ];
     
+    // Time column width for alignment
+    const timeColumnWidth = isMobile ? '2.5rem' : '3.5rem';
+    
     return (
       <div className={`grid grid-cols-1 h-full overflow-y-auto ${isDarkTheme ? 'bg-background/30 border border-border/25' : 'border border-border/35 bg-card/15'} rounded-xl`}>
         {view === 'week' && (
-          <div className={`grid grid-cols-7 ${isDarkTheme ? 'bg-muted/10 border-border/25' : 'bg-muted/35 border-border/30'} sticky top-0 z-20 border-b ${isMobile ? 'h-12' : 'h-10'} ${isMobile ? 'text-[0.7rem]' : ''}`}>
+          <div 
+            className={`grid ${isDarkTheme ? 'bg-muted/10 border-border/25' : 'bg-muted/35 border-border/30'} sticky top-0 z-20 border-b ${isMobile ? 'h-12' : 'h-10'} ${isMobile ? 'text-[0.7rem]' : ''}`}
+            style={{ gridTemplateColumns: `${timeColumnWidth} repeat(7, 1fr)` }}
+          >
+            {/* Empty time column placeholder for alignment */}
+            <div className={`${isDarkTheme ? 'border-border/25' : 'border-border/30'} border-r`}></div>
             {days.map((day, index) => {
               const isTodayDate = isToday(day);
               return (
@@ -192,7 +200,12 @@ export const CalendarGrid = ({
         )}
         
         {view === 'day' && (
-          <div className={`${isDarkTheme ? 'bg-muted/10 border-border/25' : 'bg-muted/35 border-border/30'} sticky top-0 z-20 border-b h-10`}>
+          <div 
+            className={`grid ${isDarkTheme ? 'bg-muted/10 border-border/25' : 'bg-muted/35 border-border/30'} sticky top-0 z-20 border-b h-10`}
+            style={{ gridTemplateColumns: `${timeColumnWidth} 1fr` }}
+          >
+            {/* Empty time column placeholder for alignment */}
+            <div className={`${isDarkTheme ? 'border-border/25' : 'border-border/30'} border-r`}></div>
             <div className={`p-1.5 text-center font-semibold text-xs sm:text-sm tracking-wide ${isToday(days[0]) ? 'text-primary' : isDarkTheme ? 'text-foreground/90' : 'text-foreground/80'}`}>
               {/* Full date format for both mobile and desktop day view */}
               {formatDate(days[0], "full")}
@@ -209,10 +222,14 @@ export const CalendarGrid = ({
               key={hourIndex} 
               className={`grid border-b ${isDarkTheme ? 'border-border/25' : 'border-border/30'}`}
               style={{ 
-                gridTemplateColumns: view === 'day' ? '1fr' : 'repeat(7, 1fr)',
+                gridTemplateColumns: view === 'day' ? `${timeColumnWidth} 1fr` : `${timeColumnWidth} repeat(7, 1fr)`,
                 height: '3rem'
               }}
             >
+              {/* Time label column */}
+              <div className={`flex items-center justify-center text-[0.65rem] sm:text-xs ${isDarkTheme ? 'text-muted-foreground/70 border-border/25' : 'text-muted-foreground border-border/30'} border-r font-medium`}>
+                {hourIndex === 0 ? '12AM' : hourIndex < 12 ? `${hourIndex}AM` : hourIndex === 12 ? '12PM' : `${hourIndex - 12}PM`}
+              </div>
               {view === 'day' ? (
                 <div
                   key={`${days[0].toISOString()}-${hourIndex}`}
