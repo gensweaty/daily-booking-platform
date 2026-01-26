@@ -116,12 +116,12 @@ export const CalendarHeader = ({
             onClick={onAddEvent}
             size="sm" 
             className={cn(
-              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 bg-primary text-primary-foreground hover:bg-primary/90",
-              isGeorgian ? "font-georgian h-7 px-2 text-xs" : "h-8 px-3"
+              "font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r from-primary to-primary/85 text-primary-foreground hover:from-primary/95 hover:to-primary/80 border border-primary/20",
+              isGeorgian ? "font-georgian h-8 px-3 text-xs" : "h-8 px-3"
             )}
             type="button"
           >
-            <Plus className={isGeorgian ? "h-3 w-3" : "h-4 w-4"} />
+            <Plus className="h-4 w-4" />
             {isExternalCalendar 
               ? t("calendar.bookNow") 
               : (isGeorgian ? "დამატება" : t("calendar.addEvent"))
@@ -338,13 +338,16 @@ export const CalendarHeader = ({
               onClick={onAddEvent}
               size="sm" 
               className={cn(
-                "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] bg-primary text-primary-foreground hover:bg-primary/90",
+                "font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r from-primary to-primary/85 text-primary-foreground hover:from-primary/95 hover:to-primary/80 border border-primary/20",
                 isGeorgian ? "font-georgian" : ""
               )}
               type="button"
             >
               <Plus className="h-4 w-4" />
-              {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+              {isExternalCalendar 
+                ? t("calendar.bookNow") 
+                : (isGeorgian ? "დამატება" : t("calendar.addEvent"))
+              }
             </Button>
           )}
         </div>
