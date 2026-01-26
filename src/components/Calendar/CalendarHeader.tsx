@@ -101,10 +101,13 @@ export const CalendarHeader = ({
           </Button>
 
           <h2 className={cn(
-            "text-sm font-semibold tracking-tight whitespace-nowrap truncate max-w-[45vw]",
+            "text-sm font-semibold tracking-tight whitespace-nowrap",
             isGeorgian ? "font-georgian" : ""
           )}>
-            {getFormattedDate()}
+            {view === "month" 
+              ? (isGeorgian ? `${selectedDate.getFullYear()} ${formatDate(selectedDate, "monthYear").split(' ')[0]}` : formatDate(selectedDate, "monthYear"))
+              : formatDate(selectedDate, "dayMonth")
+            }
           </h2>
         </div>
 
