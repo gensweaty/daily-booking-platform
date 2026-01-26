@@ -323,7 +323,7 @@ export const PublicCalendarList = ({
         />
 
         <div className={`flex-1 flex ${view !== 'month' ? 'overflow-hidden' : ''}`}>
-          {view !== 'month' && <TimeIndicator />}
+          {view !== 'month' && <TimeIndicator view={view as 'day' | 'week'} />}
           <div className={`flex-1 ${gridBgClass} ${textClass}`}>
             <CalendarView
               days={getDaysForView()}
