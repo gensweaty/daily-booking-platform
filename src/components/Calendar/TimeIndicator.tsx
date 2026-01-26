@@ -20,10 +20,10 @@ export const TimeIndicator = ({ view }: TimeIndicatorProps) => {
   const headerSpacerClass = view === 'week' && isMobile ? 'h-12' : 'h-10';
   
   // Adjust top padding to align timestamps with grid borders
-  // Week view mobile needs more offset, day view needs less
+  // Fine-tuned values for perfect alignment
   const getTimestampPadding = () => {
     if (!isMobile) return 'pt-0.5';
-    return view === 'week' ? 'pt-3' : 'pt-1';
+    return view === 'week' ? 'pt-[0.85rem]' : 'pt-[0.4rem]';
   };
   
   return (
