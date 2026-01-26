@@ -101,7 +101,7 @@ export const CalendarHeader = ({
           </Button>
 
           <h2 className={cn(
-            "text-sm font-semibold tracking-tight whitespace-nowrap",
+            "text-sm font-semibold tracking-tight whitespace-nowrap mr-2",
             isGeorgian ? "font-georgian" : ""
           )}>
             {view === "month" 
@@ -116,13 +116,16 @@ export const CalendarHeader = ({
             onClick={onAddEvent}
             size="sm" 
             className={cn(
-              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90",
-              isGeorgian ? "font-georgian" : ""
+              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 bg-primary text-primary-foreground hover:bg-primary/90",
+              isGeorgian ? "font-georgian h-7 px-2 text-xs" : "h-8 px-3"
             )}
             type="button"
           >
-            <Plus className="h-4 w-4" />
-            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+            <Plus className={isGeorgian ? "h-3 w-3" : "h-4 w-4"} />
+            {isExternalCalendar 
+              ? t("calendar.bookNow") 
+              : (isGeorgian ? "დამატება" : t("calendar.addEvent"))
+            }
           </Button>
         )}
       </div>
