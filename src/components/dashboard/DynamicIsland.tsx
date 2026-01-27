@@ -80,14 +80,33 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
     
     switch (notification.type) {
       case 'comment':
-      case 'task_reminder':
+        // Open the task where the comment was made
         if (notification.actionData?.taskId) {
-          window.dispatchEvent(new CustomEvent('open-task', { 
-            detail: { taskId: notification.actionData.taskId } 
+          window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
+            detail: { tab: 'tasks' } 
           }));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-task', { 
+              detail: { taskId: notification.actionData?.taskId } 
+            }));
+          }, 100);
+        }
+        break;
+      case 'task_reminder':
+        // Open the task for deadline reminders
+        if (notification.actionData?.taskId) {
+          window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
+            detail: { tab: 'tasks' } 
+          }));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-task', { 
+              detail: { taskId: notification.actionData?.taskId } 
+            }));
+          }, 100);
         }
         break;
       case 'chat':
+        // Open chat with the specific channel/team member
         if (notification.actionData?.channelId) {
           window.dispatchEvent(new CustomEvent('open-chat-channel', { 
             detail: { channelId: notification.actionData.channelId } 
@@ -95,14 +114,31 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
         }
         break;
       case 'booking':
+        // Navigate to business tab for booking requests
         window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
           detail: { tab: 'business' } 
         }));
         break;
       case 'event_reminder':
-        window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
-          detail: { tab: 'calendar' } 
-        }));
+        // Open the event edit popup
+        if (notification.actionData?.eventId) {
+          window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
+            detail: { tab: 'calendar' } 
+          }));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-event-edit', { 
+              detail: { eventId: notification.actionData?.eventId } 
+            }));
+          }, 100);
+        } else {
+          window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
+            detail: { tab: 'calendar' } 
+          }));
+        }
+        break;
+      case 'custom_reminder':
+        // AI reminder - open AI chat
+        window.dispatchEvent(new CustomEvent('open-ai-chat', {}));
         break;
       default:
         break;

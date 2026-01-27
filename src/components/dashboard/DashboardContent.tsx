@@ -71,6 +71,7 @@ export const DashboardContent = ({
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState("calendar")
   const [showArchive, setShowArchive] = useState(false)
+  const [pendingEventEditId, setPendingEventEditId] = useState<string | null>(null)
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
@@ -80,6 +81,49 @@ export const DashboardContent = ({
       console.log('New pending booking requests detected, showing notification badge');
     }
   }, [pendingCount, activeTab]);
+
+  // Listen for tab switch events from notifications
+  useEffect(() => {
+    const handleSwitchTab = (e: CustomEvent<{ tab: string }>) => {
+      const tab = e.detail?.tab;
+      if (tab && ['calendar', 'statistics', 'tasks', 'crm', 'business'].includes(tab)) {
+        handleTabChange(tab);
+      }
+    };
+
+    const handleOpenAiChat = () => {
+      // Open AI chat - dispatch event that ChatProvider listens to
+      window.dispatchEvent(new CustomEvent('open-chat-ai', {}));
+    };
+
+    const handleOpenEventEdit = (e: CustomEvent<{ eventId: string }>) => {
+      const eventId = e.detail?.eventId;
+      if (eventId) {
+        // Store the event ID and switch to calendar - the Calendar will pick it up
+        setPendingEventEditId(eventId);
+      }
+    };
+
+    const handleOpenChatChannel = (e: CustomEvent<{ channelId: string }>) => {
+      const channelId = e.detail?.channelId;
+      if (channelId) {
+        // Dispatch to ChatProvider to open the specific channel
+        window.dispatchEvent(new CustomEvent('chat-open-channel', { detail: { channelId } }));
+      }
+    };
+
+    window.addEventListener('switch-dashboard-tab', handleSwitchTab as EventListener);
+    window.addEventListener('open-ai-chat', handleOpenAiChat as EventListener);
+    window.addEventListener('open-event-edit', handleOpenEventEdit as EventListener);
+    window.addEventListener('open-chat-channel', handleOpenChatChannel as EventListener);
+
+    return () => {
+      window.removeEventListener('switch-dashboard-tab', handleSwitchTab as EventListener);
+      window.removeEventListener('open-ai-chat', handleOpenAiChat as EventListener);
+      window.removeEventListener('open-event-edit', handleOpenEventEdit as EventListener);
+      window.removeEventListener('open-chat-channel', handleOpenChatChannel as EventListener);
+    };
+  }, []);
 
   // Handle tab changes and refresh data
   const handleTabChange = (value: string) => {

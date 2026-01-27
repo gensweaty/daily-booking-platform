@@ -196,6 +196,30 @@ const CalendarContent = ({
     deleteEvent: deleteEvent
   });
 
+  // Listen for open-event-edit events from notifications
+  useEffect(() => {
+    if (isExternalCalendar) return;
+
+    const handleOpenEventEdit = (e: CustomEvent<{ eventId: string }>) => {
+      const eventId = e.detail?.eventId;
+      if (!eventId || !events) return;
+
+      // Find the event by ID
+      const eventToEdit = events.find(evt => evt.id === eventId);
+      if (eventToEdit) {
+        console.log('📅 Opening event from notification:', eventToEdit);
+        setSelectedEvent(eventToEdit);
+      } else {
+        console.warn('📅 Event not found for notification:', eventId);
+      }
+    };
+
+    window.addEventListener('open-event-edit', handleOpenEventEdit as EventListener);
+    return () => {
+      window.removeEventListener('open-event-edit', handleOpenEventEdit as EventListener);
+    };
+  }, [isExternalCalendar, events, setSelectedEvent]);
+
   if (!isExternalCalendar && !user && !window.location.pathname.includes('/business/')) {
     navigate("/signin");
     return null;

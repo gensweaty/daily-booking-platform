@@ -910,6 +910,35 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for external events to open chat channels
+  useEffect(() => {
+    const handleOpenAiChat = () => {
+      console.log('🤖 Opening AI chat from notification');
+      if (aiChannelId) {
+        openChannel(aiChannelId);
+      } else {
+        // Just open chat - AI channel will be selected automatically
+        setIsOpen(true);
+      }
+    };
+
+    const handleOpenChatChannel = (e: CustomEvent<{ channelId: string }>) => {
+      const channelId = e.detail?.channelId;
+      console.log('💬 Opening chat channel from notification:', channelId);
+      if (channelId) {
+        openChannel(channelId);
+      }
+    };
+
+    window.addEventListener('open-chat-ai', handleOpenAiChat as EventListener);
+    window.addEventListener('chat-open-channel', handleOpenChatChannel as EventListener);
+
+    return () => {
+      window.removeEventListener('open-chat-ai', handleOpenAiChat as EventListener);
+      window.removeEventListener('chat-open-channel', handleOpenChatChannel as EventListener);
+    };
+  }, [aiChannelId, openChannel]);
+
   // FAST LOADING: Detailed logging to identify bottleneck
   useEffect(() => {
     let active = true;
