@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Bell, X, CheckCheck, Trash2, Sparkles } from 'lucide-react';
-import { useDashboardNotifications } from '@/hooks/useDashboardNotifications';
+import { usePublicBoardNotifications } from '@/hooks/usePublicBoardNotifications';
 import { NotificationItem } from './NotificationItem';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
@@ -21,6 +21,7 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
   const [isExpanded, setIsExpanded] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<string>('dark');
+  // Use public board notifications hook for sub-users (separate from internal dashboard)
   const { 
     notifications, 
     latestNotification, 
@@ -28,7 +29,7 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
     markAsRead,
     markAllAsRead,
     clearAll 
-  } = useDashboardNotifications();
+  } = usePublicBoardNotifications();
 
   const isGeorgian = language === 'ka';
   const displayName = username;
