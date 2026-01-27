@@ -78,15 +78,19 @@ serve(async (req) => {
       });
     }
 
-    // Client with user auth for reading data
+    // Check if we have auth - for public board sub-users, there won't be an auth header
+    const authHeader = req.headers.get('Authorization');
+    const hasAuth = authHeader && authHeader !== 'Bearer undefined' && authHeader !== 'Bearer null';
+
+    // Client with user auth for reading data (only useful if authenticated)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
+      hasAuth ? {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader! },
         },
-      }
+      } : {}
     );
 
     // Admin client for inserting AI messages (bypasses RLS)
@@ -95,13 +99,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 1. Verify channel is AI channel
-    const { data: channel, error: channelError } = await supabaseClient
+    // 1. Verify channel is AI channel - use admin client for external users, auth client for authenticated users
+    // CRITICAL: Use admin client when no auth is present (public board sub-users)
+    const channelClient = hasAuth ? supabaseClient : supabaseAdmin;
+    const { data: channel, error: channelError } = await channelClient
       .from('chat_channels')
       .select('is_ai, owner_id')
       .eq('id', channelId)
       .single();
 
+    // Validate the channel belongs to the expected owner (security check for external users)
     if (channelError || !channel?.is_ai) {
       console.error('❌ Invalid AI channel:', channelError);
       return new Response(
@@ -109,6 +116,17 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Extra security for external users: verify the channel's owner matches the ownerId param
+    if (!hasAuth && channel.owner_id !== ownerId) {
+      console.error('❌ Channel owner mismatch for external user:', { channelOwnerId: channel.owner_id, requestedOwnerId: ownerId });
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized access' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('✅ Channel validated:', { channelId, isAI: channel.is_ai, hasAuth, ownerId });
 
     // Detect user language from the LATEST user message BEFORE processing (needed for fast-paths)
     const detectLanguage = (text: string): string => {
@@ -124,13 +142,15 @@ serve(async (req) => {
     console.log('🌐 Detected user language from current message:', userLanguage);
 
     // 🔥 PRE-FETCH CALENDAR DATA FOR CURRENT MONTH (gives AI direct access to events)
+    // CRITICAL: Use admin client for external users (no auth), auth client for authenticated users
+    const dataClient = hasAuth ? supabaseClient : supabaseAdmin;
     let preloadedCalendarContext = '';
     try {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       
-      const { data: monthEvents } = await supabaseClient
+      const { data: monthEvents } = await dataClient
         .from('events')
         .select('id, title, user_surname, start_date, end_date, payment_status, payment_amount')
         .eq('user_id', ownerId)
@@ -4262,15 +4282,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               // - Exclude booking requests that were converted to events
               const [eventsResult, bookingsResult, regularEventsForCustomers, crmCustomersResult, standaloneCrmResult] = await Promise.all([
                 // Events for event count: filter by start_date
-                supabaseClient.from('events').select('id, payment_amount, payment_status, booking_request_id').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
+                dataClient.from('events').select('id, payment_amount, payment_status, booking_request_id').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
                 // Booking requests for event count: filter by start_date
-                supabaseClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
+                dataClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
                 // Events for customer count: filter by start_date (main event persons)
-                supabaseClient.from('events').select('id, social_network_link, user_number, user_surname').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
+                dataClient.from('events').select('id, social_network_link, user_number, user_surname').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
                 // Event-linked customers: filter by created_at (additional persons on events)
-                supabaseClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).eq('type', 'customer').gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null),
+                dataClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).eq('type', 'customer').gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null),
                 // Standalone customers: filter by created_at (customers without events)
-                supabaseClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).is('event_id', null).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null)
+                dataClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).is('event_id', null).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null)
               ]);
               
               // CRITICAL: Exclude booking requests that were already converted to events (avoid double-counting)
@@ -4658,9 +4678,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               weekStart.setDate(today.getDate() - 7);
               
               const [eventsResult, tasksResult, bookingsResult] = await Promise.all([
-                supabaseClient.from('events').select('*').eq('user_id', ownerId).gte('start_date', weekStart.toISOString()).is('deleted_at', null),
-                supabaseClient.from('tasks').select('status').eq('user_id', ownerId).is('archived_at', null),
-                supabaseClient.from('booking_requests').select('status').gte('created_at', weekStart.toISOString())
+                dataClient.from('events').select('*').eq('user_id', ownerId).gte('start_date', weekStart.toISOString()).is('deleted_at', null),
+                dataClient.from('tasks').select('status').eq('user_id', ownerId).is('archived_at', null),
+                dataClient.from('booking_requests').select('status').gte('created_at', weekStart.toISOString())
               ]);
               
               toolResult = {
