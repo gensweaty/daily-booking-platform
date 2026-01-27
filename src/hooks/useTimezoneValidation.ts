@@ -1,6 +1,5 @@
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { getUserTimezone } from '@/utils/timezoneUtils';
 
 interface ValidationResult {
@@ -34,33 +33,68 @@ export const useTimezoneValidation = (): UseTimezoneValidationReturn => {
     try {
       const timezone = getUserTimezone();
       
-      const { data, error } = await supabase.functions.invoke('validate-datetime', {
-        body: {
-          dateTime,
-          timezone,
-          type,
-          deadlineDateTime,
-          context
-        }
+      // Perform validation locally instead of calling edge function
+      const nowUtc = new Date();
+      const selectedTimeUtc = new Date(dateTime);
+      
+      // Format for display
+      const currentTimeDisplay = nowUtc.toLocaleString("en-US", { 
+        timeZone: timezone,
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
       });
       
-      if (error) {
-        console.error('Validation error:', error);
+      const selectedTimeDisplay = selectedTimeUtc.toLocaleString("en-US", { 
+        timeZone: timezone,
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      
+      // Add 1 minute buffer to account for processing time
+      const bufferTime = new Date(nowUtc.getTime() + 60000);
+      
+      // Compare UTC times directly
+      if (selectedTimeUtc <= bufferTime) {
         return {
           valid: false,
-          message: 'Failed to validate date/time. Please try again.',
-          userLocalTime: '',
-          currentTime: new Date().toLocaleString()
+          message: `${type === 'deadline' ? 'Deadline' : 'Reminder'} must be set for a future time. Selected time must be at least 1 minute from now.`,
+          userLocalTime: selectedTimeDisplay,
+          currentTime: currentTimeDisplay
         };
       }
       
-      return data as ValidationResult;
+      // Additional validation for task reminders - must be before deadline
+      if (type === 'reminder' && context === 'task' && deadlineDateTime) {
+        const deadlineTime = new Date(deadlineDateTime);
+        if (selectedTimeUtc >= deadlineTime) {
+          return {
+            valid: false,
+            message: 'Reminder must be set before the deadline.',
+            userLocalTime: selectedTimeDisplay,
+            currentTime: currentTimeDisplay
+          };
+        }
+      }
+      
+      return {
+        valid: true,
+        userLocalTime: selectedTimeDisplay,
+        currentTime: currentTimeDisplay
+      };
       
     } catch (error) {
       console.error('Timezone validation error:', error);
       return {
         valid: false,
-        message: 'Network error during validation. Please check your connection.',
+        message: 'Invalid date/time format. Please select a valid date and time.',
         userLocalTime: '',
         currentTime: new Date().toLocaleString()
       };
