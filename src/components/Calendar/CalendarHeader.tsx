@@ -124,7 +124,7 @@ export const CalendarHeader = ({
             <Plus className="h-4 w-4" />
             {isExternalCalendar 
               ? t("calendar.bookNow") 
-              : (isGeorgian ? "დამატება" : t("calendar.addEvent"))
+              : (isGeorgian ? "ჯავშნის დამატება" : t("calendar.addEvent"))
             }
           </Button>
         )}
@@ -346,7 +346,7 @@ export const CalendarHeader = ({
               <Plus className="h-4 w-4" />
               {isExternalCalendar 
                 ? t("calendar.bookNow") 
-                : (isGeorgian ? "დამატება" : t("calendar.addEvent"))
+                : (isGeorgian ? "ჯავშნის დამატება" : t("calendar.addEvent"))
               }
             </Button>
           )}
