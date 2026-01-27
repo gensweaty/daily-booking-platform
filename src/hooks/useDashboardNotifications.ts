@@ -3,10 +3,16 @@ import { DashboardNotification, DashboardNotificationEvent } from '@/types/notif
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-const STORAGE_KEY = 'dashboard-notifications';
+const STORAGE_KEY_PREFIX = 'dashboard-notifications-';
 const MAX_NOTIFICATIONS = 100;
 const CLEANUP_DAYS = 7; // Keep notifications for 7 days
 const CLEANUP_HOURS = CLEANUP_DAYS * 24; // 168 hours
+
+// Helper to get user-specific storage key
+const getStorageKey = (userId: string | undefined) => {
+  if (!userId) return null;
+  return `${STORAGE_KEY_PREFIX}${userId}`;
+};
 
 export const useDashboardNotifications = () => {
   const { user } = useAuth();
@@ -14,11 +20,25 @@ export const useDashboardNotifications = () => {
   const [latestNotification, setLatestNotification] = useState<DashboardNotification | null>(null);
   const latestTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const loadedMissedRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
 
-  // Load from localStorage on mount
+  // Load from localStorage when user changes
   useEffect(() => {
+    // If user changed, reset the loaded missed ref
+    if (currentUserIdRef.current !== user?.id) {
+      loadedMissedRef.current = false;
+      currentUserIdRef.current = user?.id || null;
+    }
+
+    const storageKey = getStorageKey(user?.id);
+    if (!storageKey) {
+      // No user, clear notifications
+      setNotifications([]);
+      return;
+    }
+
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored) as DashboardNotification[];
         // Convert timestamp strings back to Date objects and filter old ones
@@ -27,11 +47,15 @@ export const useDashboardNotifications = () => {
           .map(n => ({ ...n, timestamp: new Date(n.timestamp) }))
           .filter(n => n.timestamp > cutoff);
         setNotifications(validNotifications);
+      } else {
+        // No stored notifications for this user
+        setNotifications([]);
       }
     } catch (error) {
       console.error('Failed to load notifications from localStorage:', error);
+      setNotifications([]);
     }
-  }, []);
+  }, [user?.id]);
 
   // Load missed notifications from database (reminders that triggered while user was offline)
   useEffect(() => {
@@ -141,12 +165,15 @@ export const useDashboardNotifications = () => {
 
   // Save to localStorage when notifications change
   useEffect(() => {
+    const storageKey = getStorageKey(user?.id);
+    if (!storageKey) return; // Don't save if no user
+    
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+      localStorage.setItem(storageKey, JSON.stringify(notifications));
     } catch (error) {
       console.error('Failed to save notifications to localStorage:', error);
     }
-  }, [notifications]);
+  }, [notifications, user?.id]);
 
   // Listen for dashboard-notification events
   useEffect(() => {
