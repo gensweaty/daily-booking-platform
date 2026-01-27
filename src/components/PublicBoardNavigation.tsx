@@ -186,6 +186,24 @@ export const PublicBoardNavigation = ({
     }
   }, [loading, permissions, isSubUser]);
 
+  // Listen for tab switch events from notification clicks
+  useEffect(() => {
+    const handleSwitchTab = (event: CustomEvent<{ tab: string }>) => {
+      const { tab } = event.detail;
+      // Check if the target tab is available
+      const tabAvailable = availableTabs.some(t => t.id === tab);
+      if (tabAvailable) {
+        setActiveTab(tab);
+      }
+    };
+
+    window.addEventListener('switch-public-tab', handleSwitchTab as EventListener);
+    
+    return () => {
+      window.removeEventListener('switch-public-tab', handleSwitchTab as EventListener);
+    };
+  }, [availableTabs]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">

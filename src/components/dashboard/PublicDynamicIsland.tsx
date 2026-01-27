@@ -74,24 +74,62 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
   const handleNotificationClick = useCallback((notification: typeof notifications[0]) => {
     markAsRead(notification.id);
     
-    // For public board, we dispatch events that the PublicBoardNavigation can handle
+    // For public board, dispatch events that mirror the internal dashboard behavior
     switch (notification.type) {
       case 'comment':
-      case 'task_reminder':
+        // Open the task where the comment was made
         if (notification.actionData?.taskId) {
-          window.dispatchEvent(new CustomEvent('open-task', { 
-            detail: { taskId: notification.actionData.taskId } 
+          window.dispatchEvent(new CustomEvent('switch-public-tab', { 
+            detail: { tab: 'tasks' } 
           }));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-task', { 
+              detail: { taskId: notification.actionData?.taskId } 
+            }));
+          }, 100);
+        }
+        break;
+      case 'task_reminder':
+        // Open the task for deadline reminders
+        if (notification.actionData?.taskId) {
+          window.dispatchEvent(new CustomEvent('switch-public-tab', { 
+            detail: { tab: 'tasks' } 
+          }));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-task', { 
+              detail: { taskId: notification.actionData?.taskId } 
+            }));
+          }, 100);
         }
         break;
       case 'chat':
-        // Chat notifications in public board - could open chat if available
+        // Open chat with the specific channel/team member
+        if (notification.actionData?.channelId) {
+          window.dispatchEvent(new CustomEvent('open-chat-channel', { 
+            detail: { channelId: notification.actionData.channelId } 
+          }));
+        }
         break;
       case 'event_reminder':
-        // Switch to calendar tab
-        window.dispatchEvent(new CustomEvent('switch-public-tab', { 
-          detail: { tab: 'calendar' } 
-        }));
+        // Open the event edit popup
+        if (notification.actionData?.eventId) {
+          window.dispatchEvent(new CustomEvent('switch-public-tab', { 
+            detail: { tab: 'calendar' } 
+          }));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-event-edit', { 
+              detail: { eventId: notification.actionData?.eventId } 
+            }));
+          }, 100);
+        } else {
+          window.dispatchEvent(new CustomEvent('switch-public-tab', { 
+            detail: { tab: 'calendar' } 
+          }));
+        }
+        break;
+      case 'custom_reminder':
+        // AI reminder - open AI chat if available
+        window.dispatchEvent(new CustomEvent('open-ai-chat', {}));
         break;
       default:
         break;
