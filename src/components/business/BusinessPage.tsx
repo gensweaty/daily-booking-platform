@@ -275,8 +275,8 @@ export const BusinessPage = () => {
           <BusinessProfileForm />
         </TabsContent>
 
-        <TabsContent value="bookings" className="space-y-6 sm:-mt-12 -mt-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2">
+        <TabsContent value="bookings" className={`space-y-6 ${publicUrl ? 'sm:-mt-12 -mt-6' : 'mt-0'}`}>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-4">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
