@@ -314,16 +314,11 @@ export const useBusinessProfile = () => {
     queryKey: ["businessProfile", user?.id],
     queryFn: getBusinessProfile,
     enabled: !!user,
-    staleTime: 30000, // Consider data fresh for 30 seconds
-    refetchInterval: 60000, // Refetch every minute
-    refetchOnWindowFocus: true,
-    retry: (failureCount, error) => {
-      // Don't retry if it's a permissions error or similar
-      if (error && typeof error === 'object' && 'code' in error) {
-        return false;
-      }
-      return failureCount < 2;
-    },
+    staleTime: 5000, // Consider data fresh for 5 seconds - faster initial load
+    gcTime: 300000, // Keep in cache for 5 minutes
+    refetchOnMount: true,
+    refetchOnWindowFocus: false, // Don't refetch on focus to prevent slowdowns
+    retry: 1, // Only retry once
   });
 
   const createProfileMutation = useMutation({
