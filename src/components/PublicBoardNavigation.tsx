@@ -204,6 +204,27 @@ export const PublicBoardNavigation = ({
     };
   }, [availableTabs]);
 
+  // Bridge DynamicIsland events -> ChatProvider events (public boards don't mount DashboardContent)
+  useEffect(() => {
+    const handleOpenAiChat = () => {
+      window.dispatchEvent(new CustomEvent('open-chat-ai', {}));
+    };
+
+    const handleOpenChatChannel = (e: CustomEvent<{ channelId: string }>) => {
+      const channelId = e.detail?.channelId;
+      if (!channelId) return;
+      window.dispatchEvent(new CustomEvent('chat-open-channel', { detail: { channelId } }));
+    };
+
+    window.addEventListener('open-ai-chat', handleOpenAiChat as EventListener);
+    window.addEventListener('open-chat-channel', handleOpenChatChannel as EventListener);
+
+    return () => {
+      window.removeEventListener('open-ai-chat', handleOpenAiChat as EventListener);
+      window.removeEventListener('open-chat-channel', handleOpenChatChannel as EventListener);
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[200px]">
