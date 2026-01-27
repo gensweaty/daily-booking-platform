@@ -259,6 +259,25 @@ export const PublicCalendarList = ({
     };
   }, [boardUserId, queryClient]);
 
+  // Listen for open-event-edit events from notification clicks
+  useEffect(() => {
+    const handleOpenEvent = (event: CustomEvent<{ eventId: string }>) => {
+      const { eventId } = event.detail;
+      if (eventId && events) {
+        const targetEvent = events.find(e => e.id === eventId);
+        if (targetEvent) {
+          setSelectedEvent(targetEvent);
+        }
+      }
+    };
+
+    window.addEventListener('open-event-edit', handleOpenEvent as EventListener);
+    
+    return () => {
+      window.removeEventListener('open-event-edit', handleOpenEvent as EventListener);
+    };
+  }, [events, setSelectedEvent]);
+
   // Error handling
   if (error) {
     console.error("Calendar error:", error);
