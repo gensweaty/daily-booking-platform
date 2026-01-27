@@ -60,7 +60,9 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.ai-chat]
-verify_jwt = true
+# Public boards (sub-users) don't have Supabase Auth JWTs.
+# Use in-function auth validation (getClaims) when a JWT is present.
+verify_jwt = false
 
 [functions.generate-excel-report]
 verify_jwt = false
