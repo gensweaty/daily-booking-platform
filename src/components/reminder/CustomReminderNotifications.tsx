@@ -111,13 +111,15 @@ export function CustomReminderNotifications() {
 
         // Emit to Dynamic Island - IMPORTANT: Only for internal dashboard admin
         // Sub-user reminders are handled via AI chat reminder_alert messages in their own context
+        // CRITICAL FIX: Include explicit recipientUserId to prevent cross-user leaks
         window.dispatchEvent(new CustomEvent('dashboard-notification', {
           detail: {
             type: 'custom_reminder',
             title: `🔔 Reminder: ${reminder.title}`,
             message: reminder.message || 'Time for your scheduled reminder',
             actionData: { reminderId: reminder.id },
-            targetAudience: 'internal' // Only show on internal dashboard, not public board
+            targetAudience: 'internal', // Only show on internal dashboard, not public board
+            recipientUserId: user?.id, // CRITICAL: Explicit targeting to this admin only
           }
         }));
         
