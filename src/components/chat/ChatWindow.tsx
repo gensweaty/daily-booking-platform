@@ -24,6 +24,8 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const chatContext = useChatSafe();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isTextInputFocused, setIsTextInputFocused] = useState(false);
+  const inputFocusRef = useRef(false);
   
   // CRITICAL: Initialize state based on screen size immediately to prevent layout flash
   // Use a function to ensure correct initial state on first render
@@ -48,6 +50,41 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   // Extract isInitialized safely (use fallback if context is null)
   const isInitialized = chatContext?.isInitialized ?? false;
 
+  // Track whether an input inside the chat is focused (mobile keyboard relevance)
+  useEffect(() => {
+    inputFocusRef.current = isTextInputFocused;
+  }, [isTextInputFocused]);
+
+  useEffect(() => {
+    if (!isMobile || !isOpen || typeof document === 'undefined') return;
+
+    const root = cardRef.current;
+    if (!root) return;
+
+    const updateFocusState = () => {
+      const active = document.activeElement as HTMLElement | null;
+      const focused =
+        !!active &&
+        root.contains(active) &&
+        (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT' || active.isContentEditable);
+
+      setIsTextInputFocused(focused);
+
+      // If nothing is focused, ensure we never apply a stale keyboard padding.
+      if (!focused) {
+        setKeyboardHeight(0);
+      }
+    };
+
+    updateFocusState();
+    document.addEventListener('focusin', updateFocusState);
+    document.addEventListener('focusout', updateFocusState);
+    return () => {
+      document.removeEventListener('focusin', updateFocusState);
+      document.removeEventListener('focusout', updateFocusState);
+    };
+  }, [isMobile, isOpen]);
+
   // Sync window state with screen size changes (responsive behavior)
   // ALL HOOKS MUST BE BEFORE ANY CONDITIONAL RETURNS
   useEffect(() => {
@@ -70,14 +107,20 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   useEffect(() => {
     if (!isMobile || typeof window === 'undefined') return;
 
+    // Prevent false-positive “keyboard open” on mobile due to address-bar / viewport resizing.
+    // Real keyboards typically shrink the viewport by a large amount.
+    const KEYBOARD_HEIGHT_THRESHOLD_PX = 140;
+
     const handleKeyboardShow = () => {
       // Use visual viewport if available (modern browsers)
       if ('visualViewport' in window && (window as any).visualViewport) {
         const viewport = (window as any).visualViewport;
         const updateHeight = () => {
           if (viewport && viewport.height) {
-            const kbHeight = window.innerHeight - viewport.height;
-            setKeyboardHeight(Math.max(0, kbHeight));
+            const rawDelta = window.innerHeight - viewport.height;
+            const kbHeight = Math.max(0, rawDelta);
+            const shouldApply = inputFocusRef.current && kbHeight > KEYBOARD_HEIGHT_THRESHOLD_PX;
+            setKeyboardHeight(shouldApply ? kbHeight : 0);
           }
         };
         
@@ -91,7 +134,8 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         const handleResize = () => {
           const currentHeight = window.innerHeight;
           const kbHeight = Math.max(0, initialHeight - currentHeight);
-          setKeyboardHeight(kbHeight);
+          const shouldApply = inputFocusRef.current && kbHeight > KEYBOARD_HEIGHT_THRESHOLD_PX;
+          setKeyboardHeight(shouldApply ? kbHeight : 0);
         };
         
         window.addEventListener('resize', handleResize);
