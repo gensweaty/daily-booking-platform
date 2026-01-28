@@ -6,7 +6,6 @@ import { NotificationItem } from './NotificationItem';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface NotificationsPopupProps {
   isOpen: boolean;
@@ -70,7 +69,7 @@ export const NotificationsPopup = memo(({
   }, [isOpen]);
 
   const getTranslatedText = (key: 'notifications' | 'new' | 'noNotifications' | 'markAllRead' | 'clear' | 'allNotifications') => {
-    const translations = {
+    const translations: Record<string, Record<string, string>> = {
       notifications: {
         en: 'Notifications',
         es: 'Notificaciones',
@@ -102,7 +101,7 @@ export const NotificationsPopup = memo(({
         ka: 'ყველა შეტყობინება'
       }
     };
-    return translations[key][language] || translations[key].en;
+    return translations[key]?.[language] || translations[key]?.en || key;
   };
 
   return (
@@ -120,16 +119,17 @@ export const NotificationsPopup = memo(({
             onClick={onClose}
           />
           
-          {/* Popup */}
+          {/* Popup - Centered Modal */}
           <motion.div
             key="popup"
-            initial={{ opacity: 0, scale: 0.95, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
             className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 
-              w-[95vw] max-w-md max-h-[85vh] sm:max-h-[70vh] rounded-2xl overflow-hidden shadow-2xl"
+              w-[92vw] max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col"
             style={{
+              maxHeight: 'min(85vh, 600px)',
               background: isDarkMode 
                 ? 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))'
                 : 'linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 96%))',
@@ -171,7 +171,7 @@ export const NotificationsPopup = memo(({
             </div>
 
             {/* Notification List - Scrollable */}
-            <ScrollArea className="h-[calc(85vh-140px)] sm:h-[calc(70vh-140px)]">
+            <div className="flex-1 overflow-y-auto min-h-0">
               <div className="p-3 space-y-1">
                 {notifications.length === 0 ? (
                   <div className="py-12 text-center">
@@ -199,16 +199,16 @@ export const NotificationsPopup = memo(({
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
 
-            {/* Footer Actions */}
+            {/* Footer Actions - Always visible */}
             {notifications.length > 0 && (
-              <div className="border-t border-border/30 px-4 py-3">
+              <div className="border-t border-border/30 px-4 py-3 shrink-0">
                 <div className="flex items-center justify-between gap-2">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs gap-1.5 rounded-lg hover:bg-primary/10 hover:text-primary flex-1"
+                    className="h-9 text-xs gap-1.5 rounded-lg hover:bg-primary/10 hover:text-primary flex-1"
                     onClick={onMarkAllAsRead}
                   >
                     <CheckCheck className="h-3.5 w-3.5" />
@@ -217,7 +217,7 @@ export const NotificationsPopup = memo(({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 text-xs gap-1.5 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10 flex-1"
+                    className="h-9 text-xs gap-1.5 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10 flex-1"
                     onClick={onClearAll}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
