@@ -8,6 +8,32 @@ const MAX_NOTIFICATIONS = 100;
 const CLEANUP_DAYS = 7;
 const CLEANUP_HOURS = CLEANUP_DAYS * 24;
 
+const dedupeNotifications = (items: DashboardNotification[]) => {
+  // Primary dedupe requirement: a reminder should appear only once (by reminderId)
+  const reminderSeen = new Set<string>();
+  const generalSeen = new Set<string>();
+  const out: DashboardNotification[] = [];
+
+  for (const n of items) {
+    if (n.type === 'custom_reminder') {
+      const rid = (n.actionData as any)?.reminderId as string | undefined;
+      const key = rid ? `custom_reminder:${rid}` : `custom_reminder:${n.id}`;
+      if (reminderSeen.has(key)) continue;
+      reminderSeen.add(key);
+      out.push(n);
+      continue;
+    }
+
+    // Keep other notifications stable by id (do not over-dedupe different messages)
+    const key = `${n.type}:${n.id}`;
+    if (generalSeen.has(key)) continue;
+    generalSeen.add(key);
+    out.push(n);
+  }
+
+  return out;
+};
+
 // Helper to get user-specific storage key for public board users
 const getStorageKey = (email: string | undefined, boardOwnerId: string | undefined) => {
   if (!email || !boardOwnerId) return null;
@@ -161,9 +187,9 @@ export const usePublicBoardNotifications = () => {
         const parsed = JSON.parse(stored) as DashboardNotification[];
         // Convert timestamp strings back to Date objects and filter old ones
         const cutoff = new Date(Date.now() - CLEANUP_HOURS * 60 * 60 * 1000);
-        const validNotifications = parsed
+        const validNotifications = dedupeNotifications(parsed
           .map(n => ({ ...n, timestamp: new Date(n.timestamp) }))
-          .filter(n => n.timestamp > cutoff);
+          .filter(n => n.timestamp > cutoff));
         setNotifications(validNotifications);
       } else {
         setNotifications([]);
@@ -172,6 +198,14 @@ export const usePublicBoardNotifications = () => {
       console.error('Failed to load public board notifications from localStorage:', error);
       setNotifications([]);
     }
+  }, [storageKey]);
+
+  // If duplicates were already present in memory (e.g., from older versions), collapse them immediately.
+  useEffect(() => {
+    setNotifications((prev) => {
+      const next = dedupeNotifications(prev);
+      return next.length === prev.length ? prev : next;
+    });
   }, [storageKey]);
 
   // Backfill last 7 days of sub-user reminders (so users see missed alerts across refresh/offline)
@@ -255,7 +289,8 @@ export const usePublicBoardNotifications = () => {
     if (!storageKey) return;
     
     try {
-      localStorage.setItem(storageKey, JSON.stringify(notifications));
+      // Persist a deduped view to prevent runaway duplication across reloads
+      localStorage.setItem(storageKey, JSON.stringify(dedupeNotifications(notifications)));
     } catch (error) {
       console.error('Failed to save public board notifications to localStorage:', error);
     }
@@ -350,8 +385,20 @@ export const usePublicBoardNotifications = () => {
       };
 
       setNotifications(prev => {
-        const updated = [newNotification, ...prev].slice(0, MAX_NOTIFICATIONS);
-        return updated;
+        // Hard guarantee: reminders are unique by reminderId; also remove same id if somehow re-added.
+        const reminderId = (newNotification.type === 'custom_reminder')
+          ? (newNotification.actionData as any)?.reminderId
+          : undefined;
+
+        const filtered = prev.filter((n) => {
+          if (newNotification.type === 'custom_reminder' && reminderId) {
+            const nRid = (n.type === 'custom_reminder') ? (n.actionData as any)?.reminderId : undefined;
+            if (nRid && nRid === reminderId) return false;
+          }
+          return n.id !== newNotification.id;
+        });
+
+        return dedupeNotifications([newNotification, ...filtered]).slice(0, MAX_NOTIFICATIONS);
       });
 
       // Show latest notification for 5 seconds
