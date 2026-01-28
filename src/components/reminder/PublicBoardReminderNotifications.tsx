@@ -82,6 +82,8 @@ export function PublicBoardReminderNotifications({ boardOwnerId }: PublicBoardRe
         .eq('user_id', boardOwnerId)
         .eq('created_by_type', 'sub_user')
         .eq('created_by_sub_user_id', effectiveSubUserId)
+        // Prevent the same reminder from being re-processed and re-notified
+        .is('reminder_sent_at', null)
         .lte('remind_at', futureWindow.toISOString())
         .is('deleted_at', null)
         .order('remind_at', { ascending: true });
