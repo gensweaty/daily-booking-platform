@@ -58,6 +58,37 @@ const getNotificationStyles = (type: NotificationType) => {
   }
 };
 
+// Translate notification type labels
+const getTranslatedTitle = (title: string, language: string): string => {
+  const translations: Record<string, Record<string, string>> = {
+    'Event Reminder': { en: 'Event Reminder', es: 'Recordatorio de Evento', ka: 'ღონისძიების შეხსენება' },
+    '📅 Event Reminder': { en: '📅 Event Reminder', es: '📅 Recordatorio de Evento', ka: '📅 ღონისძიების შეხსენება' },
+    '⏰ Event Reminder': { en: '⏰ Event Reminder', es: '⏰ Recordatorio de Evento', ka: '⏰ ღონისძიების შეხსენება' },
+    'Task Reminder': { en: 'Task Reminder', es: 'Recordatorio de Tarea', ka: 'დავალების შეხსენება' },
+    '📋 Task Reminder': { en: '📋 Task Reminder', es: '📋 Recordatorio de Tarea', ka: '📋 დავალების შეხსენება' },
+    'Reminder': { en: 'Reminder', es: 'Recordatorio', ka: 'შეხსენება' },
+    '🔔 Reminder': { en: '🔔 Reminder', es: '🔔 Recordatorio', ka: '🔔 შეხსენება' },
+    'New Comment': { en: 'New Comment', es: 'Nuevo Comentario', ka: 'ახალი კომენტარი' },
+    'New Message': { en: 'New Message', es: 'Nuevo Mensaje', ka: 'ახალი შეტყობინება' },
+    'Booking Request': { en: 'Booking Request', es: 'Solicitud de Reserva', ka: 'დაჯავშნის მოთხოვნა' },
+  };
+  
+  // Check for exact match first
+  if (translations[title]?.[language]) {
+    return translations[title][language];
+  }
+  
+  // Check for partial matches (for titles like "🔔 Reminder: Task Name")
+  for (const [key, value] of Object.entries(translations)) {
+    if (title.startsWith(key)) {
+      const suffix = title.slice(key.length);
+      return value[language] + suffix;
+    }
+  }
+  
+  return title;
+};
+
 export const NotificationItem = memo(({ notification, onClick, compact = false }: NotificationItemProps) => {
   const { language } = useLanguage();
   const Icon = getNotificationIcon(notification.type);
@@ -76,6 +107,9 @@ export const NotificationItem = memo(({ notification, onClick, compact = false }
     locale: getLocale()
   });
 
+  // Translate the notification title
+  const translatedTitle = getTranslatedTitle(notification.title, language);
+
   if (compact) {
     return (
       <div className="flex items-center gap-2.5 min-w-0">
@@ -84,7 +118,7 @@ export const NotificationItem = memo(({ notification, onClick, compact = false }
         </div>
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <span className="text-xs font-medium text-foreground truncate">
-            {notification.title}
+            {translatedTitle}
           </span>
           <span className="text-[10px] text-muted-foreground/70 truncate hidden sm:inline">
             · {notification.message}
@@ -117,7 +151,7 @@ export const NotificationItem = memo(({ notification, onClick, compact = false }
       <div className="flex-1 min-w-0 space-y-0.5">
         <div className="flex items-start justify-between gap-2">
           <span className={`text-xs font-semibold truncate ${notification.read ? 'text-foreground/70' : 'text-foreground'}`}>
-            {notification.title}
+            {translatedTitle}
           </span>
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50 shrink-0">
             <Clock className="h-2.5 w-2.5" />

@@ -721,6 +721,21 @@ export const translations: TranslationType = {
     noteUpdated: "Note updated successfully",
     noteDeleted: "Note deleted successfully"
   },
+  notifications: {
+    eventReminder: "Event Reminder",
+    taskReminder: "Task Reminder",
+    reminder: "Reminder",
+    scheduledReminder: "Scheduled reminder",
+    commentNotification: "New Comment",
+    chatMessage: "New Message",
+    bookingRequest: "Booking Request",
+    allNotifications: "All Notifications",
+    noNotifications: "No notifications yet",
+    markAllRead: "Mark all read",
+    clear: "Clear",
+    viewAll: "View all",
+    new: "new"
+  },
   reminders: {
     reminderCreated: "Reminder created successfully"
   },
