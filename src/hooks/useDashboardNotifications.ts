@@ -153,13 +153,15 @@ export const useDashboardNotifications = () => {
         }
 
         // Also fetch event reminders that were sent
+        // ISOLATION FIX: Exclude sub-user created events - those belong to the sub-user only
         const { data: missedEventReminders, error: eventError } = await supabase
           .from('events')
-          .select('id, title, reminder_sent_at')
+          .select('id, title, reminder_sent_at, created_by_type')
           .eq('user_id', user.id)
           .not('reminder_sent_at', 'is', null)
           .gte('reminder_sent_at', sevenDaysAgo.toISOString())
           .is('deleted_at', null)
+          .or('created_by_type.is.null,created_by_type.neq.sub_user') // CRITICAL: Exclude sub-user events
           .order('reminder_sent_at', { ascending: false })
           .limit(50);
 

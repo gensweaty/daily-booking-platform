@@ -9,8 +9,9 @@ const CLEANUP_DAYS = 7;
 const CLEANUP_HOURS = CLEANUP_DAYS * 24;
 
 const dedupeNotifications = (items: DashboardNotification[]) => {
-  // Primary dedupe requirement: a reminder should appear only once (by reminderId)
+  // Primary dedupe requirement: a reminder should appear only once (by reminderId/eventId)
   const reminderSeen = new Set<string>();
+  const eventSeen = new Set<string>();
   const generalSeen = new Set<string>();
   const out: DashboardNotification[] = [];
 
@@ -20,6 +21,15 @@ const dedupeNotifications = (items: DashboardNotification[]) => {
       const key = rid ? `custom_reminder:${rid}` : `custom_reminder:${n.id}`;
       if (reminderSeen.has(key)) continue;
       reminderSeen.add(key);
+      out.push(n);
+      continue;
+    }
+
+    if (n.type === 'event_reminder') {
+      const eid = (n.actionData as any)?.eventId as string | undefined;
+      const key = eid ? `event_reminder:${eid}` : `event_reminder:${n.id}`;
+      if (eventSeen.has(key)) continue;
+      eventSeen.add(key);
       out.push(n);
       continue;
     }
@@ -50,6 +60,7 @@ export const usePublicBoardNotifications = () => {
   const loadedMissedRef = useRef(false);
   const recentFingerprintsRef = useRef<Map<string, number>>(new Map());
   const seenReminderIdsRef = useRef<Set<string>>(new Set());
+  const seenEventIdsRef = useRef<Set<string>>(new Set());
 
   // NOTE: PublicBoardAuthContext historically used email as a temporary `id`.
   // Some dispatchers emit `recipientSubUserId` as the real UUID.
@@ -67,14 +78,18 @@ export const usePublicBoardNotifications = () => {
   const boardOwnerId = publicBoardUser?.boardOwnerId;
   const storageKey = getStorageKey(userIdentity, boardOwnerId);
 
-  // Keep a fast lookup of reminder IDs we already have to prevent duplicates
+  // Keep a fast lookup of reminder/event IDs we already have to prevent duplicates
   useEffect(() => {
-    const s = new Set<string>();
+    const reminderSet = new Set<string>();
+    const eventSet = new Set<string>();
     for (const n of notifications) {
       const reminderId = (n.type === 'custom_reminder' && (n.actionData as any)?.reminderId) ? (n.actionData as any).reminderId : null;
-      if (reminderId) s.add(reminderId);
+      if (reminderId) reminderSet.add(reminderId);
+      const eventId = (n.type === 'event_reminder' && (n.actionData as any)?.eventId) ? (n.actionData as any).eventId : null;
+      if (eventId) eventSet.add(eventId);
     }
-    seenReminderIdsRef.current = s;
+    seenReminderIdsRef.current = reminderSet;
+    seenEventIdsRef.current = eventSet;
   }, [notifications]);
 
   const stableStringify = (value: unknown) => {
@@ -103,10 +118,16 @@ export const usePublicBoardNotifications = () => {
   };
 
   const shouldSkipDuplicate = (evt: Pick<DashboardNotificationEvent, 'type' | 'title' | 'message' | 'actionData'>) => {
-    // Hard de-dupe for reminders: one notification per reminder id
+    // Hard de-dupe for custom reminders: one notification per reminder id
     if (evt.type === 'custom_reminder') {
       const reminderId = (evt.actionData as any)?.reminderId as string | undefined;
       if (reminderId && seenReminderIdsRef.current.has(reminderId)) return true;
+    }
+
+    // Hard de-dupe for event reminders: one notification per event id
+    if (evt.type === 'event_reminder') {
+      const eventId = (evt.actionData as any)?.eventId as string | undefined;
+      if (eventId && seenEventIdsRef.current.has(eventId)) return true;
     }
 
     // Soft de-dupe for other notifications: identical payload within a short window
@@ -372,10 +393,18 @@ export const usePublicBoardNotifications = () => {
       // If no recipient targeting at all and targetAudience is 'public', accept for this sub-user
       // This handles general notifications meant for all public board users
       
+      // Create stable notification ID based on type
+      let notificationId: string;
+      if (type === 'custom_reminder' && (actionData as any)?.reminderId) {
+        notificationId = `public-custom_reminder-${(actionData as any).reminderId}`;
+      } else if (type === 'event_reminder' && (actionData as any)?.eventId) {
+        notificationId = `public-event_reminder-${(actionData as any).eventId}`;
+      } else {
+        notificationId = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      }
+
       const newNotification: DashboardNotification = {
-        id: type === 'custom_reminder' && (actionData as any)?.reminderId
-          ? `public-custom_reminder-${(actionData as any).reminderId}`
-          : `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: notificationId,
         type,
         title,
         message,
@@ -385,15 +414,22 @@ export const usePublicBoardNotifications = () => {
       };
 
       setNotifications(prev => {
-        // Hard guarantee: reminders are unique by reminderId; also remove same id if somehow re-added.
+        // Hard guarantee: reminders/events are unique by reminderId/eventId; also remove same id if somehow re-added.
         const reminderId = (newNotification.type === 'custom_reminder')
           ? (newNotification.actionData as any)?.reminderId
+          : undefined;
+        const eventId = (newNotification.type === 'event_reminder')
+          ? (newNotification.actionData as any)?.eventId
           : undefined;
 
         const filtered = prev.filter((n) => {
           if (newNotification.type === 'custom_reminder' && reminderId) {
             const nRid = (n.type === 'custom_reminder') ? (n.actionData as any)?.reminderId : undefined;
             if (nRid && nRid === reminderId) return false;
+          }
+          if (newNotification.type === 'event_reminder' && eventId) {
+            const nEid = (n.type === 'event_reminder') ? (n.actionData as any)?.eventId : undefined;
+            if (nEid && nEid === eventId) return false;
           }
           return n.id !== newNotification.id;
         });
