@@ -7,11 +7,44 @@ const STORAGE_KEY_PREFIX = 'dashboard-notifications-';
 const MAX_NOTIFICATIONS = 100;
 const CLEANUP_DAYS = 7; // Keep notifications for 7 days
 const CLEANUP_HOURS = CLEANUP_DAYS * 24; // 168 hours
+const FINGERPRINT_WINDOW_MS = 60000; // 60 seconds for soft deduplication
 
 // Helper to get user-specific storage key
 const getStorageKey = (userId: string | undefined) => {
   if (!userId) return null;
   return `${STORAGE_KEY_PREFIX}${userId}`;
+};
+
+// Helper to deduplicate notifications
+const dedupeNotifications = (notifications: DashboardNotification[]): DashboardNotification[] => {
+  const seen = new Map<string, DashboardNotification>();
+  
+  for (const n of notifications) {
+    // For custom_reminder type, use reminderId as the unique key
+    if (n.type === 'custom_reminder' && n.actionData?.reminderId) {
+      const key = `reminder-${n.actionData.reminderId}`;
+      if (!seen.has(key)) {
+        seen.set(key, n);
+      }
+    } else if (n.type === 'event_reminder' && n.actionData?.eventId) {
+      const key = `event-${n.actionData.eventId}`;
+      if (!seen.has(key)) {
+        seen.set(key, n);
+      }
+    } else {
+      // For other types, use the notification id
+      if (!seen.has(n.id)) {
+        seen.set(n.id, n);
+      }
+    }
+  }
+  
+  return Array.from(seen.values());
+};
+
+// Create fingerprint for soft deduplication
+const createFingerprint = (type: string, title: string, message: string): string => {
+  return `${type}::${title}::${message}`;
 };
 
 export const useDashboardNotifications = () => {
@@ -21,6 +54,7 @@ export const useDashboardNotifications = () => {
   const latestTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const loadedMissedRef = useRef(false);
   const currentUserIdRef = useRef<string | null>(null);
+  const recentFingerprintsRef = useRef<Map<string, number>>(new Map());
 
   // Load from localStorage when user changes
   useEffect(() => {
@@ -28,6 +62,7 @@ export const useDashboardNotifications = () => {
     if (currentUserIdRef.current !== user?.id) {
       loadedMissedRef.current = false;
       currentUserIdRef.current = user?.id || null;
+      recentFingerprintsRef.current.clear();
     }
 
     const storageKey = getStorageKey(user?.id);
@@ -46,7 +81,8 @@ export const useDashboardNotifications = () => {
         const validNotifications = parsed
           .map(n => ({ ...n, timestamp: new Date(n.timestamp) }))
           .filter(n => n.timestamp > cutoff);
-        setNotifications(validNotifications);
+        // DEDUPLICATION: Ensure no duplicates on load
+        setNotifications(dedupeNotifications(validNotifications));
       } else {
         // No stored notifications for this user
         setNotifications([]);
@@ -207,8 +243,38 @@ export const useDashboardNotifications = () => {
         return;
       }
       
+      // SOFT DEDUPLICATION: Use fingerprinting for duplicate detection within time window
+      const fingerprint = createFingerprint(type, title, message);
+      const now = Date.now();
+      const lastSeen = recentFingerprintsRef.current.get(fingerprint);
+      if (lastSeen && (now - lastSeen) < FINGERPRINT_WINDOW_MS) {
+        console.log('⏭️ [Internal] Skipping duplicate notification (fingerprint):', fingerprint);
+        return;
+      }
+      recentFingerprintsRef.current.set(fingerprint, now);
+
+      // Clean old fingerprints periodically
+      if (recentFingerprintsRef.current.size > 100) {
+        const cutoff = now - FINGERPRINT_WINDOW_MS;
+        for (const [key, timestamp] of recentFingerprintsRef.current.entries()) {
+          if (timestamp < cutoff) {
+            recentFingerprintsRef.current.delete(key);
+          }
+        }
+      }
+
+      // Use stable ID for reminders to prevent duplicates
+      let notificationId: string;
+      if (type === 'custom_reminder' && actionData?.reminderId) {
+        notificationId = `internal-custom_reminder-${actionData.reminderId}`;
+      } else if (type === 'event_reminder' && actionData?.eventId) {
+        notificationId = `internal-event_reminder-${actionData.eventId}`;
+      } else {
+        notificationId = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      }
+      
       const newNotification: DashboardNotification = {
-        id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: notificationId,
         type,
         title,
         message,
@@ -218,11 +284,32 @@ export const useDashboardNotifications = () => {
       };
 
       setNotifications(prev => {
-        const updated = [newNotification, ...prev].slice(0, MAX_NOTIFICATIONS);
+        // HARD DEDUPLICATION: Check if we already have this notification
+        if (type === 'custom_reminder' && actionData?.reminderId) {
+          const exists = prev.some(n => 
+            n.type === 'custom_reminder' && n.actionData?.reminderId === actionData.reminderId
+          );
+          if (exists) {
+            console.log('⏭️ [Internal] Skipping duplicate reminder (in state):', actionData.reminderId);
+            return prev;
+          }
+        }
+
+        if (type === 'event_reminder' && actionData?.eventId) {
+          const exists = prev.some(n => 
+            n.type === 'event_reminder' && n.actionData?.eventId === actionData.eventId
+          );
+          if (exists) {
+            console.log('⏭️ [Internal] Skipping duplicate event (in state):', actionData.eventId);
+            return prev;
+          }
+        }
+
+        // Filter out any existing notification with same stable ID
+        const filtered = prev.filter(n => n.id !== notificationId);
+        const updated = [newNotification, ...filtered].slice(0, MAX_NOTIFICATIONS);
         return updated;
       });
-
-      // Show latest notification for 5 seconds
       setLatestNotification(newNotification);
       if (latestTimeoutRef.current) {
         clearTimeout(latestTimeoutRef.current);
