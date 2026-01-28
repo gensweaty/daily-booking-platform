@@ -1,119 +1,172 @@
 
-Goal
-- Restore Smartbookly AI responses for:
-  - Internal dashboard users (authenticated)
-  - External/public board sub-users (unauthenticated)
-- Do it in a way that does not disturb other parts of the app (tasks, calendar, CRM, notifications).
+# Fix Plan: Sub-User Notification Isolation
 
-What I found (root cause hypothesis backed by evidence)
-- The ai-chat edge function is currently working and generating responses:
-  - Edge logs show “AI Chat request … Calling Lovable AI … AI response received”.
-  - The database contains recent rows from sender_name = “Smartbookly AI”.
-- So the failure is not “AI is down”; it’s “the UI is not reliably showing the newly inserted AI message”.
-- Today the UI relies on either:
-  1) Realtime subscription events, or
-  2) Polling that later picks up the new DB row
-- Those mechanisms can fail or be delayed (especially on public boards and when the insert is done by service role), causing users to see “no reply” even though the reply exists in the DB.
+## Problem Summary
 
-High-confidence fix strategy
-- Make the AI response display deterministic:
-  - When ai-chat finishes, return the inserted AI message (id, created_at, content, channel_id, owner_id, sender fields) in the HTTP response.
-  - Immediately dispatch a client event to render that AI message locally (same pipeline used by realtime/poll: the “chat-message-received” event).
-- Keep realtime/polling as a backup (not the primary way the AI response appears).
+1. **Sub-user AI reminders appear on admin dashboard**: When sub-user "Cau" asks AI to set a reminder, the notification appears on the admin's Dynamic Island instead of Cau's
+2. **Sub-users don't receive chat notifications**: Messages from admin to sub-users (DM or general chat) don't trigger notifications for the sub-user
 
-Implementation plan (isolated changes)
-Phase 1 — Make AI replies appear immediately (core fix)
-1) Update edge function: supabase/functions/ai-chat/index.ts
-   - For every path that inserts an AI message into public.chat_messages, change the insert to:
-     - Use .select(...).single() so we get the inserted row back.
-     - Return that row in the function JSON response as aiMessage (along with success and content).
-   - Ensure this is done in both cases:
-     - Direct response (no tool calls)
-     - Tool-call flow “finalResponse” branch
-     - Any fast-path branches that insert AI text into chat_messages
-   - Standardize returned shape:
-     - { success: true, content: string, aiMessage: { id, channel_id, owner_id, sender_type, sender_name, content, created_at, has_attachments, message_type, ... }, toolCalls?: [] }
-   - Add logging for insert failures and for the message id returned (for quick diagnosis without touching other systems).
-   - Keep authentication behavior unchanged (do not rework verify_jwt again; it’s already configured to allow public boards).
+## Root Cause
 
-2) Update client: src/components/chat/MessageInput.tsx (AI path only)
-   - After supabase.functions.invoke('ai-chat') returns:
-     - If data?.aiMessage exists:
-       - Dispatch: window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message: data.aiMessage } }))
-       - This leverages existing ChatProvider/ChatArea message pipelines and dedupe (by id).
-     - If data?.success is true but aiMessage is missing:
-       - Run a fallback fetch after a short delay (250–400ms) and dispatch the newest AI message:
-         - Internal users: call get_chat_messages_for_channel RPC and pick last row where sender_name = “Smartbookly AI” and created_at >= callStartTime
-         - Public boards: call list_channel_messages_public_v2 RPC and pick last row similarly
-       - Dispatch the found row as chat-message-received.
-   - Do not change how user messages are stored (current “persist immediately” behavior remains intact).
-   - Do not modify ChatProvider logic; we only “feed it” the missing message event deterministically.
+### Issue 1: Reminder Notification Leaking to Admin
+The `CustomReminderNotifications.tsx` component queries `custom_reminders` WHERE `user_id = current_user_id`. Since reminders are stored with `user_id = board_owner_id` (the admin), the admin's notification listener picks them up even when created BY a sub-user FOR the sub-user.
 
-Why this won’t ruin other things
-- Changes are confined to:
-  - ai-chat edge function response payload + selecting inserted row
-  - MessageInput’s AI invoke success handling
-- No changes to tasks, reminders, CRM, calendar, auth, routing, or notification storage keys.
-- Existing realtime/polling remains, but AI no longer depends on it to show the reply.
+The table already has `created_by_type` and `created_by_sub_user_id` columns, but they're only used for tracking creation - not for notification routing.
 
-Phase 2 — Make external-board Dynamic Island deep-links reliable (separate but related UX fix)
-Problem pattern
-- Public board notification clicks can fire before the destination tab/component is mounted, so the “open task/event/chat” event can be missed.
+### Issue 2: Chat Notifications Not Reaching Sub-Users
+The notification system uses `targetAudience: 'internal' | 'public'` to route notifications, but this doesn't handle cross-context messaging (admin sending to sub-user). The sub-user's `usePublicBoardNotifications` hook correctly filters out `internal` notifications, but when admin sends a message to a sub-user, it should dispatch with `targetAudience: 'public'` for the sub-user recipient.
 
-Fix strategy
-- Introduce a tiny “pending intent” queue so clicks never get lost:
-  - Store one pending navigation intent in sessionStorage (or a window global) when the notification is clicked.
-  - Switch tab first.
-  - When the destination tab component mounts, it consumes the pending intent and opens the right dialog/item.
+## Solution
 
-Concrete steps
-1) src/components/dashboard/PublicDynamicIsland.tsx
-   - Keep dispatching the existing events (open-chat-channel, open-ai-chat, open-task, open-event-edit, switch-public-tab).
-   - Additionally (or instead), write a pending intent object to sessionStorage:
-     - { tab: 'chat'|'tasks'|'calendar'|'crm', action: 'open-task'|'open-event'|'open-chat-channel'|'open-ai-chat', id?: string, createdAt: number }
+### Part 1: Fix Reminder Notification Routing
 
-2) src/components/PublicBoardNavigation.tsx
-   - On notification click events:
-     - Validate permission for the target tab
-     - Switch tab
-     - Leave pending intent in storage (do not clear here)
+**Change 1: `CustomReminderNotifications.tsx`**
+- Add filter to EXCLUDE reminders where `created_by_type = 'sub_user'`
+- These are sub-user's reminders and should not appear on admin dashboard
+- The admin's component should only show reminders that belong to the admin
 
-3) Destination components consume the intent on mount:
-   - src/components/tasks/PublicTaskList.tsx: on mount, if pending intent is open-task and taskId exists, open it, then clear intent
-   - src/components/calendar/PublicCalendarList.tsx: on mount, if pending intent is open-event-edit and eventId exists, open it, then clear intent
-   - Chat is already bridged via open-chat-ai / chat-open-channel; we can optionally add the same “consume intent” logic in ChatProvider after initialization to guarantee it opens even if ChatProvider mounts late.
+**Change 2: Add Sub-User Reminder Notification Listener (new component)**
+- Create `PublicBoardReminderNotifications.tsx` for public board context
+- Poll reminders where `created_by_type = 'sub_user'` AND `created_by_sub_user_id = current_sub_user.id`
+- Dispatch notifications with `targetAudience: 'public'`
 
-Verification checklist (must pass before considering fixed)
-A) Internal dashboard (admin)
-- Open dashboard, open AI channel, send “hi”.
-- Expected:
-  - AI response appears without refreshing.
-  - No duplicate AI responses (dedupe by message id).
-  - Refresh page: response is still in chat history.
+**Change 3: Mount the listener in `PublicBoard.tsx`**
+- Include the new reminder notification component for sub-users
 
-B) External public board (sub-user)
-- Enter a public board, open AI channel, send “hi”.
-- Expected:
-  - AI response appears without refresh.
-  - No auth errors/toasts.
-  - Refresh page: response persists.
+### Part 2: Fix Cross-User Chat Notifications
 
-C) Cross-user messaging + notifications
-- Admin sends message to a sub-user.
-- Expected:
-  - Sub-user sees notification.
-  - Clicking the Dynamic Island notification opens the correct place (chat/task/event) reliably.
+**Change 4: `ChatProvider.tsx` - Fix notification targeting for cross-user messages**
+- When a message is received, determine WHO should receive the notification
+- For DMs: notify the other participant (if admin sent, notify sub-user with `targetAudience: 'public'`)
+- For general/custom chats: notify all participants who aren't the sender
+- Use the new `recipientSubUserId` field in the notification event
 
-D) Regression sweep (quick)
-- Create/edit a task, create/edit an event, open CRM list, check reminders list.
-- Expected: no new errors, no missing data.
+**Change 5: `usePublicBoardNotifications.ts` - Filter by recipient ID**
+- Check if `recipientSubUserId` matches the current sub-user's ID
+- Only show notifications that are meant for this specific sub-user
 
-If anything unexpected shows up
-- Add targeted logs only around:
-  - MessageInput AI invoke request/response (status, presence of aiMessage)
-  - ChatProvider “chat-message-received” pipeline (message id/channel id)
-- Avoid touching global configs (main.tsx, global CSS, app routing) to keep scope isolated.
+**Change 6: `useDashboardNotifications.ts` - Filter by recipient ID**  
+- Check if `recipientUserId` matches the current admin user's ID
+- Only show notifications meant for this specific admin user
 
-Optional: fast debugging links
-- Edge function logs for ai-chat:
-  https://supabase.com/dashboard/project/mrueqpffzauvdxmuwhfa/functions/ai-chat/logs
+### Part 3: AI Chat Edge Function - Return Sub-User ID for Reminder Dispatch
+
+**Change 7: `supabase/functions/ai-chat/index.ts`**
+- When creating a reminder for a sub-user, include `sub_user_id` in the response
+- This allows the client to dispatch a properly-targeted notification event
+
+**Change 8: `MessageInput.tsx` - Dispatch sub-user reminder notification**
+- After AI creates a reminder, check if response contains `sub_user_id`
+- Dispatch `dashboard-notification` with `targetAudience: 'public'` and `recipientSubUserId`
+
+---
+
+## Technical Details
+
+### Files to Modify
+
+1. **`src/components/reminder/CustomReminderNotifications.tsx`**
+   - Add query filter: `.not('created_by_type', 'eq', 'sub_user')`
+   - This ensures admin only sees admin-created reminders
+
+2. **`src/components/reminder/PublicBoardReminderNotifications.tsx`** (NEW)
+   - Create new component for sub-user reminder notifications
+   - Query reminders by `created_by_sub_user_id` matching current sub-user
+   - Poll every 30 seconds like the admin version
+   - Dispatch to `dashboard-notification` with `targetAudience: 'public'`
+
+3. **`src/pages/PublicBoard.tsx`**
+   - Import and mount `PublicBoardReminderNotifications`
+
+4. **`src/components/chat/ChatProvider.tsx`**
+   - Update `showNotification` calls to include recipient identification
+   - For each message notification, determine if recipient is admin or sub-user
+   - Set `targetAudience` and `recipientSubUserId`/`recipientUserId` accordingly
+
+5. **`src/hooks/usePublicBoardNotifications.ts`**
+   - Add recipient filtering: only process notifications where `recipientSubUserId` matches current sub-user
+   - Fall back to current behavior if no recipient specified (backward compatibility)
+
+6. **`src/hooks/useDashboardNotifications.ts`**
+   - Add recipient filtering: only process notifications where `recipientUserId` matches current admin
+   - Fall back to current behavior if no recipient specified
+
+7. **`supabase/functions/ai-chat/index.ts`**
+   - In reminder creation paths (fast-path and tool call), return `sub_user_id` when `requesterType === 'sub_user'`
+
+8. **`src/components/chat/MessageInput.tsx`**
+   - After successful AI reminder creation, if `data.sub_user_id` exists, dispatch notification with proper targeting
+
+### Database Query Changes
+
+**Current query in `CustomReminderNotifications.tsx`:**
+```typescript
+.eq('user_id', user.id)
+```
+
+**New query (admin version):**
+```typescript
+.eq('user_id', user.id)
+.or('created_by_type.is.null,created_by_type.neq.sub_user')
+```
+
+**New query (sub-user version):**
+```typescript
+.eq('user_id', boardOwnerId)
+.eq('created_by_type', 'sub_user')
+.eq('created_by_sub_user_id', currentSubUserId)
+```
+
+### Notification Event Structure
+
+Current:
+```typescript
+{
+  type: 'chat',
+  title: '...',
+  message: '...',
+  actionData: { channelId: '...' },
+  targetAudience: 'internal' | 'public'
+}
+```
+
+New (with recipient filtering):
+```typescript
+{
+  type: 'chat',
+  title: '...',
+  message: '...',
+  actionData: { channelId: '...' },
+  targetAudience: 'internal' | 'public',
+  recipientUserId?: string,      // For internal dashboard users
+  recipientSubUserId?: string,   // For public board sub-users
+  recipientSubUserEmail?: string // Fallback for sub-user identification
+}
+```
+
+---
+
+## Verification Steps
+
+After implementation:
+
+1. **Test sub-user reminder isolation**:
+   - Log in as sub-user on public board
+   - Ask AI "remind me in 2 minutes about test"
+   - Verify reminder notification appears ONLY on sub-user's Dynamic Island
+   - Verify admin's dashboard does NOT show this notification
+
+2. **Test admin-to-sub-user DM notifications**:
+   - Open admin dashboard and sub-user public board side by side
+   - Send DM from admin to sub-user
+   - Verify sub-user receives notification in their Dynamic Island
+   - Verify admin does NOT receive their own message as notification
+
+3. **Test general chat notifications**:
+   - Send message in General chat as admin
+   - Verify sub-users who are participants receive notifications
+   - Verify admin doesn't receive notification for their own message
+
+4. **Test backward compatibility**:
+   - Verify existing task/event/booking notifications still work
+   - Verify admin reminders (created by admin) still notify admin
