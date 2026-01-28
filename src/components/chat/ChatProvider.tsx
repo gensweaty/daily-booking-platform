@@ -1070,39 +1070,41 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('✅ [CHAT] Step 2 complete in', performance.now() - step2Start, 'ms');
       } else if (isOnPublicBoard) {
         if (publicBoardUser?.id) {
-          console.log('👤 [CHAT] Public board user detected, resolving UUID...');
+          console.log('👤 [CHAT] Public board user detected, resolving UUID via RPC...');
           
           try {
-            // Resolve the actual sub-user UUID from the database
-            const { data: subUser, error: subUserError } = await supabase
-              .from('sub_users')
-              .select('id, email, fullname, avatar_url')
-              .eq('board_owner_id', resolvedBoardOwnerId)
-              .eq('email', publicBoardUser.email)
-              .maybeSingle();
+            // CRITICAL FIX: Use RPC (SECURITY DEFINER) to bypass RLS restrictions
+            // Direct sub_users queries fail for unauthenticated public board users
+            const { data: subUserData, error: subUserError } = await supabase.rpc('get_sub_user_auth', {
+              p_owner_id: resolvedBoardOwnerId,
+              p_email: publicBoardUser.email
+            });
             
-            if (!subUserError && subUser) {
-              console.log('✅ [CHAT] Resolved sub-user UUID:', subUser.id);
+            const subUser = subUserData && subUserData[0];
+            
+            if (!subUserError && subUser?.id) {
+              console.log('✅ [CHAT] Resolved sub-user UUID via RPC:', subUser.id);
               setMe({
-                id: subUser.id, // Use actual UUID from database
+                id: subUser.id, // Use actual UUID from RPC
                 type: 'sub_user',
                 name: subUser.fullname || publicBoardUser.fullName || 'Member',
                 email: publicBoardUser.email,
-                avatarUrl: subUser.avatar_url || undefined,
+                // Note: avatar_url not returned by get_sub_user_auth RPC
               });
             } else {
-              console.log('⚠️ [CHAT] Using email as fallback ID');
+              console.log('⚠️ [CHAT] RPC failed or no user found, using publicBoardUser.id:', publicBoardUser.id);
+              // publicBoardUser.id should already be UUID if PublicBoardAuthContext is working correctly
               setMe({
-                id: publicBoardUser.id, // Keep original (email) as fallback
+                id: publicBoardUser.id,
                 type: 'sub_user',
                 name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
                 email: publicBoardUser.email,
               });
             }
           } catch (error) {
-            console.error('❌ [CHAT] Error resolving sub-user UUID:', error);
+            console.error('❌ [CHAT] Error resolving sub-user UUID via RPC:', error);
             setMe({
-              id: publicBoardUser.id, // Fallback to original
+              id: publicBoardUser.id,
               type: 'sub_user',
               name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
               email: publicBoardUser.email,
@@ -1112,21 +1114,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         } else if (hasPublicAccess) {
           console.log('👤 [CHAT] Public access user detected');
           const access = getPublicAccess(location.pathname);
-          if (access.hasAccess && access.storedOwnerId === resolvedBoardOwnerId) {
+          if (access.hasAccess && access.storedOwnerId === resolvedBoardOwnerId && access.email) {
             try {
-              const { data: su } = await supabase
-                .from('sub_users')
-                .select('id, fullname, avatar_url')
-                .eq('board_owner_id', resolvedBoardOwnerId)
-                .eq('email', access.email)
-                .maybeSingle();
+              // CRITICAL FIX: Use RPC (SECURITY DEFINER) to bypass RLS restrictions
+              const { data: suData } = await supabase.rpc('get_sub_user_auth', {
+                p_owner_id: resolvedBoardOwnerId,
+                p_email: access.email
+              });
+              const su = suData && suData[0];
               if (su?.id) {
                 setMe({
                   id: su.id,
                   type: 'sub_user',
                   name: su.fullname || access.fullName,
                   email: access.email,
-                  avatarUrl: su.avatar_url || undefined,
                 });
               } else {
                 setMe({
