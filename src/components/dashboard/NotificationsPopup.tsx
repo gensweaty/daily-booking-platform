@@ -123,30 +123,30 @@ export const NotificationsPopup = memo(({
             onClick={onClose}
           />
           
-          {/* Popup - Absolutely centered on screen */}
-          <motion.div
-            key="notifications-popup"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="fixed rounded-2xl overflow-hidden shadow-2xl flex flex-col"
-            style={{
-              zIndex: 99999,
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: 'min(92vw, 420px)',
-              maxHeight: 'min(80vh, 600px)',
-              background: isDarkMode 
-                ? 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))'
-                : 'linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 96%))',
-              border: isDarkMode 
-                ? '1px solid hsl(var(--primary) / 0.2)' 
-                : '1px solid hsl(220 14% 90%)',
-            }}
-            onClick={(e) => e.stopPropagation()}
+          {/* Centering Container - Uses flex to center, not transform */}
+          <div 
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ zIndex: 99999, pointerEvents: 'none' }}
           >
+            {/* Popup Modal */}
+            <motion.div
+              key="notifications-popup"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="w-[92vw] max-w-[420px] max-h-[80vh] rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+              style={{
+                pointerEvents: 'auto',
+                background: isDarkMode 
+                  ? 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))'
+                  : 'linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 96%))',
+                border: isDarkMode 
+                  ? '1px solid hsl(var(--primary) / 0.2)' 
+                  : '1px solid hsl(220 14% 90%)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/30">
               <div className="flex items-center gap-3">
@@ -235,6 +235,7 @@ export const NotificationsPopup = memo(({
               </div>
             )}
           </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>,
