@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 interface PublicBoardUser {
   id: string;
@@ -29,7 +29,13 @@ export const usePublicBoardAuth = () => {
 };
 
 export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { slug } = useParams<{ slug: string }>();
+  // IMPORTANT: This provider is mounted above <Routes/>, so useParams() is not reliable here.
+  // Use location.pathname to derive the public board slug deterministically.
+  const location = useLocation();
+  const slug = (() => {
+    const match = location.pathname.match(/^\/board\/([^/]+)/);
+    return match?.[1];
+  })();
   const [user, setUser] = useState<PublicBoardUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPublicBoard, setIsPublicBoard] = useState(false);
@@ -37,10 +43,10 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
   useEffect(() => {
       const checkPublicBoardAuth = () => {
         // Check if we're on a public board route
-        const isOnPublicBoard = !!slug && window.location.pathname.includes(`/board/${slug}`);
+        const isOnPublicBoard = !!slug && location.pathname.includes(`/board/${slug}`);
         setIsPublicBoard(isOnPublicBoard);
         
-        console.log('🔍 PublicBoardAuth: Checking auth, isOnPublicBoard:', isOnPublicBoard, 'slug:', slug, 'path:', window.location.pathname);
+        console.log('🔍 PublicBoardAuth: Checking auth, isOnPublicBoard:', isOnPublicBoard, 'slug:', slug, 'path:', location.pathname);
 
         if (isOnPublicBoard && slug) {
           console.log('🔍 PublicBoardAuth: Setting loading true for authentication check');
@@ -114,6 +120,12 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
 
     checkPublicBoardAuth();
 
+    // If we can't derive a slug, we're not on a public board route.
+    // Avoid installing global listeners / monkey-patching localStorage.
+    if (!slug) {
+      return;
+    }
+
     // Listen for localStorage changes (when user logs in/out on public board)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === `public-board-access-${slug}`) {
@@ -140,7 +152,7 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
       window.removeEventListener('storage', handleStorageChange);
       localStorage.setItem = originalSetItem;
     };
-  }, [slug]);
+  }, [slug, location.pathname]);
 
   const value = {
     user,
