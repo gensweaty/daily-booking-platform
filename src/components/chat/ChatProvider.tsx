@@ -498,24 +498,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           });
         }
         
-        // Then play sound and show notification
+        // Then play sound
         import('@/utils/audioManager')
           .then(({ playNotificationSound }) => playNotificationSound())
           .catch(() => {});
-        // ISOLATION: Target only the current session's user with explicit recipient fields
-        showNotification({
-          title: 'Reminder Alert',
-          body: message.content,
-          channelId: message.channel_id,
-          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-          senderName: 'Smartbookly AI',
-          targetAudience: isOnPublicBoard ? 'public' : 'internal',
-          // PUBLIC BOARD: target this sub-user explicitly
-          recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
-          recipientSubUserEmail: isOnPublicBoard ? me?.email?.toLowerCase() : undefined,
-          // INTERNAL DASHBOARD: target this admin user explicitly
-          recipientUserId: !isOnPublicBoard ? me?.id : undefined,
-        });
+        
+        // DUPLICATE FIX: On internal dashboard, DO NOT dispatch showNotification for reminder_alert
+        // because CustomReminderNotifications.tsx already dispatches the custom_reminder notification
+        // to the Dynamic Island. Only dispatch for public board sub-users who need the chat-based alert.
+        if (isOnPublicBoard) {
+          showNotification({
+            title: 'Reminder Alert',
+            body: message.content,
+            channelId: message.channel_id,
+            senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+            senderName: 'Smartbookly AI',
+            targetAudience: 'public',
+            recipientSubUserId: me?.id,
+            recipientSubUserEmail: me?.email?.toLowerCase(),
+          });
+        }
         return;
       }
 
@@ -646,20 +648,22 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       import('@/utils/audioManager')
         .then(({ playNotificationSound }) => playNotificationSound())
         .catch(() => {});
-      // ISOLATION: Target only the current session's user with explicit recipient fields
-      showNotification({
-        title: 'Reminder Alert',
-        body: message.content,
-        channelId: message.channel_id,
-        senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-        senderName: 'Smartbookly AI',
-        targetAudience: isOnPublicBoard ? 'public' : 'internal',
-        // PUBLIC BOARD: target this sub-user explicitly
-        recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
-        recipientSubUserEmail: isOnPublicBoard ? me?.email?.toLowerCase() : undefined,
-        // INTERNAL DASHBOARD: target this admin user explicitly
-        recipientUserId: !isOnPublicBoard ? me?.id : undefined,
-      });
+      
+      // DUPLICATE FIX: On internal dashboard, DO NOT dispatch showNotification for reminder_alert
+      // because CustomReminderNotifications.tsx already dispatches the custom_reminder notification
+      // to the Dynamic Island. Only dispatch for public board sub-users who need the chat-based alert.
+      if (isOnPublicBoard) {
+        showNotification({
+          title: 'Reminder Alert',
+          body: message.content,
+          channelId: message.channel_id,
+          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+          senderName: 'Smartbookly AI',
+          targetAudience: 'public',
+          recipientSubUserId: me?.id,
+          recipientSubUserEmail: me?.email?.toLowerCase(),
+        });
+      }
       // Dispatch event for message display (badge already handled above)
       window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));
       return;
