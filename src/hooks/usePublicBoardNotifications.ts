@@ -135,7 +135,7 @@ export const usePublicBoardNotifications = () => {
         clearTimeout(latestTimeoutRef.current);
       }
     };
-  }, []);
+  }, [publicBoardUser?.id, publicBoardUser?.email]); // IMPORTANT: avoid stale sub-user closure on identity changes
 
   // Cleanup old notifications periodically
   useEffect(() => {

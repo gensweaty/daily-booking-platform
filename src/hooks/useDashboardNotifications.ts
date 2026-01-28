@@ -234,7 +234,7 @@ export const useDashboardNotifications = () => {
         clearTimeout(latestTimeoutRef.current);
       }
     };
-  }, []);
+  }, [user?.id]); // IMPORTANT: avoid stale user closure when switching accounts
 
   // Cleanup old notifications periodically
   useEffect(() => {
