@@ -14,6 +14,7 @@ import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useAIChannel } from "@/hooks/useAIChannel";
+import { addMobileAudioUnlockListener } from "@/utils/audioManager";
 
 
 type Me = { 
@@ -347,6 +348,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (shouldShowChat) {
       try { requestPermission(); } catch {}
+      
+      // MOBILE: Add audio unlock listener for notification sounds on mobile
+      addMobileAudioUnlockListener();
     }
   }, [shouldShowChat, requestPermission]);
 

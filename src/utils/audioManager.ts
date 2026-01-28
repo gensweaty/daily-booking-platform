@@ -1,6 +1,7 @@
 let audioContext: AudioContext | null = null;
 let notificationBuffer: AudioBuffer | null = null;
 let lastSoundPlayTime = 0;
+let isPreloaded = false;
 const MIN_SOUND_INTERVAL_MS = 2000; // 2 seconds debounce - prevents duplicate sounds
 
 const initAudio = () => {
@@ -45,8 +46,9 @@ export const playNotificationSound = async (): Promise<boolean> => {
   try {
     const context = initAudio();
     
-    // Resume context if needed (required for user interaction)
+    // Resume context if needed (required for user interaction on mobile)
     if (context.state === 'suspended') {
+      console.log('📱 Resuming suspended audio context...');
       await context.resume();
     }
     
@@ -73,9 +75,42 @@ export const playNotificationSound = async (): Promise<boolean> => {
   }
 };
 
-// Preload the sound on first user interaction
+// Preload the sound on first user interaction - CRITICAL for mobile
 export const preloadNotificationSound = () => {
-  loadNotificationSound().catch(() => {
-    // Silently fail if preload doesn't work
-  });
+  if (isPreloaded) return;
+  isPreloaded = true;
+  
+  console.log('📱 Preloading notification sound for mobile...');
+  
+  // Initialize audio context and load sound
+  loadNotificationSound()
+    .then(() => {
+      // Try to resume context if suspended (for mobile)
+      const context = initAudio();
+      if (context.state === 'suspended') {
+        context.resume().catch(() => {});
+      }
+    })
+    .catch(() => {
+      // Silently fail if preload doesn't work
+    });
+};
+
+// One-time first touch/click listener for mobile audio unlock
+let touchListenerAdded = false;
+export const addMobileAudioUnlockListener = () => {
+  if (touchListenerAdded) return;
+  touchListenerAdded = true;
+  
+  const unlockAudio = () => {
+    console.log('📱 Mobile audio unlock triggered by user interaction');
+    preloadNotificationSound();
+    
+    // Remove listeners after first interaction
+    document.removeEventListener('touchstart', unlockAudio);
+    document.removeEventListener('click', unlockAudio);
+  };
+  
+  document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
+  document.addEventListener('click', unlockAudio, { once: true, passive: true });
 };

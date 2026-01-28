@@ -150,15 +150,15 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
   }, []);
 
   return (
-    <div className="flex justify-center mb-2 relative px-4">
+    <div className="flex justify-center mb-2 relative px-2 sm:px-4">
       <motion.div
-        className="relative overflow-hidden cursor-pointer"
+        className="relative overflow-hidden cursor-pointer w-full sm:w-auto"
         initial={false}
         animate={{
           borderRadius: isExpanded ? 16 : 9999,
           width: isExpanded ? '100%' : 'auto',
           maxWidth: isExpanded ? 420 : 380,
-          minWidth: isExpanded ? 320 : 340,
+          minWidth: isExpanded ? 280 : undefined, // Removed min-width for collapsed - let content determine
         }}
         style={{
           background: isDarkMode 

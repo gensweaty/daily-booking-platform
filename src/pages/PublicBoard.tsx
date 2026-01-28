@@ -19,6 +19,7 @@ import { useTheme } from "next-themes";
 import { PublicCommentNotificationsListener } from "@/components/notifications/PublicCommentNotificationsListener";
 import { PublicProfileDialog } from "@/components/public/PublicProfileDialog";
 import { PublicBoardReminderNotifications } from "@/components/reminder/PublicBoardReminderNotifications";
+import { preloadNotificationSound, addMobileAudioUnlockListener } from "@/utils/audioManager";
 
 // Password hashing utilities (PBKDF2, client-side)
 const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -85,6 +86,13 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
       navigate("/");
     }
   }, [slug]);
+
+  // MOBILE: Add audio unlock listener when authenticated to ensure notifications work
+  useEffect(() => {
+    if (isAuthenticated) {
+      addMobileAudioUnlockListener();
+    }
+  }, [isAuthenticated]);
 
   // Function to fetch avatar URL for sub-users
   const fetchSubUserAvatar = async (userEmail: string) => {
@@ -323,6 +331,9 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
         setFullName(displayName);
         setEmail(normalizedEmail);
         await fetchSubUserAvatar(normalizedEmail);
+        
+        // CRITICAL: Preload audio for mobile notification sounds (session restore counts as user interaction context)
+        preloadNotificationSound();
 
         // Persist refreshed info
         localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
@@ -451,6 +462,9 @@ const handleLogin = async () => {
       setFullName(actualFullName);
       setEmail(normalizedEmail);
       await fetchSubUserAvatar(normalizedEmail);
+      
+      // CRITICAL: Preload audio on login (user interaction) for mobile notification sounds
+      preloadNotificationSound();
 
       toast({ title: t('common.success'), description: t('publicBoard.welcomeToBoard') });
     } catch (error: any) {
@@ -634,6 +648,9 @@ const handleRegister = async () => {
       setIsAuthenticated(true);
       setEmail(normalizedEmail);
       await fetchSubUserAvatar(normalizedEmail);
+      
+      // CRITICAL: Preload audio on register (user interaction) for mobile notification sounds
+      preloadNotificationSound();
 
       // Clear sensitive fields
       setPassword("");
