@@ -154,16 +154,25 @@ export const usePublicBoardNotifications = () => {
         return;
       }
 
-      // ISOLATION FIX 3: If recipientSubUserId is specified, only show to that specific sub-user.
+      // ISOLATION FIX 3: If recipientSubUserId or recipientSubUserEmail is specified, only show to that specific sub-user.
       if (recipientSubUserId || recipientSubUserEmail) {
         // Try UUID match using effective (resolved) ID
         const uuidMatch = effectiveIdIsUuid && effectiveSubUserId && recipientSubUserId === effectiveSubUserId;
         
-        // Try email match (case-insensitive)
-        const emailMatch = !!(currentEmail && recipientSubUserEmail && 
-          recipientSubUserEmail.toLowerCase() === currentEmail);
+        // Try email match (case-insensitive) - with normalized comparison
+        const normalizedRecipientEmail = recipientSubUserEmail?.toLowerCase()?.trim();
+        const normalizedCurrentEmail = currentEmail?.toLowerCase()?.trim();
+        const emailMatch = !!(normalizedCurrentEmail && normalizedRecipientEmail && 
+          normalizedRecipientEmail === normalizedCurrentEmail);
         
-        console.log('🔍 [Public] Identity match check:', { uuidMatch, emailMatch, effectiveSubUserId, recipientSubUserId, currentEmail, recipientSubUserEmail });
+        console.log('🔍 [Public] Identity match check:', { 
+          uuidMatch, 
+          emailMatch, 
+          effectiveSubUserId, 
+          recipientSubUserId, 
+          normalizedCurrentEmail, 
+          normalizedRecipientEmail 
+        });
         
         if (!uuidMatch && !emailMatch) {
           console.log('⏭️ [Public] Skipping notification - no identity match');
@@ -171,6 +180,10 @@ export const usePublicBoardNotifications = () => {
         }
         
         console.log('✅ [Public] Identity matched for notification');
+      } else if (targetAudience === 'public') {
+        // If targetAudience is 'public' but no specific recipient is set,
+        // this is a general notification for the current public board user - accept it
+        console.log('✅ [Public] Accepting general public notification (no specific recipient)');
       }
 
       // If no recipient targeting at all and targetAudience is 'public', accept for this sub-user
