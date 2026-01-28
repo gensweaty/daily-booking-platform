@@ -19,6 +19,7 @@ import { useTheme } from "next-themes";
 import { PublicCommentNotificationsListener } from "@/components/notifications/PublicCommentNotificationsListener";
 import { PublicProfileDialog } from "@/components/public/PublicProfileDialog";
 import { PublicBoardReminderNotifications } from "@/components/reminder/PublicBoardReminderNotifications";
+import { PublicBoardTaskReminderNotifications } from "@/components/tasks/PublicBoardTaskReminderNotifications";
 import { preloadNotificationSound, addMobileAudioUnlockListener } from "@/utils/audioManager";
 
 // Password hashing utilities (PBKDF2, client-side)
@@ -906,9 +907,14 @@ const handleRegister = async () => {
               boardUserId={boardData.user_id} 
               externalUserName={fullName} 
             />
-            {/* Sub-user reminder notifications - ISOLATED from admin's reminders */}
+            {/* Sub-user custom reminder notifications - ISOLATED from admin's reminders */}
             <PublicBoardReminderNotifications 
               boardOwnerId={boardData.user_id}
+            />
+            {/* Sub-user TASK reminder notifications - ISOLATED from admin's task reminders */}
+            <PublicBoardTaskReminderNotifications
+              boardOwnerId={boardData.user_id}
+              externalUserName={fullName}
             />
             <PublicBoardNavigation
               boardId={boardData.id}
