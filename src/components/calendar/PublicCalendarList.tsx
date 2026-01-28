@@ -259,6 +259,42 @@ export const PublicCalendarList = ({
     };
   }, [boardUserId, queryClient]);
 
+  // Consume pending intent from sessionStorage on mount (for reliable deep-linking)
+  useEffect(() => {
+    const consumePendingIntent = () => {
+      try {
+        const raw = sessionStorage.getItem('public-board-pending-intent');
+        if (!raw) return;
+        
+        const intent = JSON.parse(raw);
+        // Only process intents less than 30 seconds old
+        if (Date.now() - intent.createdAt > 30000) {
+          sessionStorage.removeItem('public-board-pending-intent');
+          return;
+        }
+        
+        if (intent.action === 'open-event-edit' && intent.id && events) {
+          console.log('📌 Consuming pending intent: open-event-edit', intent.id);
+          sessionStorage.removeItem('public-board-pending-intent');
+          
+          const targetEvent = events.find(e => e.id === intent.id);
+          if (targetEvent) {
+            setSelectedEvent(targetEvent);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to parse pending intent:', e);
+        sessionStorage.removeItem('public-board-pending-intent');
+      }
+    };
+    
+    // Check immediately and also after a short delay (for tab switching scenarios)
+    consumePendingIntent();
+    const timer = setTimeout(consumePendingIntent, 300);
+    
+    return () => clearTimeout(timer);
+  }, [events, setSelectedEvent]);
+
   // Listen for open-event-edit events from notification clicks
   useEffect(() => {
     const handleOpenEvent = (event: CustomEvent<{ eventId: string }>) => {

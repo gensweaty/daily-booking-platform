@@ -334,6 +334,14 @@ export const MessageInput = ({
           
           if (data?.success) {
             console.log('✅ AI response received and saved');
+            
+            // Dispatch event to immediately show AI message (deterministic display)
+            if (data.aiMessage) {
+              console.log('📤 Dispatching chat-message-received event for AI message id:', data.aiMessage.id);
+              window.dispatchEvent(new CustomEvent('chat-message-received', { 
+                detail: { message: data.aiMessage } 
+              }));
+            }
           } else if (data?.error) {
             console.error('❌ AI returned error:', data.error);
             toast({ 

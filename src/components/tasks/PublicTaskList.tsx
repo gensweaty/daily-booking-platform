@@ -76,6 +76,42 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
     done: filteredTasks.filter((task: Task) => task.status === 'done'),
   }), [filteredTasks]);
 
+  // Consume pending intent from sessionStorage on mount (for reliable deep-linking)
+  useEffect(() => {
+    const consumePendingIntent = () => {
+      try {
+        const raw = sessionStorage.getItem('public-board-pending-intent');
+        if (!raw) return;
+        
+        const intent = JSON.parse(raw);
+        // Only process intents less than 30 seconds old
+        if (Date.now() - intent.createdAt > 30000) {
+          sessionStorage.removeItem('public-board-pending-intent');
+          return;
+        }
+        
+        if (intent.action === 'open-task' && intent.id) {
+          console.log('📌 Consuming pending intent: open-task', intent.id);
+          sessionStorage.removeItem('public-board-pending-intent');
+          
+          // Dispatch the open-task event after a short delay to ensure component is ready
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: intent.id } }));
+          }, 150);
+        }
+      } catch (e) {
+        console.warn('Failed to parse pending intent:', e);
+        sessionStorage.removeItem('public-board-pending-intent');
+      }
+    };
+    
+    // Check immediately and also after a short delay (for tab switching scenarios)
+    consumePendingIntent();
+    const timer = setTimeout(consumePendingIntent, 300);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     const handler = async (e: CustomEvent) => {
       const taskId = (e as any).detail?.taskId as string | undefined;
