@@ -21,6 +21,9 @@ export const usePublicBoardNotifications = () => {
   const [latestNotification, setLatestNotification] = useState<DashboardNotification | null>(null);
   const latestTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentUserKeyRef = useRef<string | null>(null);
+  const loadedMissedRef = useRef(false);
+  const recentFingerprintsRef = useRef<Map<string, number>>(new Map());
+  const seenReminderIdsRef = useRef<Set<string>>(new Set());
 
   // NOTE: PublicBoardAuthContext historically used email as a temporary `id`.
   // Some dispatchers emit `recipientSubUserId` as the real UUID.
@@ -37,6 +40,65 @@ export const usePublicBoardNotifications = () => {
   const userIdentity = publicBoardUser?.email;
   const boardOwnerId = publicBoardUser?.boardOwnerId;
   const storageKey = getStorageKey(userIdentity, boardOwnerId);
+
+  // Keep a fast lookup of reminder IDs we already have to prevent duplicates
+  useEffect(() => {
+    const s = new Set<string>();
+    for (const n of notifications) {
+      const reminderId = (n.type === 'custom_reminder' && (n.actionData as any)?.reminderId) ? (n.actionData as any).reminderId : null;
+      if (reminderId) s.add(reminderId);
+    }
+    seenReminderIdsRef.current = s;
+  }, [notifications]);
+
+  const stableStringify = (value: unknown) => {
+    try {
+      if (!value) return '';
+      const sortObj = (v: any): any => {
+        if (Array.isArray(v)) return v.map(sortObj);
+        if (v && typeof v === 'object') {
+          return Object.keys(v)
+            .sort()
+            .reduce((acc: any, k) => {
+              acc[k] = sortObj(v[k]);
+              return acc;
+            }, {});
+        }
+        return v;
+      };
+      return JSON.stringify(sortObj(value));
+    } catch {
+      return '';
+    }
+  };
+
+  const makeFingerprint = (evt: Pick<DashboardNotificationEvent, 'type' | 'title' | 'message' | 'actionData'>) => {
+    return `${evt.type}|${evt.title}|${evt.message}|${stableStringify(evt.actionData)}`;
+  };
+
+  const shouldSkipDuplicate = (evt: Pick<DashboardNotificationEvent, 'type' | 'title' | 'message' | 'actionData'>) => {
+    // Hard de-dupe for reminders: one notification per reminder id
+    if (evt.type === 'custom_reminder') {
+      const reminderId = (evt.actionData as any)?.reminderId as string | undefined;
+      if (reminderId && seenReminderIdsRef.current.has(reminderId)) return true;
+    }
+
+    // Soft de-dupe for other notifications: identical payload within a short window
+    const fingerprint = makeFingerprint(evt);
+    const now = Date.now();
+    const windowMs = 60_000; // 60s is enough to collapse multi-mount / double-dispatch issues
+
+    // Cleanup old fingerprints
+    for (const [k, ts] of recentFingerprintsRef.current.entries()) {
+      if (now - ts > windowMs) recentFingerprintsRef.current.delete(k);
+    }
+
+    const lastTs = recentFingerprintsRef.current.get(fingerprint);
+    if (lastTs && now - lastTs <= windowMs) return true;
+
+    recentFingerprintsRef.current.set(fingerprint, now);
+    return false;
+  };
 
   // Resolve UUID from email if needed (async database lookup)
   useEffect(() => {
@@ -83,6 +145,8 @@ export const usePublicBoardNotifications = () => {
     const newKey = storageKey || null;
     if (currentUserKeyRef.current !== newKey) {
       currentUserKeyRef.current = newKey;
+      loadedMissedRef.current = false;
+      recentFingerprintsRef.current.clear();
     }
 
     if (!storageKey) {
@@ -109,6 +173,82 @@ export const usePublicBoardNotifications = () => {
       setNotifications([]);
     }
   }, [storageKey]);
+
+  // Backfill last 7 days of sub-user reminders (so users see missed alerts across refresh/offline)
+  useEffect(() => {
+    const effectiveSubUserId = resolvedSubUserId || currentSubUserId;
+    const effectiveIdIsUuid = !!(effectiveSubUserId && uuidRe.test(effectiveSubUserId));
+
+    if (!storageKey) return;
+    if (!boardOwnerId) return;
+    if (!effectiveSubUserId) return;
+    if (!effectiveIdIsUuid) return; // require real UUID to match created_by_sub_user_id
+    if (loadedMissedRef.current) return;
+
+    const loadMissed = async () => {
+      try {
+        const now = new Date();
+        const sevenDaysAgo = new Date(Date.now() - CLEANUP_HOURS * 60 * 60 * 1000);
+
+        const { data, error } = await supabase
+          .from('custom_reminders')
+          .select('id, title, message, remind_at, reminder_sent_at, created_at')
+          .eq('user_id', boardOwnerId)
+          .eq('created_by_type', 'sub_user')
+          .eq('created_by_sub_user_id', effectiveSubUserId)
+          .gte('remind_at', sevenDaysAgo.toISOString())
+          .lte('remind_at', now.toISOString())
+          .is('deleted_at', null)
+          .order('remind_at', { ascending: false })
+          .limit(100);
+
+        if (error) {
+          console.error('❌ [PublicNotifications] Error fetching missed reminders:', error);
+          loadedMissedRef.current = true;
+          return;
+        }
+
+        if (data && data.length > 0) {
+          setNotifications(prev => {
+            const existingReminderIds = new Set(
+              prev
+                .filter(n => n.type === 'custom_reminder')
+                .map(n => (n.actionData as any)?.reminderId)
+                .filter(Boolean)
+            );
+
+            const toAdd: DashboardNotification[] = [];
+            for (const r of data) {
+              if (existingReminderIds.has(r.id)) continue;
+              const ts = r.reminder_sent_at || r.remind_at || r.created_at;
+              toAdd.push({
+                id: `public-custom_reminder-${r.id}`,
+                type: 'custom_reminder',
+                title: `🔔 Reminder: ${r.title}`,
+                message: r.message || 'Scheduled reminder',
+                timestamp: new Date(ts),
+                read: false,
+                actionData: { reminderId: r.id },
+              });
+            }
+
+            if (toAdd.length === 0) return prev;
+
+            return [...toAdd, ...prev]
+              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+              .slice(0, MAX_NOTIFICATIONS);
+          });
+        }
+
+        loadedMissedRef.current = true;
+      } catch (e) {
+        console.error('❌ [PublicNotifications] Error loading missed reminders:', e);
+        loadedMissedRef.current = true;
+      }
+    };
+
+    loadMissed();
+  }, [storageKey, boardOwnerId, resolvedSubUserId, currentSubUserId]);
 
   // Save to localStorage when notifications change
   useEffect(() => {
@@ -188,11 +328,19 @@ export const usePublicBoardNotifications = () => {
         console.log('✅ [Public] Accepting general public notification (no specific recipient)');
       }
 
+      // DE-DUPE: Prevent the same reminder/message from being added multiple times
+      if (shouldSkipDuplicate({ type, title, message, actionData })) {
+        console.log('⏭️ [Public] Skipping duplicate notification');
+        return;
+      }
+
       // If no recipient targeting at all and targetAudience is 'public', accept for this sub-user
       // This handles general notifications meant for all public board users
       
       const newNotification: DashboardNotification = {
-        id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: type === 'custom_reminder' && (actionData as any)?.reminderId
+          ? `public-custom_reminder-${(actionData as any).reminderId}`
+          : `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type,
         title,
         message,
