@@ -71,9 +71,17 @@ export const usePublicBoardNotifications = () => {
   }, [notifications, storageKey]);
 
   // Listen for dashboard-notification events (same event name, shared dispatch mechanism)
+  // CRITICAL: Only process notifications meant for public board sub-users
   useEffect(() => {
-    const handleNotificationEvent = (event: CustomEvent<DashboardNotificationEvent>) => {
-      const { type, title, message, actionData } = event.detail;
+    const handleNotificationEvent = (event: CustomEvent<DashboardNotificationEvent & { targetAudience?: 'internal' | 'public' }>) => {
+      const { type, title, message, actionData, targetAudience } = event.detail;
+      
+      // ISOLATION FIX: Skip notifications explicitly meant for internal dashboard (admin)
+      // This prevents sub-users from receiving admin's reminders
+      if (targetAudience === 'internal') {
+        console.log('⏭️ [Public] Skipping notification meant for internal dashboard:', type);
+        return;
+      }
       
       const newNotification: DashboardNotification = {
         id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

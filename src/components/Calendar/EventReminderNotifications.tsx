@@ -211,13 +211,14 @@ export const EventReminderNotifications = () => {
 
           const eventTitle = event.title || event.user_surname || 'Event';
 
-          // Emit to Dynamic Island
+          // Emit to Dynamic Island - internal dashboard only
           window.dispatchEvent(new CustomEvent('dashboard-notification', {
             detail: {
               type: 'event_reminder',
               title: '📅 Event Reminder',
               message: `${t('events.eventReminder')}: ${eventTitle}`,
-              actionData: { eventId: event.id }
+              actionData: { eventId: event.id },
+              targetAudience: 'internal'
             }
           }));
           

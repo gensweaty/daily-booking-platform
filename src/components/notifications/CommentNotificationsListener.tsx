@@ -63,13 +63,14 @@ export const CommentNotificationsListener: React.FC = () => {
               const actorName = c.created_by_name || 'Someone';
               const { title, body } = getTexts(actorName, taskTitle);
 
-              // Emit to Dynamic Island
+              // Emit to Dynamic Island - internal dashboard only
               window.dispatchEvent(new CustomEvent('dashboard-notification', {
                 detail: {
                   type: 'comment',
                   title,
                   message: body,
-                  actionData: { taskId: c.task_id }
+                  actionData: { taskId: c.task_id },
+                  targetAudience: 'internal'
                 }
               }));
 
@@ -133,13 +134,14 @@ export const CommentNotificationsListener: React.FC = () => {
             const actorName = comment.created_by_name || 'Someone';
             const { title, body } = getTexts(actorName, task.title || 'Task');
 
-            // Emit to Dynamic Island
+            // Emit to Dynamic Island - internal dashboard only
             window.dispatchEvent(new CustomEvent('dashboard-notification', {
               detail: {
                 type: 'comment',
                 title,
                 message: body,
-                actionData: { taskId: comment.task_id }
+                actionData: { taskId: comment.task_id },
+                targetAudience: 'internal'
               }
             }));
 

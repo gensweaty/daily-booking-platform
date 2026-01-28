@@ -110,13 +110,14 @@ export const BookingNotificationManager = ({
       ? `${request.requester_name}-ისგან: ${request.title}`
       : `From ${request.requester_name}: ${request.title}`;
 
-    // Emit to Dynamic Island
+    // Emit to Dynamic Island - internal dashboard only
     window.dispatchEvent(new CustomEvent('dashboard-notification', {
       detail: {
         type: 'booking',
         title,
         message: description,
-        actionData: { bookingId: request.id }
+        actionData: { bookingId: request.id },
+        targetAudience: 'internal'
       }
     }));
     
