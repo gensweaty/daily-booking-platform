@@ -159,13 +159,14 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
         if (storedData) {
           try {
             const parsedData = JSON.parse(storedData);
-            const { token, fullName: storedFullName, email: storedEmail } = parsedData;
+            const { token, fullName: storedFullName, email: storedEmail, subUserId } = parsedData;
             localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
               token,
               timestamp: Date.now(),
               fullName: storedFullName,
               email: storedEmail,
               boardOwnerId: boardData?.user_id,
+              subUserId,
             }));
 
             // Dispatch custom event for immediate same-tab detection
@@ -274,6 +275,8 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
         const normalizedEmail = (storedEmail || '').trim().toLowerCase();
         let displayName = storedFullName || tokenInfo.external_user_name || normalizedEmail;
 
+        let resolvedSubUserId: string | undefined = undefined;
+
         if (normalizedEmail) {
           // Verify sub user still exists using SECURITY DEFINER RPC (bypasses RLS)
           const { data: subData, error: subErr } = await supabase.rpc('get_sub_user_auth', {
@@ -281,6 +284,7 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
             p_email: normalizedEmail,
           });
           const subUser = (subData && subData[0]) || null;
+          resolvedSubUserId = subUser?.id;
           if (!subUser || subErr) {
             // Token is invalid because sub user was removed – clear and force re-auth
             localStorage.removeItem(`public-board-access-${slug}`);
@@ -327,6 +331,7 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
           fullName: displayName,
           email: normalizedEmail,
           boardOwnerId: tokenInfo.user_id,
+          subUserId: resolvedSubUserId,
         }));
 
         // Dispatch custom event for immediate same-tab detection
@@ -435,6 +440,7 @@ const handleLogin = async () => {
         fullName: actualFullName,
         email: normalizedEmail,
         boardOwnerId: boardData.user_id,
+        subUserId: subUser.id,
       }));
 
       // Dispatch custom event for immediate same-tab detection
@@ -619,6 +625,7 @@ const handleRegister = async () => {
         fullName: fullName.trim(),
         email: normalizedEmail,
         boardOwnerId: boardData.user_id,
+        subUserId,
       }));
 
       // Dispatch custom event for immediate same-tab detection
