@@ -66,13 +66,16 @@ export const useDashboardNotifications = () => {
         const sevenDaysAgo = new Date(Date.now() - CLEANUP_HOURS * 60 * 60 * 1000);
         
         // Fetch custom reminders that were sent in the last 7 days
+        // ISOLATION FIX: Exclude sub-user created reminders - those belong to the sub-user only
+        // Sub-user reminders are handled by PublicBoardReminderNotifications
         const { data: missedReminders, error } = await supabase
           .from('custom_reminders')
-          .select('id, title, message, reminder_sent_at')
+          .select('id, title, message, reminder_sent_at, created_by_type')
           .eq('user_id', user.id)
           .not('reminder_sent_at', 'is', null)
           .gte('reminder_sent_at', sevenDaysAgo.toISOString())
           .is('deleted_at', null)
+          .or('created_by_type.is.null,created_by_type.neq.sub_user') // CRITICAL: Exclude sub-user reminders
           .order('reminder_sent_at', { ascending: false })
           .limit(50);
 
