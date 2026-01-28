@@ -473,6 +473,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           channelId: message.channel_id,
           senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
           senderName: 'Smartbookly AI',
+          targetAudience: isOnPublicBoard ? 'public' : 'internal',
         });
         return;
       }
@@ -526,6 +527,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               channelId: message.channel_id,
               senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
               senderName: message.sender_name || 'Unknown',
+              targetAudience: isOnPublicBoard ? 'public' : 'internal',
             });
           }
         }
@@ -571,6 +573,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         channelId: message.channel_id,
         senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
         senderName: 'Smartbookly AI',
+        targetAudience: isOnPublicBoard ? 'public' : 'internal',
       });
       // Dispatch event for message display (badge already handled above)
       window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));
@@ -691,6 +694,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             channelId: message.channel_id,
             senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
             senderName: message.sender_name || 'Unknown',
+            targetAudience: isOnPublicBoard ? 'public' : 'internal',
           });
         } else {
           console.log('⏭️ Notification skipped - not a participant or viewing channel');

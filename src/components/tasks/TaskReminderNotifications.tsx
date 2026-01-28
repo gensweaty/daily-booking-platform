@@ -160,13 +160,14 @@ export const TaskReminderNotifications = () => {
           // Show dashboard notification
           showDashboardNotification(task.title);
 
-          // Emit to Dynamic Island
+          // Emit to Dynamic Island - internal dashboard only
           window.dispatchEvent(new CustomEvent('dashboard-notification', {
             detail: {
               type: 'task_reminder',
               title: '📋 Task Reminder',
               message: `${t('tasks.taskReminder')}: ${task.title}`,
-              actionData: { taskId: task.id }
+              actionData: { taskId: task.id },
+              targetAudience: 'internal'
             }
           }));
           

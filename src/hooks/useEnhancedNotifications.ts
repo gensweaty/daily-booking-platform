@@ -7,6 +7,7 @@ export interface NotificationData {
   channelId: string;
   senderId: string;
   senderName: string;
+  targetAudience?: 'internal' | 'public'; // 'internal' for admin dashboard, 'public' for sub-user public board
 }
 
 export const useEnhancedNotifications = () => {
@@ -68,16 +69,18 @@ export const useEnhancedNotifications = () => {
     showSingleNotification(data);
   }, []);
 
-  const showSingleNotification = useCallback(async (data: NotificationData) => {
+  const showSingleNotification = useCallback(async (data: NotificationData & { targetAudience?: 'internal' | 'public' }) => {
     console.log('🔔 Showing enhanced notification:', data);
 
-    // Emit to Dynamic Island
+    // CRITICAL FIX: Include targetAudience in the event to ensure proper isolation
+    // Only the correct Dynamic Island (internal vs public) will process this
     window.dispatchEvent(new CustomEvent('dashboard-notification', {
       detail: {
         type: 'chat',
         title: data.title,
         message: data.body,
-        actionData: { channelId: data.channelId }
+        actionData: { channelId: data.channelId },
+        targetAudience: data.targetAudience // 'internal' for admin, 'public' for sub-user
       }
     }));
     
