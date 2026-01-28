@@ -20,31 +20,51 @@ type WindowState = 'normal' | 'minimized' | 'maximized';
 
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const { t } = useLanguage();
-  const [windowState, setWindowState] = useState<WindowState>('normal');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  
   const cardRef = useRef<HTMLDivElement>(null);
   const chatContext = useChatSafe();
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  
+  // CRITICAL: Initialize state based on screen size immediately to prevent layout flash
+  // Use a function to ensure correct initial state on first render
+  const [windowState, setWindowState] = useState<WindowState>(() => {
+    // Check if mobile on initial render (SSR-safe check)
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(max-width: 768px)').matches ? 'maximized' : 'normal';
+    }
+    return 'normal';
+  });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    // Sidebar collapsed by default on mobile
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(max-width: 768px)').matches;
+    }
+    return false;
+  });
+  
+  // Track if initial layout has been set to prevent flicker
+  const [isLayoutReady, setIsLayoutReady] = useState(false);
+  
+  // Extract isInitialized safely (use fallback if context is null)
+  const isInitialized = chatContext?.isInitialized ?? false;
 
-  // If context is not available, don't render
-  if (!chatContext) {
-    return null;
-  }
-
-  const { isInitialized } = chatContext;
-
-  // Set state on mount - normal on first open for desktop, maximized for mobile
+  // Sync window state with screen size changes (responsive behavior)
+  // ALL HOOKS MUST BE BEFORE ANY CONDITIONAL RETURNS
   useEffect(() => {
     if (!isOpen) return;
+    
+    // Mark layout as ready after first render with correct state
+    if (!isLayoutReady) {
+      setIsLayoutReady(true);
+    }
+    
     if (isMobile) {
       setWindowState('maximized');
       setIsSidebarCollapsed(true);
     } else {
       setWindowState('normal');
     }
-  }, [isOpen, isMobile]);
+  }, [isOpen, isMobile, isLayoutReady]);
 
   // Mobile keyboard detection and height tracking
   useEffect(() => {
@@ -56,8 +76,8 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         const viewport = (window as any).visualViewport;
         const updateHeight = () => {
           if (viewport && viewport.height) {
-            const keyboardHeight = window.innerHeight - viewport.height;
-            setKeyboardHeight(Math.max(0, keyboardHeight));
+            const kbHeight = window.innerHeight - viewport.height;
+            setKeyboardHeight(Math.max(0, kbHeight));
           }
         };
         
@@ -70,8 +90,8 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         const initialHeight = window.innerHeight;
         const handleResize = () => {
           const currentHeight = window.innerHeight;
-          const keyboardHeight = Math.max(0, initialHeight - currentHeight);
-          setKeyboardHeight(keyboardHeight);
+          const kbHeight = Math.max(0, initialHeight - currentHeight);
+          setKeyboardHeight(kbHeight);
         };
         
         window.addEventListener('resize', handleResize);
@@ -81,6 +101,11 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
 
     return handleKeyboardShow();
   }, [isMobile]);
+
+  // If context is not available, don't render (AFTER all hooks)
+  if (!chatContext) {
+    return null;
+  }
 
   // Auto-close sidebar on mobile when typing
   const handleMobileSidebarAutoClose = () => {
