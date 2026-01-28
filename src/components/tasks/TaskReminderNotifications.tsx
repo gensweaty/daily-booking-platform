@@ -42,6 +42,8 @@ export const TaskReminderNotifications = () => {
   }, [processedReminders]);
 
   // Fetch tasks with reminders
+  // ISOLATION FIX: Exclude tasks created by sub-users - those belong to the sub-user only
+  // Sub-user task reminders are handled by PublicBoardTaskReminderNotifications
   const { data: tasks } = useQuery({
     queryKey: ['taskReminders', user?.id],
     queryFn: async () => {
@@ -56,6 +58,8 @@ export const TaskReminderNotifications = () => {
         .eq('user_id', user.id)
         .not('reminder_at', 'is', null)
         .lte('reminder_at', futureWindow.toISOString())
+        // CRITICAL: Exclude sub-user created tasks - their reminders are handled separately
+        .or('created_by_type.is.null,created_by_type.neq.sub_user')
         .order('reminder_at', { ascending: true });
       
       if (error) {
@@ -63,7 +67,7 @@ export const TaskReminderNotifications = () => {
         throw error;
       }
       
-      console.log('📋 Task reminders fetched:', data?.length || 0);
+      console.log('📋 Task reminders fetched (admin only):', data?.length || 0);
       return data || [];
     },
     enabled: !!user?.id,

@@ -42,16 +42,21 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
       const subUserLabel = `${externalUserName} (Sub User)`;
       const lastSeenKey = `public_comments_last_seen_${boardUserId}_${externalUserName}`;
 
-      // 1) Load tasks for this sub-user using RPC that bypasses RLS
+      // 1) Load ALL tasks for the board owner - sub-user can receive notifications for ANY task
+      // where an admin comments (if the task was created by this sub-user)
       try {
         const { data: tasksData, error: tasksErr } = await publicSupabase
           .rpc('get_public_board_tasks', { board_user_id: boardUserId });
         if (tasksErr) {
           console.error('[PublicCommentsNotify] Error fetching tasks via RPC:', tasksErr);
         } else if (tasksData && tasksData.length) {
-          // Keep only this sub-user's tasks
-          const ownTasks = tasksData.filter((t: any) => t.created_by_type === 'external_user' && t.created_by_name === subUserLabel);
+          // Keep tasks created by this sub-user to receive notifications when admin comments
+          const ownTasks = tasksData.filter((t: any) => 
+            (t.created_by_type === 'external_user' && t.created_by_name === subUserLabel) ||
+            (t.created_by_type === 'sub_user' && t.created_by_name === externalUserName)
+          );
           tasksMapRef.current = new Map(ownTasks.map((t: any) => [t.id, { title: t.title || 'Task' }]));
+          console.log('[PublicCommentsNotify] Loaded tasks for sub-user:', ownTasks.length);
         }
       } catch (e) {
         console.error('[PublicCommentsNotify] Failed loading tasks:', e);
@@ -141,7 +146,8 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
 
           // Only notify if this comment is for current sub-user's task and not authored by them
           if (!tasksMapRef.current.has(comment.task_id)) return;
-          if (comment.created_by_name === subUserLabel) return;
+          // Skip if this sub-user authored the comment (check both name formats)
+          if (comment.created_by_name === subUserLabel || comment.created_by_name === externalUserName) return;
 
           const taskTitle = tasksMapRef.current.get(comment.task_id)?.title || 'Task';
           const actorName = comment.created_by_name || 'Someone';
