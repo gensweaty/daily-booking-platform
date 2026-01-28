@@ -177,14 +177,27 @@ export const useDashboardNotifications = () => {
 
   // Listen for dashboard-notification events
   // CRITICAL: Only process notifications meant for internal dashboard (admin users)
+  // AND only if the notification is for THIS specific user (recipient filtering)
   useEffect(() => {
-    const handleNotificationEvent = (event: CustomEvent<DashboardNotificationEvent & { targetAudience?: 'internal' | 'public' }>) => {
-      const { type, title, message, actionData, targetAudience } = event.detail;
+    const handleNotificationEvent = (event: CustomEvent<DashboardNotificationEvent>) => {
+      const { type, title, message, actionData, targetAudience, recipientUserId, recipientSubUserId } = event.detail;
       
-      // ISOLATION FIX: Skip notifications explicitly meant for public board sub-users
-      // This prevents admin from receiving sub-user's reminders or chat notifications
+      // ISOLATION FIX 1: Skip notifications explicitly meant for public board sub-users
       if (targetAudience === 'public') {
         console.log('⏭️ [Internal] Skipping notification meant for public board:', type);
+        return;
+      }
+
+      // ISOLATION FIX 2: If recipientUserId is specified, only show to that specific user
+      // This prevents notifications from appearing in the wrong admin's dashboard
+      if (recipientUserId && user?.id && recipientUserId !== user.id) {
+        console.log('⏭️ [Internal] Skipping notification meant for different user:', { recipientUserId, currentUser: user.id });
+        return;
+      }
+
+      // ISOLATION FIX 3: Skip if notification has recipientSubUserId (meant for sub-user, not admin)
+      if (recipientSubUserId) {
+        console.log('⏭️ [Internal] Skipping notification targeted at sub-user:', recipientSubUserId);
         return;
       }
       

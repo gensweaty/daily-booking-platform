@@ -297,6 +297,25 @@ serve(async (req) => {
         console.log(`🕐 Base time: ${baseNow.toISOString()} (local: ${formatInUserZone(baseNow)})`);
         console.log(`⏰ Remind at (UTC): ${remindAtUtc.toISOString()} (local: ${formatInUserZone(remindAtUtc)})`);
         
+        // ISOLATION FIX: Track sub-user info for proper notification routing
+        let createdBySubUserId: string | null = null;
+        
+        // If this is a sub-user request, resolve their ID
+        if (senderType === 'sub_user' && senderName) {
+          console.log('🔍 Resolving sub-user ID for reminder routing:', { senderName, ownerId });
+          const { data: subUserData } = await supabaseAdmin
+            .from('sub_users')
+            .select('id')
+            .eq('board_owner_id', ownerId)
+            .or(`fullname.eq.${senderName},email.ilike.${senderName}`)
+            .maybeSingle();
+          
+          if (subUserData?.id) {
+            createdBySubUserId = subUserData.id;
+            console.log('✅ Resolved sub-user ID:', createdBySubUserId);
+          }
+        }
+        
         const { data: reminderData, error: reminderError } = await supabaseAdmin
           .from('custom_reminders')
           .insert({
@@ -304,7 +323,11 @@ serve(async (req) => {
             title: title,
             remind_at: remindAtUtc.toISOString(),
             message: `Reminder: ${title}`,
-            language: userLanguage || 'en'
+            language: userLanguage || 'en',
+            // ISOLATION FIX: Store sub-user creation info for notification routing
+            created_by_type: senderType === 'sub_user' ? 'sub_user' : 'admin',
+            created_by_name: senderName || null,
+            created_by_sub_user_id: createdBySubUserId
           })
           .select()
           .single();
@@ -341,7 +364,14 @@ serve(async (req) => {
         console.log(`✅ Reminder fast-path completed successfully: ${title} (${minutes} minutes)`);
         
         // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
-        return new Response(JSON.stringify({ success: true, content, aiMessage: aiMsgData || null }),
+        // ISOLATION FIX: Return sub_user_id for client-side notification routing
+        return new Response(JSON.stringify({ 
+          success: true, 
+          content, 
+          aiMessage: aiMsgData || null,
+          sub_user_id: createdBySubUserId, // Client uses this to dispatch properly-targeted notification
+          is_sub_user_reminder: senderType === 'sub_user'
+        }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         
       } catch (error) {
@@ -496,6 +526,24 @@ serve(async (req) => {
         
         console.log(`⏰ FINAL remind_at (UTC): ${targetTime.toISOString()}`);
         
+        // ISOLATION FIX: Track sub-user info for proper notification routing (same as fast-path 1)
+        let createdBySubUserId2: string | null = null;
+        
+        if (senderType === 'sub_user' && senderName) {
+          console.log('🔍 Resolving sub-user ID for time reminder routing:', { senderName, ownerId });
+          const { data: subUserData } = await supabaseAdmin
+            .from('sub_users')
+            .select('id')
+            .eq('board_owner_id', ownerId)
+            .or(`fullname.eq.${senderName},email.ilike.${senderName}`)
+            .maybeSingle();
+          
+          if (subUserData?.id) {
+            createdBySubUserId2 = subUserData.id;
+            console.log('✅ Resolved sub-user ID:', createdBySubUserId2);
+          }
+        }
+        
         const { data: reminderData, error: reminderError } = await supabaseAdmin
           .from('custom_reminders')
           .insert({
@@ -503,7 +551,11 @@ serve(async (req) => {
             title: title,
             remind_at: targetTime.toISOString(),
             message: `Reminder: ${title}`,
-            language: userLanguage || 'en'
+            language: userLanguage || 'en',
+            // ISOLATION FIX: Store sub-user creation info for notification routing
+            created_by_type: senderType === 'sub_user' ? 'sub_user' : 'admin',
+            created_by_name: senderName || null,
+            created_by_sub_user_id: createdBySubUserId2
           })
           .select()
           .single();
@@ -540,7 +592,14 @@ serve(async (req) => {
         console.log(`✅ Time reminder fast-path completed: ${title} at ${hours}:${String(minutes).padStart(2, '0')}`);
         
         // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
-        return new Response(JSON.stringify({ success: true, content, aiMessage: aiMsgData || null }),
+        // ISOLATION FIX: Return sub_user_id for client-side notification routing
+        return new Response(JSON.stringify({ 
+          success: true, 
+          content, 
+          aiMessage: aiMsgData || null,
+          sub_user_id: createdBySubUserId2,
+          is_sub_user_reminder: senderType === 'sub_user'
+        }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         
       } catch (error) {

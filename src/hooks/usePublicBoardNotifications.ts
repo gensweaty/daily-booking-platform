@@ -72,14 +72,33 @@ export const usePublicBoardNotifications = () => {
 
   // Listen for dashboard-notification events (same event name, shared dispatch mechanism)
   // CRITICAL: Only process notifications meant for public board sub-users
+  // AND only if the notification is for THIS specific sub-user (recipient filtering)
   useEffect(() => {
-    const handleNotificationEvent = (event: CustomEvent<DashboardNotificationEvent & { targetAudience?: 'internal' | 'public' }>) => {
-      const { type, title, message, actionData, targetAudience } = event.detail;
+    const handleNotificationEvent = (event: CustomEvent<DashboardNotificationEvent>) => {
+      const { type, title, message, actionData, targetAudience, recipientSubUserId, recipientSubUserEmail, recipientUserId } = event.detail;
       
-      // ISOLATION FIX: Skip notifications explicitly meant for internal dashboard (admin)
-      // This prevents sub-users from receiving admin's reminders
+      // ISOLATION FIX 1: Skip notifications explicitly meant for internal dashboard (admin)
       if (targetAudience === 'internal') {
         console.log('⏭️ [Public] Skipping notification meant for internal dashboard:', type);
+        return;
+      }
+
+      // ISOLATION FIX 2: If recipientSubUserId is specified, only show to that specific sub-user
+      // This prevents notifications from appearing in the wrong sub-user's dashboard
+      if (recipientSubUserId && publicBoardUser?.id && recipientSubUserId !== publicBoardUser.id) {
+        console.log('⏭️ [Public] Skipping notification meant for different sub-user:', { recipientSubUserId, currentSubUser: publicBoardUser.id });
+        return;
+      }
+
+      // ISOLATION FIX 3: Email-based fallback check for sub-user targeting
+      if (recipientSubUserEmail && publicBoardUser?.email && recipientSubUserEmail.toLowerCase() !== publicBoardUser.email.toLowerCase()) {
+        console.log('⏭️ [Public] Skipping notification - email mismatch:', { recipientSubUserEmail, currentEmail: publicBoardUser.email });
+        return;
+      }
+
+      // ISOLATION FIX 4: Skip if notification has recipientUserId (meant for admin, not sub-user)
+      if (recipientUserId) {
+        console.log('⏭️ [Public] Skipping notification targeted at admin user:', recipientUserId);
         return;
       }
       
