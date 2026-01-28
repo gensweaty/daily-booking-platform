@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bell, X, CheckCheck, Trash2, Sparkles } from 'lucide-react';
+import { Bell, X, CheckCheck, Trash2, Sparkles, Maximize2 } from 'lucide-react';
 import { usePublicBoardNotifications } from '@/hooks/usePublicBoardNotifications';
 import { NotificationItem } from './NotificationItem';
+import { NotificationsPopup } from './NotificationsPopup';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { LanguageText } from '@/components/shared/LanguageText';
@@ -19,6 +20,7 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
   const { language } = useLanguage();
   const { resolvedTheme, theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showFullPopup, setShowFullPopup] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<string>('dark');
   // Use public board notifications hook for sub-users (separate from internal dashboard)
@@ -148,6 +150,17 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
   const toggleExpanded = useCallback(() => {
     setIsExpanded(prev => !prev);
   }, []);
+
+  const openFullPopup = useCallback(() => {
+    setShowFullPopup(true);
+    setIsExpanded(false);
+  }, []);
+
+  const getViewAllText = () => {
+    if (isGeorgian) return 'ყველა';
+    if (language === 'es') return 'Ver todo';
+    return 'View all';
+  };
 
   return (
     <div className="flex justify-center mb-2 relative px-2 sm:px-4">
@@ -344,7 +357,7 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
               {notifications.length > 0 && (
                 <>
                   <div className="mx-4 h-px bg-border/30" />
-                  <div className="flex items-center justify-between px-3 py-2">
+                  <div className="flex items-center justify-between px-3 py-2 gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -356,6 +369,18 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
                     >
                       <CheckCheck className="h-3.5 w-3.5" />
                       {isGeorgian ? 'ყველას წაკითხვა' : language === 'es' ? 'Marcar leído' : 'Mark all read'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 rounded-lg hover:bg-muted/50 text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openFullPopup();
+                      }}
+                    >
+                      <Maximize2 className="h-3.5 w-3.5" />
+                      {getViewAllText()}
                     </Button>
                     <Button
                       variant="ghost"
@@ -375,6 +400,17 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
             </motion.div>
           )}
       </motion.div>
+
+      {/* Full Notifications Popup */}
+      <NotificationsPopup
+        isOpen={showFullPopup}
+        onClose={() => setShowFullPopup(false)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onNotificationClick={handleNotificationClick}
+        onMarkAllAsRead={markAllAsRead}
+        onClearAll={clearAll}
+      />
     </div>
   );
 };
