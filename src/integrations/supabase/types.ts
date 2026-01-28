@@ -375,6 +375,7 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           message_type: string | null
+          metadata: Json | null
           original_content: string | null
           owner_id: string | null
           reply_to_id: string | null
@@ -394,6 +395,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           message_type?: string | null
+          metadata?: Json | null
           original_content?: string | null
           owner_id?: string | null
           reply_to_id?: string | null
@@ -413,6 +415,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           message_type?: string | null
+          metadata?: Json | null
           original_content?: string | null
           owner_id?: string | null
           reply_to_id?: string | null
@@ -2358,6 +2361,7 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           message_type: string | null
+          metadata: Json | null
           original_content: string | null
           owner_id: string | null
           reply_to_id: string | null
@@ -2472,6 +2476,7 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           message_type: string | null
+          metadata: Json | null
           original_content: string | null
           owner_id: string | null
           reply_to_id: string | null

@@ -308,6 +308,21 @@ const handler = async (req: Request): Promise<Response> => {
                   ? `🔔 Напоминание\n\n${reminder.title}${reminder.message && reminder.message !== reminder.title ? `\n\n${reminder.message}` : ''}`
                   : `🔔 Reminder Alert\n\n${reminder.title}${reminder.message && reminder.message !== reminder.title ? `\n\n${reminder.message}` : ''}`;
                 
+                // Build recipient metadata for accurate client-side filtering
+                const recipientMetadata = reminder.created_by_type === 'sub_user' && reminder.created_by_sub_user_id
+                  ? {
+                      recipient_type: 'sub_user',
+                      recipient_sub_user_id: reminder.created_by_sub_user_id,
+                      // Also include email for fallback matching
+                      recipient_email: userEmail?.toLowerCase()
+                    }
+                  : {
+                      recipient_type: 'admin',
+                      recipient_user_id: reminder.user_id
+                    };
+                
+                console.log(`📨 Reminder metadata for chat message:`, recipientMetadata);
+                
                 const { error: chatError } = await supabase
                   .from('chat_messages')
                   .insert({
@@ -317,7 +332,8 @@ const handler = async (req: Request): Promise<Response> => {
                     sender_user_id: reminder.user_id, // Set board owner as sender
                     sender_name: 'Smartbookly AI',
                     owner_id: reminder.user_id,
-                    message_type: 'reminder_alert' // Special type to force notifications
+                    message_type: 'reminder_alert', // Special type to force notifications
+                    metadata: recipientMetadata // NEW: Explicit recipient targeting
                   });
                 
                 if (chatError) {

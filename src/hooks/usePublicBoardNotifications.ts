@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { DashboardNotification, DashboardNotificationEvent } from '@/types/notifications';
 import { usePublicBoardAuth } from '@/contexts/PublicBoardAuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY_PREFIX = 'public-board-notifications-';
 const MAX_NOTIFICATIONS = 100;
@@ -29,10 +30,50 @@ export const usePublicBoardNotifications = () => {
   const currentSubUserIdIsUuid = !!(currentSubUserId && uuidRe.test(currentSubUserId));
   const currentEmail = publicBoardUser?.email?.toLowerCase();
 
+  // Resolve actual sub_user UUID from database (fallback for email-based IDs)
+  const [resolvedSubUserId, setResolvedSubUserId] = useState<string | null>(null);
+
   // Compute identity key for this sub-user
   const userIdentity = publicBoardUser?.email;
   const boardOwnerId = publicBoardUser?.boardOwnerId;
   const storageKey = getStorageKey(userIdentity, boardOwnerId);
+
+  // Resolve UUID from email if needed (async database lookup)
+  useEffect(() => {
+    if (currentSubUserIdIsUuid) {
+      // Already have UUID, use it directly
+      setResolvedSubUserId(currentSubUserId);
+      return;
+    }
+    
+    // ID is email-based, resolve actual UUID from database
+    if (!currentEmail || !boardOwnerId) {
+      setResolvedSubUserId(null);
+      return;
+    }
+    
+    console.log('🔍 [PublicNotifications] Resolving sub-user UUID for email:', currentEmail);
+    supabase
+      .from('sub_users')
+      .select('id')
+      .eq('board_owner_id', boardOwnerId)
+      .ilike('email', currentEmail)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('❌ [PublicNotifications] Error resolving sub-user UUID:', error);
+          return;
+        }
+        if (data?.id) {
+          console.log('✅ [PublicNotifications] Resolved sub-user UUID:', data.id);
+          setResolvedSubUserId(data.id);
+        } else {
+          console.log('⚠️ [PublicNotifications] No sub-user found for email:', currentEmail);
+          setResolvedSubUserId(null);
+        }
+      });
+  }, [currentSubUserId, currentSubUserIdIsUuid, currentEmail, boardOwnerId]);
+
 
   // Load from localStorage when user changes
   useEffect(() => {
@@ -85,7 +126,21 @@ export const usePublicBoardNotifications = () => {
     const handleNotificationEvent = (event: CustomEvent<DashboardNotificationEvent>) => {
       const { type, title, message, actionData, targetAudience, recipientSubUserId, recipientSubUserEmail, recipientUserId } = event.detail;
       
-      console.log('📥 [Public] Received dashboard-notification:', { type, targetAudience, recipientSubUserId, recipientSubUserEmail, recipientUserId, currentSubUserId, currentEmail });
+      // Use resolved UUID if available, otherwise fall back to current ID
+      const effectiveSubUserId = resolvedSubUserId || currentSubUserId;
+      const effectiveIdIsUuid = !!(effectiveSubUserId && uuidRe.test(effectiveSubUserId));
+      
+      console.log('📥 [Public] Received dashboard-notification:', { 
+        type, 
+        targetAudience, 
+        recipientSubUserId, 
+        recipientSubUserEmail, 
+        recipientUserId, 
+        currentSubUserId, 
+        resolvedSubUserId,
+        effectiveSubUserId,
+        currentEmail 
+      });
       
       // ISOLATION FIX 1: Skip notifications explicitly meant for internal dashboard (admin)
       if (targetAudience === 'internal') {
@@ -100,30 +155,22 @@ export const usePublicBoardNotifications = () => {
       }
 
       // ISOLATION FIX 3: If recipientSubUserId is specified, only show to that specific sub-user.
-      if (recipientSubUserId) {
-        // Try UUID match first
-        if (currentSubUserIdIsUuid && currentSubUserId && recipientSubUserId !== currentSubUserId) {
-          console.log('⏭️ [Public] Skipping notification meant for different sub-user (uuid mismatch):', { recipientSubUserId, currentSubUser: currentSubUserId });
+      if (recipientSubUserId || recipientSubUserEmail) {
+        // Try UUID match using effective (resolved) ID
+        const uuidMatch = effectiveIdIsUuid && effectiveSubUserId && recipientSubUserId === effectiveSubUserId;
+        
+        // Try email match (case-insensitive)
+        const emailMatch = !!(currentEmail && recipientSubUserEmail && 
+          recipientSubUserEmail.toLowerCase() === currentEmail);
+        
+        console.log('🔍 [Public] Identity match check:', { uuidMatch, emailMatch, effectiveSubUserId, recipientSubUserId, currentEmail, recipientSubUserEmail });
+        
+        if (!uuidMatch && !emailMatch) {
+          console.log('⏭️ [Public] Skipping notification - no identity match');
           return;
         }
-        // If our ID isn't a UUID but we have email, try email match
-        if (!currentSubUserIdIsUuid && currentEmail && recipientSubUserEmail) {
-          if (recipientSubUserEmail.toLowerCase() !== currentEmail) {
-            console.log('⏭️ [Public] Skipping notification meant for different sub-user (email mismatch):', { recipientSubUserEmail, currentEmail });
-            return;
-          }
-        }
-        // If we have UUID but target doesn't match and no email fallback, skip
-        if (!currentSubUserIdIsUuid && !currentEmail) {
-          console.log('⏭️ [Public] Skipping notification - cannot validate recipient identity');
-          return;
-        }
-      }
-
-      // ISOLATION FIX 4: Email-based fallback check when only email is specified
-      if (recipientSubUserEmail && !recipientSubUserId && currentEmail && recipientSubUserEmail.toLowerCase() !== currentEmail) {
-        console.log('⏭️ [Public] Skipping notification - email mismatch:', { recipientSubUserEmail, currentEmail });
-        return;
+        
+        console.log('✅ [Public] Identity matched for notification');
       }
 
       // If no recipient targeting at all and targetAudience is 'public', accept for this sub-user
@@ -162,7 +209,7 @@ export const usePublicBoardNotifications = () => {
         clearTimeout(latestTimeoutRef.current);
       }
     };
-  }, [publicBoardUser?.id, publicBoardUser?.email]); // IMPORTANT: avoid stale sub-user closure on identity changes
+  }, [publicBoardUser?.id, publicBoardUser?.email, resolvedSubUserId, currentSubUserId, currentEmail]); // IMPORTANT: update when resolved UUID changes
 
   // Cleanup old notifications periodically
   useEffect(() => {
