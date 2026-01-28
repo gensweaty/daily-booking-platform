@@ -14,7 +14,7 @@ import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useAIChannel } from "@/hooks/useAIChannel";
-import { useNotificationParticipants } from "@/hooks/useNotificationParticipants";
+
 
 type Me = { 
   id: string; 
@@ -341,8 +341,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
   
-  // Participant cache for recipient-centric notification routing
-  const { getChannelParticipants } = useNotificationParticipants();
+  // NOTE: useNotificationParticipants removed - direct notification to current session doesn't need participant lookups
 
   // Request browser notification permission once the chat is available to the user
   useEffect(() => {
@@ -560,42 +559,23 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               .then(({ playNotificationSound }) => playNotificationSound())
               .catch(() => {});
             
-            // CRITICAL FIX: Use recipient-centric routing for polled messages too
-            // Fetch participants and dispatch to each recipient with their correct targetAudience
-            getChannelParticipants(message.channel_id).then((participants) => {
-              for (const p of participants) {
-                // Skip notifying the sender
-                const isParticipantSender = 
-                  (p.user_type === 'admin' && p.user_id === message.sender_user_id) ||
-                  (p.user_type === 'sub_user' && p.sub_user_id === message.sender_sub_user_id);
-                
-                if (isParticipantSender) continue;
-
-                // Dispatch notification with RECIPIENT's correct targetAudience
-                if (p.user_type === 'admin' && p.user_id) {
-                  showNotification({
-                    title: `${message.sender_name || 'Someone'} messaged`,
-                    body: message.content,
-                    channelId: message.channel_id,
-                    senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-                    senderName: message.sender_name || 'Unknown',
-                    targetAudience: 'internal',
-                    recipientUserId: p.user_id,
-                  });
-                } else if (p.user_type === 'sub_user' && p.sub_user_id) {
-                  showNotification({
-                    title: `${message.sender_name || 'Someone'} messaged`,
-                    body: message.content,
-                    channelId: message.channel_id,
-                    senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-                    senderName: message.sender_name || 'Unknown',
-                    targetAudience: 'public',
-                    recipientSubUserId: p.sub_user_id,
-                    recipientSubUserEmail: p.email,
-                  });
-                }
-              }
-            }).catch((err) => console.error('Error dispatching polled notifications:', err));
+            // CRITICAL FIX: Dispatch notification directly to the CURRENT session
+            // Don't fetch participants (fails for external users due to RLS)
+            console.log('📤 [Polled] Dispatching notification to current user:', me?.id, me?.type);
+            showNotification({
+              title: `${message.sender_name || 'Someone'} messaged`,
+              body: message.content,
+              channelId: message.channel_id,
+              senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+              senderName: message.sender_name || 'Unknown',
+              // Target based on current session type
+              targetAudience: me?.type === 'sub_user' ? 'public' : 'internal',
+              // For sub-users on public board
+              recipientSubUserId: me?.type === 'sub_user' ? me?.id : undefined,
+              recipientSubUserEmail: me?.type === 'sub_user' ? me?.email?.toLowerCase() : undefined,
+              // For admins on internal dashboard
+              recipientUserId: me?.type === 'admin' ? me?.id : undefined,
+            });
           }
         }
       }
@@ -603,7 +583,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
     window.addEventListener('chat-message-received', onPolledMessage as EventListener);
     return () => window.removeEventListener('chat-message-received', onPolledMessage as EventListener);
-  }, [boardOwnerId, me?.id, me?.type, me?.email, isOpen, currentChannelId, userChannels, showNotification, getChannelParticipants]);
+  }, [boardOwnerId, me?.id, me?.type, me?.email, isOpen, currentChannelId, userChannels, showNotification, isOnPublicBoard]);
 
   // Avoid re-processing the same message (prevents repeat sounds & badge churn)
   const seenMessageIdsRef = React.useRef<Set<string>>(new Set());
@@ -771,56 +751,31 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       shouldAlert().then(async (shouldShowForMe) => {
         console.log('🔔 Should show notification for me:', shouldShowForMe);
         
-        // Play sound for the CURRENT user if they should see the notification
+        // CRITICAL FIX: Show notification directly to the CURRENT user if they passed shouldAlert()
+        // This works for BOTH internal admins AND external sub-users without RLS issues
         if (shouldShowForMe) {
           console.log('🔊 Playing notification sound for message from:', message.sender_name);
           import('@/utils/audioManager')
             .then(({ playNotificationSound }) => playNotificationSound())
             .catch((error) => console.error('❌ Failed to play sound:', error));
-        }
-
-        // CRITICAL FIX: Dispatch notifications to ALL recipients based on channel participants
-        // This is recipient-centric routing - NOT based on sender's route!
-        try {
-          const participants = await getChannelParticipants(message.channel_id);
-          console.log('📋 Channel participants for notification:', participants);
           
-          for (const p of participants) {
-            // Skip notifying the sender
-            const isParticipantSender = 
-              (p.user_type === 'admin' && p.user_id === message.sender_user_id) ||
-              (p.user_type === 'sub_user' && p.sub_user_id === message.sender_sub_user_id);
-            
-            if (isParticipantSender) continue;
-
-            // Dispatch notification with RECIPIENT's correct targetAudience
-            if (p.user_type === 'admin' && p.user_id) {
-              console.log('📤 Dispatching notification to admin:', p.user_id);
-              showNotification({
-                title: `${message.sender_name || 'Someone'} messaged`,
-                body: message.content,
-                channelId: message.channel_id,
-                senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-                senderName: message.sender_name || 'Unknown',
-                targetAudience: 'internal', // Admin = internal dashboard
-                recipientUserId: p.user_id,
-              });
-            } else if (p.user_type === 'sub_user' && p.sub_user_id) {
-              console.log('📤 Dispatching notification to sub-user:', p.sub_user_id, p.email);
-              showNotification({
-                title: `${message.sender_name || 'Someone'} messaged`,
-                body: message.content,
-                channelId: message.channel_id,
-                senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-                senderName: message.sender_name || 'Unknown',
-                targetAudience: 'public', // Sub-user = public board
-                recipientSubUserId: p.sub_user_id,
-                recipientSubUserEmail: p.email,
-              });
-            }
-          }
-        } catch (err) {
-          console.error('❌ Error dispatching recipient-centric notifications:', err);
+          // Dispatch notification to the CURRENT session directly
+          // No need to fetch participants (which fails for external users due to RLS)
+          console.log('📤 Dispatching notification to current user:', me?.id, me?.type);
+          showNotification({
+            title: `${message.sender_name || 'Someone'} messaged`,
+            body: message.content,
+            channelId: message.channel_id,
+            senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+            senderName: message.sender_name || 'Unknown',
+            // Target based on current session type
+            targetAudience: me?.type === 'sub_user' ? 'public' : 'internal',
+            // For sub-users on public board
+            recipientSubUserId: me?.type === 'sub_user' ? me?.id : undefined,
+            recipientSubUserEmail: me?.type === 'sub_user' ? me?.email?.toLowerCase() : undefined,
+            // For admins on internal dashboard
+            recipientUserId: me?.type === 'admin' ? me?.id : undefined,
+          });
         }
       });
     } else if (isUpdate) {
@@ -833,7 +788,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     window.dispatchEvent(new CustomEvent('chat-message-received', {
       detail: { message }
     }));
-  }, [boardOwnerId, me, isOpen, currentChannelId, showNotification, userChannels, getChannelParticipants, refreshUnread]);
+  }, [boardOwnerId, me, isOpen, currentChannelId, showNotification, userChannels, refreshUnread]);
 
   // Real-time setup - FIXED: enable only for authenticated users, external users use polling
   const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!me?.id && !isExternalUser;
