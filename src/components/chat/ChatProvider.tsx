@@ -447,9 +447,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('🔄 Polled message received:', { id: message.id, channel: message.channel_id, type: message.message_type });
 
       // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
+      // CRITICAL FIX: reminder_alert messages are for the AI channel owner, NOT for broadcast
       const isReminderAlert = message.message_type === 'reminder_alert';
       if (isReminderAlert) {
         console.log('🔔 Reminder alert detected from polling - forcing notification + badge');
+        console.log('🔍 Reminder alert context:', { isOnPublicBoard, meId: me?.id, meType: me?.type, meEmail: me?.email });
         
         // Set rtBump for badge FIRST
         const isViewingReminderChannel = isOpen && currentChannelId === message.channel_id;
@@ -468,7 +470,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           .then(({ playNotificationSound }) => playNotificationSound())
           .catch(() => {});
         // ISOLATION FIX: Include recipient targeting for reminder alerts
-        // This ensures the notification only appears for the correct user
+        // CRITICAL: For reminder alerts, target ONLY the current session's user
+        // - On public board: target this specific sub-user with both UUID and email
+        // - On internal dashboard: target this admin user with userId
         showNotification({
           title: 'Reminder Alert',
           body: message.content,
@@ -476,9 +480,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
           senderName: 'Smartbookly AI',
           targetAudience: isOnPublicBoard ? 'public' : 'internal',
-          // If on public board, target the current sub-user specifically
+          // PUBLIC BOARD: target this sub-user explicitly
           recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
           recipientSubUserEmail: isOnPublicBoard ? me?.email : undefined,
+          // INTERNAL DASHBOARD: target this admin user explicitly
+          recipientUserId: !isOnPublicBoard ? me?.id : undefined,
         });
         return;
       }
@@ -555,9 +561,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     console.log('📨 Enhanced realtime message received:', { id: message.id, channel: message.channel_id, type: message.message_type });
 
     // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
+    // CRITICAL FIX: reminder_alert messages are for the AI channel owner, NOT for broadcast
     const isReminderAlert = message.message_type === 'reminder_alert';
     if (isReminderAlert) {
       console.log('🔔 Reminder alert from realtime - forcing notification + badge');
+      console.log('🔍 Reminder alert context:', { isOnPublicBoard, meId: me?.id, meType: me?.type, meEmail: me?.email });
       
       // CRITICAL: Set realtime bump for badge to appear instantly
       const isViewingReminderChannel = isOpen && currentChannelId === message.channel_id;
@@ -577,6 +585,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         .then(({ playNotificationSound }) => playNotificationSound())
         .catch(() => {});
       // ISOLATION FIX: Include recipient targeting for realtime reminder alerts
+      // CRITICAL: For reminder alerts, target ONLY the current session's user
       showNotification({
         title: 'Reminder Alert',
         body: message.content,
@@ -584,9 +593,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
         senderName: 'Smartbookly AI',
         targetAudience: isOnPublicBoard ? 'public' : 'internal',
-        // If on public board, target the current sub-user specifically
+        // PUBLIC BOARD: target this sub-user explicitly
         recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
         recipientSubUserEmail: isOnPublicBoard ? me?.email : undefined,
+        // INTERNAL DASHBOARD: target this admin user explicitly
+        recipientUserId: !isOnPublicBoard ? me?.id : undefined,
       });
       // Dispatch event for message display (badge already handled above)
       window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));

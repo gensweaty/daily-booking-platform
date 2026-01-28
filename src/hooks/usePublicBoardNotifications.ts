@@ -85,46 +85,49 @@ export const usePublicBoardNotifications = () => {
     const handleNotificationEvent = (event: CustomEvent<DashboardNotificationEvent>) => {
       const { type, title, message, actionData, targetAudience, recipientSubUserId, recipientSubUserEmail, recipientUserId } = event.detail;
       
+      console.log('📥 [Public] Received dashboard-notification:', { type, targetAudience, recipientSubUserId, recipientSubUserEmail, recipientUserId, currentSubUserId, currentEmail });
+      
       // ISOLATION FIX 1: Skip notifications explicitly meant for internal dashboard (admin)
       if (targetAudience === 'internal') {
         console.log('⏭️ [Public] Skipping notification meant for internal dashboard:', type);
         return;
       }
 
-      // ISOLATION FIX 2: If recipientSubUserId is specified, only show to that specific sub-user.
-      // IMPORTANT: publicBoardUser.id may be an email (legacy) while recipientSubUserId is a UUID.
-      if (recipientSubUserId) {
-        if (currentSubUserIdIsUuid && currentSubUserId && recipientSubUserId !== currentSubUserId) {
-          console.log('⏭️ [Public] Skipping notification meant for different sub-user (uuid mismatch):', { recipientSubUserId, currentSubUser: currentSubUserId });
-          return;
-        }
-
-        // If we don't have a UUID in context, fall back to email matching when possible.
-        if (!currentSubUserIdIsUuid) {
-          if (currentEmail && recipientSubUserEmail && recipientSubUserEmail.toLowerCase() !== currentEmail) {
-            console.log('⏭️ [Public] Skipping notification meant for different sub-user (email fallback mismatch):', { recipientSubUserEmail, currentEmail });
-            return;
-          }
-
-          // Can't validate safely -> drop to prevent cross-sub-user leaks.
-          if (!currentEmail || !recipientSubUserEmail) {
-            console.log('⏭️ [Public] Skipping notification - cannot validate recipient for legacy identity');
-            return;
-          }
-        }
-      }
-
-      // ISOLATION FIX 3: Email-based fallback check for sub-user targeting
-      if (recipientSubUserEmail && currentEmail && recipientSubUserEmail.toLowerCase() !== currentEmail) {
-        console.log('⏭️ [Public] Skipping notification - email mismatch:', { recipientSubUserEmail, currentEmail });
-        return;
-      }
-
-      // ISOLATION FIX 4: Skip if notification has recipientUserId (meant for admin, not sub-user)
+      // ISOLATION FIX 2: Skip if notification has recipientUserId (meant for admin, not sub-user)
       if (recipientUserId) {
         console.log('⏭️ [Public] Skipping notification targeted at admin user:', recipientUserId);
         return;
       }
+
+      // ISOLATION FIX 3: If recipientSubUserId is specified, only show to that specific sub-user.
+      if (recipientSubUserId) {
+        // Try UUID match first
+        if (currentSubUserIdIsUuid && currentSubUserId && recipientSubUserId !== currentSubUserId) {
+          console.log('⏭️ [Public] Skipping notification meant for different sub-user (uuid mismatch):', { recipientSubUserId, currentSubUser: currentSubUserId });
+          return;
+        }
+        // If our ID isn't a UUID but we have email, try email match
+        if (!currentSubUserIdIsUuid && currentEmail && recipientSubUserEmail) {
+          if (recipientSubUserEmail.toLowerCase() !== currentEmail) {
+            console.log('⏭️ [Public] Skipping notification meant for different sub-user (email mismatch):', { recipientSubUserEmail, currentEmail });
+            return;
+          }
+        }
+        // If we have UUID but target doesn't match and no email fallback, skip
+        if (!currentSubUserIdIsUuid && !currentEmail) {
+          console.log('⏭️ [Public] Skipping notification - cannot validate recipient identity');
+          return;
+        }
+      }
+
+      // ISOLATION FIX 4: Email-based fallback check when only email is specified
+      if (recipientSubUserEmail && !recipientSubUserId && currentEmail && recipientSubUserEmail.toLowerCase() !== currentEmail) {
+        console.log('⏭️ [Public] Skipping notification - email mismatch:', { recipientSubUserEmail, currentEmail });
+        return;
+      }
+
+      // If no recipient targeting at all and targetAudience is 'public', accept for this sub-user
+      // This handles general notifications meant for all public board users
       
       const newNotification: DashboardNotification = {
         id: `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

@@ -77,6 +77,12 @@ export const useEnhancedNotifications = () => {
 
   const showSingleNotification = useCallback(async (data: NotificationData) => {
     console.log('🔔 Showing enhanced notification:', data);
+    console.log('🔔 Notification routing:', { 
+      targetAudience: data.targetAudience, 
+      recipientUserId: data.recipientUserId, 
+      recipientSubUserId: data.recipientSubUserId,
+      recipientSubUserEmail: data.recipientSubUserEmail 
+    });
 
     // CRITICAL FIX: Include targetAudience AND recipient IDs in the event to ensure proper isolation
     // Only the correct Dynamic Island (internal vs public) will process this,
