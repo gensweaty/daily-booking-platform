@@ -59,7 +59,7 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
           if (storedData) {
             try {
               const parsedData = JSON.parse(storedData);
-              const { fullName, email, timestamp, boardOwnerId } = parsedData;
+              const { fullName, email, timestamp, boardOwnerId, subUserId } = parsedData;
               
               // Check if token is not expired (3 hours)
               const threeHoursInMs = 3 * 60 * 60 * 1000;
@@ -71,7 +71,8 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
                 // For chat to work, we need the actual sub-user database ID
                 // This will be resolved in ChatProvider when it queries the sub_users table
                 const publicUser = {
-                  id: email, // Use email as temporary ID, ChatProvider will resolve to real DB ID
+                  // Prefer real DB UUID when available; fall back to email for legacy sessions.
+                  id: (typeof subUserId === 'string' && subUserId.length > 0) ? subUserId : email,
                   email,
                   fullName,
                   boardOwnerId
