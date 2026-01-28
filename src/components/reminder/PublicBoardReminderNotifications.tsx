@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { usePublicBoardAuth } from '@/contexts/PublicBoardAuthContext';
@@ -15,29 +15,73 @@ interface PublicBoardReminderNotificationsProps {
  */
 export function PublicBoardReminderNotifications({ boardOwnerId }: PublicBoardReminderNotificationsProps) {
   const { user: publicBoardUser } = usePublicBoardAuth();
-  const queryClient = useQueryClient();
   const processedReminders = useRef<Set<string>>(new Set());
 
-  // Get current sub-user's ID
+  // Get current sub-user's ID and email
   const subUserId = publicBoardUser?.id;
   const subUserEmail = publicBoardUser?.email;
 
+  // CRITICAL FIX: Resolve actual UUID from email if needed (mobile often has email-based ID)
+  const [resolvedSubUserId, setResolvedSubUserId] = useState<string | null>(null);
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const isUuid = !!(subUserId && uuidRe.test(subUserId));
+
+  // Resolve UUID from email using RPC (bypasses RLS)
+  useEffect(() => {
+    if (isUuid) {
+      // Already have UUID
+      setResolvedSubUserId(subUserId);
+      return;
+    }
+    
+    if (!subUserEmail || !boardOwnerId) {
+      setResolvedSubUserId(null);
+      return;
+    }
+    
+    console.log('🔍 [PublicReminders] Resolving sub-user UUID for email:', subUserEmail);
+    supabase
+      .rpc('get_sub_user_auth', {
+        p_owner_id: boardOwnerId,
+        p_email: subUserEmail.toLowerCase()
+      })
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('❌ [PublicReminders] Error resolving sub-user UUID:', error);
+          return;
+        }
+        const subUser = data && data[0];
+        if (subUser?.id) {
+          console.log('✅ [PublicReminders] Resolved sub-user UUID:', subUser.id);
+          setResolvedSubUserId(subUser.id);
+        } else {
+          console.log('⚠️ [PublicReminders] No sub-user found for email:', subUserEmail);
+          setResolvedSubUserId(null);
+        }
+      });
+  }, [subUserId, subUserEmail, boardOwnerId, isUuid]);
+
+  // Use resolved UUID for queries
+  const effectiveSubUserId = resolvedSubUserId || (isUuid ? subUserId : null);
+
   // Fetch custom reminders for this specific sub-user
   const { data: reminders } = useQuery({
-    queryKey: ['public-board-reminders', boardOwnerId, subUserId],
+    queryKey: ['public-board-reminders', boardOwnerId, effectiveSubUserId],
     queryFn: async () => {
-      if (!boardOwnerId || !subUserId) return [];
+      if (!boardOwnerId || !effectiveSubUserId) return [];
       
       const now = new Date();
       const futureWindow = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes window
       
-      // Query reminders created by THIS sub-user
+      console.log('🔔 [PublicReminders] Querying reminders for sub-user UUID:', effectiveSubUserId);
+      
+      // Query reminders created by THIS sub-user using resolved UUID
       const { data, error } = await supabase
         .from('custom_reminders')
         .select('*')
         .eq('user_id', boardOwnerId)
         .eq('created_by_type', 'sub_user')
-        .eq('created_by_sub_user_id', subUserId)
+        .eq('created_by_sub_user_id', effectiveSubUserId)
         .lte('remind_at', futureWindow.toISOString())
         .is('deleted_at', null)
         .order('remind_at', { ascending: true });
@@ -50,7 +94,7 @@ export function PublicBoardReminderNotifications({ boardOwnerId }: PublicBoardRe
       console.log('🔔 Sub-user reminders fetched:', data?.length || 0);
       return data || [];
     },
-    enabled: !!boardOwnerId && !!subUserId,
+    enabled: !!boardOwnerId && !!effectiveSubUserId,
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
@@ -102,6 +146,8 @@ export function PublicBoardReminderNotifications({ boardOwnerId }: PublicBoardRe
 
         // CRITICAL: Emit to Dynamic Island with targetAudience='public' and recipientSubUserId
         // This ensures ONLY this sub-user receives the notification
+        // Use resolved UUID for consistent matching in listener
+        console.log('📤 [PublicReminders] Dispatching notification with UUID:', effectiveSubUserId);
         window.dispatchEvent(new CustomEvent('dashboard-notification', {
           detail: {
             type: 'custom_reminder',
@@ -109,7 +155,7 @@ export function PublicBoardReminderNotifications({ boardOwnerId }: PublicBoardRe
             message: reminder.message || 'Time for your scheduled reminder',
             actionData: { reminderId: reminder.id },
             targetAudience: 'public', // CRITICAL: Only show on public board
-            recipientSubUserId: subUserId, // CRITICAL: Only for this specific sub-user
+            recipientSubUserId: effectiveSubUserId, // CRITICAL: Use resolved UUID, not email
             recipientSubUserEmail: subUserEmail, // Fallback identification
           }
         }));
@@ -138,9 +184,9 @@ export function PublicBoardReminderNotifications({ boardOwnerId }: PublicBoardRe
 
   // Single interval for checking due reminders
   useEffect(() => {
-    if (!reminders || reminders.length === 0) return;
+    if (!reminders || reminders.length === 0 || !effectiveSubUserId) return;
 
-    console.log("⏰ Starting sub-user reminder checker");
+    console.log("⏰ Starting sub-user reminder checker with UUID:", effectiveSubUserId);
 
     const interval = setInterval(() => {
       processDueReminders(reminders);
@@ -150,7 +196,7 @@ export function PublicBoardReminderNotifications({ boardOwnerId }: PublicBoardRe
       console.log("🛑 Stopping sub-user reminder checker");
       clearInterval(interval);
     };
-  }, [reminders]);
+  }, [reminders, effectiveSubUserId, subUserEmail]);
 
   // Request notification permission
   useEffect(() => {
