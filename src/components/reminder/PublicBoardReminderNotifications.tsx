@@ -113,6 +113,11 @@ export function PublicBoardReminderNotifications({ boardOwnerId }: PublicBoardRe
             recipientSubUserEmail: subUserEmail, // Fallback identification
           }
         }));
+
+        // Match internal-dashboard behavior: play the same notification ping
+        import('@/utils/audioManager')
+          .then(({ playNotificationSound }) => playNotificationSound())
+          .catch(() => {});
         
         // Show system notification
         if ('Notification' in window && Notification.permission === 'granted') {

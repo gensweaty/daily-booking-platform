@@ -5,6 +5,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ensureNotificationPermission } from "@/utils/notificationUtils";
 import { platformNotificationManager } from "@/utils/platformNotificationManager";
+import { usePublicBoardAuth } from "@/contexts/PublicBoardAuthContext";
 
 interface Props {
   boardUserId: string;
@@ -15,6 +16,7 @@ interface Props {
 export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserId, externalUserName }) => {
   const { toast } = useToast();
   const { t, language } = useLanguage();
+  const { user: publicBoardUser } = usePublicBoardAuth();
   const channelRef = useRef<ReturnType<typeof publicSupabase.channel> | null>(null);
   const tasksMapRef = useRef<Map<string, { title: string }>>(new Map());
 
@@ -99,6 +101,28 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
                   </ToastAction>
                 ),
               });
+
+          // Public Dynamic Island notification (recipient-targeted)
+          const recipientSubUserId = publicBoardUser?.id;
+          const recipientSubUserEmail = publicBoardUser?.email;
+          if (recipientSubUserId || recipientSubUserEmail) {
+            window.dispatchEvent(new CustomEvent('dashboard-notification', {
+              detail: {
+                type: 'comment',
+                title,
+                message: body,
+                actionData: { taskId: c.task_id },
+                targetAudience: 'public',
+                recipientSubUserId,
+                recipientSubUserEmail,
+              }
+            }));
+          }
+
+          // Match internal-dashboard behavior: play the same notification ping
+          import('@/utils/audioManager')
+            .then(({ playNotificationSound }) => playNotificationSound())
+            .catch(() => {});
             }
           }
         }
@@ -150,6 +174,28 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
             ),
           });
 
+          // Public Dynamic Island notification (recipient-targeted)
+          const recipientSubUserId = publicBoardUser?.id;
+          const recipientSubUserEmail = publicBoardUser?.email;
+          if (recipientSubUserId || recipientSubUserEmail) {
+            window.dispatchEvent(new CustomEvent('dashboard-notification', {
+              detail: {
+                type: 'comment',
+                title,
+                message: body,
+                actionData: { taskId: comment.task_id },
+                targetAudience: 'public',
+                recipientSubUserId,
+                recipientSubUserEmail,
+              }
+            }));
+          }
+
+          // Match internal-dashboard behavior: play the same notification ping
+          import('@/utils/audioManager')
+            .then(({ playNotificationSound }) => playNotificationSound())
+            .catch(() => {});
+
           // Update last seen on every incoming notification
           localStorage.setItem(lastSeenKey, new Date().toISOString());
         })
@@ -170,7 +216,7 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
       isMounted = false;
       if (channelRef.current) publicSupabase.removeChannel(channelRef.current);
     };
-  }, [boardUserId, externalUserName]);
+  }, [boardUserId, externalUserName, publicBoardUser?.id, publicBoardUser?.email]);
 
   return null;
 };
