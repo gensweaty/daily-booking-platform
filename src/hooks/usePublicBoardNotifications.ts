@@ -21,6 +21,14 @@ export const usePublicBoardNotifications = () => {
   const latestTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentUserKeyRef = useRef<string | null>(null);
 
+  // NOTE: PublicBoardAuthContext historically used email as a temporary `id`.
+  // Some dispatchers emit `recipientSubUserId` as the real UUID.
+  // We must therefore validate by UUID when we have one, otherwise fall back to email.
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const currentSubUserId = publicBoardUser?.id;
+  const currentSubUserIdIsUuid = !!(currentSubUserId && uuidRe.test(currentSubUserId));
+  const currentEmail = publicBoardUser?.email?.toLowerCase();
+
   // Compute identity key for this sub-user
   const userIdentity = publicBoardUser?.email;
   const boardOwnerId = publicBoardUser?.boardOwnerId;
@@ -83,16 +91,32 @@ export const usePublicBoardNotifications = () => {
         return;
       }
 
-      // ISOLATION FIX 2: If recipientSubUserId is specified, only show to that specific sub-user
-      // This prevents notifications from appearing in the wrong sub-user's dashboard
-      if (recipientSubUserId && publicBoardUser?.id && recipientSubUserId !== publicBoardUser.id) {
-        console.log('⏭️ [Public] Skipping notification meant for different sub-user:', { recipientSubUserId, currentSubUser: publicBoardUser.id });
-        return;
+      // ISOLATION FIX 2: If recipientSubUserId is specified, only show to that specific sub-user.
+      // IMPORTANT: publicBoardUser.id may be an email (legacy) while recipientSubUserId is a UUID.
+      if (recipientSubUserId) {
+        if (currentSubUserIdIsUuid && currentSubUserId && recipientSubUserId !== currentSubUserId) {
+          console.log('⏭️ [Public] Skipping notification meant for different sub-user (uuid mismatch):', { recipientSubUserId, currentSubUser: currentSubUserId });
+          return;
+        }
+
+        // If we don't have a UUID in context, fall back to email matching when possible.
+        if (!currentSubUserIdIsUuid) {
+          if (currentEmail && recipientSubUserEmail && recipientSubUserEmail.toLowerCase() !== currentEmail) {
+            console.log('⏭️ [Public] Skipping notification meant for different sub-user (email fallback mismatch):', { recipientSubUserEmail, currentEmail });
+            return;
+          }
+
+          // Can't validate safely -> drop to prevent cross-sub-user leaks.
+          if (!currentEmail || !recipientSubUserEmail) {
+            console.log('⏭️ [Public] Skipping notification - cannot validate recipient for legacy identity');
+            return;
+          }
+        }
       }
 
       // ISOLATION FIX 3: Email-based fallback check for sub-user targeting
-      if (recipientSubUserEmail && publicBoardUser?.email && recipientSubUserEmail.toLowerCase() !== publicBoardUser.email.toLowerCase()) {
-        console.log('⏭️ [Public] Skipping notification - email mismatch:', { recipientSubUserEmail, currentEmail: publicBoardUser.email });
+      if (recipientSubUserEmail && currentEmail && recipientSubUserEmail.toLowerCase() !== currentEmail) {
+        console.log('⏭️ [Public] Skipping notification - email mismatch:', { recipientSubUserEmail, currentEmail });
         return;
       }
 

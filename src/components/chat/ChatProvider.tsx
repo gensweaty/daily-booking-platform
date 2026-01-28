@@ -518,9 +518,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         // ALWAYS play sound and show notification (unless viewing the channel)
         if (!skipBecauseOpen) {
           console.log('🔊 Playing sound for polled message:', message.channel_id);
-          // Special handling for AI messages - they should always notify
-          const isAIMessage = message.sender_name === 'Smartbookly AI';
-          const shouldShow = isAIMessage || userChannels.has(message.channel_id);
+          // SECURITY/ISOLATION: Never notify for channels the current viewer isn't a participant of.
+          // Reminder alerts are handled above and always notify.
+          const shouldShow = userChannels.has(message.channel_id);
           
           if (shouldShow) {
             import('@/utils/audioManager')
@@ -645,13 +645,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         if (isOpen && currentChannelId === message.channel_id) {
           console.log('⏭️ Skipping notification - chat is open and viewing same channel');
           return false;
-        }
-        
-        // Special handling for AI messages - they should always notify
-        const isAIMessage = message.sender_name === 'Smartbookly AI';
-        if (isAIMessage) {
-          console.log('✅ AI message - always notify');
-          return true;
         }
         
         // CRITICAL: Only show notifications if user is a participant of this channel
