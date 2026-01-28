@@ -18,6 +18,7 @@ import { validatePassword } from "@/utils/signupValidation";
 import { useTheme } from "next-themes";
 import { PublicCommentNotificationsListener } from "@/components/notifications/PublicCommentNotificationsListener";
 import { PublicProfileDialog } from "@/components/public/PublicProfileDialog";
+import { PublicBoardReminderNotifications } from "@/components/reminder/PublicBoardReminderNotifications";
 
 // Password hashing utilities (PBKDF2, client-side)
 const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -880,6 +881,10 @@ const handleRegister = async () => {
             <PublicCommentNotificationsListener 
               boardUserId={boardData.user_id} 
               externalUserName={fullName} 
+            />
+            {/* Sub-user reminder notifications - ISOLATED from admin's reminders */}
+            <PublicBoardReminderNotifications 
+              boardOwnerId={boardData.user_id}
             />
             <PublicBoardNavigation
               boardId={boardData.id}

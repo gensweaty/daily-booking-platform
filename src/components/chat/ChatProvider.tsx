@@ -467,6 +467,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         import('@/utils/audioManager')
           .then(({ playNotificationSound }) => playNotificationSound())
           .catch(() => {});
+        // ISOLATION FIX: Include recipient targeting for reminder alerts
+        // This ensures the notification only appears for the correct user
         showNotification({
           title: 'Reminder Alert',
           body: message.content,
@@ -474,6 +476,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
           senderName: 'Smartbookly AI',
           targetAudience: isOnPublicBoard ? 'public' : 'internal',
+          // If on public board, target the current sub-user specifically
+          recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
+          recipientSubUserEmail: isOnPublicBoard ? me?.email : undefined,
         });
         return;
       }
@@ -521,6 +526,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             import('@/utils/audioManager')
               .then(({ playNotificationSound }) => playNotificationSound())
               .catch(() => {});
+            // ISOLATION FIX: Include recipient targeting for polled messages
             showNotification({
               title: `${message.sender_name || 'Someone'} messaged`,
               body: message.content,
@@ -528,6 +534,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
               senderName: message.sender_name || 'Unknown',
               targetAudience: isOnPublicBoard ? 'public' : 'internal',
+              // If on public board, target the current sub-user specifically
+              recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
+              recipientSubUserEmail: isOnPublicBoard ? me?.email : undefined,
             });
           }
         }
@@ -567,6 +576,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       import('@/utils/audioManager')
         .then(({ playNotificationSound }) => playNotificationSound())
         .catch(() => {});
+      // ISOLATION FIX: Include recipient targeting for realtime reminder alerts
       showNotification({
         title: 'Reminder Alert',
         body: message.content,
@@ -574,6 +584,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
         senderName: 'Smartbookly AI',
         targetAudience: isOnPublicBoard ? 'public' : 'internal',
+        // If on public board, target the current sub-user specifically
+        recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
+        recipientSubUserEmail: isOnPublicBoard ? me?.email : undefined,
       });
       // Dispatch event for message display (badge already handled above)
       window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));
@@ -688,6 +701,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           
           // Also attempt system notification
           console.log('📱 Showing system notification');
+          // ISOLATION FIX: Include recipient targeting for realtime messages
           showNotification({
             title: `${message.sender_name || 'Someone'} messaged`,
             body: message.content,
@@ -695,6 +709,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
             senderName: message.sender_name || 'Unknown',
             targetAudience: isOnPublicBoard ? 'public' : 'internal',
+            // If on public board, target the current sub-user specifically
+            recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
+            recipientSubUserEmail: isOnPublicBoard ? me?.email : undefined,
           });
         } else {
           console.log('⏭️ Notification skipped - not a participant or viewing channel');

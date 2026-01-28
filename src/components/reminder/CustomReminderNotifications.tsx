@@ -19,12 +19,15 @@ export function CustomReminderNotifications() {
       const now = new Date();
       const futureWindow = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes window (same as tasks)
       
+      // ISOLATION FIX: Only fetch reminders created by admin (NOT sub-users)
+      // Sub-user reminders are handled by PublicBoardReminderNotifications
       const { data, error } = await supabase
         .from('custom_reminders')
         .select('*')
         .eq('user_id', user.id)
         .lte('remind_at', futureWindow.toISOString())
         .is('deleted_at', null)
+        .or('created_by_type.is.null,created_by_type.neq.sub_user') // Exclude sub-user reminders
         .order('remind_at', { ascending: true });
       
       if (error) {
