@@ -83,7 +83,9 @@ export const PublicBoardEventReminderNotifications = () => {
         .eq('created_by_type', 'sub_user')
         .or(orFilters)
         .not('reminder_at', 'is', null)
-        .eq('email_reminder_enabled', true)
+        // IMPORTANT: Do NOT filter by email_reminder_enabled.
+        // Cron/email sender may flip this to false before the reminder time,
+        // which would otherwise prevent ALL in-app notifications.
         .lte('reminder_at', futureWindow.toISOString())
         .is('deleted_at', null)
         .order('reminder_at', { ascending: true });

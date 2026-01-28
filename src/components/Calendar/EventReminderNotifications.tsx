@@ -56,7 +56,9 @@ export const EventReminderNotifications = () => {
         .select('*')
         .eq('user_id', user.id)
         .not('reminder_at', 'is', null)
-        .eq('email_reminder_enabled', true)
+        // IMPORTANT: Do NOT filter by email_reminder_enabled.
+        // Cron/email sender may flip this to false before the reminder time,
+        // which would otherwise prevent ALL in-app notifications.
         .lte('reminder_at', futureWindow.toISOString())
         .is('deleted_at', null)
         // CRITICAL: Exclude sub-user created events - their reminders are handled separately
@@ -242,12 +244,15 @@ export const EventReminderNotifications = () => {
           }
           
           // Send email reminder if enabled
-          if (event.email_reminder_enabled) {
+          if (event.email_reminder_enabled && !event.reminder_sent_at) {
             console.log('📧 About to call sendEmailReminder for event:', event.id);
             const emailSuccess = await sendEmailReminder(event);
             console.log('📧 Email reminder result:', emailSuccess ? 'SUCCESS' : 'FAILED');
           } else {
-            console.log('📧 Email reminder disabled for event:', event.id);
+            console.log('📧 Email reminder skipped for event:', event.id, {
+              email_reminder_enabled: event.email_reminder_enabled,
+              reminder_sent_at: event.reminder_sent_at,
+            });
           }
           
           console.log('📊 Dashboard notification: ✅ Sent');
