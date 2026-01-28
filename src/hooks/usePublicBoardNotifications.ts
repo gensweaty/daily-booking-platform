@@ -53,20 +53,22 @@ export const usePublicBoardNotifications = () => {
     }
     
     console.log('🔍 [PublicNotifications] Resolving sub-user UUID for email:', currentEmail);
+    // CRITICAL FIX: Use RPC (SECURITY DEFINER) to bypass RLS restrictions
+    // Direct sub_users queries fail for unauthenticated public board users
     supabase
-      .from('sub_users')
-      .select('id')
-      .eq('board_owner_id', boardOwnerId)
-      .ilike('email', currentEmail)
-      .maybeSingle()
+      .rpc('get_sub_user_auth', {
+        p_owner_id: boardOwnerId,
+        p_email: currentEmail
+      })
       .then(({ data, error }) => {
         if (error) {
-          console.error('❌ [PublicNotifications] Error resolving sub-user UUID:', error);
+          console.error('❌ [PublicNotifications] Error resolving sub-user UUID via RPC:', error);
           return;
         }
-        if (data?.id) {
-          console.log('✅ [PublicNotifications] Resolved sub-user UUID:', data.id);
-          setResolvedSubUserId(data.id);
+        const subUser = data && data[0];
+        if (subUser?.id) {
+          console.log('✅ [PublicNotifications] Resolved sub-user UUID via RPC:', subUser.id);
+          setResolvedSubUserId(subUser.id);
         } else {
           console.log('⚠️ [PublicNotifications] No sub-user found for email:', currentEmail);
           setResolvedSubUserId(null);

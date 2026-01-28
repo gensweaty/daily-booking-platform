@@ -30,13 +30,13 @@ export function useServerUnread(
       let effectiveViewerId = viewerId;
       const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (viewerType === 'sub_user' && !uuidRe.test(viewerId) && viewerEmail) {
-        // resolve UUID via email (public board)
-        const { data: su } = await supabase
-          .from('sub_users')
-          .select('id')
-          .eq('board_owner_id', ownerId)
-          .eq('email', viewerEmail)
-          .maybeSingle();
+        // CRITICAL FIX: Use RPC (SECURITY DEFINER) to bypass RLS restrictions
+        // Direct sub_users queries fail for unauthenticated public board users
+        const { data: suData } = await supabase.rpc('get_sub_user_auth', {
+          p_owner_id: ownerId,
+          p_email: viewerEmail
+        });
+        const su = suData && suData[0];
         if (su?.id) effectiveViewerId = su.id;
       }
 
