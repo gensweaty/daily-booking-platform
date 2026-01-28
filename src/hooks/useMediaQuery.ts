@@ -1,22 +1,36 @@
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(false);
+  const getInitial = () => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia(query).matches;
+  };
+
+  // Initialize from matchMedia immediately to avoid first-render layout flashes.
+  const [matches, setMatches] = useState<boolean>(getInitial);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     const media = window.matchMedia(query);
-    if (media.matches !== matches) {
-      setMatches(media.matches);
+    // Ensure we sync on mount (query might have changed between renders).
+    setMatches(media.matches);
+
+    const listener = (e: MediaQueryListEvent) => setMatches(e.matches);
+
+    // Safari < 14 uses addListener/removeListener.
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', listener);
+      return () => media.removeEventListener('change', listener);
     }
 
-    const listener = () => {
-      setMatches(media.matches);
+    // Legacy Safari
+    (media as unknown as { addListener: (cb: (e: MediaQueryListEvent) => void) => void }).addListener(listener);
+    return () => {
+      (media as unknown as { removeListener: (cb: (e: MediaQueryListEvent) => void) => void }).removeListener(listener);
     };
-
-    media.addEventListener('change', listener);
-    return () => media.removeEventListener('change', listener);
-  }, [matches, query]);
+  }, [query]);
 
   return matches;
 }
