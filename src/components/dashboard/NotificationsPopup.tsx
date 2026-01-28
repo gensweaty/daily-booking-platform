@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, CheckCheck, Trash2 } from 'lucide-react';
 import { DashboardNotification } from '@/types/notifications';
@@ -104,32 +105,39 @@ export const NotificationsPopup = memo(({
     return translations[key]?.[language] || translations[key]?.en || key;
   };
 
-  return (
-    <AnimatePresence>
+  if (!isOpen) return null;
+
+  return createPortal(
+    <AnimatePresence mode="wait">
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Full screen overlay */}
           <motion.div
-            key="backdrop"
+            key="notifications-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            style={{ zIndex: 99998 }}
             onClick={onClose}
           />
           
-          {/* Popup - Centered Modal */}
+          {/* Popup - Absolutely centered on screen */}
           <motion.div
-            key="popup"
+            key="notifications-popup"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-            className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 
-              w-[92vw] max-w-md rounded-2xl overflow-hidden shadow-2xl flex flex-col"
+            className="fixed rounded-2xl overflow-hidden shadow-2xl flex flex-col"
             style={{
-              maxHeight: 'min(85vh, 600px)',
+              zIndex: 99999,
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'min(92vw, 420px)',
+              maxHeight: 'min(80vh, 600px)',
               background: isDarkMode 
                 ? 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))'
                 : 'linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 96%))',
@@ -229,7 +237,8 @@ export const NotificationsPopup = memo(({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 });
 
