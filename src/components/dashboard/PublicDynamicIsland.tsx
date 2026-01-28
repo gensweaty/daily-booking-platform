@@ -72,30 +72,33 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
   // Determine actual theme for styling
   const isDarkMode = mounted ? currentTheme === 'dark' : true;
 
+  // Helper to store pending intent in sessionStorage
+  const storePendingIntent = (tab: string, action: string, id?: string) => {
+    const intent = {
+      tab,
+      action,
+      id,
+      createdAt: Date.now()
+    };
+    sessionStorage.setItem('public-board-pending-intent', JSON.stringify(intent));
+    console.log('📌 Stored pending intent:', intent);
+  };
+
   const handleNotificationClick = useCallback((notification: typeof notifications[0]) => {
     markAsRead(notification.id);
     
-    // For public board, dispatch events that mirror the internal dashboard behavior
+    // For public board, dispatch events and store pending intent for reliable navigation
     switch (notification.type) {
       case 'comment':
-        // Open the task where the comment was made
-        if (notification.actionData?.taskId) {
-          window.dispatchEvent(new CustomEvent('switch-public-tab', { 
-            detail: { tab: 'tasks' } 
-          }));
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('open-task', { 
-              detail: { taskId: notification.actionData?.taskId } 
-            }));
-          }, 100);
-        }
-        break;
       case 'task_reminder':
-        // Open the task for deadline reminders
+        // Open the task where the comment was made or deadline reminder
         if (notification.actionData?.taskId) {
+          // Store pending intent BEFORE switching tab
+          storePendingIntent('tasks', 'open-task', notification.actionData.taskId);
           window.dispatchEvent(new CustomEvent('switch-public-tab', { 
             detail: { tab: 'tasks' } 
           }));
+          // Also dispatch immediate event (will be caught if component is already mounted)
           setTimeout(() => {
             window.dispatchEvent(new CustomEvent('open-task', { 
               detail: { taskId: notification.actionData?.taskId } 
@@ -106,6 +109,7 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
       case 'chat':
         // Open chat with the specific channel/team member
         if (notification.actionData?.channelId) {
+          storePendingIntent('chat', 'open-chat-channel', notification.actionData.channelId);
           window.dispatchEvent(new CustomEvent('open-chat-channel', { 
             detail: { channelId: notification.actionData.channelId } 
           }));
@@ -114,6 +118,7 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
       case 'event_reminder':
         // Open the event edit popup
         if (notification.actionData?.eventId) {
+          storePendingIntent('calendar', 'open-event-edit', notification.actionData.eventId);
           window.dispatchEvent(new CustomEvent('switch-public-tab', { 
             detail: { tab: 'calendar' } 
           }));
@@ -130,6 +135,7 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
         break;
       case 'custom_reminder':
         // AI reminder - open AI chat if available
+        storePendingIntent('chat', 'open-ai-chat');
         window.dispatchEvent(new CustomEvent('open-ai-chat', {}));
         break;
       default:

@@ -323,19 +323,25 @@ serve(async (req) => {
           ? `✅ ¡Recordatorio establecido! Te recordaré "${title}" en ${reminderTimeFormatted}. Recibirás tanto un correo electrónico como una notificación en el panel.`
           : `✅ Reminder set! I'll remind you about "${title}" at ${reminderTimeFormatted}. You'll receive both an email and dashboard notification.`;
         
-        await supabaseAdmin.from('chat_messages').insert({
+        const { data: aiMsgData, error: aiMsgError } = await supabaseAdmin.from('chat_messages').insert({
           channel_id: channelId,
           owner_id: ownerId,
           sender_type: 'admin',
           sender_name: 'Smartbookly AI',
           content: content,
           message_type: 'text'
-        });
+        }).select().single();
+        
+        if (aiMsgError) {
+          console.error('❌ Failed to insert reminder AI response:', aiMsgError);
+        } else {
+          console.log('✅ Reminder AI message inserted with id:', aiMsgData?.id);
+        }
         
         console.log(`✅ Reminder fast-path completed successfully: ${title} (${minutes} minutes)`);
         
         // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
-        return new Response(JSON.stringify({ success: true, content }),
+        return new Response(JSON.stringify({ success: true, content, aiMessage: aiMsgData || null }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         
       } catch (error) {
@@ -516,19 +522,25 @@ serve(async (req) => {
           ? `✅ ¡Recordatorio establecido! Te recordaré "${title}" en ${reminderTimeFormatted}. Recibirás tanto un correo electrónico como una notificación en el panel.`
           : `✅ Reminder set! I'll remind you about "${title}" at ${reminderTimeFormatted}. You'll receive both an email and dashboard notification.`;
         
-        await supabaseAdmin.from('chat_messages').insert({
+        const { data: aiMsgData, error: aiMsgError } = await supabaseAdmin.from('chat_messages').insert({
           channel_id: channelId,
           owner_id: ownerId,
           sender_type: 'admin',
           sender_name: 'Smartbookly AI',
           content: content,
           message_type: 'text'
-        });
+        }).select().single();
+        
+        if (aiMsgError) {
+          console.error('❌ Failed to insert time reminder AI response:', aiMsgError);
+        } else {
+          console.log('✅ Time reminder AI message inserted with id:', aiMsgData?.id);
+        }
         
         console.log(`✅ Time reminder fast-path completed: ${title} at ${hours}:${String(minutes).padStart(2, '0')}`);
         
         // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
-        return new Response(JSON.stringify({ success: true, content }),
+        return new Response(JSON.stringify({ success: true, content, aiMessage: aiMsgData || null }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         
       } catch (error) {
@@ -6782,8 +6794,8 @@ Be direct. Be concise. No extra text.`
           );
         }
         
-        // Insert AI response into database
-        const { error: insertError } = await supabaseAdmin
+        // Insert AI response into database with select to get the row back
+        const { data: aiMsgData, error: insertError } = await supabaseAdmin
           .from('chat_messages')
           .insert({
             channel_id: channelId,
@@ -6792,7 +6804,9 @@ Be direct. Be concise. No extra text.`
             sender_name: 'Smartbookly AI',
             content: finalMessage.content,
             message_type: 'text'
-          });
+          })
+          .select()
+          .single();
         
         if (insertError) {
           console.error('❌ Failed to insert AI response:', insertError);
@@ -6802,10 +6816,13 @@ Be direct. Be concise. No extra text.`
           );
         }
         
+        console.log('✅ Tool call AI message inserted with id:', aiMsgData?.id);
+        
         return new Response(
           JSON.stringify({ 
             success: true,
             content: finalMessage.content,
+            aiMessage: aiMsgData,
             toolCalls: message.tool_calls || []
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -6816,8 +6833,8 @@ Be direct. Be concise. No extra text.`
     // No tool calls or direct response
     console.log('✅ Direct response (no tools)');
     
-    // Insert AI response into database
-    const { error: insertError } = await supabaseAdmin
+    // Insert AI response into database with select to get the row back
+    const { data: aiMsgData, error: insertError } = await supabaseAdmin
       .from('chat_messages')
       .insert({
         channel_id: channelId,
@@ -6826,7 +6843,9 @@ Be direct. Be concise. No extra text.`
         sender_name: 'Smartbookly AI',
         content: message.content,
         message_type: 'text'
-      });
+      })
+      .select()
+      .single();
     
     if (insertError) {
       console.error('❌ Failed to insert AI response:', insertError);
@@ -6836,10 +6855,13 @@ Be direct. Be concise. No extra text.`
       );
     }
     
+    console.log('✅ Direct AI message inserted with id:', aiMsgData?.id);
+    
     return new Response(
       JSON.stringify({ 
         success: true,
         content: message.content,
+        aiMessage: aiMsgData,
         toolCalls: []
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
