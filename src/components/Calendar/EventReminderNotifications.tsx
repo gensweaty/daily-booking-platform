@@ -41,6 +41,8 @@ export const EventReminderNotifications = () => {
   }, [processedReminders]);
 
   // Fetch events with reminders
+  // ISOLATION FIX: Exclude events created by sub-users - those belong to the sub-user only
+  // Sub-user event reminders are handled by PublicBoardEventReminderNotifications
   const { data: events } = useQuery({
     queryKey: ['eventReminders', user?.id],
     queryFn: async () => {
@@ -57,6 +59,8 @@ export const EventReminderNotifications = () => {
         .eq('email_reminder_enabled', true)
         .lte('reminder_at', futureWindow.toISOString())
         .is('deleted_at', null)
+        // CRITICAL: Exclude sub-user created events - their reminders are handled separately
+        .or('created_by_type.is.null,created_by_type.neq.sub_user')
         .order('reminder_at', { ascending: true });
       
       if (error) {
@@ -66,7 +70,7 @@ export const EventReminderNotifications = () => {
       
       // Filter out events with invalid or missing IDs
       const filtered = (data || []).filter(ev => !!ev.id && typeof ev.id === 'string');
-      console.log('📅 Event reminders fetched:', data?.length || 0, 'filtered:', filtered.length);
+      console.log('📅 Event reminders fetched (admin only):', data?.length || 0, 'filtered:', filtered.length);
       return filtered;
     },
     enabled: !!user?.id,

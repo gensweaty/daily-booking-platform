@@ -20,6 +20,7 @@ import { PublicCommentNotificationsListener } from "@/components/notifications/P
 import { PublicProfileDialog } from "@/components/public/PublicProfileDialog";
 import { PublicBoardReminderNotifications } from "@/components/reminder/PublicBoardReminderNotifications";
 import { PublicBoardTaskReminderNotifications } from "@/components/tasks/PublicBoardTaskReminderNotifications";
+import { PublicBoardEventReminderNotifications } from "@/components/Calendar/PublicBoardEventReminderNotifications";
 import { preloadNotificationSound, addMobileAudioUnlockListener } from "@/utils/audioManager";
 
 // Password hashing utilities (PBKDF2, client-side)
@@ -916,6 +917,8 @@ const handleRegister = async () => {
               boardOwnerId={boardData.user_id}
               externalUserName={fullName}
             />
+            {/* Sub-user EVENT reminder notifications - ISOLATED from admin's event reminders */}
+            <PublicBoardEventReminderNotifications />
             <PublicBoardNavigation
               boardId={boardData.id}
               boardUserId={boardData.user_id}
