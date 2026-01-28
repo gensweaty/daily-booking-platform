@@ -446,12 +446,38 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('🔄 Polled message received:', { id: message.id, channel: message.channel_id, type: message.message_type });
 
-      // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
-      // CRITICAL FIX: reminder_alert messages are for the AI channel owner, NOT for broadcast
+      // SPECIAL CASE: Always notify for reminder alerts, but ONLY if it's for the current user
+      // CRITICAL FIX: reminder_alert messages contain metadata specifying the intended recipient
       const isReminderAlert = message.message_type === 'reminder_alert';
       if (isReminderAlert) {
-        console.log('🔔 Reminder alert detected from polling - forcing notification + badge');
-        console.log('🔍 Reminder alert context:', { isOnPublicBoard, meId: me?.id, meType: me?.type, meEmail: me?.email });
+        console.log('🔔 Reminder alert detected from polling');
+        
+        // CRITICAL: Check metadata to determine if this reminder is for the current user
+        const metadata = (message.metadata || {}) as { 
+          recipient_type?: string; 
+          recipient_user_id?: string; 
+          recipient_sub_user_id?: string;
+          recipient_email?: string;
+        };
+        console.log('🔍 Reminder metadata:', metadata);
+        console.log('🔍 Current user context:', { meId: me?.id, meType: me?.type, meEmail: me?.email, isOnPublicBoard });
+        
+        // Determine if this reminder is intended for the current session's user
+        const isForMe = 
+          // Admin user receives admin-targeted reminders
+          (metadata.recipient_type === 'admin' && me?.type === 'admin' && me?.id === metadata.recipient_user_id) ||
+          // Sub-user receives sub-user-targeted reminders (match by UUID)
+          (metadata.recipient_type === 'sub_user' && me?.type === 'sub_user' && me?.id === metadata.recipient_sub_user_id) ||
+          // Sub-user fallback: match by email (case-insensitive)
+          (metadata.recipient_type === 'sub_user' && me?.type === 'sub_user' && me?.email && 
+           metadata.recipient_email?.toLowerCase() === me.email.toLowerCase());
+        
+        if (!isForMe) {
+          console.log('⏭️ Reminder not for current user, skipping notification');
+          return;
+        }
+        
+        console.log('✅ Reminder IS for current user, showing notification');
         
         // Set rtBump for badge FIRST
         const isViewingReminderChannel = isOpen && currentChannelId === message.channel_id;
@@ -469,10 +495,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         import('@/utils/audioManager')
           .then(({ playNotificationSound }) => playNotificationSound())
           .catch(() => {});
-        // ISOLATION FIX: Include recipient targeting for reminder alerts
-        // CRITICAL: For reminder alerts, target ONLY the current session's user
-        // - On public board: target this specific sub-user with both UUID and email
-        // - On internal dashboard: target this admin user with userId
+        // ISOLATION: Target only the current session's user with explicit recipient fields
         showNotification({
           title: 'Reminder Alert',
           body: message.content,
@@ -482,7 +505,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           targetAudience: isOnPublicBoard ? 'public' : 'internal',
           // PUBLIC BOARD: target this sub-user explicitly
           recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
-          recipientSubUserEmail: isOnPublicBoard ? me?.email : undefined,
+          recipientSubUserEmail: isOnPublicBoard ? me?.email?.toLowerCase() : undefined,
           // INTERNAL DASHBOARD: target this admin user explicitly
           recipientUserId: !isOnPublicBoard ? me?.id : undefined,
         });
@@ -560,12 +583,38 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const handleNewMessage = useCallback((message: any) => {
     console.log('📨 Enhanced realtime message received:', { id: message.id, channel: message.channel_id, type: message.message_type });
 
-    // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
-    // CRITICAL FIX: reminder_alert messages are for the AI channel owner, NOT for broadcast
+    // SPECIAL CASE: Always notify for reminder alerts, but ONLY if it's for the current user
+    // CRITICAL FIX: reminder_alert messages contain metadata specifying the intended recipient
     const isReminderAlert = message.message_type === 'reminder_alert';
     if (isReminderAlert) {
-      console.log('🔔 Reminder alert from realtime - forcing notification + badge');
-      console.log('🔍 Reminder alert context:', { isOnPublicBoard, meId: me?.id, meType: me?.type, meEmail: me?.email });
+      console.log('🔔 Reminder alert from realtime');
+      
+      // CRITICAL: Check metadata to determine if this reminder is for the current user
+      const metadata = (message.metadata || {}) as { 
+        recipient_type?: string; 
+        recipient_user_id?: string; 
+        recipient_sub_user_id?: string;
+        recipient_email?: string;
+      };
+      console.log('🔍 Reminder metadata:', metadata);
+      console.log('🔍 Current user context:', { meId: me?.id, meType: me?.type, meEmail: me?.email, isOnPublicBoard });
+      
+      // Determine if this reminder is intended for the current session's user
+      const isForMe = 
+        // Admin user receives admin-targeted reminders
+        (metadata.recipient_type === 'admin' && me?.type === 'admin' && me?.id === metadata.recipient_user_id) ||
+        // Sub-user receives sub-user-targeted reminders (match by UUID)
+        (metadata.recipient_type === 'sub_user' && me?.type === 'sub_user' && me?.id === metadata.recipient_sub_user_id) ||
+        // Sub-user fallback: match by email (case-insensitive)
+        (metadata.recipient_type === 'sub_user' && me?.type === 'sub_user' && me?.email && 
+         metadata.recipient_email?.toLowerCase() === me.email.toLowerCase());
+      
+      if (!isForMe) {
+        console.log('⏭️ Reminder not for current user, skipping notification');
+        return;
+      }
+      
+      console.log('✅ Reminder IS for current user, showing notification');
       
       // CRITICAL: Set realtime bump for badge to appear instantly
       const isViewingReminderChannel = isOpen && currentChannelId === message.channel_id;
@@ -584,8 +633,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       import('@/utils/audioManager')
         .then(({ playNotificationSound }) => playNotificationSound())
         .catch(() => {});
-      // ISOLATION FIX: Include recipient targeting for realtime reminder alerts
-      // CRITICAL: For reminder alerts, target ONLY the current session's user
+      // ISOLATION: Target only the current session's user with explicit recipient fields
       showNotification({
         title: 'Reminder Alert',
         body: message.content,
@@ -595,7 +643,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         targetAudience: isOnPublicBoard ? 'public' : 'internal',
         // PUBLIC BOARD: target this sub-user explicitly
         recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
-        recipientSubUserEmail: isOnPublicBoard ? me?.email : undefined,
+        recipientSubUserEmail: isOnPublicBoard ? me?.email?.toLowerCase() : undefined,
         // INTERNAL DASHBOARD: target this admin user explicitly
         recipientUserId: !isOnPublicBoard ? me?.id : undefined,
       });
@@ -715,7 +763,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             targetAudience: isOnPublicBoard ? 'public' : 'internal',
             // If on public board, target the current sub-user specifically
             recipientSubUserId: isOnPublicBoard ? me?.id : undefined,
-            recipientSubUserEmail: isOnPublicBoard ? me?.email : undefined,
+            recipientSubUserEmail: isOnPublicBoard ? me?.email?.toLowerCase() : undefined,
+            // If on internal dashboard, target the current admin specifically
+            recipientUserId: !isOnPublicBoard ? me?.id : undefined,
           });
         } else {
           console.log('⏭️ Notification skipped - not a participant or viewing channel');
