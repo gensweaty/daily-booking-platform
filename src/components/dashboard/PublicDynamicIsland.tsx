@@ -171,7 +171,7 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
           borderRadius: isExpanded ? 16 : 9999,
           width: isExpanded ? '100%' : 'auto',
           maxWidth: isExpanded ? 420 : 380,
-          minWidth: isExpanded ? 280 : undefined, // Removed min-width for collapsed - let content determine
+          minWidth: isExpanded ? 280 : undefined,
         }}
         style={{
           background: isDarkMode 
@@ -188,20 +188,25 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
               ? '0 4px 20px hsl(0 0% 0% / 0.25)'
               : '0 4px 16px hsl(220 14% 50% / 0.12)',
         }}
-        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+        transition={{ 
+          type: "spring",
+          stiffness: 400,
+          damping: 30,
+          mass: 0.8
+        }}
         onClick={!isExpanded ? toggleExpanded : undefined}
-        whileHover={!isExpanded ? { scale: 1.02 } : undefined}
-        whileTap={!isExpanded ? { scale: 0.98 } : undefined}
+        whileHover={!isExpanded ? { scale: 1.015, transition: { duration: 0.2 } } : undefined}
+        whileTap={!isExpanded ? { scale: 0.985, transition: { duration: 0.1 } } : undefined}
       >
         {/* Collapsed State */}
         {!isExpanded && (
           <motion.div 
             key="collapsed"
             className="flex items-center gap-3 px-4 py-2"
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
           >
               {/* Icon */}
               <div className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${
@@ -283,10 +288,14 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
         {isExpanded && (
           <motion.div
             key="expanded"
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ 
+              duration: 0.3,
+              ease: [0.25, 0.1, 0.25, 1],
+              opacity: { duration: 0.2 }
+            }}
           >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3">
