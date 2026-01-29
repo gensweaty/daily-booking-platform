@@ -722,6 +722,21 @@ export interface TranslationType {
     noteUpdated: string;
     noteDeleted: string;
   };
+  notifications: {
+    eventReminder: string;
+    taskReminder: string;
+    reminder: string;
+    scheduledReminder: string;
+    commentNotification: string;
+    chatMessage: string;
+    bookingRequest: string;
+    allNotifications: string;
+    noNotifications: string;
+    markAllRead: string;
+    clear: string;
+    viewAll: string;
+    new: string;
+  };
   reminders: {
     reminderCreated: string;
   };

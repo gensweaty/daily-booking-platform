@@ -1,6 +1,4 @@
 import { BusinessProfileForm } from "./BusinessProfileForm";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,6 +16,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import { BookingNotificationManager } from "./BookingNotificationManager";
+import { useBusinessProfile } from "@/hooks/useBusinessProfile";
+import { BusinessPageSkeleton, BusinessEmptyState } from "./BusinessPageSkeleton";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -29,29 +29,19 @@ export const BusinessPage = () => {
   const isMobile = useMediaQuery('(max-width: 640px)');
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
 
-  const { data: businessProfile, isLoading } = useQuery({
-    queryKey: ["businessProfile", user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data, error } = await supabase
-        .from("business_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error && error.code !== 'PGRST116') throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-  });
+  // Use the centralized hook - no duplicate query
+  const { businessProfile, isLoading } = useBusinessProfile();
 
   // Auto-select "bookings" if profile exists, "profile" if not
   useEffect(() => {
-    if (businessProfile) {
-      setActiveTab("bookings");
-    } else {
-      setActiveTab("profile");
+    if (!isLoading) {
+      if (businessProfile) {
+        setActiveTab("bookings");
+      } else {
+        setActiveTab("profile");
+      }
     }
-  }, [businessProfile]);
+  }, [businessProfile, isLoading]);
 
   // Handle new booking request notifications
   const handleNewBookingRequest = () => {
@@ -85,8 +75,9 @@ export const BusinessPage = () => {
     refetch();
   };
 
+  // Show skeleton while loading
   if (isLoading) {
-    return <div className="text-center p-8"><LanguageText>{t("common.loading")}</LanguageText></div>;
+    return <BusinessPageSkeleton />;
   }
 
   const publicUrl = businessProfile?.slug 
@@ -284,8 +275,8 @@ export const BusinessPage = () => {
           <BusinessProfileForm />
         </TabsContent>
 
-        <TabsContent value="bookings" className="space-y-6 sm:-mt-12 -mt-6">
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2">
+        <TabsContent value="bookings" className={`space-y-6 ${publicUrl ? 'sm:-mt-12 -mt-6' : 'mt-0'}`}>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-4">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>

@@ -732,6 +732,21 @@ export const translations: TranslationType = {
     noteUpdated: "შენიშვნა წარმატებით განახლდა",
     noteDeleted: "შენიშვნა წარმატებით წაიშალა"
   },
+  notifications: {
+    eventReminder: "ღონისძიების შეხსენება",
+    taskReminder: "დავალების შეხსენება",
+    reminder: "შეხსენება",
+    scheduledReminder: "დაგეგმილი შეხსენება",
+    commentNotification: "ახალი კომენტარი",
+    chatMessage: "ახალი შეტყობინება",
+    bookingRequest: "დაჯავშნის მოთხოვნა",
+    allNotifications: "ყველა შეტყობინება",
+    noNotifications: "შეტყობინებები არ არის",
+    markAllRead: "ყველას წაკითხვა",
+    clear: "გასუფთავება",
+    viewAll: "ყველა",
+    new: "ახალი"
+  },
   reminders: {
     reminderCreated: "შეხსენება წარმატებით შეიქმნა"
   },

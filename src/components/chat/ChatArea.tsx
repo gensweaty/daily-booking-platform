@@ -1419,20 +1419,23 @@ export const ChatAreaLegacy = ({ onMessageInputFocus, isMinimized = false }: Cha
 
   if (loading || !isInitialized) {
     return (
-      <div className="grid grid-rows-[auto,1fr,auto] h-full overflow-hidden bg-background">
-        <div className="flex items-center gap-2 p-4 border-b bg-muted/30">
+      <div className="flex flex-col h-full overflow-hidden bg-background">
+        {/* Header skeleton */}
+        <div className="flex items-center gap-2 p-4 border-b bg-muted/30 shrink-0">
           <MessageCircle className="h-5 w-5 animate-pulse" />
           <h2 className="font-semibold">Loading...</h2>
         </div>
-        <div className="flex items-center justify-center h-full">
+        {/* Content area - flex-1 to fill remaining space */}
+        <div className="flex-1 flex items-center justify-center min-h-0">
           <div className="text-center space-y-2">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
             <p className="text-sm text-muted-foreground">Loading chat...</p>
             <p className="text-xs text-muted-foreground">Initializing chat system...</p>
           </div>
         </div>
-        <div className="p-4 border-t bg-muted/30">
-          <div className="bg-muted rounded-md h-10 animate-pulse"></div>
+        {/* Input skeleton - matches actual input styling */}
+        <div className="p-3 border-t bg-muted/30 shrink-0">
+          <div className="bg-muted/50 border border-border rounded-lg h-12 animate-pulse"></div>
         </div>
       </div>
     );

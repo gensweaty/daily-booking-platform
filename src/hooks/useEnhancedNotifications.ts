@@ -7,6 +7,13 @@ export interface NotificationData {
   channelId: string;
   senderId: string;
   senderName: string;
+  targetAudience?: 'internal' | 'public'; // 'internal' for admin dashboard, 'public' for sub-user public board
+  /** For internal dashboard targeting - specific admin user ID */
+  recipientUserId?: string;
+  /** For public board targeting - specific sub-user ID */
+  recipientSubUserId?: string;
+  /** For public board targeting fallback - sub-user email */
+  recipientSubUserEmail?: string;
 }
 
 export const useEnhancedNotifications = () => {
@@ -70,14 +77,26 @@ export const useEnhancedNotifications = () => {
 
   const showSingleNotification = useCallback(async (data: NotificationData) => {
     console.log('🔔 Showing enhanced notification:', data);
+    console.log('🔔 Notification routing:', { 
+      targetAudience: data.targetAudience, 
+      recipientUserId: data.recipientUserId, 
+      recipientSubUserId: data.recipientSubUserId,
+      recipientSubUserEmail: data.recipientSubUserEmail 
+    });
 
-    // Emit to Dynamic Island
+    // CRITICAL FIX: Include targetAudience AND recipient IDs in the event to ensure proper isolation
+    // Only the correct Dynamic Island (internal vs public) will process this,
+    // AND only if the recipient matches the current user
     window.dispatchEvent(new CustomEvent('dashboard-notification', {
       detail: {
         type: 'chat',
         title: data.title,
         message: data.body,
-        actionData: { channelId: data.channelId }
+        actionData: { channelId: data.channelId },
+        targetAudience: data.targetAudience, // 'internal' for admin, 'public' for sub-user
+        recipientUserId: data.recipientUserId, // For internal dashboard users
+        recipientSubUserId: data.recipientSubUserId, // For public board sub-users
+        recipientSubUserEmail: data.recipientSubUserEmail, // Fallback for sub-user identification
       }
     }));
     

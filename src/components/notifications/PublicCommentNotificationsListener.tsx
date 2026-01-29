@@ -5,6 +5,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ensureNotificationPermission } from "@/utils/notificationUtils";
 import { platformNotificationManager } from "@/utils/platformNotificationManager";
+import { usePublicBoardAuth } from "@/contexts/PublicBoardAuthContext";
 
 interface Props {
   boardUserId: string;
@@ -15,6 +16,7 @@ interface Props {
 export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserId, externalUserName }) => {
   const { toast } = useToast();
   const { t, language } = useLanguage();
+  const { user: publicBoardUser } = usePublicBoardAuth();
   const channelRef = useRef<ReturnType<typeof publicSupabase.channel> | null>(null);
   const tasksMapRef = useRef<Map<string, { title: string }>>(new Map());
 
@@ -40,16 +42,21 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
       const subUserLabel = `${externalUserName} (Sub User)`;
       const lastSeenKey = `public_comments_last_seen_${boardUserId}_${externalUserName}`;
 
-      // 1) Load tasks for this sub-user using RPC that bypasses RLS
+      // 1) Load ALL tasks for the board owner - sub-user can receive notifications for ANY task
+      // where an admin comments (if the task was created by this sub-user)
       try {
         const { data: tasksData, error: tasksErr } = await publicSupabase
           .rpc('get_public_board_tasks', { board_user_id: boardUserId });
         if (tasksErr) {
           console.error('[PublicCommentsNotify] Error fetching tasks via RPC:', tasksErr);
         } else if (tasksData && tasksData.length) {
-          // Keep only this sub-user's tasks
-          const ownTasks = tasksData.filter((t: any) => t.created_by_type === 'external_user' && t.created_by_name === subUserLabel);
+          // Keep tasks created by this sub-user to receive notifications when admin comments
+          const ownTasks = tasksData.filter((t: any) => 
+            (t.created_by_type === 'external_user' && t.created_by_name === subUserLabel) ||
+            (t.created_by_type === 'sub_user' && t.created_by_name === externalUserName)
+          );
           tasksMapRef.current = new Map(ownTasks.map((t: any) => [t.id, { title: t.title || 'Task' }]));
+          console.log('[PublicCommentsNotify] Loaded tasks for sub-user:', ownTasks.length);
         }
       } catch (e) {
         console.error('[PublicCommentsNotify] Failed loading tasks:', e);
@@ -99,6 +106,28 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
                   </ToastAction>
                 ),
               });
+
+          // Public Dynamic Island notification (recipient-targeted)
+          const recipientSubUserId = publicBoardUser?.id;
+          const recipientSubUserEmail = publicBoardUser?.email;
+          if (recipientSubUserId || recipientSubUserEmail) {
+            window.dispatchEvent(new CustomEvent('dashboard-notification', {
+              detail: {
+                type: 'comment',
+                title,
+                message: body,
+                actionData: { taskId: c.task_id },
+                targetAudience: 'public',
+                recipientSubUserId,
+                recipientSubUserEmail,
+              }
+            }));
+          }
+
+          // Match internal-dashboard behavior: play the same notification ping
+          import('@/utils/audioManager')
+            .then(({ playNotificationSound }) => playNotificationSound())
+            .catch(() => {});
             }
           }
         }
@@ -117,7 +146,8 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
 
           // Only notify if this comment is for current sub-user's task and not authored by them
           if (!tasksMapRef.current.has(comment.task_id)) return;
-          if (comment.created_by_name === subUserLabel) return;
+          // Skip if this sub-user authored the comment (check both name formats)
+          if (comment.created_by_name === subUserLabel || comment.created_by_name === externalUserName) return;
 
           const taskTitle = tasksMapRef.current.get(comment.task_id)?.title || 'Task';
           const actorName = comment.created_by_name || 'Someone';
@@ -150,6 +180,28 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
             ),
           });
 
+          // Public Dynamic Island notification (recipient-targeted)
+          const recipientSubUserId = publicBoardUser?.id;
+          const recipientSubUserEmail = publicBoardUser?.email;
+          if (recipientSubUserId || recipientSubUserEmail) {
+            window.dispatchEvent(new CustomEvent('dashboard-notification', {
+              detail: {
+                type: 'comment',
+                title,
+                message: body,
+                actionData: { taskId: comment.task_id },
+                targetAudience: 'public',
+                recipientSubUserId,
+                recipientSubUserEmail,
+              }
+            }));
+          }
+
+          // Match internal-dashboard behavior: play the same notification ping
+          import('@/utils/audioManager')
+            .then(({ playNotificationSound }) => playNotificationSound())
+            .catch(() => {});
+
           // Update last seen on every incoming notification
           localStorage.setItem(lastSeenKey, new Date().toISOString());
         })
@@ -170,7 +222,7 @@ export const PublicCommentNotificationsListener: React.FC<Props> = ({ boardUserI
       isMounted = false;
       if (channelRef.current) publicSupabase.removeChannel(channelRef.current);
     };
-  }, [boardUserId, externalUserName]);
+  }, [boardUserId, externalUserName, publicBoardUser?.id, publicBoardUser?.email]);
 
   return null;
 };

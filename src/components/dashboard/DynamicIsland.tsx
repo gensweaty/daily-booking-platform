@@ -1,8 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, X, CheckCheck, Trash2, Sparkles } from 'lucide-react';
+import { Bell, X, CheckCheck, Trash2, Sparkles, Maximize2 } from 'lucide-react';
 import { useDashboardNotifications } from '@/hooks/useDashboardNotifications';
 import { NotificationItem } from './NotificationItem';
+import { NotificationsPopup } from './NotificationsPopup';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { GeorgianAuthText } from '@/components/shared/GeorgianAuthText';
 import { LanguageText } from '@/components/shared/LanguageText';
@@ -16,8 +18,11 @@ interface DynamicIslandProps {
 
 export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps) => {
   const { language, t } = useLanguage();
+  const { resolvedTheme, theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
-  const { 
+  const [showFullPopup, setShowFullPopup] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const {
     notifications, 
     latestNotification, 
     unreadCount,
@@ -28,20 +33,82 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
 
   const isGeorgian = language === 'ka';
   const displayName = userProfileName || username;
+  
+  // Track theme after mount to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Listen for theme changes
+  const [currentTheme, setCurrentTheme] = useState<string>('dark');
+  
+  useEffect(() => {
+    if (!mounted) return;
+    
+    const updateTheme = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setCurrentTheme(isDark ? 'dark' : 'light');
+    };
+    
+    // Initial check
+    updateTheme();
+    
+    // Listen for theme changes
+    const handleThemeChange = () => updateTheme();
+    document.addEventListener('themeChanged', handleThemeChange);
+    
+    // Also use MutationObserver to catch class changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          updateTheme();
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, { attributes: true });
+    
+    return () => {
+      document.removeEventListener('themeChanged', handleThemeChange);
+      observer.disconnect();
+    };
+  }, [mounted]);
+  
+  // Determine actual theme for styling
+  const isDarkMode = mounted ? currentTheme === 'dark' : true;
 
   const handleNotificationClick = useCallback((notification: typeof notifications[0]) => {
     markAsRead(notification.id);
     
     switch (notification.type) {
       case 'comment':
-      case 'task_reminder':
+        // Open the task where the comment was made
         if (notification.actionData?.taskId) {
-          window.dispatchEvent(new CustomEvent('open-task', { 
-            detail: { taskId: notification.actionData.taskId } 
+          window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
+            detail: { tab: 'tasks' } 
           }));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-task', { 
+              detail: { taskId: notification.actionData?.taskId } 
+            }));
+          }, 100);
+        }
+        break;
+      case 'task_reminder':
+        // Open the task for deadline reminders
+        if (notification.actionData?.taskId) {
+          window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
+            detail: { tab: 'tasks' } 
+          }));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-task', { 
+              detail: { taskId: notification.actionData?.taskId } 
+            }));
+          }, 100);
         }
         break;
       case 'chat':
+        // Open chat with the specific channel/team member
         if (notification.actionData?.channelId) {
           window.dispatchEvent(new CustomEvent('open-chat-channel', { 
             detail: { channelId: notification.actionData.channelId } 
@@ -49,14 +116,31 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
         }
         break;
       case 'booking':
+        // Navigate to business tab for booking requests
         window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
           detail: { tab: 'business' } 
         }));
         break;
       case 'event_reminder':
-        window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
-          detail: { tab: 'calendar' } 
-        }));
+        // Open the event edit popup
+        if (notification.actionData?.eventId) {
+          window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
+            detail: { tab: 'calendar' } 
+          }));
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('open-event-edit', { 
+              detail: { eventId: notification.actionData?.eventId } 
+            }));
+          }, 100);
+        } else {
+          window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { 
+            detail: { tab: 'calendar' } 
+          }));
+        }
+        break;
+      case 'custom_reminder':
+        // AI reminder - open AI chat
+        window.dispatchEvent(new CustomEvent('open-ai-chat', {}));
         break;
       default:
         break;
@@ -68,6 +152,17 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
   const toggleExpanded = useCallback(() => {
     setIsExpanded(prev => !prev);
   }, []);
+
+  const openFullPopup = useCallback(() => {
+    setShowFullPopup(true);
+    setIsExpanded(false);
+  }, []);
+
+  const getViewAllText = () => {
+    if (isGeorgian) return 'ყველა';
+    if (language === 'es') return 'Ver todo';
+    return 'View all';
+  };
 
   return (
     <div className="flex justify-center mb-2 relative px-4">
@@ -81,26 +176,43 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
           minWidth: isExpanded ? 320 : 340,
         }}
         style={{
-          background: 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))',
-          border: '1px solid hsl(var(--primary) / 0.2)',
+          background: isDarkMode 
+            ? 'linear-gradient(145deg, hsl(220 26% 16%), hsl(220 26% 12%))'
+            : 'linear-gradient(145deg, hsl(0 0% 100%), hsl(220 14% 96%))',
+          border: isDarkMode 
+            ? '1px solid hsl(var(--primary) / 0.2)' 
+            : '1px solid hsl(220 14% 90%)',
           boxShadow: unreadCount > 0 
-            ? '0 0 20px hsl(var(--primary) / 0.15), 0 4px 20px hsl(0 0% 0% / 0.3)'
-            : '0 4px 20px hsl(0 0% 0% / 0.25)',
+            ? isDarkMode
+              ? '0 0 20px hsl(var(--primary) / 0.15), 0 4px 20px hsl(0 0% 0% / 0.3)'
+              : '0 0 20px hsl(var(--primary) / 0.1), 0 4px 16px hsl(220 14% 50% / 0.15)'
+            : isDarkMode
+              ? '0 4px 20px hsl(0 0% 0% / 0.25)'
+              : '0 4px 16px hsl(220 14% 50% / 0.12)',
         }}
-        transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+        transition={isExpanded ? { 
+          type: "tween",
+          duration: 0.35,
+          ease: [0.32, 0.72, 0, 1]
+        } : { 
+          type: "spring",
+          stiffness: 400,
+          damping: 30,
+          mass: 0.8
+        }}
         onClick={!isExpanded ? toggleExpanded : undefined}
-        whileHover={!isExpanded ? { scale: 1.02 } : undefined}
-        whileTap={!isExpanded ? { scale: 0.98 } : undefined}
+        whileHover={!isExpanded ? { scale: 1.01, transition: { duration: 0.25, ease: "easeOut" } } : undefined}
+        whileTap={!isExpanded ? { scale: 0.99, transition: { duration: 0.1 } } : undefined}
       >
         {/* Collapsed State */}
         {!isExpanded && (
           <motion.div 
             key="collapsed"
             className="flex items-center gap-3 px-4 py-2"
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
           >
               {/* Icon */}
               <div className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${
@@ -182,10 +294,14 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
         {isExpanded && (
           <motion.div
             key="expanded"
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ 
+              duration: 0.3,
+              ease: [0.25, 0.1, 0.25, 1],
+              opacity: { duration: 0.2 }
+            }}
           >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3">
@@ -256,7 +372,7 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
               {notifications.length > 0 && (
                 <>
                   <div className="mx-4 h-px bg-border/30" />
-                  <div className="flex items-center justify-between px-3 py-2">
+                  <div className="flex items-center justify-between px-3 py-2 gap-1">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -268,6 +384,18 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
                     >
                       <CheckCheck className="h-3.5 w-3.5" />
                       {isGeorgian ? 'ყველას წაკითხვა' : language === 'es' ? 'Marcar leído' : 'Mark all read'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5 rounded-lg hover:bg-muted/50 text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openFullPopup();
+                      }}
+                    >
+                      <Maximize2 className="h-3.5 w-3.5" />
+                      {getViewAllText()}
                     </Button>
                     <Button
                       variant="ghost"
@@ -287,6 +415,17 @@ export const DynamicIsland = ({ username, userProfileName }: DynamicIslandProps)
             </motion.div>
           )}
       </motion.div>
+
+      {/* Full Notifications Popup */}
+      <NotificationsPopup
+        isOpen={showFullPopup}
+        onClose={() => setShowFullPopup(false)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        onNotificationClick={handleNotificationClick}
+        onMarkAllAsRead={markAllAsRead}
+        onClearAll={clearAll}
+      />
     </div>
   );
 };

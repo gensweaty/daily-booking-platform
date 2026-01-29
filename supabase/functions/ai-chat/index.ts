@@ -78,15 +78,19 @@ serve(async (req) => {
       });
     }
 
-    // Client with user auth for reading data
+    // Check if we have auth - for public board sub-users, there won't be an auth header
+    const authHeader = req.headers.get('Authorization');
+    const hasAuth = authHeader && authHeader !== 'Bearer undefined' && authHeader !== 'Bearer null';
+
+    // Client with user auth for reading data (only useful if authenticated)
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
+      hasAuth ? {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader! },
         },
-      }
+      } : {}
     );
 
     // Admin client for inserting AI messages (bypasses RLS)
@@ -95,13 +99,16 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // 1. Verify channel is AI channel
-    const { data: channel, error: channelError } = await supabaseClient
+    // 1. Verify channel is AI channel - use admin client for external users, auth client for authenticated users
+    // CRITICAL: Use admin client when no auth is present (public board sub-users)
+    const channelClient = hasAuth ? supabaseClient : supabaseAdmin;
+    const { data: channel, error: channelError } = await channelClient
       .from('chat_channels')
       .select('is_ai, owner_id')
       .eq('id', channelId)
       .single();
 
+    // Validate the channel belongs to the expected owner (security check for external users)
     if (channelError || !channel?.is_ai) {
       console.error('❌ Invalid AI channel:', channelError);
       return new Response(
@@ -109,6 +116,17 @@ serve(async (req) => {
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Extra security for external users: verify the channel's owner matches the ownerId param
+    if (!hasAuth && channel.owner_id !== ownerId) {
+      console.error('❌ Channel owner mismatch for external user:', { channelOwnerId: channel.owner_id, requestedOwnerId: ownerId });
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized access' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('✅ Channel validated:', { channelId, isAI: channel.is_ai, hasAuth, ownerId });
 
     // Detect user language from the LATEST user message BEFORE processing (needed for fast-paths)
     const detectLanguage = (text: string): string => {
@@ -124,13 +142,15 @@ serve(async (req) => {
     console.log('🌐 Detected user language from current message:', userLanguage);
 
     // 🔥 PRE-FETCH CALENDAR DATA FOR CURRENT MONTH (gives AI direct access to events)
+    // CRITICAL: Use admin client for external users (no auth), auth client for authenticated users
+    const dataClient = hasAuth ? supabaseClient : supabaseAdmin;
     let preloadedCalendarContext = '';
     try {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       
-      const { data: monthEvents } = await supabaseClient
+      const { data: monthEvents } = await dataClient
         .from('events')
         .select('id, title, user_surname, start_date, end_date, payment_status, payment_amount')
         .eq('user_id', ownerId)
@@ -277,6 +297,25 @@ serve(async (req) => {
         console.log(`🕐 Base time: ${baseNow.toISOString()} (local: ${formatInUserZone(baseNow)})`);
         console.log(`⏰ Remind at (UTC): ${remindAtUtc.toISOString()} (local: ${formatInUserZone(remindAtUtc)})`);
         
+        // ISOLATION FIX: Track sub-user info for proper notification routing
+        let createdBySubUserId: string | null = null;
+        
+        // If this is a sub-user request, resolve their ID
+        if (senderType === 'sub_user' && senderName) {
+          console.log('🔍 Resolving sub-user ID for reminder routing:', { senderName, ownerId });
+          const { data: subUserData } = await supabaseAdmin
+            .from('sub_users')
+            .select('id')
+            .eq('board_owner_id', ownerId)
+            .or(`fullname.eq.${senderName},email.ilike.${senderName}`)
+            .maybeSingle();
+          
+          if (subUserData?.id) {
+            createdBySubUserId = subUserData.id;
+            console.log('✅ Resolved sub-user ID:', createdBySubUserId);
+          }
+        }
+        
         const { data: reminderData, error: reminderError } = await supabaseAdmin
           .from('custom_reminders')
           .insert({
@@ -284,7 +323,11 @@ serve(async (req) => {
             title: title,
             remind_at: remindAtUtc.toISOString(),
             message: `Reminder: ${title}`,
-            language: userLanguage || 'en'
+            language: userLanguage || 'en',
+            // ISOLATION FIX: Store sub-user creation info for notification routing
+            created_by_type: senderType === 'sub_user' ? 'sub_user' : 'admin',
+            created_by_name: senderName || null,
+            created_by_sub_user_id: createdBySubUserId
           })
           .select()
           .single();
@@ -303,19 +346,32 @@ serve(async (req) => {
           ? `✅ ¡Recordatorio establecido! Te recordaré "${title}" en ${reminderTimeFormatted}. Recibirás tanto un correo electrónico como una notificación en el panel.`
           : `✅ Reminder set! I'll remind you about "${title}" at ${reminderTimeFormatted}. You'll receive both an email and dashboard notification.`;
         
-        await supabaseAdmin.from('chat_messages').insert({
+        const { data: aiMsgData, error: aiMsgError } = await supabaseAdmin.from('chat_messages').insert({
           channel_id: channelId,
           owner_id: ownerId,
           sender_type: 'admin',
           sender_name: 'Smartbookly AI',
           content: content,
           message_type: 'text'
-        });
+        }).select().single();
+        
+        if (aiMsgError) {
+          console.error('❌ Failed to insert reminder AI response:', aiMsgError);
+        } else {
+          console.log('✅ Reminder AI message inserted with id:', aiMsgData?.id);
+        }
         
         console.log(`✅ Reminder fast-path completed successfully: ${title} (${minutes} minutes)`);
         
         // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
-        return new Response(JSON.stringify({ success: true, content }),
+        // ISOLATION FIX: Return sub_user_id for client-side notification routing
+        return new Response(JSON.stringify({ 
+          success: true, 
+          content, 
+          aiMessage: aiMsgData || null,
+          sub_user_id: createdBySubUserId, // Client uses this to dispatch properly-targeted notification
+          is_sub_user_reminder: senderType === 'sub_user'
+        }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         
       } catch (error) {
@@ -470,6 +526,24 @@ serve(async (req) => {
         
         console.log(`⏰ FINAL remind_at (UTC): ${targetTime.toISOString()}`);
         
+        // ISOLATION FIX: Track sub-user info for proper notification routing (same as fast-path 1)
+        let createdBySubUserId2: string | null = null;
+        
+        if (senderType === 'sub_user' && senderName) {
+          console.log('🔍 Resolving sub-user ID for time reminder routing:', { senderName, ownerId });
+          const { data: subUserData } = await supabaseAdmin
+            .from('sub_users')
+            .select('id')
+            .eq('board_owner_id', ownerId)
+            .or(`fullname.eq.${senderName},email.ilike.${senderName}`)
+            .maybeSingle();
+          
+          if (subUserData?.id) {
+            createdBySubUserId2 = subUserData.id;
+            console.log('✅ Resolved sub-user ID:', createdBySubUserId2);
+          }
+        }
+        
         const { data: reminderData, error: reminderError } = await supabaseAdmin
           .from('custom_reminders')
           .insert({
@@ -477,7 +551,11 @@ serve(async (req) => {
             title: title,
             remind_at: targetTime.toISOString(),
             message: `Reminder: ${title}`,
-            language: userLanguage || 'en'
+            language: userLanguage || 'en',
+            // ISOLATION FIX: Store sub-user creation info for notification routing
+            created_by_type: senderType === 'sub_user' ? 'sub_user' : 'admin',
+            created_by_name: senderName || null,
+            created_by_sub_user_id: createdBySubUserId2
           })
           .select()
           .single();
@@ -496,19 +574,32 @@ serve(async (req) => {
           ? `✅ ¡Recordatorio establecido! Te recordaré "${title}" en ${reminderTimeFormatted}. Recibirás tanto un correo electrónico como una notificación en el panel.`
           : `✅ Reminder set! I'll remind you about "${title}" at ${reminderTimeFormatted}. You'll receive both an email and dashboard notification.`;
         
-        await supabaseAdmin.from('chat_messages').insert({
+        const { data: aiMsgData, error: aiMsgError } = await supabaseAdmin.from('chat_messages').insert({
           channel_id: channelId,
           owner_id: ownerId,
           sender_type: 'admin',
           sender_name: 'Smartbookly AI',
           content: content,
           message_type: 'text'
-        });
+        }).select().single();
+        
+        if (aiMsgError) {
+          console.error('❌ Failed to insert time reminder AI response:', aiMsgError);
+        } else {
+          console.log('✅ Time reminder AI message inserted with id:', aiMsgData?.id);
+        }
         
         console.log(`✅ Time reminder fast-path completed: ${title} at ${hours}:${String(minutes).padStart(2, '0')}`);
         
         // EXPLICIT RETURN - DO NOT call LLM after successful fast-path
-        return new Response(JSON.stringify({ success: true, content }),
+        // ISOLATION FIX: Return sub_user_id for client-side notification routing
+        return new Response(JSON.stringify({ 
+          success: true, 
+          content, 
+          aiMessage: aiMsgData || null,
+          sub_user_id: createdBySubUserId2,
+          is_sub_user_reminder: senderType === 'sub_user'
+        }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         
       } catch (error) {
@@ -4262,15 +4353,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               // - Exclude booking requests that were converted to events
               const [eventsResult, bookingsResult, regularEventsForCustomers, crmCustomersResult, standaloneCrmResult] = await Promise.all([
                 // Events for event count: filter by start_date
-                supabaseClient.from('events').select('id, payment_amount, payment_status, booking_request_id').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
+                dataClient.from('events').select('id, payment_amount, payment_status, booking_request_id').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
                 // Booking requests for event count: filter by start_date
-                supabaseClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
+                dataClient.from('booking_requests').select('id, payment_amount, payment_status').eq('user_id', ownerId).eq('status', 'approved').gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null),
                 // Events for customer count: filter by start_date (main event persons)
-                supabaseClient.from('events').select('id, social_network_link, user_number, user_surname').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
+                dataClient.from('events').select('id, social_network_link, user_number, user_surname').eq('user_id', ownerId).gte('start_date', monthStart).lte('start_date', monthEnd).is('deleted_at', null).is('parent_event_id', null),
                 // Event-linked customers: filter by created_at (additional persons on events)
-                supabaseClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).eq('type', 'customer').gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null),
+                dataClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).eq('type', 'customer').gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null),
                 // Standalone customers: filter by created_at (customers without events)
-                supabaseClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).is('event_id', null).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null)
+                dataClient.from('customers').select('id, social_network_link, user_number, user_surname, title').eq('user_id', ownerId).is('event_id', null).gte('created_at', monthStart).lte('created_at', monthEnd).is('deleted_at', null)
               ]);
               
               // CRITICAL: Exclude booking requests that were already converted to events (avoid double-counting)
@@ -4658,9 +4749,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               weekStart.setDate(today.getDate() - 7);
               
               const [eventsResult, tasksResult, bookingsResult] = await Promise.all([
-                supabaseClient.from('events').select('*').eq('user_id', ownerId).gte('start_date', weekStart.toISOString()).is('deleted_at', null),
-                supabaseClient.from('tasks').select('status').eq('user_id', ownerId).is('archived_at', null),
-                supabaseClient.from('booking_requests').select('status').gte('created_at', weekStart.toISOString())
+                dataClient.from('events').select('*').eq('user_id', ownerId).gte('start_date', weekStart.toISOString()).is('deleted_at', null),
+                dataClient.from('tasks').select('status').eq('user_id', ownerId).is('archived_at', null),
+                dataClient.from('booking_requests').select('status').gte('created_at', weekStart.toISOString())
               ]);
               
               toolResult = {
@@ -6762,8 +6853,8 @@ Be direct. Be concise. No extra text.`
           );
         }
         
-        // Insert AI response into database
-        const { error: insertError } = await supabaseAdmin
+        // Insert AI response into database with select to get the row back
+        const { data: aiMsgData, error: insertError } = await supabaseAdmin
           .from('chat_messages')
           .insert({
             channel_id: channelId,
@@ -6772,7 +6863,9 @@ Be direct. Be concise. No extra text.`
             sender_name: 'Smartbookly AI',
             content: finalMessage.content,
             message_type: 'text'
-          });
+          })
+          .select()
+          .single();
         
         if (insertError) {
           console.error('❌ Failed to insert AI response:', insertError);
@@ -6782,10 +6875,13 @@ Be direct. Be concise. No extra text.`
           );
         }
         
+        console.log('✅ Tool call AI message inserted with id:', aiMsgData?.id);
+        
         return new Response(
           JSON.stringify({ 
             success: true,
             content: finalMessage.content,
+            aiMessage: aiMsgData,
             toolCalls: message.tool_calls || []
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -6796,8 +6892,8 @@ Be direct. Be concise. No extra text.`
     // No tool calls or direct response
     console.log('✅ Direct response (no tools)');
     
-    // Insert AI response into database
-    const { error: insertError } = await supabaseAdmin
+    // Insert AI response into database with select to get the row back
+    const { data: aiMsgData, error: insertError } = await supabaseAdmin
       .from('chat_messages')
       .insert({
         channel_id: channelId,
@@ -6806,7 +6902,9 @@ Be direct. Be concise. No extra text.`
         sender_name: 'Smartbookly AI',
         content: message.content,
         message_type: 'text'
-      });
+      })
+      .select()
+      .single();
     
     if (insertError) {
       console.error('❌ Failed to insert AI response:', insertError);
@@ -6816,10 +6914,13 @@ Be direct. Be concise. No extra text.`
       );
     }
     
+    console.log('✅ Direct AI message inserted with id:', aiMsgData?.id);
+    
     return new Response(
       JSON.stringify({ 
         success: true,
         content: message.content,
+        aiMessage: aiMsgData,
         toolCalls: []
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

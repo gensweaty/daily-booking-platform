@@ -63,13 +63,14 @@ export const CommentNotificationsListener: React.FC = () => {
               const actorName = c.created_by_name || 'Someone';
               const { title, body } = getTexts(actorName, taskTitle);
 
-              // Emit to Dynamic Island
+              // Emit to Dynamic Island - internal dashboard only
               window.dispatchEvent(new CustomEvent('dashboard-notification', {
                 detail: {
                   type: 'comment',
                   title,
                   message: body,
-                  actionData: { taskId: c.task_id }
+                  actionData: { taskId: c.task_id },
+                  targetAudience: 'internal'
                 }
               }));
 
@@ -119,10 +120,10 @@ export const CommentNotificationsListener: React.FC = () => {
           const comment: any = payload.new;
 
           try {
-            // Ensure this comment is for a task owned by the user
+            // Fetch task with creator info to determine who should be notified
             const { data: task, error: taskErr } = await supabase
               .from('tasks')
-              .select('id, title, user_id')
+              .select('id, title, user_id, created_by_type, created_by_name')
               .eq('id', comment.task_id)
               .maybeSingle();
             if (taskErr || !task || task.user_id !== user.id) return;
@@ -133,13 +134,29 @@ export const CommentNotificationsListener: React.FC = () => {
             const actorName = comment.created_by_name || 'Someone';
             const { title, body } = getTexts(actorName, task.title || 'Task');
 
-            // Emit to Dynamic Island
+            // ISOLATION FIX: If task was created by sub-user and admin is commenting,
+            // don't show notification to admin (it will be shown to sub-user via PublicCommentNotificationsListener)
+            const isSubUserTask = task.created_by_type === 'sub_user';
+            const isAdminComment = comment.created_by_type !== 'external_user' && comment.created_by_type !== 'sub_user';
+            
+            // Only show on admin dashboard if it's NOT an admin commenting on a sub-user's task
+            // (because then the notification belongs to the sub-user, not the admin)
+            if (isSubUserTask && isAdminComment) {
+              console.log('[CommentsNotify] Admin commented on sub-user task - skipping internal notification');
+              // Update last seen but don't show notification (sub-user will get it via PublicCommentNotificationsListener)
+              localStorage.setItem(`comments_last_seen_${user.id}`, new Date().toISOString());
+              return;
+            }
+
+            // Emit to Dynamic Island - internal dashboard only (for sub-users commenting on their tasks)
             window.dispatchEvent(new CustomEvent('dashboard-notification', {
               detail: {
                 type: 'comment',
                 title,
                 message: body,
-                actionData: { taskId: comment.task_id }
+                actionData: { taskId: comment.task_id },
+                targetAudience: 'internal',
+                recipientUserId: user.id, // ISOLATION: Explicitly target this admin
               }
             }));
 

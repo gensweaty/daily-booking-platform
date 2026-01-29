@@ -8,13 +8,28 @@ const HOURS = [
   ...Array.from({ length: 9 }, (_, i) => i) // 0 AM to 8 AM
 ];
 
-export const TimeIndicator = () => {
+interface TimeIndicatorProps {
+  view: 'day' | 'week';
+}
+
+export const TimeIndicator = ({ view }: TimeIndicatorProps) => {
   const isMobile = useMediaQuery("(max-width: 640px)");
+  
+  // Week view has h-12 header on mobile, h-10 on desktop
+  // Day view has h-10 header on all devices
+  const headerSpacerClass = view === 'week' && isMobile ? 'h-12' : 'h-10';
+  
+  // Adjust top padding to align timestamps with grid borders
+  // Fine-tuned values for perfect alignment
+  const getTimestampPadding = () => {
+    if (!isMobile) return 'pt-0.5';
+    return view === 'week' ? 'pt-[0.85rem]' : 'pt-[0.4rem]';
+  };
   
   return (
     <div className="w-12 sm:w-14 flex-shrink-0 border-r border-border/30 bg-muted/10">
-      {/* Adding a spacer for the week/day header that exists in the main grid */}
-      <div className="h-10 border-b border-border/25"></div>
+      {/* Spacer to match the header height */}
+      <div className={`${headerSpacerClass} border-b border-border/25`}></div>
       
       {HOURS.map((hour) => {
         const date = new Date();
@@ -25,7 +40,7 @@ export const TimeIndicator = () => {
             key={hour}
             className="h-12 border-b border-border/20 text-[0.65rem] sm:text-xs flex items-start justify-end"
           >
-            <div className="pr-1.5 sm:pr-2 pt-0.5 font-medium text-foreground/50">
+            <div className={`pr-1.5 sm:pr-2 ${getTimestampPadding()} font-medium text-foreground/50`}>
               {isMobile ? format(date, 'ha').replace('am', '').replace('pm', '') : format(date, 'h a')}
             </div>
           </div>

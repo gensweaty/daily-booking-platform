@@ -41,6 +41,8 @@ export const EventReminderNotifications = () => {
   }, [processedReminders]);
 
   // Fetch events with reminders
+  // ISOLATION FIX: Exclude events created by sub-users - those belong to the sub-user only
+  // Sub-user event reminders are handled by PublicBoardEventReminderNotifications
   const { data: events } = useQuery({
     queryKey: ['eventReminders', user?.id],
     queryFn: async () => {
@@ -54,9 +56,13 @@ export const EventReminderNotifications = () => {
         .select('*')
         .eq('user_id', user.id)
         .not('reminder_at', 'is', null)
-        .eq('email_reminder_enabled', true)
+        // IMPORTANT: Do NOT filter by email_reminder_enabled.
+        // Cron/email sender may flip this to false before the reminder time,
+        // which would otherwise prevent ALL in-app notifications.
         .lte('reminder_at', futureWindow.toISOString())
         .is('deleted_at', null)
+        // CRITICAL: Exclude sub-user created events - their reminders are handled separately
+        .or('created_by_type.is.null,created_by_type.neq.sub_user')
         .order('reminder_at', { ascending: true });
       
       if (error) {
@@ -66,7 +72,7 @@ export const EventReminderNotifications = () => {
       
       // Filter out events with invalid or missing IDs
       const filtered = (data || []).filter(ev => !!ev.id && typeof ev.id === 'string');
-      console.log('📅 Event reminders fetched:', data?.length || 0, 'filtered:', filtered.length);
+      console.log('📅 Event reminders fetched (admin only):', data?.length || 0, 'filtered:', filtered.length);
       return filtered;
     },
     enabled: !!user?.id,
@@ -211,13 +217,14 @@ export const EventReminderNotifications = () => {
 
           const eventTitle = event.title || event.user_surname || 'Event';
 
-          // Emit to Dynamic Island
+          // Emit to Dynamic Island - internal dashboard only
           window.dispatchEvent(new CustomEvent('dashboard-notification', {
             detail: {
               type: 'event_reminder',
               title: '📅 Event Reminder',
               message: `${t('events.eventReminder')}: ${eventTitle}`,
-              actionData: { eventId: event.id }
+              actionData: { eventId: event.id },
+              targetAudience: 'internal'
             }
           }));
           
@@ -237,12 +244,15 @@ export const EventReminderNotifications = () => {
           }
           
           // Send email reminder if enabled
-          if (event.email_reminder_enabled) {
+          if (event.email_reminder_enabled && !event.reminder_sent_at) {
             console.log('📧 About to call sendEmailReminder for event:', event.id);
             const emailSuccess = await sendEmailReminder(event);
             console.log('📧 Email reminder result:', emailSuccess ? 'SUCCESS' : 'FAILED');
           } else {
-            console.log('📧 Email reminder disabled for event:', event.id);
+            console.log('📧 Email reminder skipped for event:', event.id, {
+              email_reminder_enabled: event.email_reminder_enabled,
+              reminder_sent_at: event.reminder_sent_at,
+            });
           }
           
           console.log('📊 Dashboard notification: ✅ Sent');

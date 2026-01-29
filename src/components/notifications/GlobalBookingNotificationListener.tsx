@@ -91,13 +91,14 @@ export const GlobalBookingNotificationListener = () => {
               console.warn('[GlobalBookingNotificationListener] Failed to play sound:', error);
             }
 
-            // Emit to Dynamic Island
+            // Emit to Dynamic Island - internal dashboard only
             window.dispatchEvent(new CustomEvent('dashboard-notification', {
               detail: {
                 type: 'booking',
                 title,
                 message: description,
-                actionData: { bookingId: newRequest.id }
+                actionData: { bookingId: newRequest.id },
+                targetAudience: 'internal'
               }
             }));
 

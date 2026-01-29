@@ -18,6 +18,10 @@ import { validatePassword } from "@/utils/signupValidation";
 import { useTheme } from "next-themes";
 import { PublicCommentNotificationsListener } from "@/components/notifications/PublicCommentNotificationsListener";
 import { PublicProfileDialog } from "@/components/public/PublicProfileDialog";
+import { PublicBoardReminderNotifications } from "@/components/reminder/PublicBoardReminderNotifications";
+import { PublicBoardTaskReminderNotifications } from "@/components/tasks/PublicBoardTaskReminderNotifications";
+import { PublicBoardEventReminderNotifications } from "@/components/Calendar/PublicBoardEventReminderNotifications";
+import { preloadNotificationSound, addMobileAudioUnlockListener } from "@/utils/audioManager";
 
 // Password hashing utilities (PBKDF2, client-side)
 const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -84,6 +88,13 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
       navigate("/");
     }
   }, [slug]);
+
+  // MOBILE: Add audio unlock listener when authenticated to ensure notifications work
+  useEffect(() => {
+    if (isAuthenticated) {
+      addMobileAudioUnlockListener();
+    }
+  }, [isAuthenticated]);
 
   // Function to fetch avatar URL for sub-users
   const fetchSubUserAvatar = async (userEmail: string) => {
@@ -158,13 +169,14 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
         if (storedData) {
           try {
             const parsedData = JSON.parse(storedData);
-            const { token, fullName: storedFullName, email: storedEmail } = parsedData;
+            const { token, fullName: storedFullName, email: storedEmail, subUserId } = parsedData;
             localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
               token,
               timestamp: Date.now(),
               fullName: storedFullName,
               email: storedEmail,
               boardOwnerId: boardData?.user_id,
+              subUserId,
             }));
 
             // Dispatch custom event for immediate same-tab detection
@@ -273,6 +285,8 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
         const normalizedEmail = (storedEmail || '').trim().toLowerCase();
         let displayName = storedFullName || tokenInfo.external_user_name || normalizedEmail;
 
+        let resolvedSubUserId: string | undefined = undefined;
+
         if (normalizedEmail) {
           // Verify sub user still exists using SECURITY DEFINER RPC (bypasses RLS)
           const { data: subData, error: subErr } = await supabase.rpc('get_sub_user_auth', {
@@ -280,6 +294,7 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
             p_email: normalizedEmail,
           });
           const subUser = (subData && subData[0]) || null;
+          resolvedSubUserId = subUser?.id;
           if (!subUser || subErr) {
             // Token is invalid because sub user was removed – clear and force re-auth
             localStorage.removeItem(`public-board-access-${slug}`);
@@ -318,6 +333,9 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
         setFullName(displayName);
         setEmail(normalizedEmail);
         await fetchSubUserAvatar(normalizedEmail);
+        
+        // CRITICAL: Preload audio for mobile notification sounds (session restore counts as user interaction context)
+        preloadNotificationSound();
 
         // Persist refreshed info
         localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
@@ -326,6 +344,7 @@ const [isRegisterMode, setIsRegisterMode] = useState(false);
           fullName: displayName,
           email: normalizedEmail,
           boardOwnerId: tokenInfo.user_id,
+          subUserId: resolvedSubUserId,
         }));
 
         // Dispatch custom event for immediate same-tab detection
@@ -434,6 +453,7 @@ const handleLogin = async () => {
         fullName: actualFullName,
         email: normalizedEmail,
         boardOwnerId: boardData.user_id,
+        subUserId: subUser.id,
       }));
 
       // Dispatch custom event for immediate same-tab detection
@@ -444,6 +464,9 @@ const handleLogin = async () => {
       setFullName(actualFullName);
       setEmail(normalizedEmail);
       await fetchSubUserAvatar(normalizedEmail);
+      
+      // CRITICAL: Preload audio on login (user interaction) for mobile notification sounds
+      preloadNotificationSound();
 
       toast({ title: t('common.success'), description: t('publicBoard.welcomeToBoard') });
     } catch (error: any) {
@@ -618,6 +641,7 @@ const handleRegister = async () => {
         fullName: fullName.trim(),
         email: normalizedEmail,
         boardOwnerId: boardData.user_id,
+        subUserId,
       }));
 
       // Dispatch custom event for immediate same-tab detection
@@ -626,6 +650,9 @@ const handleRegister = async () => {
       setIsAuthenticated(true);
       setEmail(normalizedEmail);
       await fetchSubUserAvatar(normalizedEmail);
+      
+      // CRITICAL: Preload audio on register (user interaction) for mobile notification sounds
+      preloadNotificationSound();
 
       // Clear sensitive fields
       setPassword("");
@@ -881,6 +908,17 @@ const handleRegister = async () => {
               boardUserId={boardData.user_id} 
               externalUserName={fullName} 
             />
+            {/* Sub-user custom reminder notifications - ISOLATED from admin's reminders */}
+            <PublicBoardReminderNotifications 
+              boardOwnerId={boardData.user_id}
+            />
+            {/* Sub-user TASK reminder notifications - ISOLATED from admin's task reminders */}
+            <PublicBoardTaskReminderNotifications
+              boardOwnerId={boardData.user_id}
+              externalUserName={fullName}
+            />
+            {/* Sub-user EVENT reminder notifications - ISOLATED from admin's event reminders */}
+            <PublicBoardEventReminderNotifications />
             <PublicBoardNavigation
               boardId={boardData.id}
               boardUserId={boardData.user_id}

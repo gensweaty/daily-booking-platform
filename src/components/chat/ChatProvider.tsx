@@ -14,6 +14,8 @@ import { useServerUnread } from "@/hooks/useServerUnread";
 import { useEnhancedRealtimeChat } from '@/hooks/useEnhancedRealtimeChat';
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useAIChannel } from "@/hooks/useAIChannel";
+import { addMobileAudioUnlockListener } from "@/utils/audioManager";
+
 
 type Me = { 
   id: string; 
@@ -339,11 +341,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Enhanced notifications - request permission immediately
   const { requestPermission, showNotification } = useEnhancedNotifications();
+  
+  // NOTE: useNotificationParticipants removed - direct notification to current session doesn't need participant lookups
 
   // Request browser notification permission once the chat is available to the user
   useEffect(() => {
     if (shouldShowChat) {
       try { requestPermission(); } catch {}
+      
+      // MOBILE: Add audio unlock listener for notification sounds on mobile
+      addMobileAudioUnlockListener();
     }
   }, [shouldShowChat, requestPermission]);
 
@@ -446,10 +453,38 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('🔄 Polled message received:', { id: message.id, channel: message.channel_id, type: message.message_type });
 
-      // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
+      // SPECIAL CASE: Always notify for reminder alerts, but ONLY if it's for the current user
+      // CRITICAL FIX: reminder_alert messages contain metadata specifying the intended recipient
       const isReminderAlert = message.message_type === 'reminder_alert';
       if (isReminderAlert) {
-        console.log('🔔 Reminder alert detected from polling - forcing notification + badge');
+        console.log('🔔 Reminder alert detected from polling');
+        
+        // CRITICAL: Check metadata to determine if this reminder is for the current user
+        const metadata = (message.metadata || {}) as { 
+          recipient_type?: string; 
+          recipient_user_id?: string; 
+          recipient_sub_user_id?: string;
+          recipient_email?: string;
+        };
+        console.log('🔍 Reminder metadata:', metadata);
+        console.log('🔍 Current user context:', { meId: me?.id, meType: me?.type, meEmail: me?.email, isOnPublicBoard });
+        
+        // Determine if this reminder is intended for the current session's user
+        const isForMe = 
+          // Admin user receives admin-targeted reminders
+          (metadata.recipient_type === 'admin' && me?.type === 'admin' && me?.id === metadata.recipient_user_id) ||
+          // Sub-user receives sub-user-targeted reminders (match by UUID)
+          (metadata.recipient_type === 'sub_user' && me?.type === 'sub_user' && me?.id === metadata.recipient_sub_user_id) ||
+          // Sub-user fallback: match by email (case-insensitive)
+          (metadata.recipient_type === 'sub_user' && me?.type === 'sub_user' && me?.email && 
+           metadata.recipient_email?.toLowerCase() === me.email.toLowerCase());
+        
+        if (!isForMe) {
+          console.log('⏭️ Reminder not for current user, skipping notification');
+          return;
+        }
+        
+        console.log('✅ Reminder IS for current user, showing notification');
         
         // Set rtBump for badge FIRST
         const isViewingReminderChannel = isOpen && currentChannelId === message.channel_id;
@@ -463,17 +498,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           });
         }
         
-        // Then play sound and show notification
+        // Then play sound
         import('@/utils/audioManager')
           .then(({ playNotificationSound }) => playNotificationSound())
           .catch(() => {});
-        showNotification({
-          title: 'Reminder Alert',
-          body: message.content,
-          channelId: message.channel_id,
-          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-          senderName: 'Smartbookly AI',
-        });
+        
+        // DUPLICATE FIX: On internal dashboard, DO NOT dispatch showNotification for reminder_alert
+        // because CustomReminderNotifications.tsx already dispatches the custom_reminder notification
+        // to the Dynamic Island. Only dispatch for public board sub-users who need the chat-based alert.
+        if (isOnPublicBoard) {
+          showNotification({
+            title: 'Reminder Alert',
+            body: message.content,
+            channelId: message.channel_id,
+            senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+            senderName: 'Smartbookly AI',
+            targetAudience: 'public',
+            recipientSubUserId: me?.id,
+            recipientSubUserEmail: me?.email?.toLowerCase(),
+          });
+        }
         return;
       }
 
@@ -512,20 +556,31 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         // ALWAYS play sound and show notification (unless viewing the channel)
         if (!skipBecauseOpen) {
           console.log('🔊 Playing sound for polled message:', message.channel_id);
-          // Special handling for AI messages - they should always notify
-          const isAIMessage = message.sender_name === 'Smartbookly AI';
-          const shouldShow = isAIMessage || userChannels.has(message.channel_id);
+          // SECURITY/ISOLATION: Never notify for channels the current viewer isn't a participant of.
+          // Reminder alerts are handled above and always notify.
+          const shouldShow = userChannels.has(message.channel_id);
           
           if (shouldShow) {
             import('@/utils/audioManager')
               .then(({ playNotificationSound }) => playNotificationSound())
               .catch(() => {});
+            
+            // CRITICAL FIX: Dispatch notification directly to the CURRENT session
+            // Don't fetch participants (fails for external users due to RLS)
+            console.log('📤 [Polled] Dispatching notification to current user:', me?.id, me?.type);
             showNotification({
               title: `${message.sender_name || 'Someone'} messaged`,
               body: message.content,
               channelId: message.channel_id,
               senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
               senderName: message.sender_name || 'Unknown',
+              // Target based on current session type
+              targetAudience: me?.type === 'sub_user' ? 'public' : 'internal',
+              // For sub-users on public board
+              recipientSubUserId: me?.type === 'sub_user' ? me?.id : undefined,
+              recipientSubUserEmail: me?.type === 'sub_user' ? me?.email?.toLowerCase() : undefined,
+              // For admins on internal dashboard
+              recipientUserId: me?.type === 'admin' ? me?.id : undefined,
             });
           }
         }
@@ -534,7 +589,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
     window.addEventListener('chat-message-received', onPolledMessage as EventListener);
     return () => window.removeEventListener('chat-message-received', onPolledMessage as EventListener);
-  }, [boardOwnerId, me?.id, me?.type, isOpen, currentChannelId, userChannels, showNotification, isOnPublicBoard]);
+  }, [boardOwnerId, me?.id, me?.type, me?.email, isOpen, currentChannelId, userChannels, showNotification, isOnPublicBoard]);
 
   // Avoid re-processing the same message (prevents repeat sounds & badge churn)
   const seenMessageIdsRef = React.useRef<Set<string>>(new Set());
@@ -543,10 +598,38 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const handleNewMessage = useCallback((message: any) => {
     console.log('📨 Enhanced realtime message received:', { id: message.id, channel: message.channel_id, type: message.message_type });
 
-    // SPECIAL CASE: Always notify for reminder alerts, regardless of sender
+    // SPECIAL CASE: Always notify for reminder alerts, but ONLY if it's for the current user
+    // CRITICAL FIX: reminder_alert messages contain metadata specifying the intended recipient
     const isReminderAlert = message.message_type === 'reminder_alert';
     if (isReminderAlert) {
-      console.log('🔔 Reminder alert from realtime - forcing notification + badge');
+      console.log('🔔 Reminder alert from realtime');
+      
+      // CRITICAL: Check metadata to determine if this reminder is for the current user
+      const metadata = (message.metadata || {}) as { 
+        recipient_type?: string; 
+        recipient_user_id?: string; 
+        recipient_sub_user_id?: string;
+        recipient_email?: string;
+      };
+      console.log('🔍 Reminder metadata:', metadata);
+      console.log('🔍 Current user context:', { meId: me?.id, meType: me?.type, meEmail: me?.email, isOnPublicBoard });
+      
+      // Determine if this reminder is intended for the current session's user
+      const isForMe = 
+        // Admin user receives admin-targeted reminders
+        (metadata.recipient_type === 'admin' && me?.type === 'admin' && me?.id === metadata.recipient_user_id) ||
+        // Sub-user receives sub-user-targeted reminders (match by UUID)
+        (metadata.recipient_type === 'sub_user' && me?.type === 'sub_user' && me?.id === metadata.recipient_sub_user_id) ||
+        // Sub-user fallback: match by email (case-insensitive)
+        (metadata.recipient_type === 'sub_user' && me?.type === 'sub_user' && me?.email && 
+         metadata.recipient_email?.toLowerCase() === me.email.toLowerCase());
+      
+      if (!isForMe) {
+        console.log('⏭️ Reminder not for current user, skipping notification');
+        return;
+      }
+      
+      console.log('✅ Reminder IS for current user, showing notification');
       
       // CRITICAL: Set realtime bump for badge to appear instantly
       const isViewingReminderChannel = isOpen && currentChannelId === message.channel_id;
@@ -565,13 +648,22 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       import('@/utils/audioManager')
         .then(({ playNotificationSound }) => playNotificationSound())
         .catch(() => {});
-      showNotification({
-        title: 'Reminder Alert',
-        body: message.content,
-        channelId: message.channel_id,
-        senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
-        senderName: 'Smartbookly AI',
-      });
+      
+      // DUPLICATE FIX: On internal dashboard, DO NOT dispatch showNotification for reminder_alert
+      // because CustomReminderNotifications.tsx already dispatches the custom_reminder notification
+      // to the Dynamic Island. Only dispatch for public board sub-users who need the chat-based alert.
+      if (isOnPublicBoard) {
+        showNotification({
+          title: 'Reminder Alert',
+          body: message.content,
+          channelId: message.channel_id,
+          senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
+          senderName: 'Smartbookly AI',
+          targetAudience: 'public',
+          recipientSubUserId: me?.id,
+          recipientSubUserEmail: me?.email?.toLowerCase(),
+        });
+      }
       // Dispatch event for message display (badge already handled above)
       window.dispatchEvent(new CustomEvent('chat-message-received', { detail: { message } }));
       return;
@@ -631,13 +723,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           return false;
         }
         
-        // Special handling for AI messages - they should always notify
-        const isAIMessage = message.sender_name === 'Smartbookly AI';
-        if (isAIMessage) {
-          console.log('✅ AI message - always notify');
-          return true;
-        }
-        
         // CRITICAL: Only show notifications if user is a participant of this channel
         // Check both the cached userChannels and fallback to database verification for immediate accuracy
         if (userChannels.has(message.channel_id)) {
@@ -671,29 +756,34 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return false;
       };
 
-      shouldAlert().then((shouldShow) => {
-        console.log('🔔 Should show notification for channel', message.channel_id, ':', shouldShow);
-        if (shouldShow) {
-          // Always play sound, regardless of notification permission/state
+      shouldAlert().then(async (shouldShowForMe) => {
+        console.log('🔔 Should show notification for me:', shouldShowForMe);
+        
+        // CRITICAL FIX: Show notification directly to the CURRENT user if they passed shouldAlert()
+        // This works for BOTH internal admins AND external sub-users without RLS issues
+        if (shouldShowForMe) {
           console.log('🔊 Playing notification sound for message from:', message.sender_name);
           import('@/utils/audioManager')
-            .then(({ playNotificationSound }) => {
-              console.log('✅ Sound module loaded, playing...');
-              return playNotificationSound();
-            })
+            .then(({ playNotificationSound }) => playNotificationSound())
             .catch((error) => console.error('❌ Failed to play sound:', error));
           
-          // Also attempt system notification
-          console.log('📱 Showing system notification');
+          // Dispatch notification to the CURRENT session directly
+          // No need to fetch participants (which fails for external users due to RLS)
+          console.log('📤 Dispatching notification to current user:', me?.id, me?.type);
           showNotification({
             title: `${message.sender_name || 'Someone'} messaged`,
             body: message.content,
             channelId: message.channel_id,
             senderId: message.sender_user_id || message.sender_sub_user_id || 'unknown',
             senderName: message.sender_name || 'Unknown',
+            // Target based on current session type
+            targetAudience: me?.type === 'sub_user' ? 'public' : 'internal',
+            // For sub-users on public board
+            recipientSubUserId: me?.type === 'sub_user' ? me?.id : undefined,
+            recipientSubUserEmail: me?.type === 'sub_user' ? me?.email?.toLowerCase() : undefined,
+            // For admins on internal dashboard
+            recipientUserId: me?.type === 'admin' ? me?.id : undefined,
           });
-        } else {
-          console.log('⏭️ Notification skipped - not a participant or viewing channel');
         }
       });
     } else if (isUpdate) {
@@ -706,7 +796,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     window.dispatchEvent(new CustomEvent('chat-message-received', {
       detail: { message }
     }));
-  }, [boardOwnerId, me, isOpen, currentChannelId, showNotification, userChannels]);
+  }, [boardOwnerId, me, isOpen, currentChannelId, showNotification, userChannels, refreshUnread]);
 
   // Real-time setup - FIXED: enable only for authenticated users, external users use polling
   const realtimeEnabled = shouldShowChat && isInitialized && !!boardOwnerId && !!me?.id && !isExternalUser;
@@ -910,6 +1000,35 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for external events to open chat channels
+  useEffect(() => {
+    const handleOpenAiChat = () => {
+      console.log('🤖 Opening AI chat from notification');
+      if (aiChannelId) {
+        openChannel(aiChannelId);
+      } else {
+        // Just open chat - AI channel will be selected automatically
+        setIsOpen(true);
+      }
+    };
+
+    const handleOpenChatChannel = (e: CustomEvent<{ channelId: string }>) => {
+      const channelId = e.detail?.channelId;
+      console.log('💬 Opening chat channel from notification:', channelId);
+      if (channelId) {
+        openChannel(channelId);
+      }
+    };
+
+    window.addEventListener('open-chat-ai', handleOpenAiChat as EventListener);
+    window.addEventListener('chat-open-channel', handleOpenChatChannel as EventListener);
+
+    return () => {
+      window.removeEventListener('open-chat-ai', handleOpenAiChat as EventListener);
+      window.removeEventListener('chat-open-channel', handleOpenChatChannel as EventListener);
+    };
+  }, [aiChannelId, openChannel]);
+
   // FAST LOADING: Detailed logging to identify bottleneck
   useEffect(() => {
     let active = true;
@@ -959,39 +1078,41 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('✅ [CHAT] Step 2 complete in', performance.now() - step2Start, 'ms');
       } else if (isOnPublicBoard) {
         if (publicBoardUser?.id) {
-          console.log('👤 [CHAT] Public board user detected, resolving UUID...');
+          console.log('👤 [CHAT] Public board user detected, resolving UUID via RPC...');
           
           try {
-            // Resolve the actual sub-user UUID from the database
-            const { data: subUser, error: subUserError } = await supabase
-              .from('sub_users')
-              .select('id, email, fullname, avatar_url')
-              .eq('board_owner_id', resolvedBoardOwnerId)
-              .eq('email', publicBoardUser.email)
-              .maybeSingle();
+            // CRITICAL FIX: Use RPC (SECURITY DEFINER) to bypass RLS restrictions
+            // Direct sub_users queries fail for unauthenticated public board users
+            const { data: subUserData, error: subUserError } = await supabase.rpc('get_sub_user_auth', {
+              p_owner_id: resolvedBoardOwnerId,
+              p_email: publicBoardUser.email
+            });
             
-            if (!subUserError && subUser) {
-              console.log('✅ [CHAT] Resolved sub-user UUID:', subUser.id);
+            const subUser = subUserData && subUserData[0];
+            
+            if (!subUserError && subUser?.id) {
+              console.log('✅ [CHAT] Resolved sub-user UUID via RPC:', subUser.id);
               setMe({
-                id: subUser.id, // Use actual UUID from database
+                id: subUser.id, // Use actual UUID from RPC
                 type: 'sub_user',
                 name: subUser.fullname || publicBoardUser.fullName || 'Member',
                 email: publicBoardUser.email,
-                avatarUrl: subUser.avatar_url || undefined,
+                // Note: avatar_url not returned by get_sub_user_auth RPC
               });
             } else {
-              console.log('⚠️ [CHAT] Using email as fallback ID');
+              console.log('⚠️ [CHAT] RPC failed or no user found, using publicBoardUser.id:', publicBoardUser.id);
+              // publicBoardUser.id should already be UUID if PublicBoardAuthContext is working correctly
               setMe({
-                id: publicBoardUser.id, // Keep original (email) as fallback
+                id: publicBoardUser.id,
                 type: 'sub_user',
                 name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
                 email: publicBoardUser.email,
               });
             }
           } catch (error) {
-            console.error('❌ [CHAT] Error resolving sub-user UUID:', error);
+            console.error('❌ [CHAT] Error resolving sub-user UUID via RPC:', error);
             setMe({
-              id: publicBoardUser.id, // Fallback to original
+              id: publicBoardUser.id,
               type: 'sub_user',
               name: publicBoardUser.fullName || publicBoardUser.email?.split('@')[0] || 'Member',
               email: publicBoardUser.email,
@@ -1001,21 +1122,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         } else if (hasPublicAccess) {
           console.log('👤 [CHAT] Public access user detected');
           const access = getPublicAccess(location.pathname);
-          if (access.hasAccess && access.storedOwnerId === resolvedBoardOwnerId) {
+          if (access.hasAccess && access.storedOwnerId === resolvedBoardOwnerId && access.email) {
             try {
-              const { data: su } = await supabase
-                .from('sub_users')
-                .select('id, fullname, avatar_url')
-                .eq('board_owner_id', resolvedBoardOwnerId)
-                .eq('email', access.email)
-                .maybeSingle();
+              // CRITICAL FIX: Use RPC (SECURITY DEFINER) to bypass RLS restrictions
+              const { data: suData } = await supabase.rpc('get_sub_user_auth', {
+                p_owner_id: resolvedBoardOwnerId,
+                p_email: access.email
+              });
+              const su = suData && suData[0];
               if (su?.id) {
                 setMe({
                   id: su.id,
                   type: 'sub_user',
                   name: su.fullname || access.fullName,
                   email: access.email,
-                  avatarUrl: su.avatar_url || undefined,
                 });
               } else {
                 setMe({

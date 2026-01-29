@@ -19,12 +19,15 @@ export function CustomReminderNotifications() {
       const now = new Date();
       const futureWindow = new Date(now.getTime() + 5 * 60 * 1000); // 5 minutes window (same as tasks)
       
+      // ISOLATION FIX: Only fetch reminders created by admin (NOT sub-users)
+      // Sub-user reminders are handled by PublicBoardReminderNotifications
       const { data, error } = await supabase
         .from('custom_reminders')
         .select('*')
         .eq('user_id', user.id)
         .lte('remind_at', futureWindow.toISOString())
         .is('deleted_at', null)
+        .or('created_by_type.is.null,created_by_type.neq.sub_user') // Exclude sub-user reminders
         .order('remind_at', { ascending: true });
       
       if (error) {
@@ -106,13 +109,17 @@ export function CustomReminderNotifications() {
         // Show dashboard notification
         showDashboardNotification(reminder.title, reminder.message);
 
-        // Emit to Dynamic Island
+        // Emit to Dynamic Island - IMPORTANT: Only for internal dashboard admin
+        // Sub-user reminders are handled via AI chat reminder_alert messages in their own context
+        // CRITICAL FIX: Include explicit recipientUserId to prevent cross-user leaks
         window.dispatchEvent(new CustomEvent('dashboard-notification', {
           detail: {
             type: 'custom_reminder',
             title: `🔔 Reminder: ${reminder.title}`,
             message: reminder.message || 'Time for your scheduled reminder',
-            actionData: { reminderId: reminder.id }
+            actionData: { reminderId: reminder.id },
+            targetAudience: 'internal', // Only show on internal dashboard, not public board
+            recipientUserId: user?.id, // CRITICAL: Explicit targeting to this admin only
           }
         }));
         

@@ -48,7 +48,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const { toast } = useToast();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
   const { t, language } = useLanguage();
   const isGeorgian = language === 'ka';
   const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
@@ -58,6 +58,46 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [userProfileName, setUserProfileName] = useState<string | null>(null);
   const [teamManagementOpen, setTeamManagementOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const [mounted, setMounted] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState<string>('dark');
+
+  // Handle theme detection after mount
+  useEffect(() => {
+    setMounted(true);
+    
+    const updateTheme = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setCurrentTheme(isDark ? 'dark' : 'light');
+    };
+    
+    // Initial check
+    updateTheme();
+    
+    // Listen for theme changes
+    const handleThemeChange = () => updateTheme();
+    document.addEventListener('themeChanged', handleThemeChange);
+    document.addEventListener('themeInit', handleThemeChange);
+    
+    // Also use MutationObserver to catch class changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          updateTheme();
+        }
+      });
+    });
+    
+    observer.observe(document.documentElement, { attributes: true });
+    
+    return () => {
+      document.removeEventListener('themeChanged', handleThemeChange);
+      document.removeEventListener('themeInit', handleThemeChange);
+      observer.disconnect();
+    };
+  }, []);
+
+  // Use the properly detected theme for logo
+  const effectiveTheme = mounted ? currentTheme : (resolvedTheme || theme || 'dark');
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -354,7 +394,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
       <div className="flex items-center justify-between mb-3">
         <Link to="/" className="flex items-center gap-2">
           <img 
-            src={theme === 'dark' 
+            src={effectiveTheme === 'dark' 
               ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
               : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
             }

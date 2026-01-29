@@ -101,10 +101,13 @@ export const CalendarHeader = ({
           </Button>
 
           <h2 className={cn(
-            "text-sm font-semibold tracking-tight whitespace-nowrap truncate max-w-[45vw]",
+            "text-sm font-semibold tracking-tight whitespace-nowrap mr-2",
             isGeorgian ? "font-georgian" : ""
           )}>
-            {getFormattedDate()}
+            {view === "month" 
+              ? (isGeorgian ? `${selectedDate.getFullYear()} ${formatDate(selectedDate, "monthYear").split(' ')[0]}` : formatDate(selectedDate, "monthYear"))
+              : formatDate(selectedDate, "dayMonth")
+            }
           </h2>
         </div>
 
@@ -113,13 +116,16 @@ export const CalendarHeader = ({
             onClick={onAddEvent}
             size="sm" 
             className={cn(
-              "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90",
-              isGeorgian ? "font-georgian" : ""
+              "font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r from-primary to-primary/85 text-primary-foreground hover:from-primary/95 hover:to-primary/80 border border-primary/20",
+              isGeorgian ? "font-georgian h-8 px-3 text-xs" : "h-8 px-3"
             )}
             type="button"
           >
             <Plus className="h-4 w-4" />
-            {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+            {isExternalCalendar 
+              ? t("calendar.bookNow") 
+              : (isGeorgian ? "ჯავშნის დამატება" : t("calendar.addEvent"))
+            }
           </Button>
         )}
       </div>
@@ -332,13 +338,16 @@ export const CalendarHeader = ({
               onClick={onAddEvent}
               size="sm" 
               className={cn(
-                "font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] bg-primary text-primary-foreground hover:bg-primary/90",
+                "font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r from-primary to-primary/85 text-primary-foreground hover:from-primary/95 hover:to-primary/80 border border-primary/20",
                 isGeorgian ? "font-georgian" : ""
               )}
               type="button"
             >
               <Plus className="h-4 w-4" />
-              {isExternalCalendar ? t("calendar.bookNow") : t("calendar.addEvent")}
+              {isExternalCalendar 
+                ? t("calendar.bookNow") 
+                : (isGeorgian ? "ჯავშნის დამატება" : t("calendar.addEvent"))
+              }
             </Button>
           )}
         </div>

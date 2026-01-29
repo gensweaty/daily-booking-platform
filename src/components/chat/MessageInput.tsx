@@ -334,6 +334,14 @@ export const MessageInput = ({
           
           if (data?.success) {
             console.log('✅ AI response received and saved');
+            
+            // Dispatch event to immediately show AI message (deterministic display)
+            if (data.aiMessage) {
+              console.log('📤 Dispatching chat-message-received event for AI message id:', data.aiMessage.id);
+              window.dispatchEvent(new CustomEvent('chat-message-received', { 
+                detail: { message: data.aiMessage } 
+              }));
+            }
           } else if (data?.error) {
             console.error('❌ AI returned error:', data.error);
             toast({ 
@@ -433,15 +441,30 @@ export const MessageInput = ({
 
   const validateAndCollect = (files: File[]) => {
     const valid: File[] = [];
+    const maxSizeMB = 5;
+    const maxSizeBytes = maxSizeMB * 1024 * 1024;
+    
     for (const file of files) {
       const okType = isAllowed(file);
-      const okSize = file.size <= 5 * 1024 * 1024; // 5MB limit
+      const okSize = file.size <= maxSizeBytes;
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      
       if (!okType) {
-        toast({ title: "Invalid file type", description: `${file.name} is not a supported file type`, variant: "destructive" });
+        toast({ 
+          title: "⚠️ File type not supported", 
+          description: `"${file.name}" cannot be uploaded. Supported: images, PDF, Word, Excel, audio.`, 
+          variant: "destructive",
+          duration: 5000,
+        });
         continue;
       }
       if (!okSize) {
-        toast({ title: "File too large", description: `${file.name} exceeds 5MB limit`, variant: "destructive" });
+        toast({ 
+          title: "⚠️ File too large", 
+          description: `"${file.name}" (${fileSizeMB}MB) exceeds the ${maxSizeMB}MB limit. Please compress or use a smaller file.`, 
+          variant: "destructive",
+          duration: 5000,
+        });
         continue;
       }
       valid.push(file);

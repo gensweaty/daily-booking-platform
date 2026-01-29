@@ -487,10 +487,38 @@ const handler = async (req: Request): Promise<Response> => {
     // This ensures users get notified even if email sending fails
     if (actualOwnerId) {
       try {
-        // For events, always use admin identity (events are owned by admin)
-        const userIdentity = `A:${actualOwnerId}`;
+        // ISOLATION FIX: Route chat message to the correct AI channel based on creator
+        // If created by sub-user, send to sub-user's AI channel, NOT admin's
+        let userIdentity: string;
+        let recipientSubUserId: string | null = null;
+        let recipientSubUserEmail: string | null = null;
         
-        console.log(`🔍 Looking up AI channel for event reminder: ${userIdentity}`);
+        if (event.created_by_type === 'sub_user' && event.created_by_name) {
+          // Sub-user created event - find their sub_user record
+          const { data: subUserData } = await supabase
+            .from('sub_users')
+            .select('id, email')
+            .eq('board_owner_id', actualOwnerId)
+            .or(`fullname.eq.${event.created_by_name},email.ilike.${event.created_by_name}`)
+            .limit(1)
+            .single();
+          
+          if (subUserData) {
+            // Use sub-user identity for AI channel
+            userIdentity = `S:${subUserData.id}`;
+            recipientSubUserId = subUserData.id;
+            recipientSubUserEmail = subUserData.email;
+            console.log(`🔍 Event created by sub-user, routing to sub-user AI channel: ${userIdentity}`);
+          } else {
+            // Fallback to admin if sub-user not found
+            userIdentity = `A:${actualOwnerId}`;
+            console.log(`⚠️ Sub-user not found for ${event.created_by_name}, falling back to admin channel`);
+          }
+        } else {
+          // Admin created event - use admin identity
+          userIdentity = `A:${actualOwnerId}`;
+          console.log(`🔍 Event created by admin, routing to admin AI channel: ${userIdentity}`);
+        }
         
         // Use the same RPC function that frontend uses to get/create AI channel
         const { data: aiChannelId, error: channelError } = await supabase.rpc(
@@ -522,6 +550,17 @@ const handler = async (req: Request): Promise<Response> => {
             ? `📅 Напоминание о событии\n\n${eventTitle}\n\n🕐 Начало: ${formattedStartDate}${formattedEndDate ? `\n🕐 Конец: ${formattedEndDate}` : ''}`
             : `📅 Event Reminder\n\n${eventTitle}\n\n🕐 Start: ${formattedStartDate}${formattedEndDate ? `\n🕐 End: ${formattedEndDate}` : ''}`;
           
+          // Build metadata for recipient routing (ensures correct Dynamic Island targeting)
+          const messageMetadata: Record<string, any> = {};
+          if (recipientSubUserId) {
+            messageMetadata.recipient_type = 'sub_user';
+            messageMetadata.recipient_sub_user_id = recipientSubUserId;
+            messageMetadata.recipient_email = recipientSubUserEmail;
+          } else {
+            messageMetadata.recipient_type = 'admin';
+            messageMetadata.recipient_user_id = actualOwnerId;
+          }
+          
           const { error: chatError } = await supabase
             .from('chat_messages')
             .insert({
@@ -531,13 +570,14 @@ const handler = async (req: Request): Promise<Response> => {
               sender_user_id: actualOwnerId,
               sender_name: 'Smartbookly AI',
               owner_id: actualOwnerId,
-              message_type: 'text'
+              message_type: 'event_reminder',
+              metadata: messageMetadata
             });
           
           if (chatError) {
             console.error(`❌ Error sending chat reminder for event ${event.id}:`, chatError);
           } else {
-            console.log(`✅ Sent event reminder chat message for ${event.id}`);
+            console.log(`✅ Sent event reminder chat message for ${event.id} to ${recipientSubUserId ? 'sub-user' : 'admin'} channel`);
           }
         } else {
           console.log(`⚠️ No AI channel found for ${userIdentity}`);

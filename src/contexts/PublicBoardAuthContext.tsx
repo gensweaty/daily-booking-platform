@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 interface PublicBoardUser {
   id: string;
@@ -29,7 +29,13 @@ export const usePublicBoardAuth = () => {
 };
 
 export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { slug } = useParams<{ slug: string }>();
+  // IMPORTANT: This provider is mounted above <Routes/>, so useParams() is not reliable here.
+  // Use location.pathname to derive the public board slug deterministically.
+  const location = useLocation();
+  const slug = (() => {
+    const match = location.pathname.match(/^\/board\/([^/]+)/);
+    return match?.[1];
+  })();
   const [user, setUser] = useState<PublicBoardUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPublicBoard, setIsPublicBoard] = useState(false);
@@ -37,10 +43,10 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
   useEffect(() => {
       const checkPublicBoardAuth = () => {
         // Check if we're on a public board route
-        const isOnPublicBoard = !!slug && window.location.pathname.includes(`/board/${slug}`);
+        const isOnPublicBoard = !!slug && location.pathname.includes(`/board/${slug}`);
         setIsPublicBoard(isOnPublicBoard);
         
-        console.log('🔍 PublicBoardAuth: Checking auth, isOnPublicBoard:', isOnPublicBoard, 'slug:', slug, 'path:', window.location.pathname);
+        console.log('🔍 PublicBoardAuth: Checking auth, isOnPublicBoard:', isOnPublicBoard, 'slug:', slug, 'path:', location.pathname);
 
         if (isOnPublicBoard && slug) {
           console.log('🔍 PublicBoardAuth: Setting loading true for authentication check');
@@ -59,7 +65,7 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
           if (storedData) {
             try {
               const parsedData = JSON.parse(storedData);
-              const { fullName, email, timestamp, boardOwnerId } = parsedData;
+              const { fullName, email, timestamp, boardOwnerId, subUserId } = parsedData;
               
               // Check if token is not expired (3 hours)
               const threeHoursInMs = 3 * 60 * 60 * 1000;
@@ -71,7 +77,8 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
                 // For chat to work, we need the actual sub-user database ID
                 // This will be resolved in ChatProvider when it queries the sub_users table
                 const publicUser = {
-                  id: email, // Use email as temporary ID, ChatProvider will resolve to real DB ID
+                  // Prefer real DB UUID when available; fall back to email for legacy sessions.
+                  id: (typeof subUserId === 'string' && subUserId.length > 0) ? subUserId : email,
                   email,
                   fullName,
                   boardOwnerId
@@ -113,6 +120,12 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
 
     checkPublicBoardAuth();
 
+    // If we can't derive a slug, we're not on a public board route.
+    // Avoid installing global listeners / monkey-patching localStorage.
+    if (!slug) {
+      return;
+    }
+
     // Listen for localStorage changes (when user logs in/out on public board)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === `public-board-access-${slug}`) {
@@ -139,7 +152,7 @@ export const PublicBoardAuthProvider: React.FC<{ children: React.ReactNode }> = 
       window.removeEventListener('storage', handleStorageChange);
       localStorage.setItem = originalSetItem;
     };
-  }, [slug]);
+  }, [slug, location.pathname]);
 
   const value = {
     user,
