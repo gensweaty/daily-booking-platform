@@ -188,15 +188,19 @@ export const PublicDynamicIsland = ({ username, boardUserId }: PublicDynamicIsla
               ? '0 4px 20px hsl(0 0% 0% / 0.25)'
               : '0 4px 16px hsl(220 14% 50% / 0.12)',
         }}
-        transition={{ 
+        transition={isExpanded ? { 
+          type: "tween",
+          duration: 0.35,
+          ease: [0.32, 0.72, 0, 1]
+        } : { 
           type: "spring",
           stiffness: 400,
           damping: 30,
           mass: 0.8
         }}
         onClick={!isExpanded ? toggleExpanded : undefined}
-        whileHover={!isExpanded ? { scale: 1.015, transition: { duration: 0.2 } } : undefined}
-        whileTap={!isExpanded ? { scale: 0.985, transition: { duration: 0.1 } } : undefined}
+        whileHover={!isExpanded ? { scale: 1.01, transition: { duration: 0.25, ease: "easeOut" } } : undefined}
+        whileTap={!isExpanded ? { scale: 0.99, transition: { duration: 0.1 } } : undefined}
       >
         {/* Collapsed State */}
         {!isExpanded && (
