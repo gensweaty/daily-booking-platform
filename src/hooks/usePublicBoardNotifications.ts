@@ -34,6 +34,15 @@ const dedupeNotifications = (items: DashboardNotification[]) => {
       continue;
     }
 
+    if (n.type === 'task_reminder') {
+      const tid = (n.actionData as any)?.taskId as string | undefined;
+      const key = tid ? `task_reminder:${tid}` : `task_reminder:${n.id}`;
+      if (generalSeen.has(key)) continue;
+      generalSeen.add(key);
+      out.push(n);
+      continue;
+    }
+
     // Keep other notifications stable by id (do not over-dedupe different messages)
     const key = `${n.type}:${n.id}`;
     if (generalSeen.has(key)) continue;
@@ -295,6 +304,53 @@ export const usePublicBoardNotifications = () => {
           });
         }
 
+        // Also load missed task reminders for this sub-user
+        // Tasks don't have created_by_sub_user_id, so filter by created_by_name
+        const subUserName = publicBoardUser?.fullName;
+        if (subUserName) {
+          const { data: taskData, error: taskError } = await supabase
+            .from('tasks')
+            .select('id, title, reminder_at, reminder_sent_at, created_by_name')
+            .eq('user_id', boardOwnerId)
+            .eq('created_by_type', 'sub_user')
+            .eq('created_by_name', subUserName)
+            .not('reminder_sent_at', 'is', null)
+            .gte('reminder_sent_at', sevenDaysAgo.toISOString())
+            .order('reminder_sent_at', { ascending: false })
+            .limit(50) as { data: any[] | null; error: any };
+
+          if (!taskError && taskData && taskData.length > 0) {
+            setNotifications(prev => {
+              const existingTaskIds = new Set(
+                prev
+                  .filter(n => n.type === 'task_reminder')
+                  .map(n => (n.actionData as any)?.taskId)
+                  .filter(Boolean)
+              );
+
+              const toAdd: DashboardNotification[] = [];
+              for (const task of taskData) {
+                if (existingTaskIds.has(task.id)) continue;
+                toAdd.push({
+                  id: `public-task_reminder-${task.id}`,
+                  type: 'task_reminder',
+                  title: '📋 Task Reminder',
+                  message: task.title,
+                  timestamp: new Date(task.reminder_sent_at!),
+                  read: false,
+                  actionData: { taskId: task.id },
+                });
+              }
+
+              if (toAdd.length === 0) return prev;
+
+              return [...toAdd, ...prev]
+                .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                .slice(0, MAX_NOTIFICATIONS);
+            });
+          }
+        }
+
         loadedMissedRef.current = true;
       } catch (e) {
         console.error('❌ [PublicNotifications] Error loading missed reminders:', e);
@@ -399,6 +455,8 @@ export const usePublicBoardNotifications = () => {
         notificationId = `public-custom_reminder-${(actionData as any).reminderId}`;
       } else if (type === 'event_reminder' && (actionData as any)?.eventId) {
         notificationId = `public-event_reminder-${(actionData as any).eventId}`;
+      } else if (type === 'task_reminder' && (actionData as any)?.taskId) {
+        notificationId = `public-task_reminder-${(actionData as any).taskId}`;
       } else {
         notificationId = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       }
