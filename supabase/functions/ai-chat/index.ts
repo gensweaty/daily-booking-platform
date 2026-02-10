@@ -1572,50 +1572,6 @@ Works across all languages. Can be immediate or scheduled.`,
       {
         type: "function",
         function: {
-          name: "generate_excel_report",
-          description: `Generate Excel reports for business data. Use this when user requests Excel, reports, or exports.
-
-REPORT TYPES:
-- "payments": Financial data, revenue, income (use for payment-related requests)
-- "events": Calendar events, appointments, schedule data
-- "customers": CRM data, clients, contacts
-- "tasks": Task board data, to-dos
-- "bookings": Booking requests
-
-TIME PERIODS:
-- 1 month: "this month", "current month", "last month"
-- 3 months: "last 3 months", "quarter"
-- 6 months: "last 6 months", "half year"
-- 12 months: "this year", "last year"
-- Custom: any number of months (e.g., 2, 4, 5)
-
-CRITICAL RULES:
-- ALWAYS use "payments" type for payment/revenue/income requests
-- Default to 1 month (this month) for time period if not specified
-- When user says "these months" or "current month", use 1 month
-- Be precise with report type - match user's actual request`,
-          parameters: {
-            type: "object",
-            properties: {
-              report_type: {
-                type: "string",
-                enum: ["payments", "events", "customers", "tasks", "bookings"],
-                description: "Type of report to generate"
-              },
-              months: {
-                type: "number",
-                description: "Number of months to include (default: 1 for this month)",
-                minimum: 1,
-                maximum: 24
-              }
-            },
-            required: ["report_type"]
-          }
-        }
-      },
-      {
-        type: "function",
-        function: {
           name: "create_custom_reminder",
           description: `🚨 ULTRA STRICT USAGE RULE - READ BEFORE CALLING 🚨
           
@@ -4694,52 +4650,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 },
                 _ai_instruction: "🚨 CRITICAL: Present these EXACT numbers to the user. Do NOT recalculate, round, or modify ANY values. All users (admin and sub-users) must see IDENTICAL numbers. Match the monthly_breakdown array exactly."
               };
-              break;
-            }
-
-            case 'generate_excel_report': {
-              const reportType = args.report_type;
-              const months = args.months || 12;
-              
-              console.log(`    📊 Generating ${reportType} Excel report for ${months} months`);
-              
-              // Call the excel generator edge function
-              const { data: excelData, error: excelError } = await supabaseAdmin.functions.invoke('generate-excel-report', {
-                body: {
-                  reportType,
-                  months,
-                  userId: ownerId
-                }
-              });
-              
-              if (excelError) {
-                console.error('    ❌ Excel generation error:', excelError);
-                toolResult = {
-                  success: false,
-                  error: 'Failed to generate Excel report'
-                };
-              } else if (excelData.success === false) {
-                // Handle case where no data was found
-                console.log(`    ℹ️ No data found for ${reportType} report`);
-                toolResult = {
-                  success: false,
-                  error: excelData.error || 'No data found',
-                  record_count: 0
-                };
-              } else {
-                // IMPORTANT: The downloadUrl is a signed URL that expires in 1 hour
-                // It should be accessed immediately by the user
-                toolResult = {
-                  success: true,
-                  download_url: excelData.downloadUrl,
-                  filename: excelData.filename,
-                  report_type: reportType,
-                  record_count: excelData.recordCount,
-                  expires_in: '1 hour',
-                  instruction: 'Click the link immediately to download - it expires in 1 hour'
-                };
-                console.log(`    ✅ Excel report ready: ${excelData.filename} (${excelData.recordCount} records)`);
-              }
               break;
             }
 
