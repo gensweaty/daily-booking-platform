@@ -31,6 +31,11 @@ const dedupeNotifications = (notifications: DashboardNotification[]): DashboardN
       if (!seen.has(key)) {
         seen.set(key, n);
       }
+    } else if (n.type === 'task_reminder' && n.actionData?.taskId) {
+      const key = `task-${n.actionData.taskId}`;
+      if (!seen.has(key)) {
+        seen.set(key, n);
+      }
     } else {
       // For other types, use the notification id
       if (!seen.has(n.id)) {
@@ -152,6 +157,48 @@ export const useDashboardNotifications = () => {
           });
         }
 
+        // Also fetch task reminders that were sent
+        // ISOLATION FIX: Exclude sub-user created tasks
+        const { data: missedTaskReminders, error: taskError } = await supabase
+          .from('tasks')
+          .select('id, title, reminder_at, reminder_sent_at, created_by_type')
+          .eq('user_id', user.id)
+          .not('reminder_sent_at', 'is', null)
+          .gte('reminder_sent_at', sevenDaysAgo.toISOString())
+          .or('created_by_type.is.null,created_by_type.neq.sub_user')
+          .order('reminder_sent_at', { ascending: false })
+          .limit(50);
+
+        if (!taskError && missedTaskReminders && missedTaskReminders.length > 0) {
+          setNotifications(prev => {
+            const existingIds = new Set(prev.map(n => n.actionData?.taskId));
+            const newNotifications: DashboardNotification[] = [];
+
+            for (const task of missedTaskReminders) {
+              if (existingIds.has(task.id)) continue;
+
+              newNotifications.push({
+                id: `task_reminder-${task.id}-${Date.now()}`,
+                type: 'task_reminder',
+                title: `📋 Task Reminder`,
+                message: task.title,
+                timestamp: new Date(task.reminder_sent_at!),
+                read: false,
+                actionData: { taskId: task.id }
+              });
+            }
+
+            if (newNotifications.length === 0) return prev;
+
+            const merged = [...newNotifications, ...prev]
+              .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+              .slice(0, MAX_NOTIFICATIONS);
+
+            console.log(`📋 Loaded ${newNotifications.length} missed task reminder notifications`);
+            return merged;
+          });
+        }
+
         // Also fetch event reminders that were sent
         // ISOLATION FIX: Exclude sub-user created events - those belong to the sub-user only
         const { data: missedEventReminders, error: eventError } = await supabase
@@ -267,10 +314,12 @@ export const useDashboardNotifications = () => {
 
       // Use stable ID for reminders to prevent duplicates
       let notificationId: string;
-      if (type === 'custom_reminder' && actionData?.reminderId) {
+    if (type === 'custom_reminder' && actionData?.reminderId) {
         notificationId = `internal-custom_reminder-${actionData.reminderId}`;
       } else if (type === 'event_reminder' && actionData?.eventId) {
         notificationId = `internal-event_reminder-${actionData.eventId}`;
+      } else if (type === 'task_reminder' && actionData?.taskId) {
+        notificationId = `internal-task_reminder-${actionData.taskId}`;
       } else {
         notificationId = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       }
@@ -303,6 +352,16 @@ export const useDashboardNotifications = () => {
           );
           if (exists) {
             console.log('⏭️ [Internal] Skipping duplicate event (in state):', actionData.eventId);
+            return prev;
+          }
+        }
+
+        if (type === 'task_reminder' && actionData?.taskId) {
+          const exists = prev.some(n => 
+            n.type === 'task_reminder' && n.actionData?.taskId === actionData.taskId
+          );
+          if (exists) {
+            console.log('⏭️ [Internal] Skipping duplicate task reminder (in state):', actionData.taskId);
             return prev;
           }
         }
