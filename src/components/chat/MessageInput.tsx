@@ -338,9 +338,17 @@ export const MessageInput = ({
             // Dispatch event to immediately show AI message (deterministic display)
             if (data.aiMessage) {
               console.log('📤 Dispatching chat-message-received event for AI message id:', data.aiMessage.id);
+              const aiMsg = data.aiMessage;
               window.dispatchEvent(new CustomEvent('chat-message-received', { 
-                detail: { message: data.aiMessage } 
+                detail: { message: aiMsg } 
               }));
+              // Safety fallback: re-dispatch after short delay in case first event was missed
+              setTimeout(() => {
+                console.log('🔄 Re-dispatching AI message as safety fallback');
+                window.dispatchEvent(new CustomEvent('chat-message-received', { 
+                  detail: { message: aiMsg } 
+                }));
+              }, 500);
             }
           } else if (data?.error) {
             console.error('❌ AI returned error:', data.error);
