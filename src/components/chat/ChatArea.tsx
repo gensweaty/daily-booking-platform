@@ -804,13 +804,16 @@ export const ChatAreaLegacy = ({ onMessageInputFocus, isMinimized = false }: Cha
         if (!existsInCache) {
           const updatedCache = [...currentCache, message];
           cacheRef.current.set(channelId, updatedCache);
-          if (channelId === activeChannelId) {
-            setMessages(prev => {
-              const existsInUI = prev.some(m => m.id === message.id);
-              if (existsInUI) return prev;
-              return [...prev, message];
-            });
-          }
+        }
+        if (channelId === activeChannelId) {
+          setMessages(prev => {
+            const existsInUI = prev.some(m => m.id === message.id);
+            if (existsInUI) return prev;
+            const updated = [...prev, message];
+            // Scroll to bottom after adding new message (especially AI replies)
+            setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+            return updated;
+          });
         }
       }
     };
@@ -876,6 +879,15 @@ export const ChatAreaLegacy = ({ onMessageInputFocus, isMinimized = false }: Cha
   }, []);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
+
+  // Auto-scroll when AI typing indicator appears so user sees it without manual scrolling
+  useEffect(() => {
+    if (isAITyping && bottomRef.current) {
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+  }, [isAITyping]);
 
   // Fetch team members for participant dropdown
   useEffect(() => {
