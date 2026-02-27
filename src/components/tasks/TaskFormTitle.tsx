@@ -15,7 +15,7 @@ export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
   const isGeorgian = language === 'ka';
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 min-w-0 w-full">
       <Label 
         htmlFor="title"
         className={cn(isGeorgian ? "font-georgian" : "")}
@@ -29,7 +29,7 @@ export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         required
-        className={cn("bg-background border-input", isGeorgian ? "placeholder:font-georgian" : "")}
+        className={cn("bg-background border-input min-w-0 w-full", isGeorgian ? "placeholder:font-georgian" : "")}
         style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
       />
     </div>

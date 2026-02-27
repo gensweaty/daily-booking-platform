@@ -15,7 +15,7 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
   const isGeorgian = language === 'ka';
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 min-w-0 w-full overflow-hidden">
       <Label 
         htmlFor="description" 
         className={cn(isGeorgian ? "font-georgian" : "")}
