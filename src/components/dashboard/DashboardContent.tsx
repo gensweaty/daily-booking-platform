@@ -433,7 +433,7 @@ export const DashboardContent = ({
                                   )}
                                 </Button>
                               </DialogTrigger>
-                          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+                          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}

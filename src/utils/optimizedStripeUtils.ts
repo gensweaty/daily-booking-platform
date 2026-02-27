@@ -190,26 +190,32 @@ export const checkSubscriptionStatus = async (reason: string = 'manual_check', f
     console.log(`[SUBSCRIPTION_CHECK] Checking subscription status for user: ${userData.user.email}, reason: ${reason}`);
     
     // First check for ultimate subscription in the database
-    const { data: subscription, error: subError } = await supabase
+    const { data: subscriptions, error: subError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', userData.user.id)
-      .order('created_at', { ascending: false })
-      .maybeSingle();
+      .order('updated_at', { ascending: false })
+      .limit(5);
+    
+    const subscription = subscriptions && subscriptions.length > 0 ? subscriptions[0] : null;
     
     if (subError) {
       console.error('Error checking subscription:', subError);
       // Don't return trial_expired on database errors, let it continue to try Stripe sync
     }
     
+    // Check ALL records for ultimate plan (admin may have set it on any record)
+    const ultimateSub = subscriptions?.find((s: any) => s.plan_type === 'ultimate');
+    const effectiveSubscription = ultimateSub || subscription;
+    
     // If user has ultimate plan, return that immediately - NO FURTHER PROCESSING
-    if (subscription && subscription.plan_type === 'ultimate') {
+    if (effectiveSubscription && effectiveSubscription.plan_type === 'ultimate') {
       console.log('[SUBSCRIPTION_CHECK] ✅ User has ULTIMATE subscription - unlimited access!');
       const result = {
         success: true,
         status: 'active', // Always active for ultimate
         planType: 'ultimate',
-        subscription_start_date: subscription.subscription_start_date,
+        subscription_start_date: effectiveSubscription.subscription_start_date,
         subscription_end_date: null // Ultimate has no end date
       };
       
