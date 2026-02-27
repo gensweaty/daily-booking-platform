@@ -156,8 +156,8 @@ export const TaskFormFields = ({
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
 
   const sectionClassName = isMobile 
-    ? "bg-muted/30 rounded-lg p-2 border border-muted/40 overflow-hidden max-w-full [word-break:break-word]"
-    : "bg-muted/30 rounded-lg p-4 border border-muted/40 overflow-hidden max-w-full";
+    ? "bg-muted/30 rounded-lg p-2 border border-muted/40 overflow-x-hidden"
+    : "bg-muted/30 rounded-lg p-4 border border-muted/40";
   
   const containerClassName = isMobile ? "space-y-2" : "space-y-6";
 
