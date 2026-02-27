@@ -122,7 +122,7 @@ const RichTextEditor = memo(function RichTextEditor({
   ];
 
   return (
-    <div className={cn("border rounded-md", className)}>
+    <div className={cn("border rounded-md overflow-hidden max-w-full", className)}>
       <div className="border-b p-2 flex gap-2 flex-wrap">
         <Button
           type="button"
@@ -202,7 +202,7 @@ const RichTextEditor = memo(function RichTextEditor({
           </PopoverContent>
         </Popover>
       </div>
-      <EditorContent editor={editor} className="prose dark:prose-invert max-w-none p-3 sm:p-4 max-h-[25vh] sm:max-h-[40vh] overflow-y-auto" />
+      <EditorContent editor={editor} className="prose dark:prose-invert max-w-none p-3 sm:p-4 max-h-[25vh] sm:max-h-[40vh] overflow-y-auto overflow-x-hidden [word-break:break-word] [overflow-wrap:anywhere]" />
     </div>
   );
 });
