@@ -202,7 +202,7 @@ const RichTextEditor = memo(function RichTextEditor({
           </PopoverContent>
         </Popover>
       </div>
-      <EditorContent editor={editor} className="prose dark:prose-invert max-w-none p-4" />
+      <EditorContent editor={editor} className="prose dark:prose-invert max-w-none p-4 max-h-[40vh] overflow-y-auto" />
     </div>
   );
 });
