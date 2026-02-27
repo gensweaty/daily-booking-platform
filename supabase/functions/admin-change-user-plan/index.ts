@@ -71,11 +71,11 @@ serve(async (req) => {
     }
 
     if (existingSub) {
-      // Update existing subscription
+      // Update ALL subscription records for this user to avoid stale records
       const { error: updateError } = await supabase
         .from('subscriptions')
         .update(updateData)
-        .eq('id', existingSub.id)
+        .eq('user_id', userId)
 
       if (updateError) {
         console.error('Error updating subscription:', updateError)
@@ -83,6 +83,16 @@ serve(async (req) => {
           JSON.stringify({ error: 'Failed to update subscription' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
+      }
+
+      // Delete duplicate subscription records, keep only the newest one
+      if (existingSubs && existingSubs.length > 1) {
+        const idsToDelete = existingSubs.slice(1).map((s: any) => s.id)
+        console.log(`Cleaning up ${idsToDelete.length} duplicate subscription records`)
+        await supabase
+          .from('subscriptions')
+          .delete()
+          .in('id', idsToDelete)
       }
     } else {
       // Create new subscription
