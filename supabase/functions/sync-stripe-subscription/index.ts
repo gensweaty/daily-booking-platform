@@ -334,11 +334,35 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     // Check for existing subscription record first
-    const { data: existingSubscription } = await supabase
+    const { data: existingSubscriptions } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', user.id)
-      .maybeSingle();
+      .order('updated_at', { ascending: false })
+      .limit(5);
+
+    const existingSubscription = existingSubscriptions && existingSubscriptions.length > 0 ? existingSubscriptions[0] : null;
+    
+    // Also check if ANY record has ultimate plan (admin may have set it on a different record)
+    const ultimateSub = existingSubscriptions?.find((s: any) => s.plan_type === 'ultimate');
+    if (ultimateSub) {
+      logStep("Found ultimate plan record (possibly not the newest), prioritizing it");
+      // Use the ultimate record instead
+      const effectiveSub = ultimateSub;
+      if (effectiveSub.status === 'active' || effectiveSub.plan_type === 'ultimate') {
+        logStep("User has ultimate plan, returning without checking Stripe");
+        return new Response(JSON.stringify({
+          success: true,
+          status: 'active',
+          planType: 'ultimate',
+          subscription_start_date: effectiveSub.subscription_start_date,
+          subscription_end_date: null
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+    }
 
     // If user has existing subscription, check if it's still valid
     if (existingSubscription) {

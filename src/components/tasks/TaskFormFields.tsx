@@ -156,13 +156,13 @@ export const TaskFormFields = ({
   const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
 
   const sectionClassName = isMobile 
-    ? "bg-muted/30 rounded-lg p-1.5 border border-muted/40"
-    : "bg-muted/30 rounded-lg p-4 border border-muted/40";
+    ? "bg-muted/30 rounded-lg p-2 border border-muted/40 overflow-x-hidden min-w-0"
+    : "bg-muted/30 rounded-lg p-4 border border-muted/40 min-w-0";
   
-  const containerClassName = isMobile ? "space-y-0.5" : "space-y-6";
+  const containerClassName = isMobile ? "space-y-2" : "space-y-6";
 
   return (
-    <div className={containerClassName}>
+    <div className={`${containerClassName} min-w-0 w-full overflow-hidden`}>
       <div className={sectionClassName}>
         <TaskFormTitle title={title} setTitle={setTitle} />
       </div>
