@@ -309,7 +309,8 @@ export const sendEventCreationEmail = async (
   contactAddress: string,
   eventId: string,
   language: string = 'en',
-  eventNotes: string = ''
+  eventNotes: string = '',
+  ownerEmail?: string
 ) => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
@@ -321,10 +322,12 @@ export const sendEventCreationEmail = async (
         endDate,
         paymentStatus,
         paymentAmount,
-        businessAddress: contactAddress, // Changed from contactAddress to businessAddress
+        businessAddress: contactAddress,
         eventId,
         language,
-        eventNotes
+        eventNotes,
+        ownerEmail,
+        source: 'event-creation'
       }
     });
 
@@ -347,7 +350,8 @@ export const sendBookingConfirmationEmail = async (
   contactAddress: string,
   eventId: string,
   language: string = 'en',
-  eventNotes: string = ''
+  eventNotes: string = '',
+  ownerEmail?: string
 ) => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
@@ -359,10 +363,11 @@ export const sendBookingConfirmationEmail = async (
         endDate,
         paymentStatus,
         paymentAmount,
-        businessAddress: contactAddress, // Changed from contactAddress to businessAddress
+        businessAddress: contactAddress,
         eventId,
         language,
-        eventNotes
+        eventNotes,
+        ownerEmail
       }
     });
 
@@ -373,6 +378,8 @@ export const sendBookingConfirmationEmail = async (
     throw error;
   }
 };
+
+// sendBookingConfirmationEmail is now defined above with ownerEmail support
 
 export const sendBookingConfirmationToMultipleRecipients = async (
   recipients: Array<{ email: string; name: string }>,

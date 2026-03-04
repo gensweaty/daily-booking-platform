@@ -423,7 +423,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Get localized email content with business address
-    const { subject, body: emailBody } = getEmailContent(
+    const { subject, body: rawEmailBody } = getEmailContent(
       language, 
       event.title || event.user_surname || 'Event', 
       event.start_date, 
@@ -432,6 +432,23 @@ const handler = async (req: Request): Promise<Response> => {
       undefined, // reminderTime not used in this context
       businessAddress
     );
+
+    // Add "View in Calendar" and "Add to Google Calendar" CTA buttons
+    const viewLabel = language === 'ka' ? '📅 კალენდარში ნახვა' : language === 'es' ? '📅 Ver en Calendario' : '📅 View in Calendar';
+    const gcalLabel = language === 'ka' ? '📅 Google Calendar-ში დამატება' : language === 'es' ? '📅 Añadir a Google Calendar' : '📅 Add to Google Calendar';
+    const formatGCalDate = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const gcalParams = new URLSearchParams({ action: 'TEMPLATE', text: event.title || event.user_surname || 'Event', dates: `${formatGCalDate(event.start_date)}/${formatGCalDate(event.end_date)}` });
+    if (businessAddress) gcalParams.set('location', businessAddress);
+    if (event.event_notes) gcalParams.set('details', event.event_notes);
+    const gcalUrl = `https://calendar.google.com/calendar/render?${gcalParams.toString()}`;
+    const ctaButtonsHtml = `
+              <div style="text-align: center; margin: 20px 0 10px 0;">
+                <a href="https://smartbookly.com/dashboard?tab=calendar" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">${viewLabel}</a>
+              </div>
+              <div style="text-align: center; margin: 10px 0 20px 0;">
+                <a href="${gcalUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4285f4 0%, #34a853 100%); color: #ffffff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">${gcalLabel}</a>
+              </div>`;
+    const emailBody = rawEmailBody.replace(/<hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">/, ctaButtonsHtml + '<hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">');
 
     let emailsSent = 0;
     let emailsFailed = 0;

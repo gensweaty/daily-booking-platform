@@ -426,7 +426,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Get localized email content
-    const { subject, body: emailBody } = getEmailContent(
+    const { subject, body: rawEmailBody } = getEmailContent(
       languagePreference, 
       title, 
       recipientDisplayName,
@@ -435,6 +435,14 @@ const handler = async (req: Request): Promise<Response> => {
       !!eventId, // isEventReminder: true if eventId exists, false for custom reminders
       eventDetails
     );
+
+    // Add CTA button
+    const ctaLabel = languagePreference === 'ka' ? '🔔 დაფის გახსნა' : languagePreference === 'es' ? '🔔 Abrir Panel' : '🔔 Open Dashboard';
+    const ctaButtonHtml = `
+              <div style="text-align: center; margin: 20px 0;">
+                <a href="https://smartbookly.com/dashboard" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">${ctaLabel}</a>
+              </div>`;
+    const emailBody = rawEmailBody.replace(/<hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">/, ctaButtonHtml + '<hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">');
 
     const emailResponse = await resend.emails.send({
       from: "SmartBookly <noreply@smartbookly.com>",
