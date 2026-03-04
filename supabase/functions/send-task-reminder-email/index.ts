@@ -334,7 +334,15 @@ const handler = async (req: Request): Promise<Response> => {
       const formattedTime = formatReminderTimeForLocale(task.reminder_at, language);
 
       // Get localized email content
-      const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
+      const { subject, body: rawEmailBody } = getEmailContent(language, task.title, formattedTime, task.description);
+
+      // Add "View Task" CTA button
+      const ctaLabel = language === 'ka' ? '📋 დავალების ნახვა' : language === 'es' ? '📋 Ver Tarea' : '📋 View Task';
+      const ctaButtonHtml = `
+          <div style="text-align: center; margin: 16px 0 8px 0;">
+            <a href="https://smartbookly.com/dashboard?tab=tasks&openTask=${task.id}" style="display: inline-block; background: linear-gradient(135deg, #374151 0%, #4b5563 100%); color: #ffffff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">${ctaLabel}</a>
+          </div>`;
+      const emailBody = rawEmailBody.replace('<!-- Footer -->', ctaButtonHtml + '\n        <!-- Footer -->');
 
       // Send email
       const emailResult = await resend.emails.send({
@@ -545,7 +553,15 @@ const handler = async (req: Request): Promise<Response> => {
         const formattedTime = formatReminderTimeForLocale(task.reminder_at, language);
 
         // Get localized email content
-        const { subject, body: emailBody } = getEmailContent(language, task.title, formattedTime, task.description);
+        const { subject, body: rawBatchBody } = getEmailContent(language, task.title, formattedTime, task.description);
+
+        // Add "View Task" CTA button
+        const batchCtaLabel = language === 'ka' ? '📋 დავალების ნახვა' : language === 'es' ? '📋 Ver Tarea' : '📋 View Task';
+        const batchCtaHtml = `
+          <div style="text-align: center; margin: 16px 0 8px 0;">
+            <a href="https://smartbookly.com/dashboard?tab=tasks&openTask=${task.id}" style="display: inline-block; background: linear-gradient(135deg, #374151 0%, #4b5563 100%); color: #ffffff; padding: 12px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">${batchCtaLabel}</a>
+          </div>`;
+        const emailBody = rawBatchBody.replace('<!-- Footer -->', batchCtaHtml + '\n        <!-- Footer -->');
 
         // Create email sending promise
         const emailPromise = resend.emails.send({

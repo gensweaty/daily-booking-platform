@@ -21,6 +21,7 @@ interface BookingApprovalEmailRequest {
   source?: string; // Used to track source of request
   language?: string; // Used to determine email language
   eventNotes?: string; // Added event notes field
+  ownerEmail?: string; // Business owner email for copy
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -408,7 +409,8 @@ const handler = async (req: Request): Promise<Response> => {
       eventId,
       source,
       language,
-      eventNotes
+      eventNotes,
+      ownerEmail
     } = parsedBody;
 
     console.log("Request body:", {
@@ -550,13 +552,26 @@ const handler = async (req: Request): Promise<Response> => {
       
       const resend = new Resend(resendApiKey);
       
+      // Add "Add to Google Calendar" button
+      const formatGCalDate = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+      const gcalParams = new URLSearchParams({ action: 'TEMPLATE', text: fullName || 'Booking', dates: `${formatGCalDate(startDate)}/${formatGCalDate(endDate)}` });
+      if (businessAddress) gcalParams.set('location', businessAddress);
+      if (eventNotes) gcalParams.set('details', eventNotes);
+      const gcalUrl = `https://calendar.google.com/calendar/render?${gcalParams.toString()}`;
+      const gcalLabel = (language || 'en') === 'ka' ? '📅 Google Calendar-ში დამატება' : (language || 'en') === 'es' ? '📅 Añadir a Google Calendar' : '📅 Add to Google Calendar';
+      const gcalButtonHtml = `
+              <div style="text-align: center; margin: 20px 0;">
+                <a href="${gcalUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4285f4 0%, #34a853 100%); color: #ffffff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">${gcalLabel}</a>
+              </div>`;
+      const finalContent = emailData.content.replace(/<hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">/, gcalButtonHtml + '<hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">');
+      
       console.log("Sending email with subject:", emailData.subject);
       
       const emailResult = await resend.emails.send({
         from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
         to: [recipientEmail],
         subject: emailData.subject,
-        html: emailData.content,
+        html: finalContent,
       });
 
       if (emailResult.error) {
@@ -566,9 +581,24 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log(`Email successfully sent via Resend API to ${recipientEmail}, ID: ${emailResult.data?.id}`);
       
-      // Mark as recently sent ONLY if the email was successfully sent
-      // This prevents failed attempts from blocking future retries
+      // Mark as recently sent
       recentlySentEmails.set(dedupeKey, Date.now());
+      
+      // Send copy to business owner if ownerEmail provided and different from recipient
+      if (ownerEmail && ownerEmail !== recipientEmail) {
+        try {
+          console.log(`📧 Sending copy to business owner: ${ownerEmail}`);
+          await resend.emails.send({
+            from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
+            to: [ownerEmail],
+            subject: emailData.subject,
+            html: finalContent,
+          });
+          console.log(`✅ Owner copy sent to ${ownerEmail}`);
+        } catch (ownerEmailError) {
+          console.error(`⚠️ Failed to send owner copy:`, ownerEmailError);
+        }
+      }
       console.log(`Setting deduplication key: ${dedupeKey} (tracking ${recentlySentEmails.size} emails)`);
       
       return new Response(
