@@ -648,8 +648,31 @@ export const EventDialog = ({
         });
       }
 
+      // Determine owner email for CC
+      const ownerEmail = user?.email || businessData.contact_email || undefined;
+
       if (recipients.length === 0) {
-        console.warn("❌ No valid email addresses found for sending notifications");
+        // Even with no customer recipients, send to owner if available
+        if (ownerEmail) {
+          try {
+            await sendEventCreationEmail(
+              ownerEmail,
+              'Owner',
+              businessData.business_name || '',
+              eventData.start_date,
+              eventData.end_date,
+              eventData.payment_status || 'not_paid',
+              eventData.payment_amount || null,
+              businessData.contact_address || '',
+              eventData.id,
+              language || 'en',
+              eventData.event_notes || ''
+            );
+            console.log('📧 Owner-only event creation email sent to:', ownerEmail);
+          } catch (e) {
+            console.warn('Failed to send owner-only email:', e);
+          }
+        }
         return;
       }
 
@@ -663,6 +686,7 @@ export const EventDialog = ({
             eventNotes: recipient.eventNotes
           });
 
+          // Send to customer AND owner
           const emailResult = await sendEventCreationEmail(
             recipient.email,
             recipient.name,
@@ -674,7 +698,8 @@ export const EventDialog = ({
             businessData.contact_address || '',
             eventData.id,
             language || 'en',
-            recipient.eventNotes
+            recipient.eventNotes,
+            ownerEmail
           );
 
           if (emailResult?.success) {

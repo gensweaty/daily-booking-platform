@@ -328,6 +328,9 @@ export const CustomerDialog = ({
       
       console.log(`📧 Found ${recipients.length} recipients for email notifications with language: ${language}`);
       
+      // Include owner email so business owner also receives the email
+      const ownerEmail = user?.email || businessData.contact_email || undefined;
+      
       if (recipients.length === 1) {
         const emailResult = await sendBookingConfirmationEmail(
           recipients[0].email,
@@ -340,7 +343,8 @@ export const CustomerDialog = ({
           businessData.contact_address || '',
           eventData.id,
           language || 'en',
-          eventData.event_notes || ''
+          eventData.event_notes || '',
+          ownerEmail
         );
         
         console.log("📧 Single email result:", emailResult);
@@ -372,6 +376,27 @@ export const CustomerDialog = ({
           language || 'en',
           eventData.event_notes || ''
         );
+        
+        // Also send a copy to the owner/business email
+        if (ownerEmail && !recipients.some(r => r.email === ownerEmail)) {
+          try {
+            await sendBookingConfirmationEmail(
+              ownerEmail,
+              'Owner',
+              businessData.business_name || '',
+              eventData.start_date,
+              eventData.end_date,
+              eventData.payment_status || 'not_paid',
+              eventData.payment_amount || null,
+              businessData.contact_address || '',
+              eventData.id,
+              language || 'en',
+              eventData.event_notes || ''
+            );
+          } catch (e) {
+            console.warn('Failed to send owner copy:', e);
+          }
+        }
         
         console.log("📧 Multiple email results:", emailResults);
         
