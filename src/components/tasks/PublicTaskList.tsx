@@ -459,7 +459,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
       <AnimatePresence>
         {isAddingTask && (
           <Dialog open={isAddingTask} onOpenChange={setIsAddingTask}>
-            <DialogContent className="max-w-2xl w-[92vw] sm:w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6">
+            <DialogContent className="max-w-2xl sm:max-w-3xl w-[92vw] sm:w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 [word-break:break-word] [overflow-wrap:break-word]">
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -481,7 +481,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
       <AnimatePresence>
         {editingTask && (
           <Dialog open={!!editingTask} onOpenChange={() => setEditingTask(null)}>
-            <DialogContent className="max-w-2xl w-[92vw] sm:w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6">
+            <DialogContent className="max-w-2xl sm:max-w-3xl w-[92vw] sm:w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 [word-break:break-word] [overflow-wrap:break-word]">
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}

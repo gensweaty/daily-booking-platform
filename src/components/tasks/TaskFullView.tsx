@@ -168,7 +168,7 @@ export const TaskFullView = ({
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl w-[92vw] sm:w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 bg-background border-border text-foreground [word-break:break-word] [overflow-wrap:break-word]">
+        <DialogContent className="max-w-2xl sm:max-w-3xl w-[92vw] sm:w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 bg-background border-border text-foreground [word-break:break-word] [overflow-wrap:break-word]">
           <DialogHeader className="pb-0 mt-1 sm:mt-3">
             {/* Highlighted Task Title */}
             <div className="p-2 sm:p-4 rounded-lg border border-input bg-muted/50">
