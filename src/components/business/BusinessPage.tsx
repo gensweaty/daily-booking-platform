@@ -75,8 +75,8 @@ export const BusinessPage = () => {
     refetch();
   };
 
-  // Show skeleton while loading
-  if (isLoading) {
+  // Show skeleton while loading (including when user auth is still resolving)
+  if (isLoading || (!businessProfile && !user)) {
     return <BusinessPageSkeleton />;
   }
 
