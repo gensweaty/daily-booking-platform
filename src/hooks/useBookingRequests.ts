@@ -289,10 +289,11 @@ export const useBookingRequests = (businessId?: string) => {
             businessProfile.contact_address || '',
             bookingId,
             bookingToApprove.language || 'en',
-            bookingToApprove.description || ''
+            bookingToApprove.description || '',
+            user?.email || undefined
           );
           
-          console.log("[useBookingRequests] Approval email sent successfully");
+          console.log("[useBookingRequests] Approval email sent successfully (including owner copy)");
         }
       } catch (emailError) {
         console.error("[useBookingRequests] Error sending approval email:", emailError);

@@ -107,7 +107,7 @@ function getEmailContent(
               </div>
               <p>გთხოვთ შეხვიდეთ თქვენს საინფორმაციო დაფაზე, რომ ნახოთ და უპასუხოთ ამ მოთხოვნას:</p>
               <div class="button">
-                <a href="https://smartbookly.com/dashboard">გადადით Dashboard-ზე</a>
+                <a href="https://smartbookly.com/dashboard?tab=bookings">გადადით Dashboard-ზე</a>
               </div>
               <hr>
               <p class="footer">ეს არის ავტომატური შეტყობინება SmartBookly-დან</p>
@@ -133,7 +133,7 @@ ${hasAttachment ? `დანართი: დიახ` : ''}
 გადახდის სტატუსი: ${formattedPaymentStatus}
 
 გთხოვთ შეხვიდეთ თქვენს საინფორმაციო დაფაზე, რომ ნახოთ და უპასუხოთ ამ მოთხოვნას:
-https://smartbookly.com/dashboard
+https://smartbookly.com/dashboard?tab=bookings
 
 ეს არის ავტომატური შეტყობინება SmartBookly-დან
 
@@ -181,7 +181,7 @@ https://smartbookly.com/dashboard
               </div>
               <p>Inicie sesión en su panel de control para ver y responder a esta solicitud:</p>
               <div class="button">
-                <a href="https://smartbookly.com/dashboard">Ir al panel de control</a>
+                <a href="https://smartbookly.com/dashboard?tab=bookings">Ir al panel de control</a>
               </div>
               <hr>
               <p class="footer">Este es un mensaje automático de SmartBookly</p>
@@ -207,7 +207,7 @@ ${hasAttachment ? `Tiene archivo adjunto: Sí` : ''}
 Estado del pago: ${formattedPaymentStatus}
 
 Inicie sesión en su panel de control para ver y responder a esta solicitud:
-https://smartbookly.com/dashboard
+https://smartbookly.com/dashboard?tab=bookings
 
 Este es un mensaje automático de SmartBookly
 
@@ -255,7 +255,7 @@ Si no se registró en SmartBookly, ignore este correo.
               </div>
               <p>Please log in to your dashboard to view and respond to this request:</p>
               <div class="button">
-                <a href="https://smartbookly.com/dashboard">Go to Dashboard</a>
+                <a href="https://smartbookly.com/dashboard?tab=bookings">Go to Dashboard</a>
               </div>
               <hr>
               <p class="footer">This is an automated message from SmartBookly</p>
@@ -281,7 +281,7 @@ ${hasAttachment ? `Has attachment: Yes` : ''}
 Payment status: ${formattedPaymentStatus}
 
 Please log in to your dashboard to view and respond to this request:
-https://smartbookly.com/dashboard
+https://smartbookly.com/dashboard?tab=bookings
 
 This is an automated message from SmartBookly
 

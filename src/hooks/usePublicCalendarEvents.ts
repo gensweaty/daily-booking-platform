@@ -157,7 +157,7 @@ export const usePublicCalendarEvents = (
         await supabase.functions.invoke('send-booking-approval-email', {
           body: {
             eventId: completeEvent.id,
-            recipientEmail: completeEvent.social_network_link || completeEvent.user_number, // Use social_network_link as email field
+            recipientEmail: completeEvent.social_network_link || completeEvent.user_number,
             fullName: completeEvent.user_surname || completeEvent.title,
             businessName: businessProfile?.business_name || 'SmartBookly.Com',
             paymentStatus: completeEvent.payment_status || 'not_paid',
@@ -165,7 +165,7 @@ export const usePublicCalendarEvents = (
             language: completeEvent.language || 'en',
             eventNotes: completeEvent.event_notes || '',
             source: 'event-creation',
-            hasBusinessAddress: !!businessProfile?.contact_address,
+            businessAddress: businessProfile?.contact_address || '',
             startDate: completeEvent.start_date,
             endDate: completeEvent.end_date
           }
