@@ -387,6 +387,26 @@ const handler = async (req: Request): Promise<Response> => {
     // IMPROVED: Better email collection logic for event participants
     const emailAddresses = new Set<string>();
     
+    // CRITICAL: Always include the dashboard owner's email
+    if (userEmail) {
+      emailAddresses.add(userEmail);
+      console.log('📧 Added dashboard owner email:', userEmail);
+    }
+    
+    // Also include business profile contact email
+    if (actualOwnerId) {
+      const { data: businessProfileForEmail } = await supabase
+        .from('business_profiles')
+        .select('contact_email')
+        .eq('user_id', actualOwnerId)
+        .single();
+      
+      if (businessProfileForEmail?.contact_email && isValidEmail(businessProfileForEmail.contact_email)) {
+        emailAddresses.add(businessProfileForEmail.contact_email);
+        console.log('📧 Added business profile email:', businessProfileForEmail.contact_email);
+      }
+    }
+    
     // Add main person's email if available and is valid email
     if (event.social_network_link && event.social_network_link.includes('@') && isValidEmail(event.social_network_link)) {
       emailAddresses.add(event.social_network_link);
