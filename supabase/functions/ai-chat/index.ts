@@ -6679,8 +6679,43 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               }
               break;
             }
-            
-            default: {
+
+            case 'setup_telegram_bot': {
+              const { bot_token } = args;
+              console.log('    🤖 Setting up Telegram bot...');
+              
+              try {
+                if (!bot_token) {
+                  toolResult = { success: false, error: 'No bot token provided. Please provide the token from @BotFather.' };
+                  break;
+                }
+
+                // Call telegram-setup edge function
+                const { data: setupData, error: setupError } = await supabaseAdmin.functions.invoke(
+                  'telegram-setup',
+                  { body: { bot_token, user_id: ownerId } }
+                );
+
+                if (setupError) {
+                  console.error('    ❌ Telegram setup error:', setupError);
+                  toolResult = { success: false, error: 'Failed to validate the bot token. Please check it and try again.' };
+                } else if (setupData?.success) {
+                  console.log(`    ✅ Telegram bot connected: @${setupData.bot_username}`);
+                  toolResult = {
+                    success: true,
+                    bot_username: setupData.bot_username,
+                    message: `Bot @${setupData.bot_username} is now connected! Open Telegram, find your bot @${setupData.bot_username}, and start chatting. Your messages will be processed by Smartbookly AI and responses will appear both in Telegram and on your dashboard.`
+                  };
+                } else {
+                  toolResult = { success: false, error: setupData?.error || 'Failed to set up the Telegram bot.' };
+                }
+              } catch (error) {
+                console.error('    ❌ Telegram setup error:', error);
+                toolResult = { success: false, error: error.message || 'Unknown error setting up Telegram bot' };
+              }
+              break;
+            }
+
               console.warn(`    ⚠️ Unknown tool called: ${funcName}`);
               toolResult = { 
                 success: false, 
