@@ -1787,6 +1787,87 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_bot_configs: {
+        Row: {
+          bot_token: string
+          bot_username: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          telegram_chat_id: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_token: string
+          bot_username?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          telegram_chat_id?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_token?: string
+          bot_username?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          telegram_chat_id?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telegram_bot_state: {
+        Row: {
+          id: number
+          update_offset: number
+          updated_at: string
+        }
+        Insert: {
+          id: number
+          update_offset?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          update_offset?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      telegram_messages: {
+        Row: {
+          chat_id: number
+          created_at: string
+          processed: boolean
+          raw_update: Json
+          text: string | null
+          update_id: number
+          user_id: string | null
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          processed?: boolean
+          raw_update: Json
+          text?: string | null
+          update_id: number
+          user_id?: string | null
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          processed?: boolean
+          raw_update?: Json
+          text?: string | null
+          update_id?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

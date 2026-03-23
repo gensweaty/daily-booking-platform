@@ -1860,6 +1860,40 @@ User uploads Excel with 500 customers and says "import these to CRM"
             required: ["customers"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "setup_telegram_bot",
+          description: `Connect a Telegram bot to Smartbookly AI so the user can chat with their assistant via Telegram.
+
+🎯 USE THIS WHEN:
+- User says "connect Telegram", "set up Telegram", "link Telegram bot"
+- User provides a Telegram bot token (looks like: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz)
+- User asks about Telegram integration
+
+📋 WORKFLOW:
+1. If user hasn't provided a token yet, explain:
+   - Open Telegram and search for @BotFather
+   - Send /newbot and follow the steps to create a bot
+   - Copy the API token BotFather gives you
+   - Paste it here
+2. When user provides the token, call this tool with the token
+3. Tool validates the token with Telegram and saves the config
+4. Confirm: "Your bot @username is now connected! Open Telegram and send a message to your bot."
+
+⚠️ SECURITY: Bot tokens are stored securely and only accessible by the system.`,
+          parameters: {
+            type: "object",
+            properties: {
+              bot_token: {
+                type: "string",
+                description: "Telegram bot API token from BotFather (format: 123456789:ABCdefGHI...)"
+              }
+            },
+            required: ["bot_token"]
+          }
+        }
       }
     ];
 
@@ -6645,7 +6679,43 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               }
               break;
             }
-            
+
+            case 'setup_telegram_bot': {
+              const { bot_token } = args;
+              console.log('    🤖 Setting up Telegram bot...');
+              
+              try {
+                if (!bot_token) {
+                  toolResult = { success: false, error: 'No bot token provided. Please provide the token from @BotFather.' };
+                  break;
+                }
+
+                // Call telegram-setup edge function
+                const { data: setupData, error: setupError } = await supabaseAdmin.functions.invoke(
+                  'telegram-setup',
+                  { body: { bot_token, user_id: ownerId } }
+                );
+
+                if (setupError) {
+                  console.error('    ❌ Telegram setup error:', setupError);
+                  toolResult = { success: false, error: 'Failed to validate the bot token. Please check it and try again.' };
+                } else if (setupData?.success) {
+                  console.log(`    ✅ Telegram bot connected: @${setupData.bot_username}`);
+                  toolResult = {
+                    success: true,
+                    bot_username: setupData.bot_username,
+                    message: `Bot @${setupData.bot_username} is now connected! Open Telegram, find your bot @${setupData.bot_username}, and start chatting. Your messages will be processed by Smartbookly AI and responses will appear both in Telegram and on your dashboard.`
+                  };
+                } else {
+                  toolResult = { success: false, error: setupData?.error || 'Failed to set up the Telegram bot.' };
+                }
+              } catch (error) {
+                console.error('    ❌ Telegram setup error:', error);
+                toolResult = { success: false, error: error.message || 'Unknown error setting up Telegram bot' };
+              }
+              break;
+            }
+
             default: {
               console.warn(`    ⚠️ Unknown tool called: ${funcName}`);
               toolResult = { 

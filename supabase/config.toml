@@ -67,6 +67,12 @@ verify_jwt = false
 [functions.generate-excel-report]
 verify_jwt = false
 
+[functions.telegram-setup]
+verify_jwt = false
+
+[functions.telegram-poll]
+verify_jwt = false
+
 [storage]
 # The maximum file size allowed (e.g. "5MB", "500KB").
 # file_size_limit = "50MiB"
