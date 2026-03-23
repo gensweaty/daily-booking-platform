@@ -6716,6 +6716,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               break;
             }
 
+            default: {
               console.warn(`    ⚠️ Unknown tool called: ${funcName}`);
               toolResult = { 
                 success: false, 
