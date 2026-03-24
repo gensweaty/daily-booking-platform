@@ -24,7 +24,6 @@ serve(async (req) => {
   let totalProcessed = 0;
 
   try {
-    // Get all active bot configs
     const { data: configs, error: configErr } = await supabase
       .from('telegram_bot_configs')
       .select('*')
@@ -45,7 +44,6 @@ serve(async (req) => {
 
     console.log(`📡 Polling ${configs.length} active bot(s)`);
 
-    // Process each bot config
     for (const config of configs) {
       const elapsed = Date.now() - startTime;
       if (MAX_RUNTIME_MS - elapsed < MIN_REMAINING_MS) break;
@@ -70,6 +68,156 @@ serve(async (req) => {
   }
 });
 
+// ── Extract file info from a Telegram message ──────────────────────────
+interface TelegramFileInfo {
+  fileId: string;
+  filename: string;
+  contentType: string;
+  caption?: string;
+}
+
+function extractFileInfo(message: any): TelegramFileInfo | null {
+  // Photo — pick the largest resolution
+  if (message.photo && message.photo.length > 0) {
+    const largest = message.photo[message.photo.length - 1];
+    return {
+      fileId: largest.file_id,
+      filename: `photo_${Date.now()}.jpg`,
+      contentType: 'image/jpeg',
+      caption: message.caption,
+    };
+  }
+
+  // Document (PDF, DOCX, XLSX, any file)
+  if (message.document) {
+    return {
+      fileId: message.document.file_id,
+      filename: message.document.file_name || `document_${Date.now()}`,
+      contentType: message.document.mime_type || 'application/octet-stream',
+      caption: message.caption,
+    };
+  }
+
+  // Voice message
+  if (message.voice) {
+    return {
+      fileId: message.voice.file_id,
+      filename: `voice_${Date.now()}.ogg`,
+      contentType: message.voice.mime_type || 'audio/ogg',
+      caption: message.caption,
+    };
+  }
+
+  // Audio file
+  if (message.audio) {
+    const ext = message.audio.mime_type?.split('/')[1] || 'mp3';
+    return {
+      fileId: message.audio.file_id,
+      filename: message.audio.file_name || `audio_${Date.now()}.${ext}`,
+      contentType: message.audio.mime_type || 'audio/mpeg',
+      caption: message.caption,
+    };
+  }
+
+  // Video
+  if (message.video) {
+    return {
+      fileId: message.video.file_id,
+      filename: message.video.file_name || `video_${Date.now()}.mp4`,
+      contentType: message.video.mime_type || 'video/mp4',
+      caption: message.caption,
+    };
+  }
+
+  // Video note (round video)
+  if (message.video_note) {
+    return {
+      fileId: message.video_note.file_id,
+      filename: `video_note_${Date.now()}.mp4`,
+      contentType: 'video/mp4',
+      caption: message.caption,
+    };
+  }
+
+  // Sticker
+  if (message.sticker) {
+    const isAnimated = message.sticker.is_animated;
+    return {
+      fileId: message.sticker.file_id,
+      filename: `sticker_${Date.now()}.${isAnimated ? 'tgs' : 'webp'}`,
+      contentType: isAnimated ? 'application/x-tgsticker' : 'image/webp',
+      caption: message.caption,
+    };
+  }
+
+  return null;
+}
+
+// ── Download file from Telegram, upload to Supabase Storage ────────────
+async function downloadAndUploadFile(
+  botToken: string,
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  fileInfo: TelegramFileInfo
+): Promise<{ file_path: string; filename: string; content_type: string; size: number } | null> {
+  try {
+    // Step 1: Get file path from Telegram
+    const getFileRes = await fetch(
+      `https://api.telegram.org/bot${botToken}/getFile`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_id: fileInfo.fileId }),
+      }
+    );
+    const getFileData = await getFileRes.json();
+    if (!getFileRes.ok || !getFileData.ok) {
+      console.error('❌ getFile failed:', getFileData);
+      return null;
+    }
+
+    const telegramFilePath = getFileData.result.file_path;
+    const fileSize = getFileData.result.file_size || 0;
+
+    // Step 2: Download the file bytes
+    const downloadRes = await fetch(
+      `https://api.telegram.org/file/bot${botToken}/${telegramFilePath}`
+    );
+    if (!downloadRes.ok) {
+      console.error('❌ File download failed:', downloadRes.status);
+      return null;
+    }
+
+    const fileBytes = new Uint8Array(await downloadRes.arrayBuffer());
+
+    // Step 3: Upload to Supabase Storage (chat-files bucket)
+    const storagePath = `telegram/${userId}/${Date.now()}_${fileInfo.filename}`;
+    const { error: uploadErr } = await supabase.storage
+      .from('chat_attachments')
+      .upload(storagePath, fileBytes, {
+        contentType: fileInfo.contentType,
+        upsert: false,
+      });
+
+    if (uploadErr) {
+      console.error('❌ Upload to chat_attachments failed:', uploadErr.message);
+      return null;
+    }
+
+    console.log(`✅ File uploaded: ${storagePath} (${fileBytes.length} bytes)`);
+    return {
+      file_path: storagePath,
+      filename: fileInfo.filename,
+      content_type: fileInfo.contentType,
+      size: fileSize || fileBytes.length,
+    };
+  } catch (err) {
+    console.error('❌ downloadAndUploadFile error:', err);
+    return null;
+  }
+}
+
+// ── Process updates for a single bot ───────────────────────────────────
 async function processBotUpdates(
   supabase: ReturnType<typeof createClient>,
   config: any,
@@ -80,11 +228,6 @@ async function processBotUpdates(
   const botToken = config.bot_token;
   const userId = config.user_id;
 
-  // Get stored offset for this bot (use telegram_bot_state but per-bot via a simple approach)
-  // For simplicity, store offset in the config's updated_at or use a separate mechanism
-  // We'll use getUpdates with offset=0 initially and track via telegram_messages
-  
-  // Get the latest update_id we've processed for this bot's chat
   const { data: lastMsg } = await supabase
     .from('telegram_messages')
     .select('update_id')
@@ -95,16 +238,13 @@ async function processBotUpdates(
 
   const offset = lastMsg ? lastMsg.update_id + 1 : 0;
 
-  // Calculate timeout based on remaining time
   const elapsed = Date.now() - startTime;
   const remainingMs = MAX_RUNTIME_MS - elapsed;
   const timeout = Math.min(30, Math.floor(remainingMs / 1000) - 5);
-  
   if (timeout < 1) return;
 
   console.log(`🔄 Polling @${config.bot_username} (offset: ${offset}, timeout: ${timeout}s)`);
 
-  // Call Telegram getUpdates directly with user's bot token
   const response = await fetch(`https://api.telegram.org/bot${botToken}/getUpdates`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -130,16 +270,34 @@ async function processBotUpdates(
   console.log(`📨 ${updates.length} new update(s) for @${config.bot_username}`);
 
   for (const update of updates) {
-    if (!update.message?.text) continue;
+    const message = update.message;
+    if (!message) continue;
 
-    const chatId = update.message.chat.id;
-    const messageText = update.message.text;
-    const senderName = [update.message.from?.first_name, update.message.from?.last_name]
+    const chatId = message.chat.id;
+    const senderName = [message.from?.first_name, message.from?.last_name]
       .filter(Boolean).join(' ') || 'Telegram User';
 
-    // Skip /start command
+    const messageText = message.text || message.caption || '';
+    const fileInfo = extractFileInfo(message);
+    const hasText = messageText && messageText.trim().length > 0;
+    const hasFile = fileInfo !== null;
+
+    // Skip if no text AND no file (e.g. service messages)
+    if (!hasText && !hasFile) {
+      // Still store the update so offset advances
+      await supabase.from('telegram_messages').upsert({
+        update_id: update.update_id,
+        chat_id: chatId,
+        user_id: userId,
+        text: '',
+        raw_update: update,
+        processed: true
+      }, { onConflict: 'update_id' });
+      continue;
+    }
+
+    // Handle /start command
     if (messageText === '/start') {
-      // Update telegram_chat_id if not set
       if (!config.telegram_chat_id) {
         await supabase
           .from('telegram_bot_configs')
@@ -147,12 +305,10 @@ async function processBotUpdates(
           .eq('id', config.id);
       }
 
-      // Send welcome message
       await sendTelegramMessage(botToken, chatId,
-        `👋 Welcome to Smartbookly AI!\n\nYou can now chat with your business assistant directly from Telegram. Ask me anything about your schedule, tasks, customers, or business!\n\nExamples:\n• "What's on my calendar today?"\n• "Create a task: Review reports"\n• "How many customers this month?"\n• "Set a reminder in 30 minutes"`
+        `👋 Welcome to Smartbookly AI!\n\nYou can now chat with your business assistant directly from Telegram. Ask me anything about your schedule, tasks, customers, or business!\n\nYou can also send:\n📷 Photos & images for analysis\n📎 Documents (PDF, DOCX, XLSX)\n🎤 Voice messages\n🎵 Audio files\n\nExamples:\n• "What's on my calendar today?"\n• "Create a task: Review reports"\n• Send a photo of a receipt for analysis\n• Send a voice message with instructions`
       );
 
-      // Store the update
       await supabase.from('telegram_messages').upsert({
         update_id: update.update_id,
         chat_id: chatId,
@@ -161,7 +317,6 @@ async function processBotUpdates(
         raw_update: update,
         processed: true
       }, { onConflict: 'update_id' });
-
       continue;
     }
 
@@ -170,28 +325,75 @@ async function processBotUpdates(
       update_id: update.update_id,
       chat_id: chatId,
       user_id: userId,
-      text: messageText,
+      text: messageText || (hasFile ? `[File: ${fileInfo!.filename}]` : ''),
       raw_update: update,
       processed: false
     }, { onConflict: 'update_id' });
 
-    // Find or create AI channel for this user
+    // Find or create AI channel
     const aiChannelId = await ensureAIChannel(supabase, userId);
     if (!aiChannelId) {
       console.error(`❌ Could not find/create AI channel for user ${userId}`);
       continue;
     }
 
-    // Save user message to chat_messages so it appears in dashboard
-    await supabase.from('chat_messages').insert({
+    // Download and upload file if present
+    let uploadedFile: { file_path: string; filename: string; content_type: string; size: number } | null = null;
+    if (hasFile) {
+      console.log(`📁 Downloading file: ${fileInfo!.filename} (${fileInfo!.contentType})`);
+      uploadedFile = await downloadAndUploadFile(botToken, supabase, userId, fileInfo!);
+      if (uploadedFile) {
+        console.log(`✅ File ready: ${uploadedFile.file_path}`);
+      } else {
+        console.error(`❌ Failed to download/upload file: ${fileInfo!.filename}`);
+      }
+    }
+
+    // Build chat message content
+    const displayContent = messageText || (uploadedFile ? `📎 ${uploadedFile.filename}` : '[File]');
+
+    // Save user message to chat_messages
+    const { data: chatMsg, error: chatMsgErr } = await supabase.from('chat_messages').insert({
       channel_id: aiChannelId,
       owner_id: userId,
       sender_type: 'admin',
       sender_user_id: userId,
       sender_name: `${senderName} (Telegram)`,
-      content: messageText,
-      message_type: 'text'
-    });
+      content: displayContent,
+      message_type: uploadedFile ? 'file' : 'text',
+      has_attachments: !!uploadedFile,
+    }).select('id').single();
+
+    if (chatMsgErr) {
+      console.error('❌ Error saving chat message:', chatMsgErr);
+    }
+
+    // Save file attachment record if we have one
+    if (uploadedFile && chatMsg?.id) {
+      await supabase.from('chat_message_files').insert({
+        message_id: chatMsg.id,
+        filename: uploadedFile.filename,
+        file_path: uploadedFile.file_path,
+        content_type: uploadedFile.content_type,
+        size: uploadedFile.size,
+      });
+    }
+
+    // Build attachments array for AI
+    const aiAttachments = uploadedFile ? [{
+      filename: uploadedFile.filename,
+      file_path: uploadedFile.file_path,
+      content_type: uploadedFile.content_type,
+      size: uploadedFile.size,
+    }] : [];
+
+    // Build prompt for AI
+    let aiPrompt = messageText || '';
+    if (uploadedFile && !aiPrompt) {
+      aiPrompt = `I've sent a file: ${uploadedFile.filename} (${uploadedFile.content_type}). Please analyze it.`;
+    } else if (uploadedFile && aiPrompt) {
+      aiPrompt = `${aiPrompt}\n\n[Attached file: ${uploadedFile.filename} (${uploadedFile.content_type})]`;
+    }
 
     // Call ai-chat edge function
     try {
@@ -203,9 +405,10 @@ async function processBotUpdates(
         },
         body: JSON.stringify({
           channelId: aiChannelId,
-          prompt: messageText,
+          prompt: aiPrompt,
           ownerId: userId,
           conversationHistory: [],
+          attachments: aiAttachments,
           senderName: `${senderName} (Telegram)`,
           senderType: 'admin'
         })
@@ -214,18 +417,15 @@ async function processBotUpdates(
       const aiData = await aiResponse.json();
 
       if (aiData.content) {
-        // Send AI response back to Telegram
-        // Strip markdown for Telegram (basic cleanup)
         const telegramText = aiData.content
-          .replace(/\*\*/g, '*')  // Bold: ** → *
-          .replace(/#{1,6}\s/g, '')  // Remove heading markers
-          .replace(/```[\s\S]*?```/g, (m: string) => m.replace(/```\w*\n?/g, ''))  // Clean code blocks
+          .replace(/\*\*/g, '*')
+          .replace(/#{1,6}\s/g, '')
+          .replace(/```[\s\S]*?```/g, (m: string) => m.replace(/```\w*\n?/g, ''))
           .trim();
 
         await sendTelegramMessage(botToken, chatId, telegramText);
       }
 
-      // Mark as processed
       await supabase
         .from('telegram_messages')
         .update({ processed: true })
@@ -241,7 +441,6 @@ async function processBotUpdates(
 }
 
 async function ensureAIChannel(supabase: ReturnType<typeof createClient>, userId: string): Promise<string | null> {
-  // Look for existing AI channel
   const { data: existing } = await supabase
     .from('chat_channels')
     .select('id')
@@ -252,7 +451,6 @@ async function ensureAIChannel(supabase: ReturnType<typeof createClient>, userId
 
   if (existing) return existing.id;
 
-  // Try RPC
   const { data: rpcResult } = await supabase.rpc('ensure_unique_ai_channel', {
     p_owner_id: userId,
     p_user_identity: `A:${userId}`
@@ -266,7 +464,6 @@ async function ensureAIChannel(supabase: ReturnType<typeof createClient>, userId
 }
 
 async function sendTelegramMessage(botToken: string, chatId: number, text: string) {
-  // Telegram has a 4096 char limit per message
   const chunks = [];
   let remaining = text;
   while (remaining.length > 0) {
@@ -287,7 +484,6 @@ async function sendTelegramMessage(botToken: string, chatId: number, text: strin
       });
 
       if (!res.ok) {
-        // Retry without parse_mode if Markdown fails
         const retryRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
