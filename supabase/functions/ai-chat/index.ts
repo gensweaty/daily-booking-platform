@@ -1041,6 +1041,83 @@ serve(async (req) => {
           return `📊 **PowerPoint: ${att.filename}**\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\n⚠️ PowerPoint text extraction is not fully supported. Please describe the content or copy-paste key text.`;
         }
 
+        // Audio/Voice files - transcribe using Gemini multimodal
+        if (contentType.startsWith('audio/') || /\.(ogg|mp3|wav|m4a|flac|aac|wma|opus|webm|oga|spx|amr|3gp)$/i.test(filename)) {
+          try {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            
+            // Convert to base64 in chunks
+            let binary = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+              const chunk = bytes.subarray(i, i + chunkSize);
+              binary += String.fromCharCode.apply(null, Array.from(chunk));
+            }
+            const base64Audio = btoa(binary);
+            
+            const audioMime = contentType || 'audio/ogg';
+            console.log(`🎤 Transcribing audio: ${att.filename} (${Math.round(bytes.length / 1024)}KB, ${audioMime})`);
+            
+            // Use Gemini to transcribe via Lovable AI gateway
+            const transcribeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      { 
+                        type: "text", 
+                        text: "Transcribe this audio message exactly. Output ONLY the transcription text, nothing else. If the audio is in a non-English language, transcribe it in the original language. If the audio is unclear or silent, respond with '[Audio unclear or silent]'." 
+                      },
+                      {
+                        type: "input_audio",
+                        input_audio: {
+                          data: base64Audio,
+                          format: audioMime.includes('wav') ? 'wav' : audioMime.includes('mp3') ? 'mp3' : audioMime.includes('ogg') ? 'ogg' : audioMime.includes('flac') ? 'flac' : 'mp3'
+                        }
+                      }
+                    ]
+                  }
+                ],
+                temperature: 0.1,
+                max_tokens: 4096
+              }),
+            });
+            
+            if (transcribeResponse.ok) {
+              const transcribeResult = await transcribeResponse.json();
+              const transcription = transcribeResult.choices?.[0]?.message?.content?.trim();
+              
+              if (transcription && transcription !== '[Audio unclear or silent]') {
+                console.log(`✅ Audio transcribed: ${att.filename} → ${transcription.substring(0, 100)}...`);
+                return `🎤 **Voice/Audio: ${att.filename}**\n**Transcription:**\n${transcription}`;
+              } else {
+                console.log(`⚠️ Audio transcription empty or unclear for ${att.filename}`);
+                return `🎤 **Voice/Audio: ${att.filename}**\nThe audio was unclear or contained no speech. Duration: ~${Math.round((att.size || 0) / 1600)}s`;
+              }
+            } else {
+              const errText = await transcribeResponse.text();
+              console.error(`❌ Audio transcription API error: ${transcribeResponse.status}`, errText);
+              return `🎤 **Voice/Audio: ${att.filename}**\nCould not transcribe audio. Size: ${Math.round((att.size || 0) / 1024)}KB`;
+            }
+          } catch (audioErr) {
+            console.error(`❌ Audio transcription error for ${att.filename}:`, audioErr);
+            return `🎤 **Voice/Audio: ${att.filename}**\nFailed to process audio file. Size: ${Math.round((att.size || 0) / 1024)}KB`;
+          }
+        }
+
+        // Video files - extract audio context
+        if (contentType.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/i.test(filename)) {
+          return `🎥 **Video: ${att.filename}**\nSize: ${Math.round((att.size || 0) / 1024)}KB\nVideo analysis is not supported yet. Please describe the content or extract audio/screenshots.`;
+        }
+
         // Fallback
         return `📎 File: ${att.filename} (${contentType})\nSize: ${Math.round((att.size || 0) / 1024)}KB`;
 
