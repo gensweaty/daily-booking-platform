@@ -193,31 +193,15 @@ async function downloadAndUploadFile(
     // Step 3: Upload to Supabase Storage (chat-files bucket)
     const storagePath = `telegram/${userId}/${Date.now()}_${fileInfo.filename}`;
     const { error: uploadErr } = await supabase.storage
-      .from('chat-files')
+      .from('chat_attachments')
       .upload(storagePath, fileBytes, {
         contentType: fileInfo.contentType,
         upsert: false,
       });
 
     if (uploadErr) {
-      // If bucket doesn't exist, try event-files as fallback
-      console.error('❌ Upload to chat-files failed:', uploadErr.message);
-      const { error: fallbackErr } = await supabase.storage
-        .from('event-files')
-        .upload(storagePath, fileBytes, {
-          contentType: fileInfo.contentType,
-          upsert: false,
-        });
-      if (fallbackErr) {
-        console.error('❌ Fallback upload also failed:', fallbackErr.message);
-        return null;
-      }
-      return {
-        file_path: storagePath,
-        filename: fileInfo.filename,
-        content_type: fileInfo.contentType,
-        size: fileSize || fileBytes.length,
-      };
+      console.error('❌ Upload to chat_attachments failed:', uploadErr.message);
+      return null;
     }
 
     console.log(`✅ File uploaded: ${storagePath} (${fileBytes.length} bytes)`);
