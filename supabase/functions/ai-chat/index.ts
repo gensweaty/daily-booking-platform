@@ -177,25 +177,9 @@ serve(async (req) => {
           let localStart = startDate.toISOString();
           let localEnd = endDate.toISOString();
           
-          if (effectiveTZ) {
-            try {
-              localStart = startDate.toLocaleString('en-US', { 
-                timeZone: effectiveTZ, 
-                year: 'numeric', 
-                month: '2-digit', 
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false 
-              });
-              localEnd = endDate.toLocaleString('en-US', { 
-                timeZone: effectiveTZ,
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false 
-              });
-            } catch {}
-          }
+          // Use formatInUserZone for consistent timezone display
+          localStart = formatInUserZone(startDate);
+          localEnd = formatInUserZone(endDate);
           
           preloadedCalendarContext += `• ${displayName} - ${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (Day ${dayNum}) at ${localStart} to ${localEnd}\n`;
           if (event.payment_status) preloadedCalendarContext += `  Payment: ${event.payment_status}${event.payment_amount ? ` ($${event.payment_amount})` : ''}\n`;
@@ -3509,17 +3493,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               const userLocalTime = currentLocalTime || new Date().toISOString();
               const localDate = new Date(userLocalTime);
               
-              // Format the time in user's timezone for display
-              const userLocalTimeStr = localDate.toLocaleString('en-US', {
-                timeZone: userTimezone,
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-              });
+              // Format the time using the reliable offset-based formatter
+              const userLocalTimeStr = formatInUserZone(localDate);
               
               toolResult = {
                 currentTime: userLocalTime,

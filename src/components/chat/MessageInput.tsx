@@ -307,6 +307,16 @@ export const MessageInput = ({
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
           const tzOffsetMinutes = now.getTimezoneOffset();
           
+          // Auto-sync browser timezone to user profile so Telegram-poll uses correct tz
+          if (tz && tz !== 'UTC') {
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            if (currentUser?.id) {
+              supabase.from('profiles').update({ timezone: tz }).eq('id', currentUser.id).then(() => {
+                console.log('🌍 Profile timezone synced:', tz);
+              });
+            }
+          }
+
           const { data, error } = await supabase.functions.invoke('ai-chat', {
             body: {
               channelId: currentChannelId,
