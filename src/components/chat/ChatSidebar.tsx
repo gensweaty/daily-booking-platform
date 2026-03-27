@@ -21,6 +21,7 @@ import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 import { useAIChannel } from '@/hooks/useAIChannel';
 import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
 import { PublicBoardSettings } from '@/components/tasks/PublicBoardSettings';
+import { TelegramConnectDialog } from './TelegramConnectDialog';
 
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
