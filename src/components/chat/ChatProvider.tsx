@@ -7,6 +7,7 @@ import { usePublicBoardAuth } from "@/contexts/PublicBoardAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ChatIcon } from "./ChatIcon";
 import { ChatWindow } from "./ChatWindow";
+import { ChatSwipeEdge } from "./ChatSwipeEdge";
 import { resolveAvatarUrl } from "./_avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
