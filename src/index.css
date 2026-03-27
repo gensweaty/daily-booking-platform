@@ -663,3 +663,62 @@
   }
 }
 
+/* ===== iOS Safari Compatibility Fixes ===== */
+
+/* Fix iOS Safari rubber-banding on scrollable containers */
+@supports (-webkit-touch-callout: none) {
+  /* Prevent body bounce/rubber-band effect */
+  html, body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix position:fixed elements on iOS (keyboard, bottom bars) */
+  .fixed {
+    /* iOS needs transform: translateZ(0) to properly render fixed elements */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  /* Fix iOS Safari 100vh in modals and full-screen overlays */
+  [role="dialog"],
+  [role="alertdialog"] {
+    max-height: 100vh;
+    max-height: 100dvh;
+  }
+
+  /* Fix iOS momentum scrolling in overflow containers */
+  .overflow-y-auto,
+  .overflow-auto,
+  .overflow-y-scroll,
+  .overflow-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent text size adjustment on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* Fix iOS tap highlight on interactive elements */
+  button, a, [role="button"], input, select, textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Fix iOS sticky positioning issues */
+  .sticky {
+    position: -webkit-sticky;
+    position: sticky;
+  }
+}
+
+/* iOS-specific scrollbar hiding (Safari doesn't support scrollbar-width) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
