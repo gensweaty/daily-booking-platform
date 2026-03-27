@@ -395,6 +395,25 @@ async function processBotUpdates(
       aiPrompt = `${aiPrompt}\n\n[Attached file: ${uploadedFile.filename} (${uploadedFile.content_type})]`;
     }
 
+    // Fetch user's timezone from profile so AI handles time correctly
+    let userTimezone = 'UTC';
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('timezone')
+        .eq('id', userId)
+        .maybeSingle();
+      if (profile?.timezone) {
+        userTimezone = profile.timezone;
+      }
+    } catch (tzErr) {
+      console.error('⚠️ Failed to fetch user timezone, defaulting to UTC:', tzErr);
+    }
+
+    // Compute current local time for the user so AI "in X minutes" works correctly
+    const nowUtc = new Date();
+    const currentLocalTime = nowUtc.toLocaleString('en-US', { timeZone: userTimezone });
+
     // Call ai-chat edge function
     try {
       const aiResponse = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
@@ -408,6 +427,8 @@ async function processBotUpdates(
           prompt: aiPrompt,
           ownerId: userId,
           conversationHistory: [],
+          userTimezone: userTimezone,
+          currentLocalTime: new Date(currentLocalTime).toISOString(),
           attachments: aiAttachments,
           senderName: `${senderName} (Telegram)`,
           senderType: 'admin'
