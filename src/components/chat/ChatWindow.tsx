@@ -22,6 +22,8 @@ type WindowState = 'normal' | 'minimized' | 'maximized';
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const { t } = useLanguage();
   const cardRef = useRef<HTMLDivElement>(null);
+  const sidebarTouchStartX = useRef<number | null>(null);
+  const sidebarTouchStartY = useRef<number | null>(null);
   const chatContext = useChatSafe();
   const isMobile = useMediaQuery('(max-width: 768px)');
   // Use VisualViewport sizing on mobile to avoid “paddingBottom gap” issues when the keyboard opens.
@@ -79,6 +81,33 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     if (isMobile && !isSidebarCollapsed) {
       setIsSidebarCollapsed(true);
     }
+  };
+
+  const handleMobileSidebarTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile) return;
+    const touch = event.touches[0];
+    sidebarTouchStartX.current = touch.clientX;
+    sidebarTouchStartY.current = touch.clientY;
+  };
+
+  const handleMobileSidebarTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || isSidebarCollapsed) return;
+    if (sidebarTouchStartX.current === null || sidebarTouchStartY.current === null) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - sidebarTouchStartX.current;
+    const deltaY = touch.clientY - sidebarTouchStartY.current;
+
+    if (deltaX < -36 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      setIsSidebarCollapsed(true);
+      sidebarTouchStartX.current = null;
+      sidebarTouchStartY.current = null;
+    }
+  };
+
+  const resetMobileSidebarTouch = () => {
+    sidebarTouchStartX.current = null;
+    sidebarTouchStartY.current = null;
   };
 
 
@@ -221,7 +250,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
 
       {/* Chat Content */}
       <div className={cn(
-        "grid overflow-hidden min-h-0",
+        "relative grid overflow-hidden min-h-0",
         windowState === 'minimized' ? "grid-cols-1" : "grid-cols-[auto,1fr]"
       )}>
         {/* Sidebar - hidden when minimized */}
@@ -230,7 +259,11 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             "border-r overflow-hidden bg-muted/20",
             isSidebarCollapsed ? "w-0" : "w-64",
             isMobile ? "chat-mobile-transition" : "transition-all duration-200"
-          )}>
+          )}
+          onTouchStart={handleMobileSidebarTouchStart}
+          onTouchMove={handleMobileSidebarTouchMove}
+          onTouchEnd={resetMobileSidebarTouch}
+          >
             {!isInitialized ? (
               <div className="flex items-center justify-center h-full w-64">
                 <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
@@ -242,6 +275,15 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
               />
             )}
           </div>
+        )}
+
+        {isMobile && !isSidebarCollapsed && windowState !== 'minimized' && (
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            onClick={handleMobileSidebarAutoClose}
+            className="absolute inset-y-0 left-64 right-0 z-10 bg-background/40"
+          />
         )}
         
         {/* Main Chat Area - always visible, compact when minimized */}
