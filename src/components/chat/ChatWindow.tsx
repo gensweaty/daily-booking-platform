@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Minus, Maximize2, Minimize2, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -83,6 +83,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     }
   };
 
+  // --- Sidebar swipe-to-close (left swipe on sidebar) ---
   const handleMobileSidebarTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     if (!isMobile) return;
     const touch = event.touches[0];
@@ -108,6 +109,33 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const resetMobileSidebarTouch = () => {
     sidebarTouchStartX.current = null;
     sidebarTouchStartY.current = null;
+  };
+
+  // --- Header swipe-down to close chat (mobile only) ---
+  const headerTouchStartY = useRef<number | null>(null);
+  const headerTouchStartX = useRef<number | null>(null);
+
+  const handleHeaderTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile) return;
+    headerTouchStartY.current = event.touches[0].clientY;
+    headerTouchStartX.current = event.touches[0].clientX;
+  };
+
+  const handleHeaderTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || headerTouchStartY.current === null || headerTouchStartX.current === null) return;
+    const deltaY = event.touches[0].clientY - headerTouchStartY.current;
+    const deltaX = event.touches[0].clientX - headerTouchStartX.current;
+    // Swipe down at least 50px, predominantly vertical
+    if (deltaY > 50 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
+      headerTouchStartY.current = null;
+      headerTouchStartX.current = null;
+      onClose();
+    }
+  };
+
+  const resetHeaderTouch = () => {
+    headerTouchStartY.current = null;
+    headerTouchStartX.current = null;
   };
 
 
@@ -181,12 +209,18 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       )}
       style={getWindowStyle()}
     >
-      {/* Title Bar */}
-      <div className={cn(
-        "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
-        "min-h-[52px] shrink-0", // Consistent height with better spacing
-        windowState === 'minimized' ? "h-[52px]" : "" // Fixed height when minimized
-      )}>
+      {/* Title Bar — swipe down to close on mobile */}
+      <div
+        className={cn(
+          "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
+          "min-h-[52px] shrink-0",
+          windowState === 'minimized' ? "h-[52px]" : "",
+          isMobile && "cursor-grab active:cursor-grabbing"
+        )}
+        onTouchStart={handleHeaderTouchStart}
+        onTouchMove={handleHeaderTouchMove}
+        onTouchEnd={resetHeaderTouch}
+      >
         <div className="flex items-center gap-2 min-w-0">
           {windowState !== 'minimized' && (
             <Button

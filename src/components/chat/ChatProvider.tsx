@@ -7,6 +7,7 @@ import { usePublicBoardAuth } from "@/contexts/PublicBoardAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ChatIcon } from "./ChatIcon";
 import { ChatWindow } from "./ChatWindow";
+import { ChatSwipeEdge } from "./ChatSwipeEdge";
 import { resolveAvatarUrl } from "./_avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useEnhancedNotifications } from '@/hooks/useEnhancedNotifications';
@@ -1481,16 +1482,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       {shouldShowChat && portalRoot && createPortal(
         <div className="contents" key={identityKey}>
           {!isOpen && (
-            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
-              <ChatIcon 
-                onClick={toggle} 
-                isOpen={isOpen} 
-                unreadCount={uiUnreadTotal}
-                isPending={false}
-                teamChatText={t('chat.teamChat')}
-                loadingText={t('chat.loading')}
-              />
-            </div>
+            <>
+              <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
+                <ChatIcon 
+                  onClick={toggle} 
+                  isOpen={isOpen} 
+                  unreadCount={uiUnreadTotal}
+                  isPending={false}
+                  teamChatText={t('chat.teamChat')}
+                  loadingText={t('chat.loading')}
+                />
+              </div>
+              {/* Invisible right-edge swipe zone to open chat on mobile */}
+              <ChatSwipeEdge onSwipeLeft={open} />
+            </>
           )}
           {isOpen && (
             <div
