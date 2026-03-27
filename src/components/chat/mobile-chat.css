@@ -7,6 +7,13 @@
   }
 }
 
+/* iOS Safari fallback for dvh */
+@supports (-webkit-touch-callout: none) and (not (height: 100dvh)) {
+  .chat-mobile-viewport {
+    height: -webkit-fill-available;
+  }
+}
+
 /* Smooth touch animations for mobile chat */
 .chat-mobile-transition {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
