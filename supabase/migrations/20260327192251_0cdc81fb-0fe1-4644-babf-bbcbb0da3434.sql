@@ -1,0 +1,1 @@
+UPDATE public.profiles SET timezone = 'Asia/Tbilisi' WHERE id = 'bea6f783-a3a1-4fe5-beb7-0321fc4d4af0' AND timezone = 'UTC';
