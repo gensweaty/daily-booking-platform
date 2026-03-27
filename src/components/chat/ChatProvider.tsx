@@ -1481,16 +1481,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       {shouldShowChat && portalRoot && createPortal(
         <div className="contents" key={identityKey}>
           {!isOpen && (
-            <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
-              <ChatIcon 
-                onClick={toggle} 
-                isOpen={isOpen} 
-                unreadCount={uiUnreadTotal}
-                isPending={false}
-                teamChatText={t('chat.teamChat')}
-                loadingText={t('chat.loading')}
-              />
-            </div>
+            <>
+              <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
+                <ChatIcon 
+                  onClick={toggle} 
+                  isOpen={isOpen} 
+                  unreadCount={uiUnreadTotal}
+                  isPending={false}
+                  teamChatText={t('chat.teamChat')}
+                  loadingText={t('chat.loading')}
+                />
+              </div>
+              {/* Invisible right-edge swipe zone to open chat on mobile */}
+              <ChatSwipeEdge onSwipeLeft={open} />
+            </>
           )}
           {isOpen && (
             <div
