@@ -20,6 +20,49 @@ interface ReminderProcessingResult {
   errors: string[];
 }
 
+// Helper: Send a Telegram notification for a given user if they have an active bot
+async function sendTelegramNotification(supabase: any, userId: string, message: string) {
+  try {
+    const { data: config } = await supabase
+      .from('telegram_bot_configs')
+      .select('bot_token, telegram_chat_id')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!config?.bot_token || !config?.telegram_chat_id) return;
+
+    // Clean markdown for Telegram (convert ** to *, strip headers)
+    const telegramText = message
+      .replace(/\*\*/g, '*')
+      .replace(/#{1,6}\s/g, '')
+      .trim();
+
+    const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: config.telegram_chat_id,
+        text: telegramText,
+        parse_mode: 'Markdown'
+      })
+    });
+
+    if (!res.ok) {
+      // Retry without parse_mode if Markdown fails
+      await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: config.telegram_chat_id, text: telegramText })
+      });
+    }
+
+    console.log(`📱 Telegram notification sent to user ${userId}`);
+  } catch (err) {
+    console.error(`⚠️ Failed to send Telegram notification to user ${userId}:`, err);
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log('🔄 Process reminders function called');
 
