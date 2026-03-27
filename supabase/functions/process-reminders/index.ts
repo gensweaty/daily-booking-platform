@@ -20,6 +20,49 @@ interface ReminderProcessingResult {
   errors: string[];
 }
 
+// Helper: Send a Telegram notification for a given user if they have an active bot
+async function sendTelegramNotification(supabase: any, userId: string, message: string) {
+  try {
+    const { data: config } = await supabase
+      .from('telegram_bot_configs')
+      .select('bot_token, telegram_chat_id')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!config?.bot_token || !config?.telegram_chat_id) return;
+
+    // Clean markdown for Telegram (convert ** to *, strip headers)
+    const telegramText = message
+      .replace(/\*\*/g, '*')
+      .replace(/#{1,6}\s/g, '')
+      .trim();
+
+    const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: config.telegram_chat_id,
+        text: telegramText,
+        parse_mode: 'Markdown'
+      })
+    });
+
+    if (!res.ok) {
+      // Retry without parse_mode if Markdown fails
+      await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: config.telegram_chat_id, text: telegramText })
+      });
+    }
+
+    console.log(`📱 Telegram notification sent to user ${userId}`);
+  } catch (err) {
+    console.error(`⚠️ Failed to send Telegram notification to user ${userId}:`, err);
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log('🔄 Process reminders function called');
 
@@ -88,6 +131,8 @@ const handler = async (req: Request): Promise<Response> => {
               } else {
                 console.log(`✅ Task reminder sent successfully for: ${task.title}`);
                 result.taskReminders++;
+                // Also send via Telegram
+                await sendTelegramNotification(supabase, task.user_id, `🔔 Task Reminder\n\n${task.title}${task.description ? '\n' + task.description : ''}`);
               }
             } else {
               console.log(`⏭️ Skipping task ${task.id} - already sent or no reminder set`);
@@ -135,6 +180,8 @@ const handler = async (req: Request): Promise<Response> => {
             } else {
               console.log(`✅ Event reminder sent successfully for: ${event.title}`);
               result.eventReminders++;
+              // Also send via Telegram
+              await sendTelegramNotification(supabase, event.user_id, `📅 Event Reminder\n\n${event.title}${event.user_surname ? ' - ' + event.user_surname : ''}\nStarts: ${new Date(event.start_date).toLocaleString()}`);
             }
           } catch (error) {
             console.error(`❌ Exception processing event ${event.id}:`, error);
@@ -359,6 +406,8 @@ const handler = async (req: Request): Promise<Response> => {
             
             console.log(`✅ Custom reminder fully processed: ${reminder.title}`);
             result.customReminders++;
+            // Also send via Telegram
+            await sendTelegramNotification(supabase, reminder.user_id, `🔔 Reminder\n\n${reminder.title}${reminder.message && reminder.message !== reminder.title ? '\n' + reminder.message : ''}`);
           } catch (error) {
             console.error(`❌ Exception processing custom reminder ${reminder.id}:`, error);
             result.errors.push(`Custom reminder ${reminder.id} exception: ${(error as Error).message}`);
