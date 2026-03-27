@@ -410,9 +410,25 @@ async function processBotUpdates(
       console.error('⚠️ Failed to fetch user timezone, defaulting to UTC:', tzErr);
     }
 
-    // Compute current local time for the user so AI "in X minutes" works correctly
-    const nowUtc = new Date();
-    const currentLocalTime = nowUtc.toLocaleString('en-US', { timeZone: userTimezone });
+    // Compute tzOffsetMinutes from the user's IANA timezone (same as browser getTimezoneOffset())
+    // getTimezoneOffset() returns negative for UTC+ zones: UTC+4 → -240
+    function computeTzOffsetMinutes(tz: string): number {
+      try {
+        const now = new Date();
+        const utcStr = now.toLocaleString('en-US', { timeZone: 'UTC' });
+        const localStr = now.toLocaleString('en-US', { timeZone: tz });
+        const utcDate = new Date(utcStr);
+        const localDate = new Date(localStr);
+        return (utcDate.getTime() - localDate.getTime()) / 60000;
+      } catch {
+        return 0;
+      }
+    }
+
+    const tzOffsetMinutes = computeTzOffsetMinutes(userTimezone);
+    const currentLocalTimeISO = new Date().toISOString(); // actual UTC time, same as dashboard
+
+    console.log(`🌍 Timezone: ${userTimezone}, offset: ${tzOffsetMinutes} min, now: ${currentLocalTimeISO}`);
 
     // Call ai-chat edge function
     try {
@@ -428,7 +444,8 @@ async function processBotUpdates(
           ownerId: userId,
           conversationHistory: [],
           userTimezone: userTimezone,
-          currentLocalTime: new Date(currentLocalTime).toISOString(),
+          tzOffsetMinutes: tzOffsetMinutes,
+          currentLocalTime: currentLocalTimeISO,
           attachments: aiAttachments,
           senderName: `${senderName} (Telegram)`,
           senderType: 'admin'
