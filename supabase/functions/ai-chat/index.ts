@@ -45,27 +45,31 @@ serve(async (req) => {
     const effectiveTZ = isValidTimeZone(userTimezone) ? userTimezone : null;
 
     function formatInUserZone(d: Date) {
-      if (effectiveTZ) {
-        return d.toLocaleString('en-US', {
-          timeZone: effectiveTZ,
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-      }
-      // Fallback: shift by offset minutes, then print as UTC
+      // Primary: use manual offset shifting (most reliable in Deno edge functions)
+      // tzOffsetMinutes follows getTimezoneOffset() convention: UTC+4 = -240
       if (typeof tzOffsetMinutes === 'number') {
+        // Shift UTC date by the negated offset to get "local" wall-clock time
         const shifted = new Date(d.getTime() - tzOffsetMinutes * 60_000);
-        return shifted.toLocaleString('en-US', {
-          timeZone: 'UTC',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
+        const month = shifted.toLocaleString('en-US', { timeZone: 'UTC', month: 'short' });
+        const day = shifted.getUTCDate();
+        let hours = shifted.getUTCHours();
+        const minutes = shifted.getUTCMinutes().toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        return `${month} ${day}, ${hours}:${minutes} ${ampm}`;
+      }
+      // Fallback: try Intl with IANA timezone  
+      if (effectiveTZ) {
+        try {
+          return d.toLocaleString('en-US', {
+            timeZone: effectiveTZ,
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          });
+        } catch { /* fall through */ }
       }
       // Last resort: UTC
       return d.toLocaleString('en-US', {
