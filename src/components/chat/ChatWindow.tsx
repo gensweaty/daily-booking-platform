@@ -83,6 +83,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     }
   };
 
+  // --- Sidebar swipe-to-close (left swipe on sidebar) ---
   const handleMobileSidebarTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     if (!isMobile) return;
     const touch = event.touches[0];
@@ -108,6 +109,33 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const resetMobileSidebarTouch = () => {
     sidebarTouchStartX.current = null;
     sidebarTouchStartY.current = null;
+  };
+
+  // --- Header swipe-down to close chat (mobile only) ---
+  const headerTouchStartY = useRef<number | null>(null);
+  const headerTouchStartX = useRef<number | null>(null);
+
+  const handleHeaderTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile) return;
+    headerTouchStartY.current = event.touches[0].clientY;
+    headerTouchStartX.current = event.touches[0].clientX;
+  };
+
+  const handleHeaderTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || headerTouchStartY.current === null || headerTouchStartX.current === null) return;
+    const deltaY = event.touches[0].clientY - headerTouchStartY.current;
+    const deltaX = event.touches[0].clientX - headerTouchStartX.current;
+    // Swipe down at least 50px, predominantly vertical
+    if (deltaY > 50 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
+      headerTouchStartY.current = null;
+      headerTouchStartX.current = null;
+      onClose();
+    }
+  };
+
+  const resetHeaderTouch = () => {
+    headerTouchStartY.current = null;
+    headerTouchStartX.current = null;
   };
 
 
