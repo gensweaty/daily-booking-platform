@@ -321,10 +321,36 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         )}
         
         {/* Main Chat Area - always visible, compact when minimized */}
-        <div className={cn(
-          "min-w-0 overflow-hidden",
-          windowState === 'minimized' && "flex flex-col"
-        )}>
+        <div
+          className={cn(
+            "min-w-0 overflow-hidden",
+            windowState === 'minimized' && "flex flex-col"
+          )}
+          onTouchStart={(e) => {
+            if (!isMobile || windowState === 'minimized') return;
+            (cardRef.current as any)?.__chatSwipeStartX = e.touches[0].clientX;
+            (cardRef.current as any)?.__chatSwipeStartY = e.touches[0].clientY;
+          }}
+          onTouchMove={(e) => {
+            if (!isMobile || windowState === 'minimized') return;
+            const sx = (cardRef.current as any)?.__chatSwipeStartX;
+            const sy = (cardRef.current as any)?.__chatSwipeStartY;
+            if (sx == null || sy == null) return;
+            const dx = e.touches[0].clientX - sx;
+            const dy = e.touches[0].clientY - sy;
+            // Swipe right at least 50px, predominantly horizontal → open sidebar
+            if (dx > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && isSidebarCollapsed) {
+              (cardRef.current as any).__chatSwipeStartX = null;
+              setIsSidebarCollapsed(false);
+            }
+          }}
+          onTouchEnd={() => {
+            if (cardRef.current) {
+              (cardRef.current as any).__chatSwipeStartX = null;
+              (cardRef.current as any).__chatSwipeStartY = null;
+            }
+          }}
+        >
           <ChatArea 
             onMessageInputFocus={handleMobileSidebarAutoClose}
             isMinimized={windowState === 'minimized'}
