@@ -131,6 +131,8 @@ const handler = async (req: Request): Promise<Response> => {
               } else {
                 console.log(`✅ Task reminder sent successfully for: ${task.title}`);
                 result.taskReminders++;
+                // Also send via Telegram
+                await sendTelegramNotification(supabase, task.user_id, `🔔 Task Reminder\n\n${task.title}${task.description ? '\n' + task.description : ''}`);
               }
             } else {
               console.log(`⏭️ Skipping task ${task.id} - already sent or no reminder set`);
