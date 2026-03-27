@@ -327,9 +327,9 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             windowState === 'minimized' && "flex flex-col"
           )}
           onTouchStart={(e) => {
-            if (!isMobile || windowState === 'minimized') return;
-            (cardRef.current as any)?.__chatSwipeStartX = e.touches[0].clientX;
-            (cardRef.current as any)?.__chatSwipeStartY = e.touches[0].clientY;
+            if (!isMobile || windowState === 'minimized' || !cardRef.current) return;
+            (cardRef.current as any).__chatSwipeStartX = e.touches[0].clientX;
+            (cardRef.current as any).__chatSwipeStartY = e.touches[0].clientY;
           }}
           onTouchMove={(e) => {
             if (!isMobile || windowState === 'minimized') return;
