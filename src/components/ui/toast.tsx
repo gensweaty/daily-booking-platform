@@ -120,7 +120,7 @@ const ToastDescription = React.forwardRef<
   return (
     <ToastPrimitives.Description
       ref={ref}
-      className={cn("text-sm opacity-90", isGeorgian ? "georgian-text-fix" : "", className)}
+      className={cn("text-sm", isGeorgian ? "georgian-text-fix" : "", className)}
       {...props}
     >
       {typeof children === 'string' ? <LanguageText translateParams={translateParams}>{children}</LanguageText> : children}
