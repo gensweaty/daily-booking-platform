@@ -180,6 +180,8 @@ const handler = async (req: Request): Promise<Response> => {
             } else {
               console.log(`✅ Event reminder sent successfully for: ${event.title}`);
               result.eventReminders++;
+              // Also send via Telegram
+              await sendTelegramNotification(supabase, event.user_id, `📅 Event Reminder\n\n${event.title}${event.user_surname ? ' - ' + event.user_surname : ''}\nStarts: ${new Date(event.start_date).toLocaleString()}`);
             }
           } catch (error) {
             console.error(`❌ Exception processing event ${event.id}:`, error);
