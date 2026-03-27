@@ -406,6 +406,8 @@ const handler = async (req: Request): Promise<Response> => {
             
             console.log(`✅ Custom reminder fully processed: ${reminder.title}`);
             result.customReminders++;
+            // Also send via Telegram
+            await sendTelegramNotification(supabase, reminder.user_id, `🔔 Reminder\n\n${reminder.title}${reminder.message && reminder.message !== reminder.title ? '\n' + reminder.message : ''}`);
           } catch (error) {
             console.error(`❌ Exception processing custom reminder ${reminder.id}:`, error);
             result.errors.push(`Custom reminder ${reminder.id} exception: ${(error as Error).message}`);
