@@ -153,6 +153,9 @@ export function AIQuickPrompts({ onPromptSelect, initiallyExpanded = false, onEx
             </DropdownMenu>
           </div>
 
+          {/* Telegram connect button */}
+          <TelegramConnectDialog compact className="w-full" />
+
           {/* Compact grid layout for all quick actions */}
           <div className="grid grid-cols-2 gap-1.5">
             {prompts.map(p => {

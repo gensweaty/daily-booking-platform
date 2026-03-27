@@ -1118,6 +1118,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         </div>
       </div>
 
+      {/* Telegram status button at bottom of sidebar */}
+      <div className="px-2 pb-2 pt-1 border-t">
+        <TelegramConnectDialog compact className="w-full" />
+      </div>
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
