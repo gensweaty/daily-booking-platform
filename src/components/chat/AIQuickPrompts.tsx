@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar, MessageSquare, Search, Bot, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { TelegramConnectDialog } from './TelegramConnectDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -151,6 +152,9 @@ export function AIQuickPrompts({ onPromptSelect, initiallyExpanded = false, onEx
               </DropdownMenuPortal>
             </DropdownMenu>
           </div>
+
+          {/* Telegram connect button */}
+          <TelegramConnectDialog compact className="w-full" />
 
           {/* Compact grid layout for all quick actions */}
           <div className="grid grid-cols-2 gap-1.5">

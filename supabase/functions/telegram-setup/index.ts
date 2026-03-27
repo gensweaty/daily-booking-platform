@@ -12,16 +12,64 @@ serve(async (req) => {
   }
 
   try {
-    const { bot_token, user_id } = await req.json();
+    const body = await req.json();
+    const action = body.action || 'connect_legacy';
 
-    if (!bot_token || !user_id) {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Resolve user_id from JWT or body
+    let userId = body.user_id;
+    if (!userId) {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader) {
+        const supabaseAuth = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: { user } } = await supabaseAuth.auth.getUser();
+        userId = user?.id;
+      }
+    }
+
+    if (!userId) {
       return new Response(
-        JSON.stringify({ error: 'bot_token and user_id are required' }),
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ── STATUS ──
+    if (action === 'status') {
+      const { data: config } = await supabaseAdmin
+        .from('telegram_bot_configs')
+        .select('bot_username, is_active, telegram_chat_id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      return new Response(
+        JSON.stringify({
+          connected: !!config?.is_active,
+          bot_username: config?.bot_username ?? null,
+          chat_linked: !!config?.telegram_chat_id,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ── CONNECT ──
+    const bot_token = body.bot_token;
+    if (!bot_token) {
+      return new Response(
+        JSON.stringify({ error: 'bot_token is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Validate the bot token by calling Telegram getMe directly with user's token
+    // Validate the bot token
     const getMeResponse = await fetch(`https://api.telegram.org/bot${bot_token}/getMe`);
     const getMeData = await getMeResponse.json();
 
@@ -36,17 +84,20 @@ serve(async (req) => {
     const botUsername = getMeData.result.username;
     console.log(`✅ Bot validated: @${botUsername}`);
 
-    // Store in database
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Save timezone if provided
+    const timezone = body.timezone;
+    if (timezone) {
+      await supabaseAdmin
+        .from('profiles')
+        .update({ timezone })
+        .eq('id', userId);
+    }
 
-    // Upsert - if user already has a config, update it
+    // Upsert config
     const { data, error } = await supabaseAdmin
       .from('telegram_bot_configs')
       .upsert({
-        user_id,
+        user_id: userId,
         bot_token,
         bot_username: botUsername,
         is_active: true,
@@ -63,7 +114,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`✅ Bot config saved for user ${user_id}: @${botUsername}`);
+    console.log(`✅ Bot config saved for user ${userId}: @${botUsername}`);
 
     return new Response(
       JSON.stringify({

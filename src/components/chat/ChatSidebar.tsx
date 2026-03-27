@@ -21,6 +21,7 @@ import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 import { useAIChannel } from '@/hooks/useAIChannel';
 import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
 import { PublicBoardSettings } from '@/components/tasks/PublicBoardSettings';
+import { TelegramConnectDialog } from './TelegramConnectDialog';
 
 interface ChatSidebarProps {
   onChannelSelect?: () => void;
@@ -1115,6 +1116,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             </div>
           </ScrollArea>
         </div>
+      </div>
+
+      {/* Telegram status button at bottom of sidebar */}
+      <div className="px-2 pb-2 pt-1 border-t">
+        <TelegramConnectDialog compact className="w-full" />
       </div>
 
       {/* Delete Confirmation Dialog */}
