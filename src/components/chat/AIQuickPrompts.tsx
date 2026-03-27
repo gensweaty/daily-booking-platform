@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Calendar, MessageSquare, Search, Bot, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { TelegramConnectDialog } from './TelegramConnectDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
