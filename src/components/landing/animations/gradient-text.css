@@ -9,7 +9,7 @@
 
 /* Static gradient - no animation for performance */
 .static-gradient-text {
-  background: linear-gradient(135deg, #335CF4 0%, #FED308 50%, #FF4E32 100%);
+  background: linear-gradient(135deg, #335CF4 0%, #08B531 50%, #FF4E32 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
