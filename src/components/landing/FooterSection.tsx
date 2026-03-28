@@ -66,7 +66,7 @@ const FooterSection = () => {
               <img 
                 src={currentLogo}
                 alt="SmartBookly Logo" 
-                className="h-10" 
+                className="h-10 dark:invert dark:brightness-200" 
               />
             </Link>
             <p className="text-muted-foreground">
