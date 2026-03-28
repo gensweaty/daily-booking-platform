@@ -395,8 +395,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         <Link to="/" className="flex items-center gap-2">
           <img 
             src={effectiveTheme === 'dark' 
-              ? (isMobile ? "/logo-dark-compact.jpg" : "/logo-dark.jpg")
-              : (isMobile ? "/logo-light-compact.jpg" : "/logo-light.jpg")
+              ? (isMobile ? "/logo-dark-compact.png" : "/logo-dark.png")
+              : (isMobile ? "/logo-light-compact.png" : "/logo-light.png")
             }
             alt="SmartBookly Logo" 
             className="h-8 md:h-10 w-auto"
