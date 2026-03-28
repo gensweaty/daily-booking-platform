@@ -23,7 +23,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const navigate = useNavigate();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.png");
+  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.jpg");
   
   // Safely access language context with fallback
   let t, language;
@@ -33,32 +33,27 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     language = languageContext.language;
   } catch (error) {
     console.error('LanguageContext not available, using fallback');
-    // Provide fallback values
     t = (key: string) => key.split('.').pop() || key;
     language = 'en';
   }
 
   useEffect(() => {
     setMounted(true);
-    
-    // Set the initial logo based on theme
     updateLogoForTheme();
   }, []);
 
-  // Function to update logo based on current theme
   const updateLogoForTheme = () => {
-    // Get current theme from various sources in order of reliability
     const isDarkTheme = 
       document.documentElement.classList.contains('dark') || 
       document.documentElement.getAttribute('data-theme') === 'dark' ||
       (resolvedTheme || theme) === 'dark';
     
+    const mobile = window.innerWidth < 768;
     const newLogoSrc = isDarkTheme 
-      ? "/logo-dark.png" 
-      : "/logo-light.png";
+      ? (mobile ? "/logo-dark-compact.jpg" : "/logo-dark.jpg")
+      : (mobile ? "/logo-light-compact.jpg" : "/logo-light.jpg");
     
     setCurrentLogo(newLogoSrc);
-    console.log("[AuthUI] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
   };
 
   useEffect(() => {
