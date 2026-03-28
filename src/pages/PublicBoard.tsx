@@ -706,7 +706,7 @@ const handleRegister = async () => {
                     : "/logo-light.png"
                   }
                   alt="SmartBookly Logo" 
-                  className="h-8 w-auto"
+                  className="h-8 w-auto dark:invert dark:brightness-200"
                 />
               </div>
               <div className="flex items-center gap-2">
@@ -877,7 +877,7 @@ const handleRegister = async () => {
                   : "/logo-light.png"
                 }
                 alt="SmartBookly Logo" 
-                className="h-8 w-auto"
+                className="h-8 w-auto dark:invert dark:brightness-200"
               />
             </div>
             <div className="flex items-center gap-3">
