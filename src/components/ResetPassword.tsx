@@ -192,8 +192,8 @@ export const ResetPassword = () => {
             <Link to="/" className="flex items-center gap-2">
               <img 
                 src={theme === 'dark' 
-                  ? "/logo-dark.png"
-                  : "/logo-light.png"
+                  ? "/logo-dark.jpg"
+                  : "/logo-light.jpg"
                 }
                 alt="SmartBookly Logo" 
                 className="h-8 md:h-10 w-auto"

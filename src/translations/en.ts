@@ -10,9 +10,9 @@ export const translations: TranslationType = {
     signOut: "Sign Out",
   },
   hero: {
-    title: "Boost Your Business Productivity with SmartBookly",
-    subtitle: "All-in-One Solution - Event Bookings, Task Management, CRM & Analytics",
-    description: "Take complete control of your workflow with our seamless booking calendar, powerful task management, smart customer relationship management, and built-in analytics. Everything your business needs, all in one place.",
+    title: "Your Innocent Manager Bot — SmartBookly",
+    subtitle: "Booking · Calendar · CRM · Task Management · Analytics · Team · Chat · AI",
+    description: "Meet SmartBookly — your friendly AI-powered business companion. From seamless booking and calendar management to smart CRM, task boards, team chat, and real-time analytics, everything your business needs lives in one place. Let your innocent manager bot handle the routine while you focus on growth.",
   },
   features: {
     title: "What We Offer",

@@ -702,8 +702,8 @@ const handleRegister = async () => {
               <div className="flex items-center gap-2">
                 <img 
                   src={theme === 'dark' 
-                    ? "/logo-dark.png"
-                    : "/logo-light.png"
+                    ? "/logo-dark.jpg"
+                    : "/logo-light.jpg"
                   }
                   alt="SmartBookly Logo" 
                   className="h-8 w-auto"
@@ -873,8 +873,8 @@ const handleRegister = async () => {
             <div className="flex items-center gap-2">
               <img 
                 src={theme === 'dark' 
-                  ? "/logo-dark.png"
-                  : "/logo-light.png"
+                  ? "/logo-dark.jpg"
+                  : "/logo-light.jpg"
                 }
                 alt="SmartBookly Logo" 
                 className="h-8 w-auto"

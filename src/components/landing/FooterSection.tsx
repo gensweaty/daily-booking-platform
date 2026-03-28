@@ -9,28 +9,25 @@ const FooterSection = () => {
   const { theme, resolvedTheme } = useTheme();
   const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
-  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.png");
+  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.jpg");
 
   useEffect(() => {
     setMounted(true);
-    // Set initial logo
     updateLogoForTheme();
   }, []);
 
-  // Function to update logo based on current theme
   const updateLogoForTheme = () => {
-    // Get current theme from various sources in order of reliability
     const isDarkTheme = 
       document.documentElement.classList.contains('dark') || 
       document.documentElement.getAttribute('data-theme') === 'dark' ||
       (resolvedTheme || theme) === 'dark';
     
+    const mobile = window.innerWidth < 768;
     const newLogoSrc = isDarkTheme 
-      ? "/logo-dark.png" 
-      : "/logo-light.png";
+      ? (mobile ? "/logo-dark-compact.jpg" : "/logo-dark.jpg")
+      : (mobile ? "/logo-light-compact.jpg" : "/logo-light.jpg");
     
     setCurrentLogo(newLogoSrc);
-    console.log("[FooterSection] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
   };
 
   // Listen for theme changes

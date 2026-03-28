@@ -395,8 +395,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         <Link to="/" className="flex items-center gap-2">
           <img 
             src={effectiveTheme === 'dark' 
-              ? "/logo-dark.png"
-              : "/logo-light.png"
+              ? (isMobile ? "/logo-dark-compact.jpg" : "/logo-dark.jpg")
+              : (isMobile ? "/logo-light-compact.jpg" : "/logo-light.jpg")
             }
             alt="SmartBookly Logo" 
             className="h-8 md:h-10 w-auto"
@@ -456,7 +456,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 }
               `}</style>
               
-              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 md:p-8 text-white relative overflow-hidden">
+              <div className="bg-gradient-to-br from-[#335CF4] via-[#2548C9] to-[#335CF4] p-6 md:p-8 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="relative z-10">
                   <DialogHeader>
