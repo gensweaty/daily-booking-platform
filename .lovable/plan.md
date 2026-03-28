@@ -1,113 +1,156 @@
 
 
-## Telegram Integration as Alternative Interface for Smartbookly AI
+# Smartbookly Visual Rebrand Plan
 
-### Overview
-Enable users to connect their own Telegram bot to Smartbookly AI, so they can send/receive messages via Telegram that are processed by the same AI engine powering the dashboard chat. The Telegram bot acts as a transparent bridge -- messages flow in from Telegram, get processed by the existing `ai-chat` edge function, and responses are sent back to Telegram.
+## Brand Identity Summary (from Brandbook)
 
-### Architecture
+**Color Palette:**
+- Primary Blue: `#335CF4` (replaces current purple `#9b87f5`)
+- Primary Yellow: `#FED308`
+- Secondary Red: `#FF4E32`
+- Secondary Black: `#000002`
+- Secondary Green: `#08B531`
 
-```text
-User's Telegram Bot
-       ↕ (messages)
-[telegram-poll] edge function  ←── pg_cron every 1 min
-       ↓ incoming message
-       ↓ lookup user by telegram_bot_token → find owner_id
-       ↓ find/create AI channel for that user
-       ↓ save user message to chat_messages
-       ↓ call ai-chat edge function internally
-       ↓ get AI response
-       ↓ send response back to Telegram via gateway
-       ↓ (AI response already saved to chat_messages by ai-chat)
-```
+**Typography:**
+- Primary font: **Roboto** (headings & sub-headings)
+- Secondary font: **Roboto Mono** (UI text & body copy)
+- Replaces current Inter + BPG Glaho WEB Caps (Georgian font stays for Georgian text)
 
-### Database Changes
+**Logo:** New robot character with single eye -- a rounded square "bot" body with little legs. Used across all contexts:
+- Full detailed horizontal logo (for navigation header)
+- Symbol/Avatar (for favicon, chat AI face)
+- On white background (light mode), on black or blue (dark mode)
 
-**1. New table: `telegram_bot_configs`**
-Stores per-user Telegram bot configuration:
-- `id` (uuid, PK)
-- `user_id` (uuid, FK → auth.users, the dashboard owner)
-- `bot_token_encrypted` (text, the bot token -- stored encrypted or as-is since service_role only)
-- `bot_username` (text, e.g. "Smartbookly_bot")
-- `telegram_chat_id` (bigint, the Telegram chat_id for the user who set it up)
-- `is_active` (boolean, default true)
-- `created_at`, `updated_at`
-- RLS: service_role only (no client reads of bot tokens)
+**AI Character:** The same robot symbol is the Smartbookly AI persona -- the "innocent manager bot"
 
-**2. New table: `telegram_bot_state`**
-Singleton for polling offset tracking:
-- `id` (int, PK, CHECK id=1)
-- `update_offset` (bigint, default 0)
-- `updated_at` (timestamptz)
+---
 
-**3. New table: `telegram_messages`**
-Stores raw incoming Telegram updates for audit/debugging:
-- `update_id` (bigint, PK)
-- `chat_id` (bigint)
-- `text` (text)
-- `raw_update` (jsonb)
-- `created_at` (timestamptz)
+## What Changes, What Does NOT Change
 
-### Edge Function Changes
+**NOT touched:** All translations, all functionality, all backend logic, all Supabase edge functions, all gestures/UX, routing, auth flows.
 
-**4. New edge function: `telegram-setup`**
-- Called by the AI chatbot when user provides a bot token
-- Validates the token by calling Telegram `getMe` via the connector gateway
-- Stores the token in `telegram_bot_configs`
-- Returns success with bot username
+**Changed (visual only):**
+1. Logo files everywhere
+2. Color palette (CSS variables + Tailwind config)
+3. Font family (Roboto + Roboto Mono)
+4. Gradient text colors
+5. Chat icon robot to match new brand robot
+6. Favicon
+7. Button gradient variants
+8. Theme color meta tag
 
-**5. New edge function: `telegram-poll`**
-- Runs via pg_cron every minute
-- Queries all active `telegram_bot_configs`
-- For each config, calls `getUpdates` with stored offset
-- For each incoming message:
-  - Finds or creates the user's AI channel
-  - Inserts user message into `chat_messages`
-  - Calls the `ai-chat` edge function with the message
-  - Sends the AI response back to Telegram via `sendMessage`
-  - Updates offset
-- Uses the Telegram connector gateway for API calls
+---
 
-**6. Modify `ai-chat/index.ts`**
-- Add a new AI tool: `setup_telegram_bot`
-  - When user says "connect my Telegram bot" or provides a bot token
-  - Calls `telegram-setup` edge function
-  - Returns confirmation message
-- This is a small addition to the existing tools array (similar to how reminder tools work)
+## Implementation Steps
 
-### Frontend Changes
+### Step 1: Add New Logo Assets
+- User needs to provide the actual logo image files (light mode, dark mode variants, favicon, robot symbol) as separate PNG/SVG uploads. The PDF contains them visually but we need clean individual files.
+- Copy new logos to `public/` directory replacing the old `lovable-uploads` references.
+- **Action needed from user:** Upload the individual logo files (horizontal logo for light, horizontal logo for dark, symbol/avatar for favicon + AI face).
 
-**7. No major UI changes needed**
-- Users interact with Telegram setup through the existing AI chat
-- The AI recognizes intent like "connect Telegram" or "set up Telegram bot" and guides the user
-- Messages sent via Telegram appear in the dashboard AI chat in real-time (via existing realtime subscriptions on `chat_messages`)
+### Step 2: Update Color Palette (`src/index.css`)
+Replace CSS custom properties:
 
-### How It Works for Users
+**Light mode (`:root`):**
+- `--primary`: change from `262 83% 58%` (purple) to `227 79% 58%` (Primary Blue #335CF4)
+- `--accent`: match primary blue
+- `--ring`: match primary blue
 
-1. User opens Smartbookly AI chat and says "I want to connect Telegram"
-2. AI explains: create a bot via @BotFather, copy the token, and send it here
-3. User pastes the bot token
-4. AI validates it, stores it, confirms: "Your bot @Smartbookly_bot is now connected!"
-5. User opens Telegram, finds their bot, sends "/start" then any message
-6. Message appears in dashboard AI chat, AI responds both in Telegram and dashboard
+**Dark mode (`.dark`):**
+- `--primary`: change from `262 83% 75%` to `227 79% 78%` (lighter blue for dark mode)
+- `--accent`: match
+- `--ring`: match
 
-### Security Considerations
-- Bot tokens stored in a table with RLS disabled for clients (service_role only access)
-- Each user's Telegram messages are routed to their own AI channel with their own `owner_id`
-- The existing `ai-chat` security checks (channel validation, owner matching) still apply
-- Sub-users on external boards can also set up their own Telegram bots (routed via their board owner's AI channel with proper sender attribution)
+### Step 3: Update Tailwind Config (`tailwind.config.ts`)
+- Change `fontFamily.sans` from `Inter` to `Roboto`
+- Add `fontFamily.mono` as `Roboto Mono`
+- Update color values:
+  - `primary.DEFAULT`: `#335CF4`
+  - `primary.light`: `#5A7CF6`
+  - `primary.dark`: `#2548C9`
+  - `secondary.DEFAULT`: `#FED308` (yellow)
+  - `secondary.light`: `#FEDC3A`
+  - `secondary.dark`: `#D4B006`
+  - `accent.DEFAULT`: `#FF4E32` (red)
+  - `accent.light`: `#FF7A66`
+  - `accent.dark`: `#CC3E28`
 
-### Implementation Order
-1. Create migration with 3 new tables
-2. Create `telegram-setup` edge function
-3. Create `telegram-poll` edge function  
-4. Add `setup_telegram_bot` tool to `ai-chat/index.ts`
-5. Set up pg_cron job for polling
-6. Link the Telegram connector to the project
+### Step 4: Update Font Loading (`index.html`)
+- Add Google Fonts preconnect and stylesheet for Roboto + Roboto Mono
+- Keep BPG Glaho WEB Caps for Georgian text
 
-### Technical Notes
-- The Telegram connector gateway (`connector-gateway.lovable.dev/telegram`) handles bot API calls
-- The `LOVABLE_API_KEY` and `TELEGRAM_API_KEY` env vars are needed in edge functions
-- However, for per-user bot tokens (each user has their own bot), we need to call the Telegram API directly with the user's token rather than through the connector gateway (which uses a single shared bot token)
-- This means the connector is useful for initial validation but per-user polling will use direct `api.telegram.org` calls with each user's stored bot token
+### Step 5: Update Gradient CSS (`src/components/landing/animations/gradient-text.css`)
+- Change gradient from `#f97316, #ec4899, #9b87f5` to brand colors: `#335CF4, #FED308, #FF4E32`
+
+### Step 6: Replace Logo References (10 files)
+Replace all occurrences of the old logo paths across these files:
+- `src/components/landing/HeroSection.tsx`
+- `src/components/landing/FooterSection.tsx`
+- `src/components/landing/Navigation.tsx` (via currentLogo prop)
+- `src/components/AuthUI.tsx`
+- `src/components/DashboardHeader.tsx`
+- `src/components/ResetPassword.tsx`
+- `src/components/ForgotPassword.tsx`
+- `src/pages/Contact.tsx`
+- `src/pages/Legal.tsx`
+- `src/pages/PublicBoard.tsx`
+- `index.html` (preload + favicon)
+
+### Step 7: Update Favicon (`index.html`)
+- Replace favicon link to point to new robot symbol/avatar
+- Update `theme-color` meta from `#9b87f5` to `#335CF4`
+
+### Step 8: Update Button Variants (`src/components/ui/button.tsx`)
+- `purple` variant: change gradient from `#9b87f5 -> #f97316` to `#335CF4 -> #FED308`
+- `dynamic` variant: update `primary/70` references (will inherit from new CSS vars)
+- Chat icon gradient: change from purple/pink to brand blue
+
+### Step 9: Update Chat Icon Robot (`src/components/chat/ChatIcon.tsx`)
+- Redesign the SVG robot to match the new brand character (rounded square body with single eye, little legs)
+- Update gradient from `#2563EB, #6D28D9, #DB2777` to brand blue `#335CF4`
+- The robot becomes the Smartbookly AI face
+
+### Step 10: Update `src/lib/font-utils.ts`
+- Keep Georgian font utilities unchanged (BPG Glaho WEB Caps stays for Georgian)
+
+### Step 11: Update Admin Header (`src/components/admin/AdminHeader.tsx`)
+- Inherits from CSS variables, no direct color changes needed
+
+### Step 12: Update `src/App.css`
+- No brand-specific changes needed (generic layout CSS)
+
+---
+
+## Technical Details
+
+### Files Modified (estimated ~15 files):
+1. `index.html` -- fonts, favicon, theme-color, logo preload
+2. `tailwind.config.ts` -- fonts, colors
+3. `src/index.css` -- CSS custom properties (light + dark)
+4. `src/components/landing/animations/gradient-text.css` -- gradient colors
+5. `src/components/ui/button.tsx` -- gradient button variants
+6. `src/components/chat/ChatIcon.tsx` -- robot SVG + gradient
+7. `src/components/landing/HeroSection.tsx` -- logo path
+8. `src/components/landing/FooterSection.tsx` -- logo path
+9. `src/components/AuthUI.tsx` -- logo path
+10. `src/components/DashboardHeader.tsx` -- logo path
+11. `src/components/ResetPassword.tsx` -- logo path
+12. `src/components/ForgotPassword.tsx` -- logo path
+13. `src/pages/Contact.tsx` -- logo path
+14. `src/pages/Legal.tsx` -- logo path
+15. `src/pages/PublicBoard.tsx` -- logo path
+
+### Pre-requisite
+I need you to upload the individual logo files extracted from the brandbook:
+1. **Horizontal logo for light background** (black version)
+2. **Horizontal logo for dark background** (blue version from page 12)
+3. **Robot symbol/avatar** (for favicon + AI chat face)
+
+If you can provide these as separate PNG/SVG files, I can proceed immediately with the full rebrand. Otherwise, I will use the PDF-extracted images and optimize them as best as possible.
+
+### Safety Approach
+- Each step is isolated to visual properties only
+- No translation keys, API calls, routes, or logic touched
+- All changes are CSS variables, Tailwind config, image paths, and SVG markup
+- The Georgian font (BPG Glaho WEB Caps) remains untouched for Georgian language support
 
