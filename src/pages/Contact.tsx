@@ -71,7 +71,7 @@ const Contact = () => {
                   : "/logo-light.png"
                 }
                 alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto dark:invert dark:brightness-200"
+                className="h-8 md:h-10 w-auto"
               />
             </Link>
           </div>
