@@ -70,7 +70,7 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false, 
         {/* Yellow thunderbolt badge - brand yellow */}
         {!isPending && (
           <span
-            className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#FED308]
+            className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full bg-[#08B531]
                        flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.35)]"
             aria-hidden="true"
           >
