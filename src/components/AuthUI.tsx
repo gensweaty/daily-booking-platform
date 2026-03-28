@@ -23,7 +23,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const navigate = useNavigate();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.jpg");
+  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.png");
   
   // Safely access language context with fallback
   let t, language;
@@ -50,8 +50,8 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     
     const mobile = window.innerWidth < 768;
     const newLogoSrc = isDarkTheme 
-      ? (mobile ? "/logo-dark-compact.jpg" : "/logo-dark.jpg")
-      : (mobile ? "/logo-light-compact.jpg" : "/logo-light.jpg");
+      ? (mobile ? "/logo-dark-compact.png" : "/logo-dark.png")
+      : (mobile ? "/logo-light-compact.png" : "/logo-light.png");
     
     setCurrentLogo(newLogoSrc);
   };
