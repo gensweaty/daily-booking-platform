@@ -21,9 +21,9 @@ export const translations: TranslationType = {
     signOut: "Cerrar Sesión",
   },
   hero: {
-    title: "Aumente la Productividad de su Negocio con SmartBookly",
-    subtitle: "Solución Todo en Uno - Reservas de Eventos, Gestión de Tareas, CRM y Analítica",
-    description: "Tome el control completo de su flujo de trabajo con nuestro calendario de reservas sin problemas, gestión de tareas potente, gestión inteligente de relaciones con los clientes y análisis incorporados. Todo lo que su negocio necesita, en un solo lugar.",
+    title: "Tu Bot Gerente Amigable — SmartBookly",
+    subtitle: "Reservas · Calendario · CRM · Gestión de Tareas · Analítica · Equipo · Chat · IA",
+    description: "Conoce SmartBookly — tu compañero de negocios impulsado por IA. Desde reservas y gestión de calendario hasta CRM inteligente, tableros de tareas, chat de equipo y analítica en tiempo real, todo lo que tu negocio necesita en un solo lugar. Deja que tu bot gerente se encargue de la rutina mientras tú te enfocas en crecer.",
   },
   features: {
     title: "Lo Que Ofrecemos",
