@@ -9,7 +9,7 @@ const FooterSection = () => {
   const { theme, resolvedTheme } = useTheme();
   const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
-  const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
+  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.png");
 
   useEffect(() => {
     setMounted(true);
@@ -26,8 +26,8 @@ const FooterSection = () => {
       (resolvedTheme || theme) === 'dark';
     
     const newLogoSrc = isDarkTheme 
-      ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
-      : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+      ? "/logo-dark.png" 
+      : "/logo-light.png";
     
     setCurrentLogo(newLogoSrc);
     console.log("[FooterSection] Logo updated based on theme:", isDarkTheme ? "dark" : "light");

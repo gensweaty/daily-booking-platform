@@ -22,7 +22,7 @@ const Legal = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <Link to="/" className="flex items-center gap-2">
-              <img src={theme === 'dark' ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"} alt="SmartBookly Logo" className="h-8 md:h-10 w-auto" />
+              <img src={theme === 'dark' ? "/logo-dark.png" : "/logo-light.png"} alt="SmartBookly Logo" className="h-8 md:h-10 w-auto" />
             </Link>
           </div>
           <div className="flex items-center gap-4">

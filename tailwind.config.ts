@@ -19,7 +19,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['Roboto', 'system-ui', 'sans-serif'],
+        mono: ['Roboto Mono', 'monospace'],
         'georgian': ['BPG Glaho WEB Caps', 'sans-serif'],
       },
       colors: {
@@ -29,19 +30,19 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         primary: {
-          DEFAULT: "#9b87f5",
-          light: "#b8a8f8",
-          dark: "#7e69ab",
+          DEFAULT: "#335CF4",
+          light: "#5A7CF6",
+          dark: "#2548C9",
         },
         secondary: {
-          DEFAULT: "#4ade80",
-          light: "#86efac",
-          dark: "#22c55e",
+          DEFAULT: "#FED308",
+          light: "#FEDC3A",
+          dark: "#D4B006",
         },
         accent: {
-          DEFAULT: "#f97316",
-          light: "#fb923c",
-          dark: "#ea580c",
+          DEFAULT: "#FF4E32",
+          light: "#FF7A66",
+          dark: "#CC3E28",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",

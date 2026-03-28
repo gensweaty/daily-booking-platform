@@ -23,7 +23,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const navigate = useNavigate();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
+  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.png");
   
   // Safely access language context with fallback
   let t, language;
@@ -54,8 +54,8 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
       (resolvedTheme || theme) === 'dark';
     
     const newLogoSrc = isDarkTheme 
-      ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
-      : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+      ? "/logo-dark.png" 
+      : "/logo-light.png";
     
     setCurrentLogo(newLogoSrc);
     console.log("[AuthUI] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
