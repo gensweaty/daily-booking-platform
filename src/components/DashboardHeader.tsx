@@ -399,7 +399,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               : (isMobile ? "/logo-light-compact.png" : "/logo-light.png")
             }
             alt="SmartBookly Logo" 
-            className="h-8 md:h-10 w-auto"
+            className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"
           />
         </Link>
         <div className="flex items-center gap-2">

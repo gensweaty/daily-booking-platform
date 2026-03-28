@@ -109,7 +109,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
               <img 
                 src={currentLogo}
                 alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto transition-transform duration-200 hover:scale-105"
+                className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain transition-transform duration-200 hover:scale-105"
               />
             </Link>
           </div>
