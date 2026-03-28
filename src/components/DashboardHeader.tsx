@@ -456,7 +456,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 }
               `}</style>
               
-              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 md:p-8 text-white relative overflow-hidden">
+              <div className="bg-gradient-to-br from-[#335CF4] via-[#2548C9] to-[#335CF4] p-6 md:p-8 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="relative z-10">
                   <DialogHeader>
