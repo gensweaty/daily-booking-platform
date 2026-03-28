@@ -196,7 +196,7 @@ export const ResetPassword = () => {
                   : "/logo-light.png"
                 }
                 alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto"
+                className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"
               />
             </Link>
           </div>
