@@ -189,6 +189,7 @@ export const DashboardContent = ({
           <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
             <TabsTrigger 
               value="calendar" 
+              data-tutorial-step="calendar"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
               <motion.div
