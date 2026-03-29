@@ -149,8 +149,10 @@ export const OnboardingTutorial = () => {
       currentStep={currentStep + 1}
       totalSteps={TUTORIAL_STEPS.length}
       onNext={handleNext}
+      onPrev={handlePrev}
       onDismiss={handleSkip}
       isLast={currentStep === TUTORIAL_STEPS.length - 1}
+      isFirst={currentStep === 0}
     />
   );
 };
