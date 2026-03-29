@@ -11,8 +11,10 @@ interface TutorialRobotProps {
   currentStep: number;
   totalSteps: number;
   onNext: () => void;
+  onPrev: () => void;
   onDismiss: () => void;
   isLast: boolean;
+  isFirst: boolean;
 }
 
 type ArrowSide = 'top' | 'bottom' | 'left';
