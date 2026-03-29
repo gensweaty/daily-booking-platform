@@ -100,10 +100,18 @@ export const TutorialRobot = ({
           <p className="text-xs text-muted-foreground mb-3">{description}</p>
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">{currentStep}/{totalSteps}</span>
-            <Button size="sm" onClick={onNext} className="h-7 text-xs gap-1">
-              {isLast ? t('onboarding.finish') : t('onboarding.next')}
-              {!isLast && <ChevronRight className="w-3 h-3" />}
-            </Button>
+            <div className="flex items-center gap-1.5">
+              {!isFirst && (
+                <Button variant="ghost" size="sm" onClick={onPrev} className="h-7 text-xs gap-1">
+                  <ChevronRight className="w-3 h-3 rotate-180" />
+                  {t('onboarding.previous')}
+                </Button>
+              )}
+              <Button size="sm" onClick={onNext} className="h-7 text-xs gap-1">
+                {isLast ? t('onboarding.finish') : t('onboarding.next')}
+                {!isLast && <ChevronRight className="w-3 h-3" />}
+              </Button>
+            </div>
           </div>
         </div>
       </motion.div>
