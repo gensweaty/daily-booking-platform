@@ -23,6 +23,13 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     switchTab: 'calendar',
   },
   {
+    id: 'calendar-add',
+    selector: '[data-tutorial="calendar-add-event"], .calendar-add-event-btn',
+    titleKey: 'onboarding.calendarAddTitle',
+    descKey: 'onboarding.calendarAddDesc',
+    switchTab: 'calendar',
+  },
+  {
     id: 'statistics',
     selector: '[data-tutorial-step="statistics"]',
     titleKey: 'onboarding.statisticsTitle',
@@ -37,10 +44,24 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     switchTab: 'tasks',
   },
   {
+    id: 'tasks-add',
+    selector: '[data-tutorial="tasks-add-btn"], .add-task-trigger',
+    titleKey: 'onboarding.tasksAddTitle',
+    descKey: 'onboarding.tasksAddDesc',
+    switchTab: 'tasks',
+  },
+  {
     id: 'crm',
     selector: '[data-tutorial-step="crm"]',
     titleKey: 'onboarding.crmTitle',
     descKey: 'onboarding.crmDesc',
+    switchTab: 'crm',
+  },
+  {
+    id: 'crm-add',
+    selector: '[data-tutorial="crm-add-btn"], .add-customer-trigger',
+    titleKey: 'onboarding.crmAddTitle',
+    descKey: 'onboarding.crmAddDesc',
     switchTab: 'crm',
   },
   {
