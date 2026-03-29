@@ -41,6 +41,7 @@ export const ProfileButton = ({
         variant="ghost" 
         size="icon"
         onClick={onClick}
+        data-tutorial="profile-area"
         className={`h-10 w-10 rounded-full p-0 border border-gray-300 dark:border-gray-600 ${className}`}
       >
         <Avatar className="h-8 w-8">
@@ -57,6 +58,7 @@ export const ProfileButton = ({
     <Button 
       variant="ghost" 
       onClick={onClick}
+      data-tutorial="profile-area"
       className={`flex items-center gap-3 px-3 py-2 h-auto border border-gray-300 dark:border-gray-600 ${className}`}
     >
       <Avatar className="h-8 w-8">
