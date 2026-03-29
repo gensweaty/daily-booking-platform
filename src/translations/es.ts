@@ -980,5 +980,6 @@ export const translations: TranslationType = {
     chatDesc: "Comunícate con tu equipo en tiempo real. El asistente de IA integrado puede ayudarte a gestionar tareas, eventos y más.",
     profileTitle: "Perfil y Configuración",
     profileDesc: "Personaliza tu perfil, cambia entre temas claro y oscuro, cambia el idioma y gestiona tu suscripción.",
+    clickToTry: "¡Haz clic aquí para probarlo!",
   }
 };

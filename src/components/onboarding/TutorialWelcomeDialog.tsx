@@ -1,5 +1,5 @@
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Bot, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -13,61 +13,59 @@ export const TutorialWelcomeDialog = ({ onStart, onSkip }: TutorialWelcomeDialog
   const { t } = useLanguage();
 
   return (
-    <AnimatePresence>
+    <motion.div
+      className="fixed bottom-20 right-4 z-[14000] max-w-xs w-[85vw]"
+      initial={{ opacity: 0, y: 20, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 20, scale: 0.9 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+    >
+      {/* Robot character */}
       <motion.div
-        className="fixed inset-0 z-[15000] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
+        className="flex justify-end mb-2 mr-2"
+        animate={{ y: [0, -4, 0] }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
       >
-        <motion.div
-          className="bg-background border border-border rounded-2xl p-8 max-w-md w-[90vw] shadow-2xl text-center"
-          initial={{ scale: 0.8, opacity: 0, y: 30 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.8, opacity: 0, y: 30 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.1 }}
-        >
-          {/* Robot mascot */}
-          <motion.div
-            className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-5"
-            animate={{ y: [0, -6, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Bot className="w-10 h-10 text-primary" />
-          </motion.div>
-
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-bold text-foreground">
-              {t('onboarding.welcomeTitle')}
-            </h2>
-          </div>
-
-          <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
-            {t('onboarding.welcomeDescription')}
-          </p>
-
-          <div className="flex flex-col gap-3">
-            <Button
-              variant="purple"
-              size="lg"
-              onClick={onStart}
-              className="w-full"
-            >
-              {t('onboarding.startTour')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onSkip}
-              className="text-muted-foreground"
-            >
-              {t('onboarding.skipTour')}
-            </Button>
-          </div>
-        </motion.div>
+        <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center shadow-lg border-2 border-primary-foreground/20">
+          <Bot className="w-7 h-7 text-primary-foreground" />
+        </div>
       </motion.div>
-    </AnimatePresence>
+
+      {/* Speech bubble */}
+      <div className="bg-background border border-border rounded-2xl p-5 shadow-xl relative">
+        {/* Bubble arrow pointing to robot */}
+        <div className="absolute -top-2 right-8 w-4 h-4 bg-background border-l border-t border-border rotate-45" />
+        
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <h3 className="text-base font-bold text-foreground">
+            {t('onboarding.welcomeTitle')}
+          </h3>
+        </div>
+
+        <p className="text-muted-foreground text-sm mb-5 leading-relaxed">
+          {t('onboarding.welcomeDescription')}
+        </p>
+
+        <div className="flex gap-2">
+          <Button
+            variant="purple"
+            size="sm"
+            onClick={onStart}
+            className="flex-1"
+          >
+            {t('onboarding.startTour')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSkip}
+            className="text-muted-foreground"
+          >
+            {t('onboarding.skipTour')}
+          </Button>
+        </div>
+      </div>
+    </motion.div>
   );
 };
