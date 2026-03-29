@@ -1042,6 +1042,7 @@ export const CustomerDialog = ({
               {/* Update Button */}
               {canEditCustomer() ? (
                 <Button
+                  data-tutorial="customer-submit-btn"
                   type="submit"
                   disabled={isLoading}
                   className="flex-1 mr-2"

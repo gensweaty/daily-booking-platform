@@ -395,7 +395,7 @@ export const BusinessProfileForm = () => {
           onChange={handleWorkingHoursChange}
         />
 
-        <Button type="submit" className="w-full md:w-auto" disabled={isLoading || isUploading}>
+        <Button type="submit" className="w-full md:w-auto" disabled={isLoading || isUploading} data-tutorial="business-save-btn">
           {isLoading ? (
             t("common.loading")
           ) : (

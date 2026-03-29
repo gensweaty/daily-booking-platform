@@ -230,6 +230,7 @@ export const BusinessPage = () => {
         <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
           <TabsTrigger 
             value="profile" 
+            data-tutorial="business-profile-tab"
             className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
           >
             {isGeorgian ? (

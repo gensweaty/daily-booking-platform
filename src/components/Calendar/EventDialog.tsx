@@ -1463,7 +1463,7 @@ export const EventDialog = ({
             )}
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <Button type="submit" disabled={isLoading} className="flex-1">
+              <Button type="submit" disabled={isLoading} className="flex-1" data-tutorial="event-submit-btn">
                 {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
               </Button>
               
