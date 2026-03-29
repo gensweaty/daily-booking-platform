@@ -11,8 +11,10 @@ interface TutorialRobotProps {
   currentStep: number;
   totalSteps: number;
   onNext: () => void;
+  onPrev: () => void;
   onDismiss: () => void;
   isLast: boolean;
+  isFirst: boolean;
 }
 
 type ArrowSide = 'top' | 'bottom' | 'left';
@@ -24,8 +26,10 @@ export const TutorialRobot = ({
   currentStep,
   totalSteps,
   onNext,
+  onPrev,
   onDismiss,
   isLast,
+  isFirst,
 }: TutorialRobotProps) => {
   const { t } = useLanguage();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -96,10 +100,18 @@ export const TutorialRobot = ({
           <p className="text-xs text-muted-foreground mb-3">{description}</p>
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">{currentStep}/{totalSteps}</span>
-            <Button size="sm" onClick={onNext} className="h-7 text-xs gap-1">
-              {isLast ? t('onboarding.finish') : t('onboarding.next')}
-              {!isLast && <ChevronRight className="w-3 h-3" />}
-            </Button>
+            <div className="flex items-center gap-1.5">
+              {!isFirst && (
+                <Button variant="ghost" size="sm" onClick={onPrev} className="h-7 text-xs gap-1">
+                  <ChevronRight className="w-3 h-3 rotate-180" />
+                  {t('onboarding.previous')}
+                </Button>
+              )}
+              <Button size="sm" onClick={onNext} className="h-7 text-xs gap-1">
+                {isLast ? t('onboarding.finish') : t('onboarding.next')}
+                {!isLast && <ChevronRight className="w-3 h-3" />}
+              </Button>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -173,6 +185,12 @@ export const TutorialRobot = ({
                 <Button variant="ghost" size="sm" onClick={onDismiss} className="text-xs h-7 px-2">
                   {t('onboarding.skip')}
                 </Button>
+                {!isFirst && (
+                  <Button variant="outline" size="sm" onClick={onPrev} className="h-7 px-2 text-xs gap-1">
+                    <ChevronRight className="w-3 h-3 rotate-180" />
+                    {t('onboarding.previous')}
+                  </Button>
+                )}
                 <Button variant="default" size="sm" onClick={onNext} className="h-7 px-3 text-xs gap-1">
                   {isLast ? t('onboarding.finish') : t('onboarding.next')}
                   {!isLast && <ChevronRight className="w-3 h-3" />}

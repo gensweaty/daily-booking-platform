@@ -419,6 +419,7 @@ export const DashboardContent = ({
                             <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                               <DialogTrigger asChild>
                                 <Button 
+                                  data-tutorial="tasks-add-btn"
                                   className="flex items-center gap-1 sm:gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-2 sm:px-4 text-xs sm:text-sm w-auto min-w-[40px] sm:min-w-[120px]"
                                 >
                                   <motion.div

@@ -114,6 +114,7 @@ export const CalendarHeader = ({
         {onAddEvent && (
           <Button 
             onClick={onAddEvent}
+            data-tutorial="calendar-add-event"
             size="sm" 
             className={cn(
               "font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r from-primary to-primary/85 text-primary-foreground hover:from-primary/95 hover:to-primary/80 border border-primary/20",
@@ -336,6 +337,7 @@ export const CalendarHeader = ({
           {onAddEvent && (
             <Button 
               onClick={onAddEvent}
+              data-tutorial="calendar-add-event"
               size="sm" 
               className={cn(
                 "font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r from-primary to-primary/85 text-primary-foreground hover:from-primary/95 hover:to-primary/80 border border-primary/20",
