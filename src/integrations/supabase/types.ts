@@ -1197,6 +1197,7 @@ export type Database = {
           created_at: string | null
           id: string
           language: string | null
+          login_count: number | null
           timezone: string | null
           username: string
         }
@@ -1205,6 +1206,7 @@ export type Database = {
           created_at?: string | null
           id: string
           language?: string | null
+          login_count?: number | null
           timezone?: string | null
           username: string
         }
@@ -1213,6 +1215,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           language?: string | null
+          login_count?: number | null
           timezone?: string | null
           username?: string
         }
