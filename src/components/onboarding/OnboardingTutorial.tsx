@@ -121,6 +121,10 @@ export const OnboardingTutorial = () => {
     });
   }, [incrementLoginCount]);
 
+  const handlePrev = useCallback(() => {
+    setCurrentStep((prev) => (prev > 0 ? prev - 1 : prev));
+  }, []);
+
   const handleStart = () => {
     setShowWelcome(false);
     setCurrentStep(0);
