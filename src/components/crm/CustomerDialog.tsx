@@ -991,7 +991,7 @@ export const CustomerDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl w-full">
+        <DialogContent className="max-w-4xl w-full" data-tutorial="customer-dialog">
           <DialogTitle>
             {customerId ? t("crm.editCustomer") : t("crm.addCustomer")}
           </DialogTitle>
