@@ -10,9 +10,9 @@ export const translations: TranslationType = {
     signOut: "Sign Out",
   },
   hero: {
-    title: "Your Innocent Manager Bot — SmartBookly",
+    title: "Smart Business Management — Powered by AI",
     subtitle: "Booking · Calendar · CRM · Task Management · Analytics · Team · Chat · AI",
-    description: "Meet SmartBookly — your friendly AI-powered business companion. From seamless booking and calendar management to smart CRM, task boards, team chat, and real-time analytics, everything your business needs lives in one place. Let your innocent manager bot handle the routine while you focus on growth.",
+    description: "SmartBookly brings everything your business needs into one powerful platform. Manage bookings, calendars, customers, tasks, and team communication effortlessly — with built-in AI assistant ready to help via chat, phone, or Telegram. Less routine, more growth.",
   },
   features: {
     title: "What We Offer",

@@ -21,9 +21,9 @@ export const translations: TranslationType = {
     signOut: "Cerrar Sesión",
   },
   hero: {
-    title: "Tu Bot Gerente Amigable — SmartBookly",
+    title: "Gestión Empresarial Inteligente — Impulsada por IA",
     subtitle: "Reservas · Calendario · CRM · Gestión de Tareas · Analítica · Equipo · Chat · IA",
-    description: "Conoce SmartBookly — tu compañero de negocios impulsado por IA. Desde reservas y gestión de calendario hasta CRM inteligente, tableros de tareas, chat de equipo y analítica en tiempo real, todo lo que tu negocio necesita en un solo lugar. Deja que tu bot gerente se encargue de la rutina mientras tú te enfocas en crecer.",
+    description: "SmartBookly reúne todo lo que tu negocio necesita en una sola plataforma. Gestiona reservas, calendarios, clientes, tareas y comunicación de equipo sin esfuerzo — con un asistente de IA integrado listo para ayudarte por chat, teléfono o Telegram. Menos rutina, más crecimiento.",
   },
   features: {
     title: "Lo Que Ofrecemos",
