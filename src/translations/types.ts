@@ -980,6 +980,5 @@ export interface TranslationType {
     chatDesc: string;
     profileTitle: string;
     profileDesc: string;
-    clickToTry: string;
   };
 }
