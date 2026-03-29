@@ -210,7 +210,7 @@ export const BusinessProfileForm = () => {
                 {renderFormLabel("business.businessName", "ბიზნესის სახელი")}
               </FormLabel>
               <FormControl>
-                <Input placeholder="Your Business Name" {...field} />
+                <Input placeholder="Your Business Name" {...field} data-tutorial="business-name-input" />
               </FormControl>
               <FormMessage />
             </FormItem>
