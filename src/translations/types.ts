@@ -958,4 +958,27 @@ export interface TranslationType {
     chatGuidePrompt: string;
     allPagesPrompt: string;
   };
+  onboarding: {
+    welcomeTitle: string;
+    welcomeDescription: string;
+    startTour: string;
+    skipTour: string;
+    next: string;
+    skip: string;
+    finish: string;
+    calendarTitle: string;
+    calendarDesc: string;
+    statisticsTitle: string;
+    statisticsDesc: string;
+    tasksTitle: string;
+    tasksDesc: string;
+    crmTitle: string;
+    crmDesc: string;
+    businessTitle: string;
+    businessDesc: string;
+    chatTitle: string;
+    chatDesc: string;
+    profileTitle: string;
+    profileDesc: string;
+  };
 }

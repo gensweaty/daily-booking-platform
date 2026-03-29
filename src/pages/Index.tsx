@@ -188,6 +188,7 @@ const Index = () => {
           </motion.div>
           {/* Global comment notifications for authenticated users */}
           <CommentNotificationsListener />
+          <OnboardingTutorial />
         </motion.div>
       ) : (
         <>
