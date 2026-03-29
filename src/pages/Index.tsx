@@ -13,6 +13,7 @@ import { motion } from "framer-motion"
 import { CursorFollower } from "@/components/landing/CursorFollower"
 import { checkSubscriptionStatus } from "@/utils/optimizedStripeUtils";
 import { CommentNotificationsListener } from "@/components/notifications/CommentNotificationsListener"
+import { OnboardingTutorial } from "@/components/onboarding/OnboardingTutorial"
 
 const containerVariants = {
   hidden: { opacity: 0 },
