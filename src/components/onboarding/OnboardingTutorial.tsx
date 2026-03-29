@@ -122,14 +122,16 @@ export const OnboardingTutorial = () => {
     await supabase.from('profiles').update({ login_count: loginCount + 1 } as any).eq('id', user.id);
   }, [user, loginCount]);
 
-  // When step changes, switch tab if needed
+  // When step changes, switch tab if needed and scroll element into view
   useEffect(() => {
     if (!activeStep?.switchTab) return;
-    // Click the tab to switch
-    const tabEl = document.querySelector(`[data-tutorial-step="${activeStep.switchTab}"]`) as HTMLElement;
-    if (tabEl) {
-      tabEl.click();
-    }
+    // Dispatch custom event for DashboardContent to handle tab switching
+    window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { detail: { tab: activeStep.switchTab } }));
+    // Also click the tab directly as fallback
+    setTimeout(() => {
+      const tabEl = document.querySelector(`[data-tutorial-step="${activeStep.switchTab}"]`) as HTMLElement;
+      if (tabEl) tabEl.click();
+    }, 50);
   }, [activeStep]);
 
   const handleNext = useCallback(() => {
