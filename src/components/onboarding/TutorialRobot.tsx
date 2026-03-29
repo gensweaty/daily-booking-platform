@@ -15,6 +15,7 @@ interface TutorialRobotProps {
   onDismiss: () => void;
   isLast: boolean;
   isFirst: boolean;
+  suppressWhenSelector?: string;
 }
 
 type ArrowSide = 'top' | 'bottom' | 'left' | 'right';
@@ -30,11 +31,38 @@ export const TutorialRobot = ({
   onDismiss,
   isLast,
   isFirst,
+  suppressWhenSelector,
 }: TutorialRobotProps) => {
   const { t } = useLanguage();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [bubblePos, setBubblePos] = useState<{ top: number; left: number; arrowSide: ArrowSide; arrowOffset: number } | null>(null);
+  const [isSuppressed, setIsSuppressed] = useState(false);
   const bubbleRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!suppressWhenSelector) {
+      setIsSuppressed(false);
+      return;
+    }
+
+    const checkSuppressed = () => {
+      try {
+        setIsSuppressed(Boolean(document.querySelector(suppressWhenSelector)));
+      } catch {
+        setIsSuppressed(false);
+      }
+    };
+
+    checkSuppressed();
+    const intervalId = window.setInterval(checkSuppressed, 180);
+    const observer = new MutationObserver(checkSuppressed);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-state'] });
+
+    return () => {
+      clearInterval(intervalId);
+      observer.disconnect();
+    };
+  }, [suppressWhenSelector]);
 
   // Try multiple selectors (comma-separated)
   const findElement = useCallback(() => {
@@ -61,8 +89,8 @@ export const TutorialRobot = ({
 
     const vW = window.innerWidth;
     const vH = window.innerHeight;
-    const BUBBLE_W = Math.min(320, vW - 32);
-    const BUBBLE_H = 220; // estimated max height
+    const BUBBLE_W = Math.min(340, vW - 24);
+    const BUBBLE_H = 260;
     const GAP = 12;
 
     const centerX = rect.left + rect.width / 2;
@@ -158,28 +186,30 @@ export const TutorialRobot = ({
       <p className="text-muted-foreground text-xs leading-relaxed mb-3 pl-[42px]">{description}</p>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pl-[42px]">
-        <div className="flex gap-1 shrink-0">
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <div
-              key={i}
-              className={`w-1.5 h-1.5 rounded-full transition-colors ${
-                i < currentStep ? 'bg-primary' : 'bg-muted-foreground/25'
-              }`}
-            />
-          ))}
-        </div>
-        <div className="flex items-center gap-1 shrink-0 ml-2">
-          <Button variant="ghost" size="sm" onClick={onDismiss} className="text-xs h-7 px-2 text-muted-foreground">
+      <div className="pl-[42px] space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-1 shrink-0 min-w-0">
+            {Array.from({ length: totalSteps }).map((_, i) => (
+              <div
+                key={i}
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                  i < currentStep ? 'bg-primary' : 'bg-muted-foreground/25'
+                }`}
+              />
+            ))}
+          </div>
+          <Button variant="ghost" size="sm" onClick={onDismiss} className="text-xs h-7 px-2 text-muted-foreground shrink-0">
             {t('onboarding.skip')}
           </Button>
+        </div>
+        <div className="flex items-center justify-end gap-1 flex-wrap">
           {!isFirst && (
-            <Button variant="outline" size="sm" onClick={onPrev} className="h-7 px-2 text-xs gap-0.5">
+            <Button variant="outline" size="sm" onClick={onPrev} className="h-7 px-2 text-xs gap-0.5 shrink-0">
               <ChevronLeft className="w-3 h-3" />
               {t('onboarding.previous')}
             </Button>
           )}
-          <Button variant="default" size="sm" onClick={onNext} className="h-7 px-3 text-xs gap-0.5">
+          <Button variant="default" size="sm" onClick={onNext} className="h-7 px-3 text-xs gap-0.5 shrink-0">
             {isLast ? t('onboarding.finish') : t('onboarding.next')}
             {!isLast && <ChevronRight className="w-3 h-3" />}
           </Button>
@@ -188,12 +218,14 @@ export const TutorialRobot = ({
     </>
   );
 
+  if (isSuppressed) return null;
+
   // Fallback floating bubble when element not found
   if (!targetRect || !bubblePos) {
     return (
       <motion.div
         className="fixed bottom-20 right-4 z-[14000]"
-        style={{ maxWidth: Math.min(320, window.innerWidth - 32), width: '90vw' }}
+        style={{ maxWidth: Math.min(340, window.innerWidth - 24), width: 'min(90vw, 340px)' }}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
@@ -237,7 +269,7 @@ export const TutorialRobot = ({
           style={{
             top: bubblePos.top,
             left: bubblePos.left,
-            width: Math.min(320, window.innerWidth - 32),
+            width: Math.min(340, window.innerWidth - 24),
           }}
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
