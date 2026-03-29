@@ -62,13 +62,24 @@ export const TutorialRobot = ({
 
   const updatePosition = useCallback(() => {
     const el = findElement();
-    if (!el) { setTargetRect(null); return; }
-
-    // Scroll into view first
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (!el) {
+      setTargetRect((prev) => (prev ? null : prev));
+      return;
+    }
 
     const rect = el.getBoundingClientRect();
-    setTargetRect(rect);
+    setTargetRect((prev) => {
+      if (
+        prev &&
+        Math.abs(prev.top - rect.top) < 0.5 &&
+        Math.abs(prev.left - rect.left) < 0.5 &&
+        Math.abs(prev.width - rect.width) < 0.5 &&
+        Math.abs(prev.height - rect.height) < 0.5
+      ) {
+        return prev;
+      }
+      return rect;
+    });
 
     const vW = window.innerWidth;
     const vH = window.innerHeight;
@@ -76,31 +87,50 @@ export const TutorialRobot = ({
     const bH = bubbleSize.h;
     const GAP = 14;
 
-    // Pick best placement
     const spaceBelow = vH - rect.bottom - GAP;
     const spaceAbove = rect.top - GAP;
     const spaceRight = vW - rect.right - GAP;
     const spaceLeft = rect.left - GAP;
 
-    if (spaceBelow >= bH) setPlacement('bottom');
-    else if (spaceAbove >= bH) setPlacement('top');
-    else if (spaceRight >= bW) setPlacement('right');
-    else if (spaceLeft >= bW) setPlacement('left');
-    else setPlacement('bottom'); // fallback
-  }, [findElement, bubbleSize]);
+    let nextPlacement: Placement = 'bottom';
+    if (spaceBelow >= bH) nextPlacement = 'bottom';
+    else if (spaceAbove >= bH) nextPlacement = 'top';
+    else if (spaceRight >= bW) nextPlacement = 'right';
+    else if (spaceLeft >= bW) nextPlacement = 'left';
 
-  // Measure bubble after render
+    setPlacement((prev) => (prev === nextPlacement ? prev : nextPlacement));
+  }, [findElement, bubbleSize.h, bubbleSize.w]);
+
+  // Measure bubble size only when it meaningfully changes
   useLayoutEffect(() => {
-    if (bubbleRef.current) {
-      const r = bubbleRef.current.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        setBubbleSize({ w: r.width, h: r.height });
-      }
-    }
-  });
+    if (!bubbleRef.current) return;
+    const r = bubbleRef.current.getBoundingClientRect();
+    if (r.width <= 0 || r.height <= 0) return;
+
+    const nextW = Math.round(r.width);
+    const nextH = Math.round(r.height);
+    setBubbleSize((prev) => (prev.w === nextW && prev.h === nextH ? prev : { w: nextW, h: nextH }));
+  }, [currentStep, title, description, placement, targetRect]);
+
+  const hasAutoScrolledRef = useRef(false);
 
   useEffect(() => {
-    const timers = [100, 300, 600].map(d => setTimeout(updatePosition, d));
+    hasAutoScrolledRef.current = false;
+  }, [selector, currentStep]);
+
+  useEffect(() => {
+    const el = findElement();
+    if (!el || hasAutoScrolledRef.current) return;
+
+    hasAutoScrolledRef.current = true;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    const id = window.setTimeout(updatePosition, 220);
+
+    return () => clearTimeout(id);
+  }, [findElement, updatePosition, currentStep]);
+
+  useEffect(() => {
+    const timers = [120, 320, 620].map((d) => setTimeout(updatePosition, d));
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
     return () => {
