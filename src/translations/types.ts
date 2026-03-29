@@ -983,6 +983,8 @@ export interface TranslationType {
     crmAddDesc: string;
     businessTitle: string;
     businessDesc: string;
+    businessProfileTabTitle: string;
+    businessProfileTabDesc: string;
     chatTitle: string;
     chatDesc: string;
     profileTitle: string;

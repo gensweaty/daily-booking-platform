@@ -223,6 +223,7 @@ export const CustomerDialogFields = ({
           )}
         </Label>
         <Input
+          data-tutorial="customer-name-input"
           id="title"
           placeholder={isGeorgian ? "შეიყვანეთ კლიენტის სრული სახელი" : t("crm.fullNamePlaceholder")}
           value={title}

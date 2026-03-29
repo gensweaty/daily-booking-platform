@@ -1377,6 +1377,7 @@ export const EventDialog = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        data-tutorial="event-dialog"
         className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full"
         onEscapeKeyDown={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
         onPointerDownOutside={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
@@ -1463,7 +1464,7 @@ export const EventDialog = ({
             )}
             
             <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <Button type="submit" disabled={isLoading} className="flex-1">
+              <Button type="submit" disabled={isLoading} className="flex-1" data-tutorial="event-submit-btn">
                 {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
               </Button>
               

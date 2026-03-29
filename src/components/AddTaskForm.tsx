@@ -465,7 +465,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
               </Button>
             </>
           )}
-          <Button type="submit" className="text-xs px-2 py-1 sm:px-3 sm:py-2" disabled={isSubmitting}>
+          <Button type="submit" className="text-xs px-2 py-1 sm:px-3 sm:py-2" disabled={isSubmitting} data-tutorial="task-submit-btn">
             {isGeorgian ? (
               <GeorgianAuthText fontWeight="bold">
                 <LanguageText>

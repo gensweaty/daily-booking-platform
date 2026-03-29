@@ -325,6 +325,7 @@ export const EventDialogFields = ({
           </Label>
           <Input 
             id={`userSurname-${isMain ? 'main' : person?.id}`}
+            data-tutorial={isMain ? "event-name-input" : undefined}
             value={sectionUserSurname} 
             onChange={e => handleFieldChange('userSurname', e.target.value)} 
             placeholder={isGeorgian ? "სრული სახელი" : t("events.fullName")} 

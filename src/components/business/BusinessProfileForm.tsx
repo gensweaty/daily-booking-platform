@@ -210,7 +210,7 @@ export const BusinessProfileForm = () => {
                 {renderFormLabel("business.businessName", "ბიზნესის სახელი")}
               </FormLabel>
               <FormControl>
-                <Input placeholder="Your Business Name" {...field} />
+                <Input placeholder="Your Business Name" {...field} data-tutorial="business-name-input" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -395,7 +395,7 @@ export const BusinessProfileForm = () => {
           onChange={handleWorkingHoursChange}
         />
 
-        <Button type="submit" className="w-full md:w-auto" disabled={isLoading || isUploading}>
+        <Button type="submit" className="w-full md:w-auto" disabled={isLoading || isUploading} data-tutorial="business-save-btn">
           {isLoading ? (
             t("common.loading")
           ) : (

@@ -983,6 +983,8 @@ export const translations: TranslationType = {
     crmAddDesc: "Click the '+ Add Customer' button to create a new customer record. Fill in name, phone, email, and payment info. You can also import customers in bulk from an Excel file using the import button.",
     businessTitle: "🏢 Business Page",
     businessDesc: "Click the Business tab to set up your public booking page. Fill in your business name, description, working hours, and contact info. Once saved, share the link or QR code so clients can request appointments directly.",
+    businessProfileTabTitle: "🏢 Set Up Your Business Profile",
+    businessProfileTabDesc: "Click the 'Business Profile' tab to create your public booking page. Fill in your business name, slug URL, description, working hours, and contact details. Once saved, you'll get a public link and QR code to share with clients.",
     chatTitle: "💬 Chat & AI Assistant",
     chatDesc: "Click the chat icon in the bottom-right corner to open real-time messaging with your team. You also have a built-in AI assistant — just type your question and it can help create events, tasks, reminders, and more.",
     profileTitle: "👤 Profile & Settings",

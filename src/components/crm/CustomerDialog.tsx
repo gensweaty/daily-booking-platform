@@ -991,7 +991,7 @@ export const CustomerDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl w-full">
+        <DialogContent className="max-w-4xl w-full" data-tutorial="customer-dialog">
           <DialogTitle>
             {customerId ? t("crm.editCustomer") : t("crm.addCustomer")}
           </DialogTitle>
@@ -1042,6 +1042,7 @@ export const CustomerDialog = ({
               {/* Update Button */}
               {canEditCustomer() ? (
                 <Button
+                  data-tutorial="customer-submit-btn"
                   type="submit"
                   disabled={isLoading}
                   className="flex-1 mr-2"

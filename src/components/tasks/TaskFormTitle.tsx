@@ -24,6 +24,7 @@ export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
         <LanguageText>{t("tasks.title")}</LanguageText>
       </Label>
       <Input
+        data-tutorial="task-title-input"
         id="title"
         placeholder={t("tasks.titlePlaceholder")}
         value={title}
