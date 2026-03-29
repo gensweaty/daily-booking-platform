@@ -983,6 +983,8 @@ export const translations: TranslationType = {
     crmAddDesc: "Haz clic en '+ Añadir Cliente' para crear un registro. Completa nombre, teléfono, correo e info de pago. También puedes importar clientes desde un archivo Excel.",
     businessTitle: "🏢 Página de Negocio",
     businessDesc: "Haz clic en la pestaña Negocio para configurar tu página pública de reservas. Completa nombre, descripción, horarios y contacto. Luego comparte el enlace o código QR.",
+    businessProfileTabTitle: "🏢 Configura tu Perfil de Negocio",
+    businessProfileTabDesc: "Haz clic en la pestaña 'Perfil de Negocio' para crear tu página pública de reservas. Completa nombre, URL, descripción, horarios y contacto. Al guardar, obtendrás un enlace público y código QR para compartir con clientes.",
     chatTitle: "💬 Chat y Asistente IA",
     chatDesc: "Haz clic en el icono de chat en la esquina inferior derecha para mensajería en tiempo real. El asistente IA puede ayudarte a crear eventos, tareas, recordatorios y más.",
     profileTitle: "👤 Perfil y Configuración",
