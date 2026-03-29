@@ -41,6 +41,7 @@ export const ProfileButton = ({
         variant="ghost" 
         size="icon"
         onClick={onClick}
+        data-tutorial="profile-area"
         className={`h-10 w-10 rounded-full p-0 border border-gray-300 dark:border-gray-600 ${className}`}
       >
         <Avatar className="h-8 w-8">
