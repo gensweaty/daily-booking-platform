@@ -16,6 +16,8 @@ interface TutorialStep {
   switchBusinessTab?: 'profile' | 'bookings';
   /** Move to next step when user clicks selector */
   advanceOnClickSelector?: string;
+  /** Temporarily hide bubble/highlight while selector exists */
+  suppressWhenSelector?: string;
 }
 
 const TUTORIAL_STEPS: TutorialStep[] = [
@@ -26,6 +28,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     descKey: 'onboarding.calendarAddDesc',
     switchTab: 'calendar',
     advanceOnClickSelector: '[data-tutorial="calendar-add-event"]',
+    suppressWhenSelector: '[data-tutorial="event-dialog"][data-state="open"]',
   },
   {
     id: 'event-form',
@@ -55,6 +58,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     descKey: 'onboarding.tasksAddDesc',
     switchTab: 'tasks',
     advanceOnClickSelector: '[data-tutorial="tasks-add-btn"]',
+    suppressWhenSelector: '[data-tutorial="task-dialog"][data-state="open"]',
   },
   {
     id: 'task-form',
@@ -77,6 +81,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     descKey: 'onboarding.crmAddDesc',
     switchTab: 'crm',
     advanceOnClickSelector: '[data-tutorial="crm-add-btn"]',
+    suppressWhenSelector: '[data-tutorial="customer-dialog"][data-state="open"]',
   },
   {
     id: 'crm-form',
@@ -282,6 +287,7 @@ export const OnboardingTutorial = () => {
       onDismiss={handleSkip}
       isLast={currentStep === TUTORIAL_STEPS.length - 1}
       isFirst={currentStep === 0}
+      suppressWhenSelector={activeStep.suppressWhenSelector}
     />
   );
 };
