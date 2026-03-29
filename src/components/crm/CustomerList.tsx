@@ -812,6 +812,7 @@ const CustomerListContent = ({
           </DropdownMenu>
           <Button 
             onClick={openCreateDialog} 
+            data-tutorial="crm-add-btn"
             className="flex items-center gap-2 h-10 whitespace-nowrap"
             disabled={isFetching}
           >
