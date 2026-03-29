@@ -54,9 +54,29 @@ export const TutorialRobot = ({
   }, [suppressWhenSelector]);
 
   const findElement = useCallback(() => {
-    for (const sel of selector.split(',').map(s => s.trim())) {
-      try { const el = document.querySelector(sel); if (el) return el as HTMLElement; } catch {}
+    const isVisible = (el: Element): el is HTMLElement => {
+      const htmlEl = el as HTMLElement;
+      const style = window.getComputedStyle(htmlEl);
+      const rect = htmlEl.getBoundingClientRect();
+
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+      if (rect.width < 2 || rect.height < 2) return false;
+      if (!htmlEl.isConnected) return false;
+
+      return true;
+    };
+
+    for (const sel of selector.split(',').map((s) => s.trim()).filter(Boolean)) {
+      try {
+        const matches = Array.from(document.querySelectorAll(sel)).filter(isVisible);
+        if (matches.length > 0) {
+          return matches.sort((a, b) => (b.getBoundingClientRect().width * b.getBoundingClientRect().height) - (a.getBoundingClientRect().width * a.getBoundingClientRect().height))[0] as HTMLElement;
+        }
+      } catch {
+        // ignore invalid selector and continue
+      }
     }
+
     return null;
   }, [selector]);
 
