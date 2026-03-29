@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, ChevronRight, X } from 'lucide-react';
+import { Bot, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -17,7 +17,7 @@ interface TutorialRobotProps {
   isFirst: boolean;
 }
 
-type ArrowSide = 'top' | 'bottom' | 'left';
+type ArrowSide = 'top' | 'bottom' | 'left' | 'right';
 
 export const TutorialRobot = ({
   selector,
@@ -33,10 +33,23 @@ export const TutorialRobot = ({
 }: TutorialRobotProps) => {
   const { t } = useLanguage();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
-  const [bubblePos, setBubblePos] = useState<{ top: number; left: number; arrowSide: ArrowSide } | null>(null);
+  const [bubblePos, setBubblePos] = useState<{ top: number; left: number; arrowSide: ArrowSide; arrowOffset: number } | null>(null);
+  const bubbleRef = useRef<HTMLDivElement>(null);
+
+  // Try multiple selectors (comma-separated)
+  const findElement = useCallback(() => {
+    const selectors = selector.split(',').map(s => s.trim());
+    for (const sel of selectors) {
+      try {
+        const el = document.querySelector(sel);
+        if (el) return el;
+      } catch { /* skip invalid selectors */ }
+    }
+    return null;
+  }, [selector]);
 
   const updatePosition = useCallback(() => {
-    const el = document.querySelector(selector);
+    const el = findElement();
     if (!el) {
       setTargetRect(null);
       setBubblePos(null);
@@ -48,28 +61,61 @@ export const TutorialRobot = ({
 
     const vW = window.innerWidth;
     const vH = window.innerHeight;
-    const bW = Math.min(300, vW - 24);
-    const bH = 200;
+    const BUBBLE_W = Math.min(320, vW - 32);
+    const BUBBLE_H = 220; // estimated max height
+    const GAP = 12;
 
-    const centerLeft = Math.max(12, Math.min(rect.left + rect.width / 2 - bW / 2, vW - bW - 12));
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
 
-    // Try below, above, then right
-    const candidates: Array<{ top: number; left: number; arrowSide: ArrowSide }> = [
-      { top: rect.bottom + 14, left: centerLeft, arrowSide: 'top' },
-      { top: rect.top - bH - 14, left: centerLeft, arrowSide: 'bottom' },
-      { top: Math.max(12, Math.min(rect.top - 10, vH - bH - 12)), left: Math.min(rect.right + 14, vW - bW - 12), arrowSide: 'left' },
-    ];
+    // Calculate arrow offset to point at element center
+    const clampLeft = (left: number) => Math.max(16, Math.min(left, vW - BUBBLE_W - 16));
 
-    const chosen = candidates.find((c) => {
-      return c.top >= 8 && c.top + bH <= vH - 8 && c.left >= 8 && c.left + bW <= vW - 8;
-    }) ?? candidates[0];
+    type Candidate = { top: number; left: number; arrowSide: ArrowSide; arrowOffset: number; score: number };
+    const candidates: Candidate[] = [];
+
+    // Below element
+    const belowLeft = clampLeft(centerX - BUBBLE_W / 2);
+    const belowArrow = Math.max(20, Math.min(centerX - belowLeft, BUBBLE_W - 20));
+    if (rect.bottom + GAP + BUBBLE_H <= vH - 16) {
+      candidates.push({ top: rect.bottom + GAP, left: belowLeft, arrowSide: 'top', arrowOffset: belowArrow, score: 0 });
+    }
+
+    // Above element
+    const aboveLeft = clampLeft(centerX - BUBBLE_W / 2);
+    const aboveArrow = Math.max(20, Math.min(centerX - aboveLeft, BUBBLE_W - 20));
+    if (rect.top - GAP - BUBBLE_H >= 16) {
+      candidates.push({ top: rect.top - GAP - BUBBLE_H, left: aboveLeft, arrowSide: 'bottom', arrowOffset: aboveArrow, score: 1 });
+    }
+
+    // Right of element
+    if (rect.right + GAP + BUBBLE_W <= vW - 16) {
+      const rightTop = Math.max(16, Math.min(centerY - BUBBLE_H / 2, vH - BUBBLE_H - 16));
+      const rightArrow = Math.max(20, Math.min(centerY - rightTop, BUBBLE_H - 20));
+      candidates.push({ top: rightTop, left: rect.right + GAP, arrowSide: 'left', arrowOffset: rightArrow, score: 2 });
+    }
+
+    // Left of element
+    if (rect.left - GAP - BUBBLE_W >= 16) {
+      const leftTop = Math.max(16, Math.min(centerY - BUBBLE_H / 2, vH - BUBBLE_H - 16));
+      const leftArrow = Math.max(20, Math.min(centerY - leftTop, BUBBLE_H - 20));
+      candidates.push({ top: leftTop, left: rect.left - GAP - BUBBLE_W, arrowSide: 'right', arrowOffset: leftArrow, score: 3 });
+    }
+
+    // Pick best candidate, or fallback to below with clamping
+    const chosen = candidates.sort((a, b) => a.score - b.score)[0] ?? {
+      top: Math.max(16, Math.min(rect.bottom + GAP, vH - BUBBLE_H - 16)),
+      left: clampLeft(centerX - BUBBLE_W / 2),
+      arrowSide: 'top' as ArrowSide,
+      arrowOffset: Math.max(20, Math.min(centerX - clampLeft(centerX - BUBBLE_W / 2), BUBBLE_W - 20)),
+    };
 
     setBubblePos(chosen);
-  }, [selector]);
+  }, [findElement]);
 
   useEffect(() => {
-    // Small delay for DOM to settle after tab switch
-    const timer = setTimeout(updatePosition, 250);
+    // Delay to allow DOM to settle after tab switch
+    const timer = setTimeout(updatePosition, 350);
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
     return () => {
@@ -79,51 +125,99 @@ export const TutorialRobot = ({
     };
   }, [updatePosition]);
 
+  // Scroll target into view if needed
+  useEffect(() => {
+    const el = findElement();
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Re-calc after scroll
+      setTimeout(updatePosition, 400);
+    }
+  }, [findElement, updatePosition]);
+
+  const renderBubbleContent = () => (
+    <>
+      {/* Header with robot */}
+      <div className="flex items-start gap-2.5 mb-2">
+        <motion.div
+          className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"
+          animate={{ y: [0, -2, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        >
+          <Bot className="w-4 h-4 text-primary-foreground" />
+        </motion.div>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-semibold text-foreground text-sm leading-tight">{title}</h4>
+        </div>
+        <button onClick={onDismiss} className="text-muted-foreground hover:text-foreground transition-colors p-0.5 shrink-0">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Description */}
+      <p className="text-muted-foreground text-xs leading-relaxed mb-3 pl-[42px]">{description}</p>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pl-[42px]">
+        <div className="flex gap-1 shrink-0">
+          {Array.from({ length: totalSteps }).map((_, i) => (
+            <div
+              key={i}
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                i < currentStep ? 'bg-primary' : 'bg-muted-foreground/25'
+              }`}
+            />
+          ))}
+        </div>
+        <div className="flex items-center gap-1 shrink-0 ml-2">
+          <Button variant="ghost" size="sm" onClick={onDismiss} className="text-xs h-7 px-2 text-muted-foreground">
+            {t('onboarding.skip')}
+          </Button>
+          {!isFirst && (
+            <Button variant="outline" size="sm" onClick={onPrev} className="h-7 px-2 text-xs gap-0.5">
+              <ChevronLeft className="w-3 h-3" />
+              {t('onboarding.previous')}
+            </Button>
+          )}
+          <Button variant="default" size="sm" onClick={onNext} className="h-7 px-3 text-xs gap-0.5">
+            {isLast ? t('onboarding.finish') : t('onboarding.next')}
+            {!isLast && <ChevronRight className="w-3 h-3" />}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+
   // Fallback floating bubble when element not found
   if (!targetRect || !bubblePos) {
     return (
       <motion.div
-        className="fixed bottom-20 right-4 z-[14000] max-w-[280px] w-[85vw]"
+        className="fixed bottom-20 right-4 z-[14000]"
+        style={{ maxWidth: Math.min(320, window.innerWidth - 32), width: '90vw' }}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="bg-background border border-border rounded-xl shadow-xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
-                <Bot className="w-3.5 h-3.5 text-primary-foreground" />
-              </div>
-              <h4 className="text-sm font-semibold text-foreground">{title}</h4>
-            </div>
-            <button onClick={onDismiss} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
-          </div>
-          <p className="text-xs text-muted-foreground mb-3">{description}</p>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">{currentStep}/{totalSteps}</span>
-            <div className="flex items-center gap-1.5">
-              {!isFirst && (
-                <Button variant="ghost" size="sm" onClick={onPrev} className="h-7 text-xs gap-1">
-                  <ChevronRight className="w-3 h-3 rotate-180" />
-                  {t('onboarding.previous')}
-                </Button>
-              )}
-              <Button size="sm" onClick={onNext} className="h-7 text-xs gap-1">
-                {isLast ? t('onboarding.finish') : t('onboarding.next')}
-                {!isLast && <ChevronRight className="w-3 h-3" />}
-              </Button>
-            </div>
-          </div>
+        <div className="bg-background border border-border rounded-xl shadow-2xl p-4">
+          {renderBubbleContent()}
         </div>
       </motion.div>
     );
   }
+
+  const arrowSize = 8;
 
   return (
     <>
       {/* Pulsing highlight ring around target */}
       <motion.div
         className="fixed pointer-events-none z-[13500]"
-        style={{ top: targetRect.top - 4, left: targetRect.left - 4, width: targetRect.width + 8, height: targetRect.height + 8, borderRadius: 10 }}
+        style={{
+          top: targetRect.top - 4,
+          left: targetRect.left - 4,
+          width: targetRect.width + 8,
+          height: targetRect.height + 8,
+          borderRadius: 10,
+        }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
@@ -134,69 +228,122 @@ export const TutorialRobot = ({
         />
       </motion.div>
 
-      {/* Speech bubble */}
+      {/* Speech bubble positioned next to target */}
       <AnimatePresence mode="wait">
         <motion.div
+          ref={bubbleRef}
           key={`step-${currentStep}`}
           className="fixed z-[14000]"
-          style={{ top: bubblePos.top, left: bubblePos.left, maxWidth: Math.min(300, window.innerWidth - 24), width: '85vw' }}
-          initial={{ opacity: 0, scale: 0.9, y: bubblePos.arrowSide === 'top' ? -8 : 8 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+          style={{
+            top: bubblePos.top,
+            left: bubblePos.left,
+            width: Math.min(320, window.innerWidth - 32),
+          }}
+          initial={{ opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.92 }}
+          transition={{ type: 'spring', stiffness: 350, damping: 28 }}
         >
-          <div className="bg-background border border-border rounded-xl shadow-xl p-4 relative">
-            {/* Arrow */}
-            {bubblePos.arrowSide === 'top' && <div className="absolute -top-[6px] left-8 w-3 h-3 bg-background border-l border-t border-border rotate-45" />}
-            {bubblePos.arrowSide === 'bottom' && <div className="absolute -bottom-[6px] left-8 w-3 h-3 bg-background border-r border-b border-border rotate-45" />}
-            {bubblePos.arrowSide === 'left' && <div className="absolute top-6 -left-[6px] w-3 h-3 bg-background border-l border-b border-border rotate-45" />}
+          <div className="bg-background border border-border rounded-xl shadow-2xl p-4 relative overflow-visible">
+            {/* Arrow pointing to target */}
+            {bubblePos.arrowSide === 'top' && (
+              <div
+                className="absolute w-0 h-0"
+                style={{
+                  top: -arrowSize,
+                  left: bubblePos.arrowOffset - arrowSize,
+                  borderLeft: `${arrowSize}px solid transparent`,
+                  borderRight: `${arrowSize}px solid transparent`,
+                  borderBottom: `${arrowSize}px solid hsl(var(--border))`,
+                }}
+              />
+            )}
+            {bubblePos.arrowSide === 'top' && (
+              <div
+                className="absolute w-0 h-0"
+                style={{
+                  top: -arrowSize + 1,
+                  left: bubblePos.arrowOffset - arrowSize,
+                  borderLeft: `${arrowSize}px solid transparent`,
+                  borderRight: `${arrowSize}px solid transparent`,
+                  borderBottom: `${arrowSize}px solid hsl(var(--background))`,
+                }}
+              />
+            )}
+            {bubblePos.arrowSide === 'bottom' && (
+              <div
+                className="absolute w-0 h-0"
+                style={{
+                  bottom: -arrowSize,
+                  left: bubblePos.arrowOffset - arrowSize,
+                  borderLeft: `${arrowSize}px solid transparent`,
+                  borderRight: `${arrowSize}px solid transparent`,
+                  borderTop: `${arrowSize}px solid hsl(var(--border))`,
+                }}
+              />
+            )}
+            {bubblePos.arrowSide === 'bottom' && (
+              <div
+                className="absolute w-0 h-0"
+                style={{
+                  bottom: -arrowSize + 1,
+                  left: bubblePos.arrowOffset - arrowSize,
+                  borderLeft: `${arrowSize}px solid transparent`,
+                  borderRight: `${arrowSize}px solid transparent`,
+                  borderTop: `${arrowSize}px solid hsl(var(--background))`,
+                }}
+              />
+            )}
+            {bubblePos.arrowSide === 'left' && (
+              <div
+                className="absolute w-0 h-0"
+                style={{
+                  left: -arrowSize,
+                  top: bubblePos.arrowOffset - arrowSize,
+                  borderTop: `${arrowSize}px solid transparent`,
+                  borderBottom: `${arrowSize}px solid transparent`,
+                  borderRight: `${arrowSize}px solid hsl(var(--border))`,
+                }}
+              />
+            )}
+            {bubblePos.arrowSide === 'left' && (
+              <div
+                className="absolute w-0 h-0"
+                style={{
+                  left: -arrowSize + 1,
+                  top: bubblePos.arrowOffset - arrowSize,
+                  borderTop: `${arrowSize}px solid transparent`,
+                  borderBottom: `${arrowSize}px solid transparent`,
+                  borderRight: `${arrowSize}px solid hsl(var(--background))`,
+                }}
+              />
+            )}
+            {bubblePos.arrowSide === 'right' && (
+              <div
+                className="absolute w-0 h-0"
+                style={{
+                  right: -arrowSize,
+                  top: bubblePos.arrowOffset - arrowSize,
+                  borderTop: `${arrowSize}px solid transparent`,
+                  borderBottom: `${arrowSize}px solid transparent`,
+                  borderLeft: `${arrowSize}px solid hsl(var(--border))`,
+                }}
+              />
+            )}
+            {bubblePos.arrowSide === 'right' && (
+              <div
+                className="absolute w-0 h-0"
+                style={{
+                  right: -arrowSize + 1,
+                  top: bubblePos.arrowOffset - arrowSize,
+                  borderTop: `${arrowSize}px solid transparent`,
+                  borderBottom: `${arrowSize}px solid transparent`,
+                  borderLeft: `${arrowSize}px solid hsl(var(--background))`,
+                }}
+              />
+            )}
 
-            {/* Header with robot */}
-            <div className="flex items-start gap-2.5 mb-2">
-              <motion.div
-                className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0"
-                animate={{ y: [0, -2, 0] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              >
-                <Bot className="w-4 h-4 text-primary-foreground" />
-              </motion.div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-foreground text-sm leading-tight">{title}</h4>
-              </div>
-              <button onClick={onDismiss} className="text-muted-foreground hover:text-foreground transition-colors p-0.5 shrink-0">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Description */}
-            <p className="text-muted-foreground text-xs leading-relaxed mb-3 ml-[42px]">{description}</p>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between ml-[42px]">
-              <div className="flex gap-1">
-                {Array.from({ length: totalSteps }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-1.5 h-1.5 rounded-full transition-colors ${i < currentStep ? 'bg-primary' : i === currentStep - 1 ? 'bg-primary' : 'bg-muted-foreground/25'}`}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Button variant="ghost" size="sm" onClick={onDismiss} className="text-xs h-7 px-2">
-                  {t('onboarding.skip')}
-                </Button>
-                {!isFirst && (
-                  <Button variant="outline" size="sm" onClick={onPrev} className="h-7 px-2 text-xs gap-1">
-                    <ChevronRight className="w-3 h-3 rotate-180" />
-                    {t('onboarding.previous')}
-                  </Button>
-                )}
-                <Button variant="default" size="sm" onClick={onNext} className="h-7 px-3 text-xs gap-1">
-                  {isLast ? t('onboarding.finish') : t('onboarding.next')}
-                  {!isLast && <ChevronRight className="w-3 h-3" />}
-                </Button>
-              </div>
-            </div>
+            {renderBubbleContent()}
           </div>
         </motion.div>
       </AnimatePresence>
