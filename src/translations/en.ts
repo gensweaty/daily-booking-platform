@@ -980,6 +980,5 @@ export const translations: TranslationType = {
     chatDesc: "Communicate with your team in real-time. The built-in AI assistant can help you manage tasks, events, and more.",
     profileTitle: "Profile & Settings",
     profileDesc: "Customize your profile, switch between light and dark themes, change language, and manage your subscription.",
-    clickToTry: "Click here to try it!",
   }
 };
