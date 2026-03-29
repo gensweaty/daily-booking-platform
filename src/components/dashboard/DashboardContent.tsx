@@ -204,6 +204,7 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="statistics" 
+              data-tutorial-step="statistics"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
               <motion.div
