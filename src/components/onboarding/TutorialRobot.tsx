@@ -26,8 +26,10 @@ export const TutorialRobot = ({
   currentStep,
   totalSteps,
   onNext,
+  onPrev,
   onDismiss,
   isLast,
+  isFirst,
 }: TutorialRobotProps) => {
   const { t } = useLanguage();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
