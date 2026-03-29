@@ -11,7 +11,7 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false, 
   console.log('🎯 ChatIcon rendering:', { isOpen, unreadCount, isPending });
   
   return (
-    <div className="fixed bottom-2 right-4 z-[60]" style={{ zIndex: 60 }}>
+    <div className="fixed bottom-2 right-4 z-[60]" style={{ zIndex: 60 }} data-tutorial="chat-icon">
       <button
         onClick={(e) => {
           e.preventDefault();
