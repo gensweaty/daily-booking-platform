@@ -3,34 +3,46 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { TutorialWelcomeDialog } from './TutorialWelcomeDialog';
-import { TutorialStep } from './TutorialStep';
+import { TutorialRobot } from './TutorialRobot';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-const TUTORIAL_STEPS = [
+export interface TutorialStepData {
+  selector: string;
+  titleKey: string;
+  descKey: string;
+  clickToAdvance?: boolean; // If true, clicking the target element advances to next step
+}
+
+const TUTORIAL_STEPS: TutorialStepData[] = [
   {
-    selector: '[data-value="calendar"]',
+    selector: '[data-tutorial-step="calendar"]',
     titleKey: 'onboarding.calendarTitle',
     descKey: 'onboarding.calendarDesc',
+    clickToAdvance: true,
   },
   {
-    selector: '[data-value="statistics"]',
+    selector: '[data-tutorial-step="statistics"]',
     titleKey: 'onboarding.statisticsTitle',
     descKey: 'onboarding.statisticsDesc',
+    clickToAdvance: true,
   },
   {
-    selector: '[data-value="tasks"]',
+    selector: '[data-tutorial-step="tasks"]',
     titleKey: 'onboarding.tasksTitle',
     descKey: 'onboarding.tasksDesc',
+    clickToAdvance: true,
   },
   {
-    selector: '[data-value="crm"]',
+    selector: '[data-tutorial-step="crm"]',
     titleKey: 'onboarding.crmTitle',
     descKey: 'onboarding.crmDesc',
+    clickToAdvance: true,
   },
   {
-    selector: '[data-value="business"]',
+    selector: '[data-tutorial-step="business"]',
     titleKey: 'onboarding.businessTitle',
     descKey: 'onboarding.businessDesc',
+    clickToAdvance: true,
   },
   {
     selector: '[data-tutorial="chat-icon"]',
@@ -50,9 +62,10 @@ export const OnboardingTutorial = () => {
   const [showWelcome, setShowWelcome] = useState(false);
   const [currentStep, setCurrentStep] = useState(-1); // -1 = not started
   const [loginCount, setLoginCount] = useState<number | null>(null);
+  const [sessionDismissed, setSessionDismissed] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || sessionDismissed) return;
 
     const checkLoginCount = async () => {
       const { data, error } = await supabase
@@ -67,13 +80,13 @@ export const OnboardingTutorial = () => {
       setLoginCount(count);
 
       if (count < 3) {
-        // Small delay so dashboard renders first
-        setTimeout(() => setShowWelcome(true), 1500);
+        // Delay to let dashboard fully render
+        setTimeout(() => setShowWelcome(true), 2000);
       }
     };
 
     checkLoginCount();
-  }, [user]);
+  }, [user, sessionDismissed]);
 
   const incrementLoginCount = useCallback(async () => {
     if (!user || loginCount === null) return;
@@ -91,6 +104,7 @@ export const OnboardingTutorial = () => {
   const handleSkip = () => {
     setShowWelcome(false);
     setCurrentStep(-1);
+    setSessionDismissed(true);
     incrementLoginCount();
   };
 
@@ -100,12 +114,14 @@ export const OnboardingTutorial = () => {
     } else {
       // Tutorial complete
       setCurrentStep(-1);
+      setSessionDismissed(true);
       incrementLoginCount();
     }
   };
 
-  const handleStepSkip = () => {
+  const handleDismiss = () => {
     setCurrentStep(-1);
+    setSessionDismissed(true);
     incrementLoginCount();
   };
 
@@ -116,15 +132,17 @@ export const OnboardingTutorial = () => {
   if (currentStep >= 0 && currentStep < TUTORIAL_STEPS.length) {
     const step = TUTORIAL_STEPS[currentStep];
     return (
-      <TutorialStep
+      <TutorialRobot
+        key={currentStep}
         selector={step.selector}
         title={t(step.titleKey)}
         description={t(step.descKey)}
         currentStep={currentStep + 1}
         totalSteps={TUTORIAL_STEPS.length}
         onNext={handleNext}
-        onSkip={handleStepSkip}
+        onDismiss={handleDismiss}
         isLast={currentStep === TUTORIAL_STEPS.length - 1}
+        clickToAdvance={step.clickToAdvance}
       />
     );
   }
