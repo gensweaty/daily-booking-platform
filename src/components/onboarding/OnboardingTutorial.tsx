@@ -5,36 +5,63 @@ import { TutorialWelcomeDialog } from './TutorialWelcomeDialog';
 import { TutorialRobot } from './TutorialRobot';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-interface TutorialStepData {
+interface TutorialStep {
   id: string;
   selector: string;
   titleKey: string;
   descKey: string;
-  clickToAdvance?: boolean;
-  advanceOn?: string;
+  /** If set, clicking this tab value switches the dashboard tab before highlighting */
+  switchTab?: string;
 }
 
-const TUTORIAL_STEPS: TutorialStepData[] = [
-  { id: 'calendar-tab', selector: '[data-tutorial-step="calendar"]', titleKey: 'onboarding.calendarTabTitle', descKey: 'onboarding.calendarTabDesc', clickToAdvance: true },
-  { id: 'calendar-add', selector: '[data-tutorial="calendar-add-event"]', titleKey: 'onboarding.addEventTitle', descKey: 'onboarding.addEventDesc', clickToAdvance: true },
-  { id: 'calendar-submit', selector: '[data-tutorial="event-submit"]', titleKey: 'onboarding.fillEventTitle', descKey: 'onboarding.fillEventDesc', advanceOn: 'event-created' },
-
-  { id: 'stats-tab', selector: '[data-tutorial-step="statistics"]', titleKey: 'onboarding.statisticsTabTitle', descKey: 'onboarding.statisticsTabDesc', clickToAdvance: true },
-  { id: 'stats-export', selector: '[data-tutorial="stats-export"]', titleKey: 'onboarding.exportTitle', descKey: 'onboarding.exportDesc', advanceOn: 'stats-exported' },
-
-  { id: 'crm-tab', selector: '[data-tutorial-step="crm"]', titleKey: 'onboarding.crmTabTitle', descKey: 'onboarding.crmTabDesc', clickToAdvance: true },
-  { id: 'crm-add', selector: '[data-tutorial="crm-add-customer"]', titleKey: 'onboarding.addCustomerTitle', descKey: 'onboarding.addCustomerDesc', clickToAdvance: true },
-  { id: 'crm-submit', selector: '[data-tutorial="customer-submit"]', titleKey: 'onboarding.fillCustomerTitle', descKey: 'onboarding.fillCustomerDesc', advanceOn: 'customer-created' },
-
-  { id: 'tasks-tab', selector: '[data-tutorial-step="tasks"]', titleKey: 'onboarding.tasksTabTitle', descKey: 'onboarding.tasksTabDesc', clickToAdvance: true },
-  { id: 'tasks-add', selector: '[data-tutorial="tasks-add"]', titleKey: 'onboarding.addTaskTitle', descKey: 'onboarding.addTaskDesc', clickToAdvance: true },
-  { id: 'tasks-submit', selector: '[data-tutorial="task-submit"]', titleKey: 'onboarding.fillTaskTitle', descKey: 'onboarding.fillTaskDesc', advanceOn: 'task-created' },
-  { id: 'tasks-move', selector: '[data-tutorial="tasks-board"]', titleKey: 'onboarding.moveTaskTitle', descKey: 'onboarding.moveTaskDesc', advanceOn: 'task-moved-inprogress' },
-
-  { id: 'business-tab', selector: '[data-tutorial-step="business"]', titleKey: 'onboarding.businessTabTitle', descKey: 'onboarding.businessTabDesc', clickToAdvance: true },
-  { id: 'business-save', selector: '[data-tutorial="business-save"]', titleKey: 'onboarding.businessSaveTitle', descKey: 'onboarding.businessSaveDesc', advanceOn: 'business-updated' },
-
-  { id: 'chat', selector: '[data-tutorial="chat-icon"]', titleKey: 'onboarding.chatTitle', descKey: 'onboarding.chatDesc', clickToAdvance: true },
+const TUTORIAL_STEPS: TutorialStep[] = [
+  {
+    id: 'calendar',
+    selector: '[data-tutorial-step="calendar"]',
+    titleKey: 'onboarding.calendarTitle',
+    descKey: 'onboarding.calendarDesc',
+    switchTab: 'calendar',
+  },
+  {
+    id: 'statistics',
+    selector: '[data-tutorial-step="statistics"]',
+    titleKey: 'onboarding.statisticsTitle',
+    descKey: 'onboarding.statisticsDesc',
+    switchTab: 'statistics',
+  },
+  {
+    id: 'tasks',
+    selector: '[data-tutorial-step="tasks"]',
+    titleKey: 'onboarding.tasksTitle',
+    descKey: 'onboarding.tasksDesc',
+    switchTab: 'tasks',
+  },
+  {
+    id: 'crm',
+    selector: '[data-tutorial-step="crm"]',
+    titleKey: 'onboarding.crmTitle',
+    descKey: 'onboarding.crmDesc',
+    switchTab: 'crm',
+  },
+  {
+    id: 'business',
+    selector: '[data-tutorial-step="business"]',
+    titleKey: 'onboarding.businessTitle',
+    descKey: 'onboarding.businessDesc',
+    switchTab: 'business',
+  },
+  {
+    id: 'chat',
+    selector: '[data-tutorial="chat-icon"]',
+    titleKey: 'onboarding.chatTitle',
+    descKey: 'onboarding.chatDesc',
+  },
+  {
+    id: 'profile',
+    selector: '[data-tutorial="profile-area"]',
+    titleKey: 'onboarding.profileTitle',
+    descKey: 'onboarding.profileDesc',
+  },
 ];
 
 export const OnboardingTutorial = () => {
@@ -50,27 +77,23 @@ export const OnboardingTutorial = () => {
     [currentStep]
   );
 
+  // Check login count on mount
   useEffect(() => {
     if (!user || sessionDismissed) return;
-
-    const checkLoginCount = async () => {
+    const check = async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('login_count')
         .eq('id', user.id)
         .maybeSingle();
-
       if (error || !data) return;
-
       const count = (data as any).login_count ?? 0;
       setLoginCount(count);
-
       if (count < 3) {
         setTimeout(() => setShowWelcome(true), 1500);
       }
     };
-
-    checkLoginCount();
+    check();
   }, [user, sessionDismissed]);
 
   const incrementLoginCount = useCallback(async () => {
@@ -78,28 +101,25 @@ export const OnboardingTutorial = () => {
     await supabase.from('profiles').update({ login_count: loginCount + 1 } as any).eq('id', user.id);
   }, [user, loginCount]);
 
+  // When step changes, switch tab if needed
+  useEffect(() => {
+    if (!activeStep?.switchTab) return;
+    // Click the tab to switch
+    const tabEl = document.querySelector(`[data-tutorial-step="${activeStep.switchTab}"]`) as HTMLElement;
+    if (tabEl) {
+      tabEl.click();
+    }
+  }, [activeStep]);
+
   const handleNext = useCallback(() => {
     setCurrentStep((prev) => {
       if (prev < TUTORIAL_STEPS.length - 1) return prev + 1;
+      // Finished
       setSessionDismissed(true);
       incrementLoginCount();
       return -1;
     });
   }, [incrementLoginCount]);
-
-  useEffect(() => {
-    if (!activeStep?.advanceOn) return;
-
-    const handler = (event: Event) => {
-      const customEvent = event as CustomEvent<{ action?: string }>;
-      if (customEvent.detail?.action === activeStep.advanceOn) {
-        setTimeout(() => handleNext(), 250);
-      }
-    };
-
-    window.addEventListener('tutorial-action', handler as EventListener);
-    return () => window.removeEventListener('tutorial-action', handler as EventListener);
-  }, [activeStep, handleNext]);
 
   const handleStart = () => {
     setShowWelcome(false);
@@ -114,7 +134,6 @@ export const OnboardingTutorial = () => {
   };
 
   if (showWelcome) return <TutorialWelcomeDialog onStart={handleStart} onSkip={handleSkip} />;
-
   if (!activeStep) return null;
 
   return (
@@ -128,7 +147,6 @@ export const OnboardingTutorial = () => {
       onNext={handleNext}
       onDismiss={handleSkip}
       isLast={currentStep === TUTORIAL_STEPS.length - 1}
-      clickToAdvance={activeStep.clickToAdvance}
     />
   );
 };
