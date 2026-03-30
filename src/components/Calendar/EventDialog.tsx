@@ -12,7 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { sendEventCreationEmail } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
-import { Clock, RefreshCcw, History } from "lucide-react";
+import { Clock, RefreshCcw, History, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
