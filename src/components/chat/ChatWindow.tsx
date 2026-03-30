@@ -236,7 +236,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
               <Menu className="h-3 w-3" />
             </Button>
           )}
-          <span className="font-medium text-sm truncate">
+          <span className="font-semibold text-sm sm:text-base tracking-tight text-foreground truncate">
             <LanguageText>{t('chat.teamChat')}</LanguageText>
           </span>
         </div>
