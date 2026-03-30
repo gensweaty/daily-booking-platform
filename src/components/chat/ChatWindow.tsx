@@ -212,7 +212,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       {/* Title Bar — swipe down to close on mobile */}
       <div
         className={cn(
-          "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
+          "flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 dark:bg-muted/20",
           "min-h-[52px] shrink-0",
           windowState === 'minimized' ? "h-[52px]" : "",
           isMobile && "cursor-grab active:cursor-grabbing"
