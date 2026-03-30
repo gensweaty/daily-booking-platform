@@ -995,7 +995,7 @@ export const CustomerDialog = ({
           <div className="pb-3 border-b border-border mb-2">
             <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg font-semibold text-foreground">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <AlertCircle className="h-4 w-4 text-primary" />
+                <Users className="h-4 w-4 text-primary" />
               </div>
               {customerId ? t("crm.editCustomer") : t("crm.addCustomer")}
             </DialogTitle>
