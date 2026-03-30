@@ -212,7 +212,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       {/* Title Bar — swipe down to close on mobile */}
       <div
         className={cn(
-          "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
+          "flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 dark:bg-muted/20",
           "min-h-[52px] shrink-0",
           windowState === 'minimized' ? "h-[52px]" : "",
           isMobile && "cursor-grab active:cursor-grabbing"
@@ -236,7 +236,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
               <Menu className="h-3 w-3" />
             </Button>
           )}
-          <span className="font-medium text-sm truncate">
+          <span className="font-semibold text-sm sm:text-base tracking-tight text-foreground truncate">
             <LanguageText>{t('chat.teamChat')}</LanguageText>
           </span>
         </div>
@@ -248,23 +248,23 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
                 variant="ghost"
                 size="sm"
                 onClick={toggleMinimize}
-                className="h-6 w-6 p-0 hover:bg-muted"
+                className="h-7 w-7 p-0 rounded-full hover:bg-muted border border-transparent hover:border-border/50 transition-all"
                 title={windowState === 'minimized' ? 'Restore' : 'Minimize'}
               >
-                <Minus className="h-3 w-3" />
+                <Minus className="h-3.5 w-3.5" />
               </Button>
               
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={toggleMaximize}
-                className="h-6 w-6 p-0 hover:bg-muted"
+                className="h-7 w-7 p-0 rounded-full hover:bg-muted border border-transparent hover:border-border/50 transition-all"
                 title={windowState === 'maximized' ? 'Restore Down' : 'Maximize'}
               >
                 {windowState === 'maximized' ? (
-                  <Minimize2 className="h-3 w-3" />
+                  <Minimize2 className="h-3.5 w-3.5" />
                 ) : (
-                  <Maximize2 className="h-3 w-3" />
+                  <Maximize2 className="h-3.5 w-3.5" />
                 )}
               </Button>
             </>
@@ -274,10 +274,10 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+            className="h-7 w-7 p-0 rounded-full hover:bg-destructive hover:text-destructive-foreground border border-transparent hover:border-destructive/50 transition-all"
             title="Close"
           >
-            <X className="h-3 w-3" />
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>

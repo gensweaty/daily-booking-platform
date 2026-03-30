@@ -12,7 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { sendEventCreationEmail } from "@/lib/api";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
-import { Clock, RefreshCcw, History } from "lucide-react";
+import { Clock, RefreshCcw, History, Trash2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
@@ -1382,8 +1382,11 @@ export const EventDialog = ({
         onEscapeKeyDown={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
         onPointerDownOutside={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
       >
-          <DialogHeader>
-            <DialogTitle>
+          <DialogHeader className="pb-3 border-b border-border">
+            <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg font-semibold text-foreground">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Clock className="h-4 w-4 text-primary" />
+              </div>
               {eventId || initialData ? t("events.editEvent") : language === 'ka' ? "მოვლენის დამატება" : t("events.addEvent")}
             </DialogTitle>
           </DialogHeader>
@@ -1463,8 +1466,8 @@ export const EventDialog = ({
               </div>
             )}
             
-            <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <Button type="submit" disabled={isLoading} className="flex-1" data-tutorial="event-submit-btn">
+            <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-border">
+              <Button type="submit" disabled={isLoading} className="flex-1 h-10 sm:h-11 font-medium" data-tutorial="event-submit-btn">
                 {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
               </Button>
               
@@ -1474,8 +1477,9 @@ export const EventDialog = ({
                   variant="destructive" 
                   onClick={() => setShowDeleteDialog(true)} 
                   disabled={isLoading} 
-                  className="flex-1 sm:flex-none"
+                  className="flex-1 sm:flex-none h-10 sm:h-11 font-medium gap-2"
                 >
+                  <Trash2 className="h-4 w-4" />
                   {t("common.delete")}
                 </Button>
               )}
