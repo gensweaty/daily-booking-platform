@@ -1043,14 +1043,14 @@ export const CustomerDialog = ({
             />
 
             {/* Action Buttons with Permissions */}
-            <div className="flex justify-between">
+            <div className="flex gap-2 pt-3 border-t border-border">
               {/* Update Button */}
               {canEditCustomer() ? (
                 <Button
                   data-tutorial="customer-submit-btn"
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 mr-2"
+                  className="flex-1 h-10 sm:h-11 font-medium"
                 >
                   {customerId ? t("common.update") : t("common.add")}
                 </Button>
@@ -1058,7 +1058,7 @@ export const CustomerDialog = ({
                 <Button
                   type="submit"
                   disabled={true}
-                  className="flex-1 mr-2"
+                  className="flex-1 h-10 sm:h-11 font-medium"
                 >
                   {t("common.update")}
                 </Button>
@@ -1066,7 +1066,7 @@ export const CustomerDialog = ({
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 mr-2"
+                  className="flex-1 h-10 sm:h-11 font-medium"
                 >
                   {t("common.add")}
                 </Button>
@@ -1077,21 +1077,23 @@ export const CustomerDialog = ({
                 <Button
                   type="button"
                   variant="destructive"
-                  size="icon"
                   onClick={handleDelete}
                   disabled={isLoading}
+                  className="h-10 sm:h-11 font-medium gap-2 px-4"
                 >
                   <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t("common.delete")}</span>
                 </Button>
               )}
               {customerId && !canDeleteCustomer() && (
                 <Button
                   type="button"
                   variant="destructive"
-                  size="icon"
                   disabled={true}
+                  className="h-10 sm:h-11 font-medium gap-2 px-4"
                 >
                   <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t("common.delete")}</span>
                 </Button>
               )}
             </div>

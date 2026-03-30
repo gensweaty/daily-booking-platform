@@ -1466,8 +1466,8 @@ export const EventDialog = ({
               </div>
             )}
             
-            <div className="flex flex-col sm:flex-row gap-2 pt-4">
-              <Button type="submit" disabled={isLoading} className="flex-1" data-tutorial="event-submit-btn">
+            <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t border-border">
+              <Button type="submit" disabled={isLoading} className="flex-1 h-10 sm:h-11 font-medium" data-tutorial="event-submit-btn">
                 {isLoading ? t("common.loading") : eventId || initialData ? t("common.update") : t("common.add")}
               </Button>
               
@@ -1477,8 +1477,9 @@ export const EventDialog = ({
                   variant="destructive" 
                   onClick={() => setShowDeleteDialog(true)} 
                   disabled={isLoading} 
-                  className="flex-1 sm:flex-none"
+                  className="flex-1 sm:flex-none h-10 sm:h-11 font-medium gap-2"
                 >
+                  <Trash2 className="h-4 w-4" />
                   {t("common.delete")}
                 </Button>
               )}

@@ -1004,7 +1004,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         {/* Custom Chats */}
         <div className="pt-4">
           <div className="flex items-center justify-between mb-2 px-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               <LanguageText>{t('chat.customChats')}</LanguageText>
             </p>
             <CreateCustomChatDialog 
