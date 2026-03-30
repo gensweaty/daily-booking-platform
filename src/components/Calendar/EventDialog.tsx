@@ -1382,8 +1382,11 @@ export const EventDialog = ({
         onEscapeKeyDown={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
         onPointerDownOutside={(e) => { if (showEditDialog || showDeleteDialog) e.preventDefault(); }}
       >
-          <DialogHeader>
-            <DialogTitle>
+          <DialogHeader className="pb-3 border-b border-border">
+            <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg font-semibold text-foreground">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Clock className="h-4 w-4 text-primary" />
+              </div>
               {eventId || initialData ? t("events.editEvent") : language === 'ka' ? "მოვლენის დამატება" : t("events.addEvent")}
             </DialogTitle>
           </DialogHeader>
