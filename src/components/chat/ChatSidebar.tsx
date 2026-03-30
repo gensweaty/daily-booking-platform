@@ -700,17 +700,17 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
         {/* Team Members */}
         <div className="pt-4">
           <div className="flex items-center justify-between mb-2 px-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
               <LanguageText>{t('chat.teamMembers')}</LanguageText>
             </p>
             {me?.type === 'admin' && !isPublicBoard && (
               <button
                 onClick={() => setBoardSettingsOpen(true)}
-                className="flex items-center gap-2 px-2 py-1.5 hover:bg-accent rounded-md transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-accent rounded-md transition-all text-muted-foreground hover:text-foreground border border-transparent hover:border-border/50"
                 title={t('publicBoard.manageTeam')}
               >
-                <Settings className="h-4 w-4 text-muted-foreground hover:text-foreground flex-shrink-0" />
-                <span className="hidden md:inline text-sm text-muted-foreground hover:text-foreground whitespace-nowrap">
+                <Settings className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="hidden md:inline text-xs font-medium whitespace-nowrap">
                   {t('publicBoard.manageTeam')}
                 </span>
               </button>
