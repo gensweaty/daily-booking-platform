@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Trash2, AlertCircle } from "lucide-react";
+import { Trash2, AlertCircle, Users } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, getStorageUrl } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
