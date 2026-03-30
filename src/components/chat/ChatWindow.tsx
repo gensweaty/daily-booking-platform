@@ -212,7 +212,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       {/* Title Bar — swipe down to close on mobile */}
       <div
         className={cn(
-          "flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30 dark:bg-muted/20",
+          "flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-border bg-muted/40 dark:bg-muted/30 backdrop-blur-sm",
           "min-h-[52px] shrink-0",
           windowState === 'minimized' ? "h-[52px]" : "",
           isMobile && "cursor-grab active:cursor-grabbing"
@@ -221,34 +221,36 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         onTouchMove={handleHeaderTouchMove}
         onTouchEnd={resetHeaderTouch}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2.5 min-w-0">
           {windowState !== 'minimized' && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               className={cn(
-                "h-6 w-6 p-0 shrink-0",
+                "h-8 w-8 p-0 shrink-0 rounded-full border border-transparent hover:border-border/50 hover:bg-accent transition-all",
                 isMobile && "chat-mobile-button"
               )}
               title="Toggle Sidebar"
             >
-              <Menu className="h-3 w-3" />
+              <Menu className="h-4 w-4" />
             </Button>
           )}
-          <span className="font-semibold text-sm sm:text-base tracking-tight text-foreground truncate">
-            <LanguageText>{t('chat.teamChat')}</LanguageText>
-          </span>
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-sm sm:text-base tracking-tight text-foreground truncate">
+              <LanguageText>{t('chat.teamChat')}</LanguageText>
+            </span>
+          </div>
         </div>
         
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {!isMobile && (
             <>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={toggleMinimize}
-                className="h-7 w-7 p-0 rounded-full hover:bg-muted border border-transparent hover:border-border/50 transition-all"
+                className="h-8 w-8 p-0 rounded-full bg-muted/50 hover:bg-muted border border-border/30 hover:border-border transition-all shadow-sm"
                 title={windowState === 'minimized' ? 'Restore' : 'Minimize'}
               >
                 <Minus className="h-3.5 w-3.5" />
@@ -258,7 +260,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
                 variant="ghost"
                 size="sm"
                 onClick={toggleMaximize}
-                className="h-7 w-7 p-0 rounded-full hover:bg-muted border border-transparent hover:border-border/50 transition-all"
+                className="h-8 w-8 p-0 rounded-full bg-muted/50 hover:bg-muted border border-border/30 hover:border-border transition-all shadow-sm"
                 title={windowState === 'maximized' ? 'Restore Down' : 'Maximize'}
               >
                 {windowState === 'maximized' ? (
@@ -274,7 +276,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-7 w-7 p-0 rounded-full hover:bg-destructive hover:text-destructive-foreground border border-transparent hover:border-destructive/50 transition-all"
+            className="h-8 w-8 p-0 rounded-full bg-muted/50 hover:bg-destructive hover:text-destructive-foreground border border-border/30 hover:border-destructive/50 transition-all shadow-sm"
             title="Close"
           >
             <X className="h-3.5 w-3.5" />

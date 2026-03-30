@@ -425,12 +425,12 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
             <>
               <Button 
                 type="button" 
-                variant="outline" 
+                variant="secondary" 
                 onClick={handleArchive}
                 disabled={isArchiving}
-                className="text-xs px-2 py-1 sm:px-3 sm:py-2"
+                className="flex items-center gap-1.5 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 h-9 sm:h-10 font-medium border border-border/50 hover:border-amber-500/30 transition-all"
               >
-                <Archive className="mr-1 h-3 w-3" />
+                <Archive className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {isGeorgian ? (
                   <GeorgianAuthText fontWeight="bold">
                     <LanguageText>
@@ -448,9 +448,9 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
                 variant="destructive" 
                 onClick={handleDeleteClick}
                 disabled={isDeleting}
-                className="text-xs px-2 py-1 sm:px-3 sm:py-2"
+                className="flex items-center gap-1.5 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 h-9 sm:h-10 font-medium shadow-sm transition-all"
               >
-                <Trash2 className="mr-1 h-3 w-3" />
+                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {isGeorgian ? (
                   <GeorgianAuthText fontWeight="bold">
                     <LanguageText>
@@ -465,7 +465,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
               </Button>
             </>
           )}
-          <Button type="submit" className="text-xs px-2 py-1 sm:px-3 sm:py-2" disabled={isSubmitting} data-tutorial="task-submit-btn">
+          <Button type="submit" className="flex items-center gap-1.5 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 h-9 sm:h-10 font-medium" disabled={isSubmitting} data-tutorial="task-submit-btn">
             {isGeorgian ? (
               <GeorgianAuthText fontWeight="bold">
                 <LanguageText>
