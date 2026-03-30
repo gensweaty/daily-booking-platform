@@ -699,18 +699,21 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
 
         {/* Team Members */}
         <div className="pt-4">
-          <div className="flex items-center justify-between mb-2 px-2">
-            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-              <LanguageText>{t('chat.teamMembers')}</LanguageText>
-            </p>
+          <div className="flex items-center justify-between mb-3 px-2">
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rounded-full bg-primary/60"></div>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                <LanguageText>{t('chat.teamMembers')}</LanguageText>
+              </p>
+            </div>
             {me?.type === 'admin' && !isPublicBoard && (
               <button
                 onClick={() => setBoardSettingsOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-accent rounded-md transition-all text-muted-foreground hover:text-foreground border border-transparent hover:border-border/50"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/50 hover:bg-accent rounded-md transition-all text-muted-foreground hover:text-foreground border border-border/30 hover:border-border/60 shadow-sm"
                 title={t('publicBoard.manageTeam')}
               >
                 <Settings className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="hidden md:inline text-xs font-medium whitespace-nowrap">
+                <span className="hidden md:inline text-xs font-semibold whitespace-nowrap">
                   {t('publicBoard.manageTeam')}
                 </span>
               </button>
