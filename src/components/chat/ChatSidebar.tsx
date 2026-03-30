@@ -1125,7 +1125,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
       </div>
 
       {/* Telegram status button at bottom of sidebar */}
-      <div className="px-2 pb-2 pt-1 border-t">
+      <div className="px-3 pb-3 pt-2 border-t border-border/50">
         <TelegramConnectDialog compact className="w-full" />
       </div>
 
