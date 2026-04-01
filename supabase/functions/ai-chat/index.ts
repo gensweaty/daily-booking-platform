@@ -345,7 +345,7 @@ async function loadRelevantMemories({
   const linkedMemoryIds = extractLinkedMemoryIds(conversationHistory);
   const explicitRecall = isExplicitRecallPrompt(prompt || '');
 
-  if (!explicitRecall && linkedMemoryIds.length === 0) {
+  if (!explicitRecall) {
     return [];
   }
 
@@ -684,6 +684,10 @@ const buildDeterministicRecallAnswer = ({
 
 const shouldPersistGeneralMemory = (prompt: string, response: string) => {
   if (isExplicitRecallPrompt(prompt || '') && classifyRecallKind(prompt) !== 'auto') {
+    return false;
+  }
+
+  if (isDirectActionPrompt(prompt || '')) {
     return false;
   }
 
@@ -4078,7 +4082,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         })
       : null;
     const savedContextBlock = explicitRecallPrompt && !directActionPrompt ? buildSavedContextBlock(savedMemories) : '';
-    const recentDiscussionBlock = !directActionPrompt && normalizedConversationHistory.length
+    const recentDiscussionBlock = explicitRecallPrompt && !directActionPrompt && normalizedConversationHistory.length
       ? `\n\n🧠 RECENT DISCUSSION IN THIS EXACT CHAT\nThis is the recent same-chat history for this exact user/sub-user. Use it to understand references like "that", "this", and "what we discussed".\n\n${normalizedConversationHistory
           .slice(-24)
           .map((msg: any, index: number) => `${index + 1}. [${msg.role}] ${truncateText(msg.content, 280)}`)
