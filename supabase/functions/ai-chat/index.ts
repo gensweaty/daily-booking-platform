@@ -4034,6 +4034,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     const deterministicRecallResult = buildDeterministicRecallAnswer({
       prompt,
       memories: savedMemories,
+      conversationHistory: normalizedConversationHistory,
     });
     const savedContextBlock = buildSavedContextBlock(savedMemories);
     const recentDiscussionBlock = normalizedConversationHistory.length
