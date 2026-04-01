@@ -7684,21 +7684,23 @@ Be direct. Be concise. No extra text.`
         }
         
         console.log('✅ Tool call AI message inserted with id:', aiMsgData?.id);
-        await createContextMemory({
-          supabaseAdmin,
-          ownerId,
-          channelId,
-          audienceType: requesterType,
-          audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
-          sourceKind: 'general',
-          sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
-          sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
-          structuredContext: {
-            summary_text: truncateText(finalMessage.content, 500),
-            prompt: truncateText(prompt, 500),
-            reply: truncateText(finalMessage.content, 800),
-          },
-        });
+        if (shouldPersistGeneralMemory(prompt, finalMessage.content || '')) {
+          await createContextMemory({
+            supabaseAdmin,
+            ownerId,
+            channelId,
+            audienceType: requesterType,
+            audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+            sourceKind: 'general',
+            sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
+            sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
+            structuredContext: {
+              summary_text: truncateText(finalMessage.content, 500),
+              prompt: truncateText(prompt, 500),
+              reply: truncateText(finalMessage.content, 800),
+            },
+          });
+        }
         
         return new Response(
           JSON.stringify({ 
@@ -7738,21 +7740,23 @@ Be direct. Be concise. No extra text.`
     }
     
     console.log('✅ Direct AI message inserted with id:', aiMsgData?.id);
-    await createContextMemory({
-      supabaseAdmin,
-      ownerId,
-      channelId,
-      audienceType: requesterType,
-      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
-      sourceKind: 'general',
-      sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
-      sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
-      structuredContext: {
-        summary_text: truncateText(message.content || '', 500),
-        prompt: truncateText(prompt, 500),
-        reply: truncateText(message.content || '', 800),
-      },
-    });
+    if (shouldPersistGeneralMemory(prompt, message.content || '')) {
+      await createContextMemory({
+        supabaseAdmin,
+        ownerId,
+        channelId,
+        audienceType: requesterType,
+        audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+        sourceKind: 'general',
+        sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
+        sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
+        structuredContext: {
+          summary_text: truncateText(message.content || '', 500),
+          prompt: truncateText(prompt, 500),
+          reply: truncateText(message.content || '', 800),
+        },
+      });
+    }
     
     return new Response(
       JSON.stringify({ 
