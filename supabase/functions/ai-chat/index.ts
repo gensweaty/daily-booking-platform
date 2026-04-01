@@ -406,7 +406,7 @@ const buildSavedContextBlock = (memories: Array<any>) => {
   }).join('\n\n')}`;
 };
 
-const FOLLOW_UP_RECALL_REGEX = /(last|latest|previous|earlier|before|that|this|it|discussed|talked|same chat|what was|what is|when did)/i;
+const FOLLOW_UP_RECALL_REGEX = /(what\s+(?:was|is|did)|when\s+did|do\s+you\s+remember|remember\b|recall\b|asked\s+you|same\s+chat|this\s+chat|we\s+(?:discussed|talked)|\b(?:last|latest|previous|earlier|before)\b)/i;
 
 const MEMORY_FAILURE_PATTERNS = [
   'i cannot access your previous reminders',
@@ -443,6 +443,26 @@ const classifyRecallAction = (prompt: string): RecallActionIntent => {
   if (/(create|created|add|added|made|scheduled|set up)/i.test(lowerPrompt)) return 'created';
   if (/(update|updated|edit|edited|change|changed|modify|modified|complete|completed|finish|finished|done)/i.test(lowerPrompt)) return 'updated';
   return 'any';
+};
+
+const isExplicitRecallPrompt = (prompt: string) => {
+  const lowerPrompt = (prompt || '').toLowerCase().trim();
+  if (!lowerPrompt) return false;
+
+  if (!FOLLOW_UP_RECALL_REGEX.test(lowerPrompt)) return false;
+
+  const hasRecallTarget =
+    classifyRecallKind(lowerPrompt) !== 'auto' ||
+    /\b(this|that|it)\b/i.test(lowerPrompt);
+
+  if (!hasRecallTarget) return false;
+
+  const directActionCommand = /^(create|add|make|schedule|set|move|change|update|edit|modify|delete|remove|complete|finish|mark|send|analy[sz]e|find|search|generate|export|report|email)\b/i.test(lowerPrompt);
+  const explicitRecallPhrase = /(what\s+(?:was|is|did)|when\s+did|do\s+you\s+remember|remember\b|recall\b|asked\s+you|same\s+chat|this\s+chat|we\s+(?:discussed|talked)|\b(?:last|latest|previous|earlier|before)\b)/i.test(lowerPrompt);
+
+  if (directActionCommand && !explicitRecallPhrase) return false;
+
+  return true;
 };
 
 const isFailureText = (value?: string | null) => {
@@ -574,7 +594,7 @@ const buildDeterministicRecallAnswer = ({
   memories: Array<any>;
   conversationHistory: Array<any>;
 }) => {
-  if (!FOLLOW_UP_RECALL_REGEX.test(prompt || '')) return null;
+  if (!isExplicitRecallPrompt(prompt || '')) return null;
 
   const requestedKind = classifyRecallKind(prompt);
   const requestedAction = classifyRecallAction(prompt);
@@ -654,7 +674,7 @@ const buildDeterministicRecallAnswer = ({
 };
 
 const shouldPersistGeneralMemory = (prompt: string, response: string) => {
-  if (FOLLOW_UP_RECALL_REGEX.test(prompt || '') && classifyRecallKind(prompt) !== 'auto') {
+  if (isExplicitRecallPrompt(prompt || '') && classifyRecallKind(prompt) !== 'auto') {
     return false;
   }
 
