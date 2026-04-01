@@ -4637,6 +4637,20 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               };
               
               toolResult = summary;
+              await createContextMemory({
+                supabaseAdmin,
+                ownerId,
+                channelId,
+                audienceType: requesterType,
+                audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                sourceKind: 'statistics',
+                sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                sourceQuote: buildReminderSourceQuote(prompt, 'Business statistics', senderName),
+                structuredContext: {
+                  summary_text: `Business stats discussed for this month.`,
+                  ...summary,
+                },
+              });
               console.log(`    ✓ Payment summary: ${summary.total_events} events, $${summary.total_amount} total`);
               break;
             }
