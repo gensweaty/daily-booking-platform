@@ -452,7 +452,7 @@ const buildDeterministicRecallAnswer = ({
       : `Your last reminder was ${preferredMemory?.summary || 'found in this chat'}.`;
     const timeLine = remindAt ? ` It was scheduled for ${remindAt}.` : '';
     const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
-    return `${base}${timeLine}${quoteLine}`.trim();
+    return { content: `${base}${timeLine}${quoteLine}`.trim(), memory: preferredMemory };
   }
 
   if (sourceKind === 'task') {
@@ -460,7 +460,7 @@ const buildDeterministicRecallAnswer = ({
       ? `The last task we discussed was "${title}".`
       : `The last task context I found is: ${preferredMemory?.summary || 'task discussion in this chat'}.`;
     const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
-    return `${base}${quoteLine}`.trim();
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
   }
 
   if (sourceKind === 'event') {
@@ -468,7 +468,7 @@ const buildDeterministicRecallAnswer = ({
       ? `The last event we discussed was "${title}".`
       : `The last event context I found is: ${preferredMemory?.summary || 'event discussion in this chat'}.`;
     const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
-    return `${base}${quoteLine}`.trim();
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
   }
 
   if (sourceKind === 'customer') {
@@ -476,7 +476,7 @@ const buildDeterministicRecallAnswer = ({
       ? `The last customer we discussed was "${title}".`
       : `The last customer context I found is: ${preferredMemory?.summary || 'customer discussion in this chat'}.`;
     const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
-    return `${base}${quoteLine}`.trim();
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
   }
 
   if (sourceKind === 'statistics') {
@@ -484,14 +484,14 @@ const buildDeterministicRecallAnswer = ({
       ? `The last statistics topic we discussed was: ${preferredMemory.summary}`
       : 'I found the last statistics discussion from this same chat.';
     const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
-    return `${base}${quoteLine}`.trim();
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
   }
 
   if (sourceText) {
-    return `From this same chat, the last related context was: “${truncateText(sourceText, 240)}”`;
+    return { content: `From this same chat, the last related context was: “${truncateText(sourceText, 240)}”`, memory: preferredMemory };
   }
 
-  return preferredMemory?.summary || null;
+  return preferredMemory?.summary ? { content: preferredMemory.summary, memory: preferredMemory } : null;
 };
 
 const shouldPersistGeneralMemory = (prompt: string, response: string) => {
