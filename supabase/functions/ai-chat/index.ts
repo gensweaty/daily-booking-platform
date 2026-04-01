@@ -12,6 +12,131 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const AI_ASSISTANT_NAME = 'Smartbookly AI';
+
+const truncateText = (value: string, max = 600) =>
+  value.length > max ? `${value.slice(0, max)}…` : value;
+
+const normalizeConversationHistory = (history: any[] = []) =>
+  history
+    .filter((msg) => typeof msg?.content === 'string' && msg.content.trim())
+    .map((msg) => ({
+      role: msg?.senderName === AI_ASSISTANT_NAME || msg?.role === 'assistant' ? 'assistant' : 'user',
+      content: msg.content.trim(),
+      messageId: msg?.messageId,
+      metadata: msg?.metadata ?? null,
+    }));
+
+const buildReminderSourceQuote = (prompt: string, title: string, senderName?: string | null) => {
+  const speaker = senderName?.trim() || 'User';
+  return `${speaker}: ${truncateText(prompt.trim() || title, 400)}`;
+};
+
+async function createReminderContextMemory({
+  supabaseAdmin,
+  ownerId,
+  channelId,
+  audienceType,
+  audienceSubUserId,
+  sourceRecordId,
+  sourceMessageIds,
+  sourceQuote,
+  summary,
+  structuredContext,
+}: {
+  supabaseAdmin: any;
+  ownerId: string;
+  channelId: string;
+  audienceType: 'admin' | 'sub_user';
+  audienceSubUserId?: string | null;
+  sourceRecordId?: string | null;
+  sourceMessageIds?: string[];
+  sourceQuote: string;
+  summary: string;
+  structuredContext: Record<string, any>;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from('ai_context_memories')
+    .insert({
+      owner_id: ownerId,
+      audience_type: audienceType,
+      audience_sub_user_id: audienceType === 'sub_user' ? audienceSubUserId ?? null : null,
+      channel_id: channelId,
+      source_kind: 'reminder',
+      source_record_id: sourceRecordId ?? null,
+      source_message_ids: sourceMessageIds ?? [],
+      source_quote: truncateText(sourceQuote, 1000),
+      summary: truncateText(summary, 1500),
+      structured_context: structuredContext,
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error('❌ Failed to create reminder context memory:', error);
+    return null;
+  }
+
+  return data?.id ?? null;
+}
+
+async function loadRelevantMemories({
+  supabaseAdmin,
+  ownerId,
+  channelId,
+  requesterType,
+  requesterIdentityId,
+  prompt,
+}: {
+  supabaseAdmin: any;
+  ownerId: string;
+  channelId: string;
+  requesterType: 'admin' | 'sub_user';
+  requesterIdentityId?: string | null;
+  prompt: string;
+}) {
+  if (!/(what|which|where|when|why|who|did|does|this|that|it|remind|reminder|task|event|customer|statistics|stat)/i.test(prompt || '')) {
+    return [];
+  }
+
+  let query = supabaseAdmin
+    .from('ai_context_memories')
+    .select('id, source_quote, summary, structured_context, created_at')
+    .eq('owner_id', ownerId)
+    .eq('channel_id', channelId)
+    .eq('audience_type', requesterType)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  if (requesterType === 'sub_user') {
+    query = query.eq('audience_sub_user_id', requesterIdentityId ?? '00000000-0000-0000-0000-000000000000');
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('⚠️ Failed to load AI context memories:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+const buildSavedContextBlock = (memories: Array<any>) => {
+  if (!memories.length) return '';
+
+  return `\n\n🔒 SAVED PRIVATE CONTEXT FOR THIS EXACT USER\nUse this only for this same user/sub-user. If relevant, answer directly and quote the source naturally.\n\n${memories.map((memory, index) => {
+    const title = memory?.structured_context?.title;
+    const remindAt = memory?.structured_context?.remind_at;
+    return [
+      `Memory ${index + 1}:`,
+      title ? `- Title: ${title}` : null,
+      remindAt ? `- Time: ${remindAt}` : null,
+      `- Summary: ${memory.summary}`,
+      `- Source quote: ${memory.source_quote}`,
+    ].filter(Boolean).join('\n');
+  }).join('\n\n')}`;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -19,6 +144,7 @@ serve(async (req) => {
 
   try {
     const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType } = await req.json();
+    const normalizedConversationHistory = normalizeConversationHistory(conversationHistory);
     
     console.log('🤖 AI Chat request:', { 
       channelId, 
@@ -326,6 +452,27 @@ serve(async (req) => {
         }
         
         console.log('✅ Reminder created successfully:', reminderData);
+        const reminderMemoryId = await createReminderContextMemory({
+          supabaseAdmin,
+          ownerId,
+          channelId,
+          audienceType: senderType === 'sub_user' ? 'sub_user' : 'admin',
+          audienceSubUserId: createdBySubUserId,
+          sourceRecordId: reminderData.id,
+          sourceMessageIds: normalizedConversationHistory.slice(-6).map((msg: any) => msg.messageId).filter(Boolean),
+          sourceQuote: buildReminderSourceQuote(prompt, title, senderName),
+          summary: `Reminder about \"${title}\" scheduled for ${remindAtUtc.toISOString()}.`,
+          structuredContext: {
+            title,
+            remind_at: remindAtUtc.toISOString(),
+            message: `Reminder: ${title}`,
+            sender_name: senderName || null,
+            sender_type: senderType || 'admin',
+          },
+        });
+        if (reminderMemoryId) {
+          await supabaseAdmin.from('custom_reminders').update({ context_memory_id: reminderMemoryId }).eq('id', reminderData.id);
+        }
         
         const reminderTimeFormatted = formatInUserZone(remindAtUtc);
         const content = userLanguage === 'ka' 
@@ -554,6 +701,27 @@ serve(async (req) => {
         }
         
         console.log('✅ Reminder created successfully:', reminderData);
+        const reminderMemoryId = await createReminderContextMemory({
+          supabaseAdmin,
+          ownerId,
+          channelId,
+          audienceType: senderType === 'sub_user' ? 'sub_user' : 'admin',
+          audienceSubUserId: createdBySubUserId2,
+          sourceRecordId: reminderData.id,
+          sourceMessageIds: normalizedConversationHistory.slice(-6).map((msg: any) => msg.messageId).filter(Boolean),
+          sourceQuote: buildReminderSourceQuote(prompt, title, senderName),
+          summary: `Reminder about \"${title}\" scheduled for ${targetTime.toISOString()}.`,
+          structuredContext: {
+            title,
+            remind_at: targetTime.toISOString(),
+            message: `Reminder: ${title}`,
+            sender_name: senderName || null,
+            sender_type: senderType || 'admin',
+          },
+        });
+        if (reminderMemoryId) {
+          await supabaseAdmin.from('custom_reminders').update({ context_memory_id: reminderMemoryId }).eq('id', reminderData.id);
+        }
         
         const reminderTimeFormatted = formatInUserZone(targetTime);
         const content = userLanguage === 'ka' 
@@ -3320,6 +3488,15 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     const requesterName = withAiSuffix(baseName);
     console.log(`👤 Resolved requester → ${requesterName} [${requesterType}]`);
+    const savedMemories = await loadRelevantMemories({
+      supabaseAdmin,
+      ownerId,
+      channelId,
+      requesterType,
+      requesterIdentityId: requesterIdentity?.id,
+      prompt,
+    });
+    const savedContextBlock = buildSavedContextBlock(savedMemories);
 
     // Process attachments if any
     let attachmentContext = '';
@@ -3392,8 +3569,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       : prompt;
     
     const messages = [
-      { role: 'system', content: systemPrompt },
-      ...conversationHistory.map((msg: any) => ({
+      { role: 'system', content: `${systemPrompt}${savedContextBlock}` },
+      ...normalizedConversationHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content
       })),
@@ -5412,11 +5589,35 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .select()
                 .single();
               
-              if (reminderError) {
+                if (reminderError) {
                 console.error('❌ Failed to create reminder:', reminderError);
                 toolResult = { success: false, error: reminderError.message };
                 break;
               }
+                const reminderMemoryId = await createReminderContextMemory({
+                  supabaseAdmin,
+                  ownerId,
+                  channelId,
+                  audienceType: requesterType,
+                  audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                  sourceRecordId: reminderRow.id,
+                  sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                  sourceQuote: buildReminderSourceQuote(prompt, title, senderName),
+                  summary: `Reminder about \"${title}\" scheduled for ${remindAtUtc.toISOString()}.`,
+                  structuredContext: {
+                    title,
+                    remind_at: remindAtUtc.toISOString(),
+                    message: message || '',
+                    sender_name: senderName || null,
+                    sender_type: requesterType,
+                    recipient_email: recipientEmail,
+                    recipient_customer_id: recipientCustomerId,
+                    recipient_event_id: recipientEventId,
+                  },
+                });
+                if (reminderMemoryId) {
+                  await supabaseAdmin.from('custom_reminders').update({ context_memory_id: reminderMemoryId }).eq('id', reminderRow.id);
+                }
               
               // 6) Build HUMAN message on server (no LLM) - in user's language
               const display = formatInUserZone(remindAtUtc);

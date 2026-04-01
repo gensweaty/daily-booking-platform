@@ -361,11 +361,15 @@ const handler = async (req: Request): Promise<Response> => {
                       recipient_type: 'sub_user',
                       recipient_sub_user_id: reminder.created_by_sub_user_id,
                       // Also include email for fallback matching
-                      recipient_email: userEmail?.toLowerCase()
+                      recipient_email: userEmail?.toLowerCase(),
+                      reminder_id: reminder.id,
+                      context_memory_id: reminder.context_memory_id ?? null
                     }
                   : {
                       recipient_type: 'admin',
-                      recipient_user_id: reminder.user_id
+                      recipient_user_id: reminder.user_id,
+                      reminder_id: reminder.id,
+                      context_memory_id: reminder.context_memory_id ?? null
                     };
                 
                 console.log(`📨 Reminder metadata for chat message:`, recipientMetadata);

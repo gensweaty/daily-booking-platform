@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_context_memories: {
+        Row: {
+          audience_sub_user_id: string | null
+          audience_type: string
+          channel_id: string
+          created_at: string
+          id: string
+          owner_id: string
+          source_kind: string
+          source_message_ids: string[]
+          source_quote: string
+          source_record_id: string | null
+          structured_context: Json
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          audience_sub_user_id?: string | null
+          audience_type: string
+          channel_id: string
+          created_at?: string
+          id?: string
+          owner_id: string
+          source_kind: string
+          source_message_ids?: string[]
+          source_quote?: string
+          source_record_id?: string | null
+          structured_context?: Json
+          summary?: string
+          updated_at?: string
+        }
+        Update: {
+          audience_sub_user_id?: string | null
+          audience_type?: string
+          channel_id?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          source_kind?: string
+          source_message_ids?: string[]
+          source_quote?: string
+          source_record_id?: string | null
+          structured_context?: Json
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_context_memories_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_files: {
         Row: {
           booking_request_id: string | null
@@ -575,6 +631,7 @@ export type Database = {
       }
       custom_reminders: {
         Row: {
+          context_memory_id: string | null
           created_at: string
           created_by_name: string | null
           created_by_sub_user_id: string | null
@@ -593,6 +650,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          context_memory_id?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_sub_user_id?: string | null
@@ -611,6 +669,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          context_memory_id?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_sub_user_id?: string | null
@@ -629,6 +688,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "custom_reminders_context_memory_id_fkey"
+            columns: ["context_memory_id"]
+            isOneToOne: false
+            referencedRelation: "ai_context_memories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "custom_reminders_recipient_customer_id_fkey"
             columns: ["recipient_customer_id"]

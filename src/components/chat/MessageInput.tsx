@@ -56,6 +56,37 @@ const iconForName = (name: string, type: string) => {
   return <FileText className="h-4 w-4 text-muted-foreground" />;
 };
 
+const AI_ASSISTANT_NAME = 'Smartbookly AI';
+
+const buildConversationContent = (message: any) => {
+  const labels: string[] = [];
+
+  if (message?.message_type && message.message_type !== 'text') {
+    labels.push(message.message_type === 'reminder_alert' ? '[Reminder alert]' : `[${message.message_type}]`);
+  }
+
+  if (message?.has_attachments) {
+    labels.push('[Has attachments]');
+  }
+
+  if (message?.metadata?.context_memory_id) {
+    labels.push('[Linked context]');
+  }
+
+  const content = typeof message?.content === 'string' ? message.content.trim() : '';
+  return [...labels, content].filter(Boolean).join('\n');
+};
+
+const mapMessageToConversationHistory = (message: any) => ({
+  role: message?.sender_name === AI_ASSISTANT_NAME ? 'assistant' : 'user',
+  content: buildConversationContent(message),
+  messageId: message?.id,
+  senderType: message?.sender_type,
+  senderName: message?.sender_name,
+  messageType: message?.message_type,
+  metadata: message?.metadata ?? null,
+});
+
 export const MessageInput = ({ 
   onSendMessage,
   onEditMessage,
@@ -267,21 +298,19 @@ export const MessageInput = ({
           }
         }
         
-        // Get recent conversation history (last 20 messages)
+        // Get recent conversation history with enough context for AI memory recall
         const { data: recentMessages } = await supabase
           .from('chat_messages')
-          .select('sender_type, content')
+          .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata')
           .eq('channel_id', currentChannelId)
           .eq('owner_id', effectiveBoardOwnerId) // Use effective board owner ID
           .order('created_at', { ascending: false })
-          .limit(20);
+          .limit(60);
 
         const conversationHistory = (recentMessages || [])
           .reverse()
-          .map(msg => ({
-            role: msg.sender_type === 'system' ? 'assistant' : 'user',
-            content: msg.content
-          }));
+          .map(mapMessageToConversationHistory)
+          .filter(msg => !!msg.content);
         
         // For AI channels, ensure typing indicator stays on throughout entire process
         // Don't reset state if already in sending mode (from voice)
