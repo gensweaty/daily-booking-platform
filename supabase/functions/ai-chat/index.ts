@@ -3874,6 +3874,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       prompt,
       conversationHistory: normalizedConversationHistory,
     });
+    const deterministicRecallAnswer = buildDeterministicRecallAnswer({
+      prompt,
+      memories: savedMemories,
+    });
     const savedContextBlock = buildSavedContextBlock(savedMemories);
     const recentDiscussionBlock = normalizedConversationHistory.length
       ? `\n\n🧠 RECENT DISCUSSION IN THIS EXACT CHAT\nThis is the recent same-chat history for this exact user/sub-user. Use it to understand references like "that", "this", and "what we discussed".\n\n${normalizedConversationHistory
@@ -3881,6 +3885,43 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
           .map((msg: any, index: number) => `${index + 1}. [${msg.role}] ${truncateText(msg.content, 280)}`)
           .join('\n')}`
       : '';
+
+    if (deterministicRecallAnswer) {
+      const linkedMemory = savedMemories[0] ?? null;
+      const { data: aiMsgData, error: insertError } = await supabaseAdmin
+        .from('chat_messages')
+        .insert({
+          channel_id: channelId,
+          owner_id: ownerId,
+          sender_type: 'admin',
+          sender_name: 'Smartbookly AI',
+          content: deterministicRecallAnswer,
+          message_type: 'text',
+          metadata: linkedMemory?.id ? { context_memory_id: linkedMemory.id } : null,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('❌ Failed to insert deterministic recall response:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to save AI response' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('✅ Deterministic recall response inserted with id:', aiMsgData?.id);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          content: deterministicRecallAnswer,
+          aiMessage: aiMsgData,
+          toolCalls: [],
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Process attachments if any
     let attachmentContext = '';
