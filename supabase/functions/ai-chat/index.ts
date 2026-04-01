@@ -4069,20 +4069,23 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       conversationHistory: normalizedConversationHistory,
     });
     const explicitRecallPrompt = isExplicitRecallPrompt(prompt || '');
-    const deterministicRecallResult = buildDeterministicRecallAnswer({
-      prompt,
-      memories: savedMemories,
-      conversationHistory: normalizedConversationHistory,
-    });
-    const savedContextBlock = explicitRecallPrompt ? buildSavedContextBlock(savedMemories) : '';
-    const recentDiscussionBlock = normalizedConversationHistory.length
+    const directActionPrompt = isDirectActionPrompt(prompt || '');
+    const deterministicRecallResult = explicitRecallPrompt && !directActionPrompt
+      ? buildDeterministicRecallAnswer({
+          prompt,
+          memories: savedMemories,
+          conversationHistory: normalizedConversationHistory,
+        })
+      : null;
+    const savedContextBlock = explicitRecallPrompt && !directActionPrompt ? buildSavedContextBlock(savedMemories) : '';
+    const recentDiscussionBlock = !directActionPrompt && normalizedConversationHistory.length
       ? `\n\n🧠 RECENT DISCUSSION IN THIS EXACT CHAT\nThis is the recent same-chat history for this exact user/sub-user. Use it to understand references like "that", "this", and "what we discussed".\n\n${normalizedConversationHistory
           .slice(-24)
           .map((msg: any, index: number) => `${index + 1}. [${msg.role}] ${truncateText(msg.content, 280)}`)
           .join('\n')}`
       : '';
 
-    if (deterministicRecallResult) {
+    if (explicitRecallPrompt && !directActionPrompt && deterministicRecallResult) {
       const linkedMemory = deterministicRecallResult.memory ?? null;
       const { data: aiMsgData, error: insertError } = await supabaseAdmin
         .from('chat_messages')
