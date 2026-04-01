@@ -408,6 +408,26 @@ const buildSavedContextBlock = (memories: Array<any>) => {
 
 const FOLLOW_UP_RECALL_REGEX = /(last|latest|previous|earlier|before|that|this|it|discussed|talked|same chat|what was|what is|when did)/i;
 
+const MEMORY_FAILURE_PATTERNS = [
+  'i cannot access your previous reminders',
+  'i cannot directly access the chat history',
+  "i can't tell you about your last reminder",
+  'i do not have enough information',
+  'could you please specify what "this" refers to',
+  'i am sorry, i cannot directly access the chat history',
+  'i am sorry, i do not have enough information',
+  'i couldn’t find a created',
+  "i couldn't find a created",
+  'i couldn’t find an updated',
+  "i couldn't find an updated",
+  'i couldn’t find a updated',
+  "i couldn't find a updated",
+  'so i won’t guess from unrelated context',
+  "so i won't guess from unrelated context",
+];
+
+type RecallActionIntent = 'created' | 'updated' | 'any';
+
 const classifyRecallKind = (prompt: string): MemorySourceKind | 'auto' => {
   const lowerPrompt = (prompt || '').toLowerCase();
   if (/(reminder|remind)/i.test(lowerPrompt)) return 'reminder';
@@ -416,6 +436,126 @@ const classifyRecallKind = (prompt: string): MemorySourceKind | 'auto' => {
   if (/(customer|client|person)/i.test(lowerPrompt)) return 'customer';
   if (/(stat|statistics|report|analytics|income|revenue)/i.test(lowerPrompt)) return 'statistics';
   return 'auto';
+};
+
+const classifyRecallAction = (prompt: string): RecallActionIntent => {
+  const lowerPrompt = (prompt || '').toLowerCase();
+  if (/(create|created|add|added|made|scheduled|set up)/i.test(lowerPrompt)) return 'created';
+  if (/(update|updated|edit|edited|change|changed|modify|modified|complete|completed|finish|finished|done)/i.test(lowerPrompt)) return 'updated';
+  return 'any';
+};
+
+const isFailureText = (value?: string | null) => {
+  const lowerValue = (value || '').toLowerCase();
+  return MEMORY_FAILURE_PATTERNS.some((pattern) => lowerValue.includes(pattern));
+};
+
+const isLowQualityMemory = (memory: any) => {
+  const combined = [
+    memory?.summary,
+    memory?.source_quote,
+    memory?.structured_context?.reply,
+    memory?.structured_context?.summary_text,
+    memory?.structured_context?.prompt,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return isFailureText(combined);
+};
+
+const messageMatchesRequestedAction = (content: string, requestedAction: RecallActionIntent) => {
+  if (requestedAction === 'any') return true;
+  if (requestedAction === 'created') {
+    return /(created|added|scheduled|set up)/i.test(content);
+  }
+
+  return /(updated|edited|changed|completed|done|finished)/i.test(content);
+};
+
+const extractRecentRecallFromHistory = ({
+  prompt,
+  requestedKind,
+  requestedAction,
+  conversationHistory,
+}: {
+  prompt: string;
+  requestedKind: MemorySourceKind;
+  requestedAction: RecallActionIntent;
+  conversationHistory: Array<any>;
+}) => {
+  const reversedHistory = [...(conversationHistory || [])].reverse();
+
+  const patternsByKind: Record<MemorySourceKind, RegExp[]> = {
+    reminder: [
+      /remind you about "([^"]+)"/i,
+      /reminder(?: about)?[:\s]+"?([^"\n.]+)"?/i,
+    ],
+    task: [
+      /task (?:created|updated):\s+"?([^"\n.]+)"?/i,
+      /(?:created|updated) task:\s+"?([^"\n.]+)"?/i,
+      /task "([^"]+)"/i,
+    ],
+    event: [
+      /event (?:created|updated):\s+"?([^"\n.]+)"?/i,
+      /(?:created|updated) event:\s+"?([^"\n.]+)"?/i,
+      /event "([^"]+)"/i,
+    ],
+    customer: [
+      /customer (?:created|updated):\s+"?([^"\n.]+)"?/i,
+      /(?:created|updated) customer:\s+"?([^"\n.]+)"?/i,
+      /customer "([^"]+)"/i,
+    ],
+    statistics: [],
+    general: [],
+  };
+
+  for (const message of reversedHistory) {
+    const content = String(message?.content || '').trim();
+    if (!content) continue;
+    if (isFailureText(content)) continue;
+
+    const senderRole = message?.role || '';
+    if (senderRole !== 'assistant') continue;
+    if (!messageMatchesRequestedAction(content, requestedAction)) continue;
+
+    const patterns = patternsByKind[requestedKind] || [];
+    for (const pattern of patterns) {
+      const match = content.match(pattern);
+      const title = match?.[1]?.trim();
+      if (!title) continue;
+
+      const label = requestedAction === 'created'
+        ? `last ${requestedKind} we created`
+        : requestedAction === 'updated'
+          ? `last ${requestedKind} we updated`
+          : `last ${requestedKind} in this chat`;
+
+      return {
+        content: `From this same chat, the ${label} was "${title}". Source: “${truncateText(content, 220)}”`,
+        memory: null,
+      };
+    }
+
+    if (requestedKind === 'statistics' && /(stat|statistics|report|analytics|income|revenue)/i.test(content)) {
+      return {
+        content: `From this same chat, the last statistics context I found was: “${truncateText(content, 220)}”`,
+        memory: null,
+      };
+    }
+  }
+
+  const noun = requestedKind === 'statistics' ? 'statistics discussion' : requestedKind;
+  const actionText = requestedAction === 'created'
+    ? `created ${noun}`
+    : requestedAction === 'updated'
+      ? `updated ${noun}`
+      : noun;
+
+  return {
+    content: `I couldn’t find a ${actionText} in this same chat, so I won’t guess from unrelated context.`,
+    memory: null,
+  };
 };
 
 const extractQuotedSource = (sourceQuote?: string | null) => {
@@ -428,16 +568,35 @@ const extractQuotedSource = (sourceQuote?: string | null) => {
 const buildDeterministicRecallAnswer = ({
   prompt,
   memories,
+  conversationHistory,
 }: {
   prompt: string;
   memories: Array<any>;
+  conversationHistory: Array<any>;
 }) => {
-  if (!FOLLOW_UP_RECALL_REGEX.test(prompt || '') || !memories.length) return null;
+  if (!FOLLOW_UP_RECALL_REGEX.test(prompt || '')) return null;
 
   const requestedKind = classifyRecallKind(prompt);
+  const requestedAction = classifyRecallAction(prompt);
+  const usableMemories = memories.filter((memory) => !isLowQualityMemory(memory));
+  const typedMemories = requestedKind === 'auto'
+    ? usableMemories
+    : usableMemories.filter((memory) => memory?.source_kind === requestedKind);
+  const actionMatchedMemories = requestedAction === 'any'
+    ? typedMemories
+    : typedMemories.filter((memory) => String(memory?.structured_context?.action || '').toLowerCase() === requestedAction);
   const preferredMemory = requestedKind === 'auto'
-    ? memories[0]
-    : memories.find((memory) => memory?.source_kind === requestedKind) || memories[0];
+    ? usableMemories.find((memory) => memory?.source_kind !== 'general') || usableMemories[0]
+    : actionMatchedMemories[0] || typedMemories[0];
+
+  if (!preferredMemory && requestedKind !== 'auto') {
+    return extractRecentRecallFromHistory({
+      prompt,
+      requestedKind,
+      requestedAction,
+      conversationHistory,
+    });
+  }
 
   if (!preferredMemory) return null;
 
@@ -495,13 +654,19 @@ const buildDeterministicRecallAnswer = ({
 };
 
 const shouldPersistGeneralMemory = (prompt: string, response: string) => {
+  if (FOLLOW_UP_RECALL_REGEX.test(prompt || '') && classifyRecallKind(prompt) !== 'auto') {
+    return false;
+  }
+
   const combined = `${prompt || ''} ${response || ''}`.toLowerCase();
   return !(
-    combined.includes('i cannot access your previous reminders') ||
-    combined.includes('i cannot directly access the chat history') ||
-    combined.includes("i can't tell you about your last reminder") ||
-    combined.includes('i do not have enough information') ||
-    combined.includes('could you please specify what "this" refers to')
+    MEMORY_FAILURE_PATTERNS.some((pattern) => combined.includes(pattern)) ||
+    combined.includes('i couldn’t find a created') ||
+    combined.includes("i couldn't find a created") ||
+    combined.includes('i couldn’t find a updated') ||
+    combined.includes("i couldn't find a updated") ||
+    combined.includes('so i won’t guess from unrelated context') ||
+    combined.includes("so i won't guess from unrelated context")
   );
 };
 
@@ -3877,6 +4042,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     const deterministicRecallResult = buildDeterministicRecallAnswer({
       prompt,
       memories: savedMemories,
+      conversationHistory: normalizedConversationHistory,
     });
     const savedContextBlock = buildSavedContextBlock(savedMemories);
     const recentDiscussionBlock = normalizedConversationHistory.length
@@ -3887,7 +4053,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       : '';
 
     if (deterministicRecallResult) {
-      const linkedMemory = deterministicRecallResult.memory ?? savedMemories[0] ?? null;
+      const linkedMemory = deterministicRecallResult.memory ?? null;
       const { data: aiMsgData, error: insertError } = await supabaseAdmin
         .from('chat_messages')
         .insert({
