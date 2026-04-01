@@ -406,6 +406,105 @@ const buildSavedContextBlock = (memories: Array<any>) => {
   }).join('\n\n')}`;
 };
 
+const FOLLOW_UP_RECALL_REGEX = /(last|latest|previous|earlier|before|that|this|it|discussed|talked|same chat|what was|what is|when did)/i;
+
+const classifyRecallKind = (prompt: string): MemorySourceKind | 'auto' => {
+  const lowerPrompt = (prompt || '').toLowerCase();
+  if (/(reminder|remind)/i.test(lowerPrompt)) return 'reminder';
+  if (/(task|todo)/i.test(lowerPrompt)) return 'task';
+  if (/(event|booking|calendar)/i.test(lowerPrompt)) return 'event';
+  if (/(customer|client|person)/i.test(lowerPrompt)) return 'customer';
+  if (/(stat|statistics|report|analytics|income|revenue)/i.test(lowerPrompt)) return 'statistics';
+  return 'auto';
+};
+
+const extractQuotedSource = (sourceQuote?: string | null) => {
+  if (!sourceQuote) return null;
+  const parts = sourceQuote.split(':');
+  if (parts.length < 2) return sourceQuote.trim();
+  return parts.slice(1).join(':').trim();
+};
+
+const buildDeterministicRecallAnswer = ({
+  prompt,
+  memories,
+}: {
+  prompt: string;
+  memories: Array<any>;
+}) => {
+  if (!FOLLOW_UP_RECALL_REGEX.test(prompt || '') || !memories.length) return null;
+
+  const requestedKind = classifyRecallKind(prompt);
+  const preferredMemory = requestedKind === 'auto'
+    ? memories[0]
+    : memories.find((memory) => memory?.source_kind === requestedKind) || memories[0];
+
+  if (!preferredMemory) return null;
+
+  const sourceKind = preferredMemory?.source_kind as MemorySourceKind | undefined;
+  const title = preferredMemory?.structured_context?.title;
+  const remindAt = preferredMemory?.structured_context?.remind_at;
+  const sourceText = extractQuotedSource(preferredMemory?.source_quote);
+
+  if (sourceKind === 'reminder') {
+    const base = title
+      ? `Your last reminder was about "${title}".`
+      : `Your last reminder was ${preferredMemory?.summary || 'found in this chat'}.`;
+    const timeLine = remindAt ? ` It was scheduled for ${remindAt}.` : '';
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return `${base}${timeLine}${quoteLine}`.trim();
+  }
+
+  if (sourceKind === 'task') {
+    const base = title
+      ? `The last task we discussed was "${title}".`
+      : `The last task context I found is: ${preferredMemory?.summary || 'task discussion in this chat'}.`;
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return `${base}${quoteLine}`.trim();
+  }
+
+  if (sourceKind === 'event') {
+    const base = title
+      ? `The last event we discussed was "${title}".`
+      : `The last event context I found is: ${preferredMemory?.summary || 'event discussion in this chat'}.`;
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return `${base}${quoteLine}`.trim();
+  }
+
+  if (sourceKind === 'customer') {
+    const base = title
+      ? `The last customer we discussed was "${title}".`
+      : `The last customer context I found is: ${preferredMemory?.summary || 'customer discussion in this chat'}.`;
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return `${base}${quoteLine}`.trim();
+  }
+
+  if (sourceKind === 'statistics') {
+    const base = preferredMemory?.summary
+      ? `The last statistics topic we discussed was: ${preferredMemory.summary}`
+      : 'I found the last statistics discussion from this same chat.';
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return `${base}${quoteLine}`.trim();
+  }
+
+  if (sourceText) {
+    return `From this same chat, the last related context was: “${truncateText(sourceText, 240)}”`;
+  }
+
+  return preferredMemory?.summary || null;
+};
+
+const shouldPersistGeneralMemory = (prompt: string, response: string) => {
+  const combined = `${prompt || ''} ${response || ''}`.toLowerCase();
+  return !(
+    combined.includes('i cannot access your previous reminders') ||
+    combined.includes('i cannot directly access the chat history') ||
+    combined.includes("i can't tell you about your last reminder") ||
+    combined.includes('i do not have enough information') ||
+    combined.includes('could you please specify what "this" refers to')
+  );
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
