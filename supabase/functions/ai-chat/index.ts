@@ -3874,7 +3874,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       prompt,
       conversationHistory: normalizedConversationHistory,
     });
-    const deterministicRecallAnswer = buildDeterministicRecallAnswer({
+    const deterministicRecallResult = buildDeterministicRecallAnswer({
       prompt,
       memories: savedMemories,
     });
@@ -3886,8 +3886,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
           .join('\n')}`
       : '';
 
-    if (deterministicRecallAnswer) {
-      const linkedMemory = savedMemories[0] ?? null;
+    if (deterministicRecallResult) {
+      const linkedMemory = deterministicRecallResult.memory ?? savedMemories[0] ?? null;
       const { data: aiMsgData, error: insertError } = await supabaseAdmin
         .from('chat_messages')
         .insert({
@@ -3895,7 +3895,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
           owner_id: ownerId,
           sender_type: 'admin',
           sender_name: 'Smartbookly AI',
-          content: deterministicRecallAnswer,
+          content: deterministicRecallResult.content,
           message_type: 'text',
           metadata: linkedMemory?.id ? { context_memory_id: linkedMemory.id } : null,
         })
@@ -3915,7 +3915,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       return new Response(
         JSON.stringify({
           success: true,
-          content: deterministicRecallAnswer,
+          content: deterministicRecallResult.content,
           aiMessage: aiMsgData,
           toolCalls: [],
         }),
