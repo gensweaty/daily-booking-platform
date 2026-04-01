@@ -13,9 +13,78 @@ const corsHeaders = {
 };
 
 const AI_ASSISTANT_NAME = 'Smartbookly AI';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const truncateText = (value: string, max = 600) =>
   value.length > max ? `${value.slice(0, max)}…` : value;
+
+const sanitizeUuid = (value?: string | null) => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return UUID_REGEX.test(trimmed) ? trimmed : null;
+};
+
+const sanitizeUuidArray = (values?: string[] | null) =>
+  Array.from(new Set((values || []).map((value) => sanitizeUuid(value)).filter(Boolean) as string[]));
+
+const buildConversationContent = (message: any) => {
+  const labels: string[] = [];
+
+  if (message?.message_type && message.message_type !== 'text') {
+    labels.push(message.message_type === 'reminder_alert' ? '[Reminder alert]' : `[${message.message_type}]`);
+  }
+
+  if (message?.has_attachments) {
+    labels.push('[Has attachments]');
+  }
+
+  if (message?.metadata?.context_memory_id) {
+    labels.push('[Linked context]');
+  }
+
+  const content = typeof message?.content === 'string' ? message.content.trim() : '';
+  return [...labels, content].filter(Boolean).join('\n');
+};
+
+const mapStoredMessageToConversationHistory = (message: any) => ({
+  role: message?.sender_name === AI_ASSISTANT_NAME ? 'assistant' : 'user',
+  content: buildConversationContent(message),
+  messageId: message?.id,
+  senderType: message?.sender_type,
+  senderName: message?.sender_name,
+  messageType: message?.message_type,
+  metadata: message?.metadata ?? null,
+});
+
+async function fetchRecentConversationHistory({
+  supabaseAdmin,
+  channelId,
+  ownerId,
+  limit = 60,
+}: {
+  supabaseAdmin: any;
+  channelId: string;
+  ownerId: string;
+  limit?: number;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata')
+    .eq('channel_id', channelId)
+    .eq('owner_id', ownerId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('⚠️ Failed to fetch fallback conversation history:', error);
+    return [];
+  }
+
+  return (data || [])
+    .reverse()
+    .map(mapStoredMessageToConversationHistory)
+    .filter((message: any) => Boolean(message.content));
+}
 
 const normalizeConversationHistory = (history: any[] = []) =>
   history
@@ -165,29 +234,57 @@ async function createContextMemory({
   summary?: string;
   structuredContext: Record<string, any>;
 }) {
+  const memoryPayload = {
+    owner_id: ownerId,
+    audience_type: audienceType,
+    audience_sub_user_id: audienceType === 'sub_user' ? sanitizeUuid(audienceSubUserId ?? null) : null,
+    channel_id: channelId,
+    source_kind: sourceKind,
+    source_record_id: sanitizeUuid(sourceRecordId ?? null),
+    source_message_ids: sanitizeUuidArray(sourceMessageIds),
+    source_quote: truncateText(sourceQuote, 1000),
+    summary: truncateText(summary?.trim() || summarizeStructuredContext(sourceKind, structuredContext), 1500),
+    structured_context: structuredContext ?? {},
+  };
+
   const { data, error } = await supabaseAdmin
     .from('ai_context_memories')
-    .insert({
-      owner_id: ownerId,
-      audience_type: audienceType,
-      audience_sub_user_id: audienceType === 'sub_user' ? audienceSubUserId ?? null : null,
-      channel_id: channelId,
-      source_kind: sourceKind,
-      source_record_id: sourceRecordId ?? null,
-      source_message_ids: sourceMessageIds ?? [],
-      source_quote: truncateText(sourceQuote, 1000),
-      summary: truncateText(summary?.trim() || summarizeStructuredContext(sourceKind, structuredContext), 1500),
-      structured_context: structuredContext,
-    })
+    .insert(memoryPayload)
     .select('id')
     .single();
 
-  if (error) {
-    console.error(`❌ Failed to create ${sourceKind} context memory:`, error);
+  if (!error && data?.id) {
+    return data.id;
+  }
+
+  console.error(`❌ Failed to create ${sourceKind} context memory:`, error, {
+    ownerId,
+    channelId,
+    audienceType,
+    audienceSubUserId: memoryPayload.audience_sub_user_id,
+    sourceRecordId: memoryPayload.source_record_id,
+    sourceMessageIdsCount: memoryPayload.source_message_ids.length,
+  });
+
+  const fallbackPayload = {
+    ...memoryPayload,
+    source_record_id: null,
+    source_message_ids: [],
+  };
+
+  const { data: fallbackData, error: fallbackError } = await supabaseAdmin
+    .from('ai_context_memories')
+    .insert(fallbackPayload)
+    .select('id')
+    .single();
+
+  if (fallbackError) {
+    console.error(`❌ Fallback memory write also failed for ${sourceKind}:`, fallbackError);
     return null;
   }
 
-  return data?.id ?? null;
+  console.log(`✅ Recovered ${sourceKind} context memory with fallback payload:`, fallbackData?.id);
+  return fallbackData?.id ?? null;
 }
 
 async function createReminderContextMemory({
@@ -316,7 +413,7 @@ serve(async (req) => {
 
   try {
     const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType } = await req.json();
-    const normalizedConversationHistory = normalizeConversationHistory(conversationHistory);
+    let normalizedConversationHistory = normalizeConversationHistory(conversationHistory);
     
     console.log('🤖 AI Chat request:', { 
       channelId, 
@@ -429,6 +526,15 @@ serve(async (req) => {
     }
 
     console.log('✅ Channel validated:', { channelId, isAI: channel.is_ai, hasAuth, ownerId });
+
+    if (normalizedConversationHistory.length === 0) {
+      normalizedConversationHistory = await fetchRecentConversationHistory({
+        supabaseAdmin,
+        channelId,
+        ownerId,
+      });
+      console.log('🧠 Loaded fallback same-chat history from DB:', normalizedConversationHistory.length);
+    }
 
     // Detect user language from the LATEST user message BEFORE processing (needed for fast-paths)
     const detectLanguage = (text: string): string => {
