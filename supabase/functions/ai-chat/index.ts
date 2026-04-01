@@ -406,6 +406,105 @@ const buildSavedContextBlock = (memories: Array<any>) => {
   }).join('\n\n')}`;
 };
 
+const FOLLOW_UP_RECALL_REGEX = /(last|latest|previous|earlier|before|that|this|it|discussed|talked|same chat|what was|what is|when did)/i;
+
+const classifyRecallKind = (prompt: string): MemorySourceKind | 'auto' => {
+  const lowerPrompt = (prompt || '').toLowerCase();
+  if (/(reminder|remind)/i.test(lowerPrompt)) return 'reminder';
+  if (/(task|todo)/i.test(lowerPrompt)) return 'task';
+  if (/(event|booking|calendar)/i.test(lowerPrompt)) return 'event';
+  if (/(customer|client|person)/i.test(lowerPrompt)) return 'customer';
+  if (/(stat|statistics|report|analytics|income|revenue)/i.test(lowerPrompt)) return 'statistics';
+  return 'auto';
+};
+
+const extractQuotedSource = (sourceQuote?: string | null) => {
+  if (!sourceQuote) return null;
+  const parts = sourceQuote.split(':');
+  if (parts.length < 2) return sourceQuote.trim();
+  return parts.slice(1).join(':').trim();
+};
+
+const buildDeterministicRecallAnswer = ({
+  prompt,
+  memories,
+}: {
+  prompt: string;
+  memories: Array<any>;
+}) => {
+  if (!FOLLOW_UP_RECALL_REGEX.test(prompt || '') || !memories.length) return null;
+
+  const requestedKind = classifyRecallKind(prompt);
+  const preferredMemory = requestedKind === 'auto'
+    ? memories[0]
+    : memories.find((memory) => memory?.source_kind === requestedKind) || memories[0];
+
+  if (!preferredMemory) return null;
+
+  const sourceKind = preferredMemory?.source_kind as MemorySourceKind | undefined;
+  const title = preferredMemory?.structured_context?.title;
+  const remindAt = preferredMemory?.structured_context?.remind_at;
+  const sourceText = extractQuotedSource(preferredMemory?.source_quote);
+
+  if (sourceKind === 'reminder') {
+    const base = title
+      ? `Your last reminder was about "${title}".`
+      : `Your last reminder was ${preferredMemory?.summary || 'found in this chat'}.`;
+    const timeLine = remindAt ? ` It was scheduled for ${remindAt}.` : '';
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${timeLine}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceKind === 'task') {
+    const base = title
+      ? `The last task we discussed was "${title}".`
+      : `The last task context I found is: ${preferredMemory?.summary || 'task discussion in this chat'}.`;
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceKind === 'event') {
+    const base = title
+      ? `The last event we discussed was "${title}".`
+      : `The last event context I found is: ${preferredMemory?.summary || 'event discussion in this chat'}.`;
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceKind === 'customer') {
+    const base = title
+      ? `The last customer we discussed was "${title}".`
+      : `The last customer context I found is: ${preferredMemory?.summary || 'customer discussion in this chat'}.`;
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceKind === 'statistics') {
+    const base = preferredMemory?.summary
+      ? `The last statistics topic we discussed was: ${preferredMemory.summary}`
+      : 'I found the last statistics discussion from this same chat.';
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceText) {
+    return { content: `From this same chat, the last related context was: “${truncateText(sourceText, 240)}”`, memory: preferredMemory };
+  }
+
+  return preferredMemory?.summary ? { content: preferredMemory.summary, memory: preferredMemory } : null;
+};
+
+const shouldPersistGeneralMemory = (prompt: string, response: string) => {
+  const combined = `${prompt || ''} ${response || ''}`.toLowerCase();
+  return !(
+    combined.includes('i cannot access your previous reminders') ||
+    combined.includes('i cannot directly access the chat history') ||
+    combined.includes("i can't tell you about your last reminder") ||
+    combined.includes('i do not have enough information') ||
+    combined.includes('could you please specify what "this" refers to')
+  );
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -3775,6 +3874,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       prompt,
       conversationHistory: normalizedConversationHistory,
     });
+    const deterministicRecallResult = buildDeterministicRecallAnswer({
+      prompt,
+      memories: savedMemories,
+    });
     const savedContextBlock = buildSavedContextBlock(savedMemories);
     const recentDiscussionBlock = normalizedConversationHistory.length
       ? `\n\n🧠 RECENT DISCUSSION IN THIS EXACT CHAT\nThis is the recent same-chat history for this exact user/sub-user. Use it to understand references like "that", "this", and "what we discussed".\n\n${normalizedConversationHistory
@@ -3782,6 +3885,43 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
           .map((msg: any, index: number) => `${index + 1}. [${msg.role}] ${truncateText(msg.content, 280)}`)
           .join('\n')}`
       : '';
+
+    if (deterministicRecallResult) {
+      const linkedMemory = deterministicRecallResult.memory ?? savedMemories[0] ?? null;
+      const { data: aiMsgData, error: insertError } = await supabaseAdmin
+        .from('chat_messages')
+        .insert({
+          channel_id: channelId,
+          owner_id: ownerId,
+          sender_type: 'admin',
+          sender_name: 'Smartbookly AI',
+          content: deterministicRecallResult.content,
+          message_type: 'text',
+          metadata: linkedMemory?.id ? { context_memory_id: linkedMemory.id } : null,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('❌ Failed to insert deterministic recall response:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to save AI response' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('✅ Deterministic recall response inserted with id:', aiMsgData?.id);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          content: deterministicRecallResult.content,
+          aiMessage: aiMsgData,
+          toolCalls: [],
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Process attachments if any
     let attachmentContext = '';
@@ -7544,21 +7684,23 @@ Be direct. Be concise. No extra text.`
         }
         
         console.log('✅ Tool call AI message inserted with id:', aiMsgData?.id);
-        await createContextMemory({
-          supabaseAdmin,
-          ownerId,
-          channelId,
-          audienceType: requesterType,
-          audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
-          sourceKind: 'general',
-          sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
-          sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
-          structuredContext: {
-            summary_text: truncateText(finalMessage.content, 500),
-            prompt: truncateText(prompt, 500),
-            reply: truncateText(finalMessage.content, 800),
-          },
-        });
+        if (shouldPersistGeneralMemory(prompt, finalMessage.content || '')) {
+          await createContextMemory({
+            supabaseAdmin,
+            ownerId,
+            channelId,
+            audienceType: requesterType,
+            audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+            sourceKind: 'general',
+            sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
+            sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
+            structuredContext: {
+              summary_text: truncateText(finalMessage.content, 500),
+              prompt: truncateText(prompt, 500),
+              reply: truncateText(finalMessage.content, 800),
+            },
+          });
+        }
         
         return new Response(
           JSON.stringify({ 
@@ -7598,21 +7740,23 @@ Be direct. Be concise. No extra text.`
     }
     
     console.log('✅ Direct AI message inserted with id:', aiMsgData?.id);
-    await createContextMemory({
-      supabaseAdmin,
-      ownerId,
-      channelId,
-      audienceType: requesterType,
-      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
-      sourceKind: 'general',
-      sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
-      sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
-      structuredContext: {
-        summary_text: truncateText(message.content || '', 500),
-        prompt: truncateText(prompt, 500),
-        reply: truncateText(message.content || '', 800),
-      },
-    });
+    if (shouldPersistGeneralMemory(prompt, message.content || '')) {
+      await createContextMemory({
+        supabaseAdmin,
+        ownerId,
+        channelId,
+        audienceType: requesterType,
+        audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+        sourceKind: 'general',
+        sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
+        sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
+        structuredContext: {
+          summary_text: truncateText(message.content || '', 500),
+          prompt: truncateText(prompt, 500),
+          reply: truncateText(message.content || '', 800),
+        },
+      });
+    }
     
     return new Response(
       JSON.stringify({ 
