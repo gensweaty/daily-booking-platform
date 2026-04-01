@@ -408,6 +408,7 @@ const buildSavedContextBlock = (memories: Array<any>) => {
 };
 
 const FOLLOW_UP_RECALL_REGEX = /(what\s+(?:was|is|did)|when\s+did|do\s+you\s+remember|remember\b|recall\b|asked\s+you|same\s+chat|this\s+chat|we\s+(?:discussed|talked)|\b(?:last|latest|previous|earlier|before)\b)/i;
+const DIRECT_ACTION_PREFIX_REGEX = /^(?:please\s+)?(?:(?:can|could|would|will)\s+you\s+|i\s+(?:need|want)(?:\s+you)?\s+to\s+|help\s+me\s+)?(?:create|add|make|schedule|set|move|change|update|edit|modify|delete|remove|complete|finish|mark|send|analy[sz]e|find|search|generate|export|email|upload|import|list|show|get|open)\b/i;
 
 const MEMORY_FAILURE_PATTERNS = [
   'i cannot access your previous reminders',
@@ -446,9 +447,18 @@ const classifyRecallAction = (prompt: string): RecallActionIntent => {
   return 'any';
 };
 
+const isDirectActionPrompt = (prompt: string) => {
+  const lowerPrompt = (prompt || '').toLowerCase().trim();
+  if (!lowerPrompt) return false;
+
+  return DIRECT_ACTION_PREFIX_REGEX.test(lowerPrompt);
+};
+
 const isExplicitRecallPrompt = (prompt: string) => {
   const lowerPrompt = (prompt || '').toLowerCase().trim();
   if (!lowerPrompt) return false;
+
+  if (isDirectActionPrompt(lowerPrompt)) return false;
 
   if (!FOLLOW_UP_RECALL_REGEX.test(lowerPrompt)) return false;
 
@@ -457,11 +467,9 @@ const isExplicitRecallPrompt = (prompt: string) => {
     /\b(this|that|it)\b/i.test(lowerPrompt);
 
   if (!hasRecallTarget) return false;
-
-  const directActionCommand = /^(create|add|make|schedule|set|move|change|update|edit|modify|delete|remove|complete|finish|mark|send|analy[sz]e|find|search|generate|export|report|email)\b/i.test(lowerPrompt);
   const explicitRecallPhrase = /(what\s+(?:was|is|did)|when\s+did|do\s+you\s+remember|remember\b|recall\b|asked\s+you|same\s+chat|this\s+chat|we\s+(?:discussed|talked)|\b(?:last|latest|previous|earlier|before)\b)/i.test(lowerPrompt);
 
-  if (directActionCommand && !explicitRecallPhrase) return false;
+  if (!explicitRecallPhrase) return false;
 
   return true;
 };
