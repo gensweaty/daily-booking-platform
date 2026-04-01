@@ -363,12 +363,14 @@ const handler = async (req: Request): Promise<Response> => {
                       // Also include email for fallback matching
                       recipient_email: userEmail?.toLowerCase(),
                       reminder_id: reminder.id,
+                      source_kind: 'reminder',
                       context_memory_id: reminder.context_memory_id ?? null
                     }
                   : {
                       recipient_type: 'admin',
                       recipient_user_id: reminder.user_id,
                       reminder_id: reminder.id,
+                      source_kind: 'reminder',
                       context_memory_id: reminder.context_memory_id ?? null
                     };
                 
