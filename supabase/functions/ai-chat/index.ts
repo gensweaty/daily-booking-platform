@@ -3569,8 +3569,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       : prompt;
     
     const messages = [
-      { role: 'system', content: systemPrompt },
-      ...conversationHistory.map((msg: any) => ({
+      { role: 'system', content: `${systemPrompt}${savedContextBlock}` },
+      ...normalizedConversationHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content
       })),
