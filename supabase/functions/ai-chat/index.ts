@@ -3515,7 +3515,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         } else {
           // No match found, but client says sub-user - trust client but validate name
           requesterType = 'sub_user';
-          requesterIdentity = { email: senderName || authEmail || '' }; // Store email even without match
+          requesterIdentity = { id: authId || '00000000-0000-0000-0000-000000000000', email: senderName || authEmail || '' }; // Store email even without match
           baseName = (senderName && !senderName.includes('@'))
             ? senderName
             : nameFromEmail(senderName || authEmail);
@@ -3573,7 +3573,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     
     if (attachments && attachments.length > 0) {
       console.log(`📎 Processing ${attachments.length} attachments...`);
-      console.log(`📎 Attachment details:`, attachments.map(a => ({ 
+      console.log(`📎 Attachment details:`, attachments.map((a: any) => ({ 
         filename: a.filename, 
         file_path: a.file_path, 
         content_type: a.content_type,
