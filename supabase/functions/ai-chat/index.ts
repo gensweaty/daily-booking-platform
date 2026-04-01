@@ -416,6 +416,14 @@ const MEMORY_FAILURE_PATTERNS = [
   'could you please specify what "this" refers to',
   'i am sorry, i cannot directly access the chat history',
   'i am sorry, i do not have enough information',
+  'i couldn’t find a created',
+  "i couldn't find a created",
+  'i couldn’t find an updated',
+  "i couldn't find an updated",
+  'i couldn’t find a updated',
+  "i couldn't find a updated",
+  'so i won’t guess from unrelated context',
+  "so i won't guess from unrelated context",
 ];
 
 type RecallActionIntent = 'created' | 'updated' | 'any';
@@ -484,18 +492,18 @@ const extractRecentRecallFromHistory = ({
       /reminder(?: about)?[:\s]+"?([^"\n.]+)"?/i,
     ],
     task: [
-      /task (?:created|updated)[:\s]+"?([^"\n.]+)"?/i,
-      /(?:created|updated) task[:\s]+"?([^"\n.]+)"?/i,
+      /task (?:created|updated):\s+"?([^"\n.]+)"?/i,
+      /(?:created|updated) task:\s+"?([^"\n.]+)"?/i,
       /task "([^"]+)"/i,
     ],
     event: [
-      /event (?:created|updated)[:\s]+"?([^"\n.]+)"?/i,
-      /(?:created|updated) event[:\s]+"?([^"\n.]+)"?/i,
+      /event (?:created|updated):\s+"?([^"\n.]+)"?/i,
+      /(?:created|updated) event:\s+"?([^"\n.]+)"?/i,
       /event "([^"]+)"/i,
     ],
     customer: [
-      /customer (?:created|updated)[:\s]+"?([^"\n.]+)"?/i,
-      /(?:created|updated) customer[:\s]+"?([^"\n.]+)"?/i,
+      /customer (?:created|updated):\s+"?([^"\n.]+)"?/i,
+      /(?:created|updated) customer:\s+"?([^"\n.]+)"?/i,
       /customer "([^"]+)"/i,
     ],
     statistics: [],
