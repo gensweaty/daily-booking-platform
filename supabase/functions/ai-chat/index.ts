@@ -345,7 +345,7 @@ async function loadRelevantMemories({
   const linkedMemoryIds = extractLinkedMemoryIds(conversationHistory);
   const explicitRecall = isExplicitRecallPrompt(prompt || '');
 
-  if (!explicitRecall && linkedMemoryIds.length === 0) {
+  if (!explicitRecall) {
     return [];
   }
 
@@ -684,6 +684,10 @@ const buildDeterministicRecallAnswer = ({
 
 const shouldPersistGeneralMemory = (prompt: string, response: string) => {
   if (isExplicitRecallPrompt(prompt || '') && classifyRecallKind(prompt) !== 'auto') {
+    return false;
+  }
+
+  if (isDirectActionPrompt(prompt || '')) {
     return false;
   }
 
@@ -4077,9 +4081,12 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
           conversationHistory: normalizedConversationHistory,
         })
       : null;
+    const llmConversationHistory = explicitRecallPrompt
+      ? normalizedConversationHistory
+      : normalizedConversationHistory.filter((msg: any) => !(msg?.role === 'assistant' && msg?.metadata?.context_memory_id));
     const savedContextBlock = explicitRecallPrompt && !directActionPrompt ? buildSavedContextBlock(savedMemories) : '';
-    const recentDiscussionBlock = !directActionPrompt && normalizedConversationHistory.length
-      ? `\n\n🧠 RECENT DISCUSSION IN THIS EXACT CHAT\nThis is the recent same-chat history for this exact user/sub-user. Use it to understand references like "that", "this", and "what we discussed".\n\n${normalizedConversationHistory
+    const recentDiscussionBlock = explicitRecallPrompt && !directActionPrompt && llmConversationHistory.length
+      ? `\n\n🧠 RECENT DISCUSSION IN THIS EXACT CHAT\nThis is the recent same-chat history for this exact user/sub-user. Use it to understand references like "that", "this", and "what we discussed".\n\n${llmConversationHistory
           .slice(-24)
           .map((msg: any, index: number) => `${index + 1}. [${msg.role}] ${truncateText(msg.content, 280)}`)
           .join('\n')}`
@@ -4194,7 +4201,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     
     const messages = [
       { role: 'system', content: `${systemPrompt}${savedContextBlock}${recentDiscussionBlock}` },
-      ...normalizedConversationHistory.map((msg: any) => ({
+      ...llmConversationHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content
       })),
