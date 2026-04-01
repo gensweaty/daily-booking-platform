@@ -566,7 +566,7 @@ const buildDeterministicRecallAnswer = ({
   memories: Array<any>;
   conversationHistory: Array<any>;
 }) => {
-  if (!FOLLOW_UP_RECALL_REGEX.test(prompt || '') || !memories.length) return null;
+  if (!FOLLOW_UP_RECALL_REGEX.test(prompt || '')) return null;
 
   const requestedKind = classifyRecallKind(prompt);
   const requestedAction = classifyRecallAction(prompt);
@@ -4045,7 +4045,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       : '';
 
     if (deterministicRecallResult) {
-      const linkedMemory = deterministicRecallResult.memory ?? savedMemories[0] ?? null;
+      const linkedMemory = deterministicRecallResult.memory ?? null;
       const { data: aiMsgData, error: insertError } = await supabaseAdmin
         .from('chat_messages')
         .insert({
