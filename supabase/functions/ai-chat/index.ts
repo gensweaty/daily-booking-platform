@@ -32,6 +32,77 @@ const buildReminderSourceQuote = (prompt: string, title: string, senderName?: st
   return `${speaker}: ${truncateText(prompt.trim() || title, 400)}`;
 };
 
+const MEMORY_SOURCE_KINDS = ['reminder', 'task', 'event', 'customer', 'statistics', 'general'] as const;
+type MemorySourceKind = typeof MEMORY_SOURCE_KINDS[number];
+
+const summarizeStructuredContext = (sourceKind: MemorySourceKind, structuredContext: Record<string, any>) => {
+  switch (sourceKind) {
+    case 'task':
+      return `Task "${structuredContext.title || structuredContext.task_name || 'Untitled'}" ${structuredContext.action || 'updated'}${structuredContext.status ? ` with status ${structuredContext.status}` : ''}.`;
+    case 'event':
+      return `Event "${structuredContext.title || structuredContext.full_name || 'Untitled'}" ${structuredContext.action || 'updated'}${structuredContext.start_date ? ` for ${structuredContext.start_date}` : ''}.`;
+    case 'customer':
+      return `Customer "${structuredContext.title || structuredContext.full_name || 'Untitled'}" ${structuredContext.action || 'updated'}.`;
+    case 'statistics':
+      return structuredContext.summary_text || 'Business statistics were discussed in this chat.';
+    case 'general':
+      return structuredContext.summary_text || 'This topic was discussed earlier in this exact chat.';
+    case 'reminder':
+    default:
+      return `Reminder about "${structuredContext.title || 'Untitled'}" scheduled for ${structuredContext.remind_at || 'later'}.`;
+  }
+};
+
+async function createContextMemory({
+  supabaseAdmin,
+  ownerId,
+  channelId,
+  audienceType,
+  audienceSubUserId,
+  sourceKind,
+  sourceRecordId,
+  sourceMessageIds,
+  sourceQuote,
+  summary,
+  structuredContext,
+}: {
+  supabaseAdmin: any;
+  ownerId: string;
+  channelId: string;
+  audienceType: 'admin' | 'sub_user';
+  audienceSubUserId?: string | null;
+  sourceKind: MemorySourceKind;
+  sourceRecordId?: string | null;
+  sourceMessageIds?: string[];
+  sourceQuote: string;
+  summary?: string;
+  structuredContext: Record<string, any>;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from('ai_context_memories')
+    .insert({
+      owner_id: ownerId,
+      audience_type: audienceType,
+      audience_sub_user_id: audienceType === 'sub_user' ? audienceSubUserId ?? null : null,
+      channel_id: channelId,
+      source_kind: sourceKind,
+      source_record_id: sourceRecordId ?? null,
+      source_message_ids: sourceMessageIds ?? [],
+      source_quote: truncateText(sourceQuote, 1000),
+      summary: truncateText(summary?.trim() || summarizeStructuredContext(sourceKind, structuredContext), 1500),
+      structured_context: structuredContext,
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error(`❌ Failed to create ${sourceKind} context memory:`, error);
+    return null;
+  }
+
+  return data?.id ?? null;
+}
+
 async function createReminderContextMemory({
   supabaseAdmin,
   ownerId,
@@ -55,29 +126,19 @@ async function createReminderContextMemory({
   summary: string;
   structuredContext: Record<string, any>;
 }) {
-  const { data, error } = await supabaseAdmin
-    .from('ai_context_memories')
-    .insert({
-      owner_id: ownerId,
-      audience_type: audienceType,
-      audience_sub_user_id: audienceType === 'sub_user' ? audienceSubUserId ?? null : null,
-      channel_id: channelId,
-      source_kind: 'reminder',
-      source_record_id: sourceRecordId ?? null,
-      source_message_ids: sourceMessageIds ?? [],
-      source_quote: truncateText(sourceQuote, 1000),
-      summary: truncateText(summary, 1500),
-      structured_context: structuredContext,
-    })
-    .select('id')
-    .single();
-
-  if (error) {
-    console.error('❌ Failed to create reminder context memory:', error);
-    return null;
-  }
-
-  return data?.id ?? null;
+  return createContextMemory({
+    supabaseAdmin,
+    ownerId,
+    channelId,
+    audienceType,
+    audienceSubUserId,
+    sourceKind: 'reminder',
+    sourceRecordId,
+    sourceMessageIds,
+    sourceQuote,
+    summary,
+    structuredContext,
+  });
 }
 
 async function loadRelevantMemories({
@@ -101,7 +162,7 @@ async function loadRelevantMemories({
 
   let query = supabaseAdmin
     .from('ai_context_memories')
-    .select('id, source_quote, summary, structured_context, created_at')
+    .select('id, source_kind, source_quote, summary, structured_context, created_at')
     .eq('owner_id', ownerId)
     .eq('channel_id', channelId)
     .eq('audience_type', requesterType)
@@ -129,6 +190,7 @@ const buildSavedContextBlock = (memories: Array<any>) => {
     const remindAt = memory?.structured_context?.remind_at;
     return [
       `Memory ${index + 1}:`,
+      memory?.source_kind ? `- Type: ${memory.source_kind}` : null,
       title ? `- Title: ${title}` : null,
       remindAt ? `- Time: ${remindAt}` : null,
       `- Summary: ${memory.summary}`,
@@ -3497,6 +3559,12 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       prompt,
     });
     const savedContextBlock = buildSavedContextBlock(savedMemories);
+    const recentDiscussionBlock = normalizedConversationHistory.length
+      ? `\n\n🧠 RECENT DISCUSSION IN THIS EXACT CHAT\nThis is the recent same-chat history for this exact user/sub-user. Use it to understand references like "that", "this", and "what we discussed".\n\n${normalizedConversationHistory
+          .slice(-24)
+          .map((msg: any, index: number) => `${index + 1}. [${msg.role}] ${truncateText(msg.content, 280)}`)
+          .join('\n')}`
+      : '';
 
     // Process attachments if any
     let attachmentContext = '';
@@ -3569,7 +3637,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       : prompt;
     
     const messages = [
-      { role: 'system', content: `${systemPrompt}${savedContextBlock}` },
+      { role: 'system', content: `${systemPrompt}${savedContextBlock}${recentDiscussionBlock}` },
       ...normalizedConversationHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content
