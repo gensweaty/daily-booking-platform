@@ -32,6 +32,93 @@ const buildReminderSourceQuote = (prompt: string, title: string, senderName?: st
   return `${speaker}: ${truncateText(prompt.trim() || title, 400)}`;
 };
 
+const MEMORY_TRIGGER_REGEX = /(what|which|where|when|why|who|did|does|this|that|it|remind|reminder|task|tasks|event|events|customer|customers|statistics|stat|context|quote|source|before|earlier|previous|discuss|discussed|talk|talked|mean|meant|about|continue|continued|same chat|this chat)/i;
+
+const extractPromptKeywords = (prompt: string) => {
+  const stopWords = new Set([
+    'the', 'and', 'for', 'with', 'that', 'this', 'from', 'have', 'about', 'what', 'which', 'when', 'where', 'who', 'why',
+    'were', 'your', 'they', 'them', 'then', 'than', 'into', 'just', 'does', 'did', 'have', 'has', 'had', 'will', 'would',
+    'could', 'should', 'there', 'their', 'them', 'because', 'exact', 'chat', 'same', 'user', 'sub', 'only', 'need', 'want',
+    'tell', 'said', 'mean', 'meant', 'more', 'much', 'many', 'some', 'any', 'also', 'been', 'being', 'after', 'before', 'here'
+  ]);
+
+  return Array.from(new Set(
+    (prompt || '')
+      .toLowerCase()
+      .match(/[a-z0-9_:-]{3,}/g)?.filter((token) => !stopWords.has(token)) || []
+  )).slice(0, 12);
+};
+
+const extractLinkedMemoryIds = (conversationHistory: any[] = []) => {
+  const ids = new Set<string>();
+
+  conversationHistory.slice(-12).forEach((message) => {
+    const contextMemoryId = message?.metadata?.context_memory_id;
+    if (typeof contextMemoryId === 'string' && contextMemoryId.trim()) {
+      ids.add(contextMemoryId.trim());
+    }
+  });
+
+  return Array.from(ids);
+};
+
+const scoreMemoryRelevance = ({
+  memory,
+  prompt,
+  promptKeywords,
+  linkedMemoryIds,
+}: {
+  memory: any;
+  prompt: string;
+  promptKeywords: string[];
+  linkedMemoryIds: string[];
+}) => {
+  let score = 0;
+  const lowerPrompt = (prompt || '').toLowerCase();
+  const haystack = [
+    memory?.source_kind,
+    memory?.summary,
+    memory?.source_quote,
+    memory?.structured_context?.title,
+    memory?.structured_context?.task_name,
+    memory?.structured_context?.full_name,
+    memory?.structured_context?.summary_text,
+    memory?.structured_context?.message,
+    memory?.structured_context?.prompt,
+    memory?.structured_context?.reply,
+    memory?.structured_context?.action,
+    memory?.structured_context?.status,
+    memory?.structured_context?.type,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (linkedMemoryIds.includes(memory?.id)) score += 200;
+
+  if (memory?.source_kind && lowerPrompt.includes(memory.source_kind.toLowerCase())) {
+    score += 45;
+  }
+
+  for (const keyword of promptKeywords) {
+    if (!keyword) continue;
+    if (haystack.includes(keyword)) score += 16;
+  }
+
+  if (memory?.structured_context?.title && lowerPrompt.includes(String(memory.structured_context.title).toLowerCase())) {
+    score += 40;
+  }
+
+  if (memory?.structured_context?.source_kind_hint && lowerPrompt.includes(String(memory.structured_context.source_kind_hint).toLowerCase())) {
+    score += 20;
+  }
+
+  const createdAt = memory?.created_at ? new Date(memory.created_at).getTime() : 0;
+  if (Number.isFinite(createdAt) && createdAt > 0) {
+    const ageHours = Math.max(0, (Date.now() - createdAt) / 36e5);
+    score += Math.max(0, 18 - Math.min(ageHours, 18));
+  }
+
+  return score;
+};
+
 const MEMORY_SOURCE_KINDS = ['reminder', 'task', 'event', 'customer', 'statistics', 'general'] as const;
 type MemorySourceKind = typeof MEMORY_SOURCE_KINDS[number];
 
@@ -148,6 +235,7 @@ async function loadRelevantMemories({
   requesterType,
   requesterIdentityId,
   prompt,
+  conversationHistory = [],
 }: {
   supabaseAdmin: any;
   ownerId: string;
@@ -155,11 +243,15 @@ async function loadRelevantMemories({
   requesterType: 'admin' | 'sub_user';
   requesterIdentityId?: string | null;
   prompt: string;
+  conversationHistory?: any[];
 }) {
-  if (!/(what|which|where|when|why|who|did|does|this|that|it|remind|reminder|task|event|customer|statistics|stat)/i.test(prompt || '')) {
+  const linkedMemoryIds = extractLinkedMemoryIds(conversationHistory);
+
+  if (!MEMORY_TRIGGER_REGEX.test(prompt || '') && linkedMemoryIds.length === 0) {
     return [];
   }
 
+  const promptKeywords = extractPromptKeywords(prompt || '');
   let query = supabaseAdmin
     .from('ai_context_memories')
     .select('id, source_kind, source_quote, summary, structured_context, created_at')
@@ -167,7 +259,7 @@ async function loadRelevantMemories({
     .eq('channel_id', channelId)
     .eq('audience_type', requesterType)
     .order('created_at', { ascending: false })
-    .limit(5);
+    .limit(20);
 
   if (requesterType === 'sub_user') {
     query = query.eq('audience_sub_user_id', requesterIdentityId ?? '00000000-0000-0000-0000-000000000000');
@@ -179,7 +271,25 @@ async function loadRelevantMemories({
     return [];
   }
 
-  return data || [];
+  const ranked = (data || [])
+    .map((memory: any) => ({
+      ...memory,
+      _score: scoreMemoryRelevance({
+        memory,
+        prompt,
+        promptKeywords,
+        linkedMemoryIds,
+      }),
+    }))
+    .filter((memory: any) => memory._score > 0 || linkedMemoryIds.includes(memory.id))
+    .sort((a: any, b: any) => {
+      if (b._score !== a._score) return b._score - a._score;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    })
+    .slice(0, 5)
+    .map(({ _score, ...memory }: any) => memory);
+
+  return ranked;
 }
 
 const buildSavedContextBlock = (memories: Array<any>) => {
@@ -3557,6 +3667,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       requesterType,
       requesterIdentityId: requesterIdentity?.id,
       prompt,
+      conversationHistory: normalizedConversationHistory,
     });
     const savedContextBlock = buildSavedContextBlock(savedMemories);
     const recentDiscussionBlock = normalizedConversationHistory.length
