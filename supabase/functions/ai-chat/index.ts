@@ -6129,6 +6129,26 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       times_preserved: !start_date || !end_date,
                       updated_fields: Object.keys(eventData).filter(k => k !== 'start_date' && k !== 'end_date')
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'event',
+                      sourceRecordId: result || finalEventId,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, full_name, senderName),
+                      structuredContext: {
+                        action: 'updated',
+                        title: full_name,
+                        full_name,
+                        start_date: startDateUTC,
+                        end_date: endDateUTC,
+                        notes: notes ?? null,
+                        event_name: event_name ?? null,
+                      },
+                    });
                     
                     // Broadcast change
                     const ch = supabaseAdmin.channel(`public_board_events_${ownerId}`);
@@ -6282,6 +6302,26 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       repeat_pattern: repeat_pattern || null,
                       repeat_until: repeat_until || null
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'event',
+                      sourceRecordId: newEventId,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, full_name, senderName),
+                      structuredContext: {
+                        action: 'created',
+                        title: full_name,
+                        full_name,
+                        start_date: startDateUTC,
+                        end_date: endDateUTC,
+                        notes: notes ?? null,
+                        event_name: event_name ?? null,
+                      },
+                    });
                     
                     // Broadcast change
                     const ch = supabaseAdmin.channel(`public_board_events_${ownerId}`);
@@ -6581,6 +6621,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
                       message: `Task updated: ${task_name}`
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'task',
+                      sourceRecordId: effectiveTaskId,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, task_name, senderName),
+                      structuredContext: {
+                        action: 'updated',
+                        title: task_name,
+                        task_name,
+                        status: normalizedStatus,
+                        description: description ?? null,
+                        deadline_at: deadlineUTC,
+                        reminder_at: reminderUTC,
+                        assigned_to_name: assignedToName,
+                      },
+                    });
                     
                     // Task update complete - frontend will pick it up via postgres_changes listener
                     console.log(`    ✅ Task updated in database: ${effectiveTaskId}`);
@@ -6618,6 +6679,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
                       message: `Task created: ${task_name}. ${uploadedFileRecords.length > 0 ? `Files attached: ${uploadedFileRecords.map(f => f.filename).join(', ')}.` : ''} ${assignedToType ? `Assigned to ${assigned_to_name}.` : ''}`
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'task',
+                      sourceRecordId: newTask.id,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, task_name, senderName),
+                      structuredContext: {
+                        action: 'created',
+                        title: task_name,
+                        task_name,
+                        status: normalizedStatus,
+                        description: description ?? null,
+                        deadline_at: deadlineUTC,
+                        reminder_at: reminderUTC,
+                        assigned_to_name: assignedToName,
+                      },
+                    });
                     
                     // Task created in database - frontend will pick it up via postgres_changes listener
                     console.log(`    ✅ Task created in database: ${newTask.id}`);
@@ -6807,6 +6889,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       message,
                       uploaded_files: uploadedFiles
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'customer',
+                      sourceRecordId: updatedCustomer.id,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, full_name, senderName),
+                      structuredContext: {
+                        action: 'updated',
+                        title: full_name,
+                        full_name,
+                        phone_number: phone_number ?? null,
+                        social_media: social_media ?? null,
+                        notes: notes ?? null,
+                        payment_status: payment_status ?? null,
+                        payment_amount: payment_amount ?? null,
+                      },
+                    });
                     
                     // Broadcast change for real-time sync
                     const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
@@ -6908,6 +7011,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       message,
                       uploaded_files: uploadedFiles
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'customer',
+                      sourceRecordId: newCustomer.id,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, full_name, senderName),
+                      structuredContext: {
+                        action: 'created',
+                        title: full_name,
+                        full_name,
+                        phone_number: phone_number ?? null,
+                        social_media: social_media ?? null,
+                        notes: notes ?? null,
+                        payment_status: payment_status ?? null,
+                        payment_amount: payment_amount ?? null,
+                      },
+                    });
                     
                     // Broadcast change for real-time sync
                     const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
