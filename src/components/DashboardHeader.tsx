@@ -393,15 +393,22 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   return (
     <header className="mb-4">
       <div className="flex items-center justify-between mb-3">
-        <Link to="/" className="flex items-center gap-2">
-          <img 
-            src={effectiveTheme === 'dark' 
-              ? (isMobile ? "/logo-dark-compact.png" : "/logo-dark.png")
-              : (isMobile ? "/logo-light-compact.png" : "/logo-light.png")
-            }
-            alt="SmartBookly Logo" 
-            className="h-10 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"
-          />
+        <Link to="/" className="relative flex items-center gap-2">
+          <div className="relative">
+            <img 
+              src={effectiveTheme === 'dark' 
+                ? (isMobile ? "/logo-dark-compact.png" : "/logo-dark.png")
+                : (isMobile ? "/logo-light-compact.png" : "/logo-light.png")
+              }
+              alt="SmartBookly Logo" 
+              className="h-10 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"
+            />
+            <AnimatedRobotEye 
+              size={isMobile ? 6 : 7} 
+              top="44%" 
+              left={isMobile ? "24%" : "8.5%"} 
+            />
+          </div>
         </Link>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
