@@ -27,6 +27,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { ProfileButton } from "./dashboard/ProfileButton";
 import { PublicBoardSettings } from "./tasks/PublicBoardSettings";
 import { DynamicIsland } from "./dashboard/DynamicIsland";
+import { AnimatedRobotEye } from "./shared/AnimatedRobotEye";
 
 interface DashboardHeaderProps {
   username: string;
