@@ -23,7 +23,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
   const navigate = useNavigate();
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
+  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.png");
   
   // Safely access language context with fallback
   let t, language;
@@ -33,32 +33,27 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
     language = languageContext.language;
   } catch (error) {
     console.error('LanguageContext not available, using fallback');
-    // Provide fallback values
     t = (key: string) => key.split('.').pop() || key;
     language = 'en';
   }
 
   useEffect(() => {
     setMounted(true);
-    
-    // Set the initial logo based on theme
     updateLogoForTheme();
   }, []);
 
-  // Function to update logo based on current theme
   const updateLogoForTheme = () => {
-    // Get current theme from various sources in order of reliability
     const isDarkTheme = 
       document.documentElement.classList.contains('dark') || 
       document.documentElement.getAttribute('data-theme') === 'dark' ||
       (resolvedTheme || theme) === 'dark';
     
+    const mobile = window.innerWidth < 768;
     const newLogoSrc = isDarkTheme 
-      ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
-      : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+      ? (mobile ? "/logo-dark-compact.png" : "/logo-dark.png")
+      : (mobile ? "/logo-light-compact.png" : "/logo-light.png");
     
     setCurrentLogo(newLogoSrc);
-    console.log("[AuthUI] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
   };
 
   useEffect(() => {
@@ -114,7 +109,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
               <img 
                 src={currentLogo}
                 alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto transition-transform duration-200 hover:scale-105"
+                className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain transition-transform duration-200 hover:scale-105"
               />
             </Link>
           </div>

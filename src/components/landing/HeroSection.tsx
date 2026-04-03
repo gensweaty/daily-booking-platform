@@ -9,7 +9,7 @@ export const HeroSection = memo(() => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [currentLogo, setCurrentLogo] = useState<string>("/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png");
+  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.png");
 
   useEffect(() => {
     setMounted(true);
@@ -20,18 +20,20 @@ export const HeroSection = memo(() => {
     setIsMobileMenuOpen(false);
   };
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
   const updateLogoForTheme = () => {
     const isDarkTheme = 
       document.documentElement.classList.contains('dark') || 
       document.documentElement.getAttribute('data-theme') === 'dark' ||
       (resolvedTheme || theme) === 'dark';
     
+    const mobile = window.innerWidth < 768;
     const newLogoSrc = isDarkTheme 
-      ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png" 
-      : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png";
+      ? (mobile ? "/logo-dark-compact.png" : "/logo-dark.png")
+      : (mobile ? "/logo-light-compact.png" : "/logo-light.png");
     
     setCurrentLogo(newLogoSrc);
-    console.log("[HeroSection] Logo updated based on theme:", isDarkTheme ? "dark" : "light");
   };
 
   useEffect(() => {

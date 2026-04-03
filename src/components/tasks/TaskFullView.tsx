@@ -341,9 +341,9 @@ export const TaskFullView = ({
                     variant="secondary" 
                     size="sm" 
                     onClick={handleEditClick}
-                    className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2"
+                    className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 h-9 sm:h-10 font-medium border border-border/50 hover:border-primary/30 transition-all"
                   >
-                    <Pen className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <Pen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span>{t("tasks.editTask")}</span>
                   </Button>
                 )}
@@ -355,9 +355,9 @@ export const TaskFullView = ({
                         variant="secondary" 
                         size="sm" 
                         onClick={handleArchiveClick}
-                        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2"
+                        className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 h-9 sm:h-10 font-medium border border-border/50 hover:border-amber-500/30 transition-all"
                       >
-                        <Archive className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <Archive className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         <span>{t("tasks.archive")}</span>
                       </Button>
                     </TooltipTrigger>
@@ -374,9 +374,9 @@ export const TaskFullView = ({
                         variant="destructive" 
                         size="sm" 
                         onClick={handleDeleteClick}
-                        className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-1 sm:px-4 sm:py-2"
+                        className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 h-9 sm:h-10 font-medium shadow-sm transition-all"
                       >
-                        <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         <span>{t("common.delete")}</span>
                       </Button>
                     </TooltipTrigger>

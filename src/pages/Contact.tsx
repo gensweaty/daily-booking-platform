@@ -67,11 +67,11 @@ const Contact = () => {
             <Link to="/" className="flex items-center gap-2">
               <img 
                 src={theme === 'dark' 
-                  ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
-                  : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+                  ? "/logo-dark.png"
+                  : "/logo-light.png"
                 }
                 alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto"
+                className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"
               />
             </Link>
           </div>

@@ -43,6 +43,20 @@ export const BusinessPage = () => {
     }
   }, [businessProfile, isLoading]);
 
+  // Listen for tutorial tab switching
+  useEffect(() => {
+    const handleSwitchBusinessTab = (e: CustomEvent<{ tab: string }>) => {
+      const tab = e.detail?.tab;
+      if (tab === 'profile' || tab === 'bookings') {
+        setActiveTab(tab);
+      }
+    };
+    window.addEventListener('switch-business-tab', handleSwitchBusinessTab as EventListener);
+    return () => {
+      window.removeEventListener('switch-business-tab', handleSwitchBusinessTab as EventListener);
+    };
+  }, []);
+
   // Handle new booking request notifications
   const handleNewBookingRequest = () => {
     console.log('New booking request detected, refreshing data and showing notification...');
@@ -230,6 +244,7 @@ export const BusinessPage = () => {
         <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
           <TabsTrigger 
             value="profile" 
+            data-tutorial="business-profile-tab"
             className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
           >
             {isGeorgian ? (

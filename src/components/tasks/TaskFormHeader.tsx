@@ -16,8 +16,11 @@ export const TaskFormHeader = ({ onAddTask, editingTask }: TaskFormHeaderProps) 
   const isGeorgian = language === 'ka';
   
   return (
-    <div className="flex items-center justify-between mb-6">
-      <h2 className="text-xl font-bold">
+    <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+      <h2 className="flex items-center gap-2.5 text-base sm:text-lg font-semibold text-foreground">
+        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <PlusCircle className="h-4 w-4 text-primary" />
+        </div>
         {isGeorgian ? (
           <GeorgianAuthText fontWeight="bold">
             <LanguageText>{editingTask ? t("tasks.editTask") : t("tasks.addTask")}</LanguageText>

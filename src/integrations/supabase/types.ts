@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_context_memories: {
+        Row: {
+          audience_sub_user_id: string | null
+          audience_type: string
+          channel_id: string
+          created_at: string
+          id: string
+          owner_id: string
+          source_kind: string
+          source_message_ids: string[]
+          source_quote: string
+          source_record_id: string | null
+          structured_context: Json
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          audience_sub_user_id?: string | null
+          audience_type: string
+          channel_id: string
+          created_at?: string
+          id?: string
+          owner_id: string
+          source_kind: string
+          source_message_ids?: string[]
+          source_quote?: string
+          source_record_id?: string | null
+          structured_context?: Json
+          summary?: string
+          updated_at?: string
+        }
+        Update: {
+          audience_sub_user_id?: string | null
+          audience_type?: string
+          channel_id?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          source_kind?: string
+          source_message_ids?: string[]
+          source_quote?: string
+          source_record_id?: string | null
+          structured_context?: Json
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_context_memories_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_files: {
         Row: {
           booking_request_id: string | null
@@ -575,6 +631,7 @@ export type Database = {
       }
       custom_reminders: {
         Row: {
+          context_memory_id: string | null
           created_at: string
           created_by_name: string | null
           created_by_sub_user_id: string | null
@@ -593,6 +650,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          context_memory_id?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_sub_user_id?: string | null
@@ -611,6 +669,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          context_memory_id?: string | null
           created_at?: string
           created_by_name?: string | null
           created_by_sub_user_id?: string | null
@@ -629,6 +688,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "custom_reminders_context_memory_id_fkey"
+            columns: ["context_memory_id"]
+            isOneToOne: false
+            referencedRelation: "ai_context_memories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "custom_reminders_recipient_customer_id_fkey"
             columns: ["recipient_customer_id"]
@@ -1197,6 +1263,7 @@ export type Database = {
           created_at: string | null
           id: string
           language: string | null
+          login_count: number | null
           timezone: string | null
           username: string
         }
@@ -1205,6 +1272,7 @@ export type Database = {
           created_at?: string | null
           id: string
           language?: string | null
+          login_count?: number | null
           timezone?: string | null
           username: string
         }
@@ -1213,6 +1281,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           language?: string | null
+          login_count?: number | null
           timezone?: string | null
           username?: string
         }
@@ -1783,6 +1852,87 @@ export type Database = {
           timezone?: string | null
           title?: string
           updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      telegram_bot_configs: {
+        Row: {
+          bot_token: string
+          bot_username: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          telegram_chat_id: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bot_token: string
+          bot_username?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          telegram_chat_id?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bot_token?: string
+          bot_username?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          telegram_chat_id?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      telegram_bot_state: {
+        Row: {
+          id: number
+          update_offset: number
+          updated_at: string
+        }
+        Insert: {
+          id: number
+          update_offset?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          update_offset?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      telegram_messages: {
+        Row: {
+          chat_id: number
+          created_at: string
+          processed: boolean
+          raw_update: Json
+          text: string | null
+          update_id: number
+          user_id: string | null
+        }
+        Insert: {
+          chat_id: number
+          created_at?: string
+          processed?: boolean
+          raw_update: Json
+          text?: string | null
+          update_id: number
+          user_id?: string | null
+        }
+        Update: {
+          chat_id?: number
+          created_at?: string
+          processed?: boolean
+          raw_update?: Json
+          text?: string | null
+          update_id?: number
           user_id?: string | null
         }
         Relationships: []

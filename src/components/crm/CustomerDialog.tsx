@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Trash2, AlertCircle } from "lucide-react";
+import { Trash2, AlertCircle, Users } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, getStorageUrl } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -991,10 +991,15 @@ export const CustomerDialog = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl w-full">
-          <DialogTitle>
-            {customerId ? t("crm.editCustomer") : t("crm.addCustomer")}
-          </DialogTitle>
+        <DialogContent className="max-w-4xl w-full" data-tutorial="customer-dialog">
+          <div className="pb-3 border-b border-border mb-2">
+            <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg font-semibold text-foreground">
+              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              {customerId ? t("crm.editCustomer") : t("crm.addCustomer")}
+            </DialogTitle>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             <CustomerDialogFields
               title={formData.title}
@@ -1038,13 +1043,14 @@ export const CustomerDialog = ({
             />
 
             {/* Action Buttons with Permissions */}
-            <div className="flex justify-between">
+            <div className="flex gap-2 pt-3 border-t border-border">
               {/* Update Button */}
               {canEditCustomer() ? (
                 <Button
+                  data-tutorial="customer-submit-btn"
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 mr-2"
+                  className="flex-1 h-10 sm:h-11 font-medium"
                 >
                   {customerId ? t("common.update") : t("common.add")}
                 </Button>
@@ -1052,7 +1058,7 @@ export const CustomerDialog = ({
                 <Button
                   type="submit"
                   disabled={true}
-                  className="flex-1 mr-2"
+                  className="flex-1 h-10 sm:h-11 font-medium"
                 >
                   {t("common.update")}
                 </Button>
@@ -1060,7 +1066,7 @@ export const CustomerDialog = ({
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="flex-1 mr-2"
+                  className="flex-1 h-10 sm:h-11 font-medium"
                 >
                   {t("common.add")}
                 </Button>
@@ -1071,21 +1077,23 @@ export const CustomerDialog = ({
                 <Button
                   type="button"
                   variant="destructive"
-                  size="icon"
                   onClick={handleDelete}
                   disabled={isLoading}
+                  className="h-10 sm:h-11 font-medium gap-2 px-4"
                 >
                   <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t("common.delete")}</span>
                 </Button>
               )}
               {customerId && !canDeleteCustomer() && (
                 <Button
                   type="button"
                   variant="destructive"
-                  size="icon"
                   disabled={true}
+                  className="h-10 sm:h-11 font-medium gap-2 px-4"
                 >
                   <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">{t("common.delete")}</span>
                 </Button>
               )}
             </div>

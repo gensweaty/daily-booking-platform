@@ -958,4 +958,36 @@ export interface TranslationType {
     chatGuidePrompt: string;
     allPagesPrompt: string;
   };
+  onboarding: {
+    welcomeTitle: string;
+    welcomeDescription: string;
+    startTour: string;
+    skipTour: string;
+    next: string;
+    previous: string;
+    skip: string;
+    finish: string;
+    calendarTitle: string;
+    calendarDesc: string;
+    calendarAddTitle: string;
+    calendarAddDesc: string;
+    statisticsTitle: string;
+    statisticsDesc: string;
+    tasksTitle: string;
+    tasksDesc: string;
+    tasksAddTitle: string;
+    tasksAddDesc: string;
+    crmTitle: string;
+    crmDesc: string;
+    crmAddTitle: string;
+    crmAddDesc: string;
+    businessTitle: string;
+    businessDesc: string;
+    businessProfileTabTitle: string;
+    businessProfileTabDesc: string;
+    chatTitle: string;
+    chatDesc: string;
+    profileTitle: string;
+    profileDesc: string;
+  };
 }

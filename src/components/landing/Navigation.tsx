@@ -182,9 +182,9 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
           <img 
             src={currentLogo}
             alt="SmartBookly Logo" 
-            className="h-7 md:h-8 lg:h-10 w-auto drop-shadow-lg" 
+            className="h-[32px] dark:h-[36px] md:h-[32px] dark:md:h-[36px] lg:h-[40px] dark:lg:h-[36px] w-auto max-w-[160px] lg:max-w-[180px] object-contain drop-shadow-lg" 
             width="160" 
-            height="40" 
+            height="36"
             loading="eager" 
             fetchPriority="high" 
           />

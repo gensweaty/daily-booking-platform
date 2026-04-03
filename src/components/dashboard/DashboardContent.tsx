@@ -189,6 +189,7 @@ export const DashboardContent = ({
           <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
             <TabsTrigger 
               value="calendar" 
+              data-tutorial-step="calendar"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
               <motion.div
@@ -203,6 +204,7 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="statistics" 
+              data-tutorial-step="statistics"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
               <motion.div
@@ -221,6 +223,7 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="tasks" 
+              data-tutorial-step="tasks"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
               <motion.div
@@ -239,6 +242,7 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="crm" 
+              data-tutorial-step="crm"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
               <motion.div
@@ -257,6 +261,7 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="business" 
+              data-tutorial-step="business"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] relative"
             >
               <motion.div
@@ -414,6 +419,7 @@ export const DashboardContent = ({
                             <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
                               <DialogTrigger asChild>
                                 <Button 
+                                  data-tutorial="tasks-add-btn"
                                   className="flex items-center gap-1 sm:gap-2 bg-primary hover:bg-primary/90 text-white transition-all duration-300 hover:scale-105 active:scale-95 px-2 sm:px-4 text-xs sm:text-sm w-auto min-w-[40px] sm:min-w-[120px]"
                                 >
                                   <motion.div
@@ -433,7 +439,7 @@ export const DashboardContent = ({
                                   )}
                                 </Button>
                               </DialogTrigger>
-                          <DialogContent className="max-w-2xl w-[92vw] sm:w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6">
+                          <DialogContent data-tutorial="task-dialog" className="max-w-2xl w-[92vw] sm:w-full max-h-[85vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6">
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}

@@ -395,11 +395,11 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
         <Link to="/" className="flex items-center gap-2">
           <img 
             src={effectiveTheme === 'dark' 
-              ? "/lovable-uploads/cfb84d8d-bdf9-4515-9179-f707416ece03.png"
-              : "/lovable-uploads/d1ee79b8-2af0-490e-969d-9101627c9e52.png"
+              ? (isMobile ? "/logo-dark-compact.png" : "/logo-dark.png")
+              : (isMobile ? "/logo-light-compact.png" : "/logo-light.png")
             }
             alt="SmartBookly Logo" 
-            className="h-8 md:h-10 w-auto"
+            className="h-10 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"
           />
         </Link>
         <div className="flex items-center gap-2">
@@ -456,7 +456,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                 }
               `}</style>
               
-              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 p-6 md:p-8 text-white relative overflow-hidden">
+              <div className="bg-gradient-to-br from-[#335CF4] via-[#2548C9] to-[#335CF4] p-6 md:p-8 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="relative z-10">
                   <DialogHeader>

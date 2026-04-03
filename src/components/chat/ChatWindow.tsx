@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Minus, Maximize2, Minimize2, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -22,6 +22,8 @@ type WindowState = 'normal' | 'minimized' | 'maximized';
 export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
   const { t } = useLanguage();
   const cardRef = useRef<HTMLDivElement>(null);
+  const sidebarTouchStartX = useRef<number | null>(null);
+  const sidebarTouchStartY = useRef<number | null>(null);
   const chatContext = useChatSafe();
   const isMobile = useMediaQuery('(max-width: 768px)');
   // Use VisualViewport sizing on mobile to avoid “paddingBottom gap” issues when the keyboard opens.
@@ -79,6 +81,61 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
     if (isMobile && !isSidebarCollapsed) {
       setIsSidebarCollapsed(true);
     }
+  };
+
+  // --- Sidebar swipe-to-close (left swipe on sidebar) ---
+  const handleMobileSidebarTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile) return;
+    const touch = event.touches[0];
+    sidebarTouchStartX.current = touch.clientX;
+    sidebarTouchStartY.current = touch.clientY;
+  };
+
+  const handleMobileSidebarTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || isSidebarCollapsed) return;
+    if (sidebarTouchStartX.current === null || sidebarTouchStartY.current === null) return;
+
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - sidebarTouchStartX.current;
+    const deltaY = touch.clientY - sidebarTouchStartY.current;
+
+    if (deltaX < -36 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      setIsSidebarCollapsed(true);
+      sidebarTouchStartX.current = null;
+      sidebarTouchStartY.current = null;
+    }
+  };
+
+  const resetMobileSidebarTouch = () => {
+    sidebarTouchStartX.current = null;
+    sidebarTouchStartY.current = null;
+  };
+
+  // --- Header swipe-down to close chat (mobile only) ---
+  const headerTouchStartY = useRef<number | null>(null);
+  const headerTouchStartX = useRef<number | null>(null);
+
+  const handleHeaderTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile) return;
+    headerTouchStartY.current = event.touches[0].clientY;
+    headerTouchStartX.current = event.touches[0].clientX;
+  };
+
+  const handleHeaderTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (!isMobile || headerTouchStartY.current === null || headerTouchStartX.current === null) return;
+    const deltaY = event.touches[0].clientY - headerTouchStartY.current;
+    const deltaX = event.touches[0].clientX - headerTouchStartX.current;
+    // Swipe down at least 50px, predominantly vertical
+    if (deltaY > 50 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) {
+      headerTouchStartY.current = null;
+      headerTouchStartX.current = null;
+      onClose();
+    }
+  };
+
+  const resetHeaderTouch = () => {
+    headerTouchStartY.current = null;
+    headerTouchStartX.current = null;
   };
 
 
@@ -152,56 +209,64 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
       )}
       style={getWindowStyle()}
     >
-      {/* Title Bar */}
-      <div className={cn(
-        "flex items-center justify-between px-3 py-2 border-b bg-muted/50",
-        "min-h-[52px] shrink-0", // Consistent height with better spacing
-        windowState === 'minimized' ? "h-[52px]" : "" // Fixed height when minimized
-      )}>
-        <div className="flex items-center gap-2 min-w-0">
+      {/* Title Bar — swipe down to close on mobile */}
+      <div
+        className={cn(
+          "flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-border bg-muted/40 dark:bg-muted/30 backdrop-blur-sm",
+          "min-h-[52px] shrink-0",
+          windowState === 'minimized' ? "h-[52px]" : "",
+          isMobile && "cursor-grab active:cursor-grabbing"
+        )}
+        onTouchStart={handleHeaderTouchStart}
+        onTouchMove={handleHeaderTouchMove}
+        onTouchEnd={resetHeaderTouch}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
           {windowState !== 'minimized' && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
               className={cn(
-                "h-6 w-6 p-0 shrink-0",
+                "h-8 w-8 p-0 shrink-0 rounded-full border border-transparent hover:border-border/50 hover:bg-accent transition-all",
                 isMobile && "chat-mobile-button"
               )}
               title="Toggle Sidebar"
             >
-              <Menu className="h-3 w-3" />
+              <Menu className="h-4 w-4" />
             </Button>
           )}
-          <span className="font-medium text-sm truncate">
-            <LanguageText>{t('chat.teamChat')}</LanguageText>
-          </span>
+          <div className="flex flex-col min-w-0">
+            <span className="font-bold text-sm sm:text-base tracking-tight text-foreground truncate">
+              <LanguageText>{t('chat.teamChat')}</LanguageText>
+            </span>
+          </div>
         </div>
         
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {!isMobile && (
             <>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={toggleMinimize}
-                className="h-6 w-6 p-0 hover:bg-muted"
+                className="h-8 w-8 p-0 rounded-full bg-muted/50 hover:bg-muted border border-border/30 hover:border-border transition-all shadow-sm"
                 title={windowState === 'minimized' ? 'Restore' : 'Minimize'}
               >
-                <Minus className="h-3 w-3" />
+                <Minus className="h-3.5 w-3.5" />
               </Button>
               
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={toggleMaximize}
-                className="h-6 w-6 p-0 hover:bg-muted"
+                className="h-8 w-8 p-0 rounded-full bg-muted/50 hover:bg-muted border border-border/30 hover:border-border transition-all shadow-sm"
                 title={windowState === 'maximized' ? 'Restore Down' : 'Maximize'}
               >
                 {windowState === 'maximized' ? (
-                  <Minimize2 className="h-3 w-3" />
+                  <Minimize2 className="h-3.5 w-3.5" />
                 ) : (
-                  <Maximize2 className="h-3 w-3" />
+                  <Maximize2 className="h-3.5 w-3.5" />
                 )}
               </Button>
             </>
@@ -211,17 +276,17 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-6 w-6 p-0 hover:bg-destructive hover:text-destructive-foreground"
+            className="h-8 w-8 p-0 rounded-full bg-muted/50 hover:bg-destructive hover:text-destructive-foreground border border-border/30 hover:border-destructive/50 transition-all shadow-sm"
             title="Close"
           >
-            <X className="h-3 w-3" />
+            <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
 
       {/* Chat Content */}
       <div className={cn(
-        "grid overflow-hidden min-h-0",
+        "relative grid overflow-hidden min-h-0",
         windowState === 'minimized' ? "grid-cols-1" : "grid-cols-[auto,1fr]"
       )}>
         {/* Sidebar - hidden when minimized */}
@@ -230,7 +295,11 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             "border-r overflow-hidden bg-muted/20",
             isSidebarCollapsed ? "w-0" : "w-64",
             isMobile ? "chat-mobile-transition" : "transition-all duration-200"
-          )}>
+          )}
+          onTouchStart={handleMobileSidebarTouchStart}
+          onTouchMove={handleMobileSidebarTouchMove}
+          onTouchEnd={resetMobileSidebarTouch}
+          >
             {!isInitialized ? (
               <div className="flex items-center justify-center h-full w-64">
                 <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
@@ -243,12 +312,47 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             )}
           </div>
         )}
+
+        {isMobile && !isSidebarCollapsed && windowState !== 'minimized' && (
+          <button
+            type="button"
+            aria-label="Close sidebar"
+            onClick={handleMobileSidebarAutoClose}
+            className="absolute inset-y-0 left-64 right-0 z-10 bg-background/40"
+          />
+        )}
         
         {/* Main Chat Area - always visible, compact when minimized */}
-        <div className={cn(
-          "min-w-0 overflow-hidden",
-          windowState === 'minimized' && "flex flex-col"
-        )}>
+        <div
+          className={cn(
+            "min-w-0 overflow-hidden",
+            windowState === 'minimized' && "flex flex-col"
+          )}
+          onTouchStart={(e) => {
+            if (!isMobile || windowState === 'minimized' || !cardRef.current) return;
+            (cardRef.current as any).__chatSwipeStartX = e.touches[0].clientX;
+            (cardRef.current as any).__chatSwipeStartY = e.touches[0].clientY;
+          }}
+          onTouchMove={(e) => {
+            if (!isMobile || windowState === 'minimized') return;
+            const sx = (cardRef.current as any)?.__chatSwipeStartX;
+            const sy = (cardRef.current as any)?.__chatSwipeStartY;
+            if (sx == null || sy == null) return;
+            const dx = e.touches[0].clientX - sx;
+            const dy = e.touches[0].clientY - sy;
+            // Swipe right at least 50px, predominantly horizontal → open sidebar
+            if (dx > 50 && Math.abs(dx) > Math.abs(dy) * 1.5 && isSidebarCollapsed) {
+              (cardRef.current as any).__chatSwipeStartX = null;
+              setIsSidebarCollapsed(false);
+            }
+          }}
+          onTouchEnd={() => {
+            if (cardRef.current) {
+              (cardRef.current as any).__chatSwipeStartX = null;
+              (cardRef.current as any).__chatSwipeStartY = null;
+            }
+          }}
+        >
           <ChatArea 
             onMessageInputFocus={handleMobileSidebarAutoClose}
             isMinimized={windowState === 'minimized'}

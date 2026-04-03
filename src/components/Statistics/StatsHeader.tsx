@@ -49,6 +49,7 @@ export const StatsHeader = memo(({ dateRange, onDateChange, onExport, isLoading,
           disabled={isLoading}
         />
         <Button
+          data-tutorial="statistics-export-btn"
           variant="info"
           onClick={onExport}
           className={cn(

@@ -11,7 +11,7 @@
 .floating-shape-1 {
   width: 60px;
   height: 60px;
-  background: linear-gradient(45deg, #9b87f5, #f97316);
+  background: linear-gradient(45deg, #335CF4, #08B531);
   top: 20%;
   right: 10%;
 }
@@ -19,7 +19,7 @@
 .floating-shape-2 {
   width: 40px;
   height: 40px;
-  background: linear-gradient(45deg, #4ade80, #9b87f5);
+  background: linear-gradient(45deg, #08B531, #335CF4);
   top: 60%;
   left: 5%;
 }
@@ -27,7 +27,7 @@
 .floating-shape-3 {
   width: 50px;
   height: 50px;
-  background: linear-gradient(45deg, #f97316, #4ade80);
+  background: linear-gradient(45deg, #08B531, #FED308);
   top: 80%;
   right: 20%;
 }

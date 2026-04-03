@@ -12,6 +12,697 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const AI_ASSISTANT_NAME = 'Smartbookly AI';
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const truncateText = (value: string, max = 600) =>
+  value.length > max ? `${value.slice(0, max)}…` : value;
+
+const sanitizeUuid = (value?: string | null) => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return UUID_REGEX.test(trimmed) ? trimmed : null;
+};
+
+const sanitizeUuidArray = (values?: string[] | null) =>
+  Array.from(new Set((values || []).map((value) => sanitizeUuid(value)).filter(Boolean) as string[]));
+
+const buildConversationContent = (message: any) => {
+  const labels: string[] = [];
+
+  if (message?.message_type && message.message_type !== 'text') {
+    labels.push(message.message_type === 'reminder_alert' ? '[Reminder alert]' : `[${message.message_type}]`);
+  }
+
+  if (message?.has_attachments) {
+    labels.push('[Has attachments]');
+  }
+
+  if (message?.metadata?.context_memory_id) {
+    labels.push('[Linked context]');
+  }
+
+  const content = typeof message?.content === 'string' ? message.content.trim() : '';
+  return [...labels, content].filter(Boolean).join('\n');
+};
+
+const mapStoredMessageToConversationHistory = (message: any) => ({
+  role: message?.sender_name === AI_ASSISTANT_NAME ? 'assistant' : 'user',
+  content: buildConversationContent(message),
+  messageId: message?.id,
+  senderType: message?.sender_type,
+  senderName: message?.sender_name,
+  messageType: message?.message_type,
+  metadata: message?.metadata ?? null,
+});
+
+async function fetchRecentConversationHistory({
+  supabaseAdmin,
+  channelId,
+  ownerId,
+  limit = 60,
+}: {
+  supabaseAdmin: any;
+  channelId: string;
+  ownerId: string;
+  limit?: number;
+}) {
+  const { data, error } = await supabaseAdmin
+    .from('chat_messages')
+    .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata')
+    .eq('channel_id', channelId)
+    .eq('owner_id', ownerId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('⚠️ Failed to fetch fallback conversation history:', error);
+    return [];
+  }
+
+  return (data || [])
+    .reverse()
+    .map(mapStoredMessageToConversationHistory)
+    .filter((message: any) => Boolean(message.content));
+}
+
+const normalizeConversationHistory = (history: any[] = []) =>
+  history
+    .filter((msg) => typeof msg?.content === 'string' && msg.content.trim())
+    .map((msg) => ({
+      role: msg?.senderName === AI_ASSISTANT_NAME || msg?.role === 'assistant' ? 'assistant' : 'user',
+      content: msg.content.trim(),
+      messageId: msg?.messageId,
+      metadata: msg?.metadata ?? null,
+    }));
+
+const buildReminderSourceQuote = (prompt: string, title: string, senderName?: string | null) => {
+  const speaker = senderName?.trim() || 'User';
+  return `${speaker}: ${truncateText(prompt.trim() || title, 400)}`;
+};
+
+const MEMORY_TRIGGER_REGEX = /(what|which|where|when|why|who|did|does|this|that|it|remind|reminder|task|tasks|event|events|customer|customers|statistics|stat|context|quote|source|before|earlier|previous|discuss|discussed|talk|talked|mean|meant|about|continue|continued|same chat|this chat)/i;
+
+const extractPromptKeywords = (prompt: string) => {
+  const stopWords = new Set([
+    'the', 'and', 'for', 'with', 'that', 'this', 'from', 'have', 'about', 'what', 'which', 'when', 'where', 'who', 'why',
+    'were', 'your', 'they', 'them', 'then', 'than', 'into', 'just', 'does', 'did', 'have', 'has', 'had', 'will', 'would',
+    'could', 'should', 'there', 'their', 'them', 'because', 'exact', 'chat', 'same', 'user', 'sub', 'only', 'need', 'want',
+    'tell', 'said', 'mean', 'meant', 'more', 'much', 'many', 'some', 'any', 'also', 'been', 'being', 'after', 'before', 'here'
+  ]);
+
+  return Array.from(new Set(
+    (prompt || '')
+      .toLowerCase()
+      .match(/[a-z0-9_:-]{3,}/g)?.filter((token) => !stopWords.has(token)) || []
+  )).slice(0, 12);
+};
+
+const extractLinkedMemoryIds = (conversationHistory: any[] = []) => {
+  const ids = new Set<string>();
+
+  conversationHistory.slice(-12).forEach((message) => {
+    const contextMemoryId = message?.metadata?.context_memory_id;
+    if (typeof contextMemoryId === 'string' && contextMemoryId.trim()) {
+      ids.add(contextMemoryId.trim());
+    }
+  });
+
+  return Array.from(ids);
+};
+
+const scoreMemoryRelevance = ({
+  memory,
+  prompt,
+  promptKeywords,
+  linkedMemoryIds,
+}: {
+  memory: any;
+  prompt: string;
+  promptKeywords: string[];
+  linkedMemoryIds: string[];
+}) => {
+  let score = 0;
+  const lowerPrompt = (prompt || '').toLowerCase();
+  const haystack = [
+    memory?.source_kind,
+    memory?.summary,
+    memory?.source_quote,
+    memory?.structured_context?.title,
+    memory?.structured_context?.task_name,
+    memory?.structured_context?.full_name,
+    memory?.structured_context?.summary_text,
+    memory?.structured_context?.message,
+    memory?.structured_context?.prompt,
+    memory?.structured_context?.reply,
+    memory?.structured_context?.action,
+    memory?.structured_context?.status,
+    memory?.structured_context?.type,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (linkedMemoryIds.includes(memory?.id)) score += 200;
+
+  if (memory?.source_kind && lowerPrompt.includes(memory.source_kind.toLowerCase())) {
+    score += 45;
+  }
+
+  for (const keyword of promptKeywords) {
+    if (!keyword) continue;
+    if (haystack.includes(keyword)) score += 16;
+  }
+
+  if (memory?.structured_context?.title && lowerPrompt.includes(String(memory.structured_context.title).toLowerCase())) {
+    score += 40;
+  }
+
+  if (memory?.structured_context?.source_kind_hint && lowerPrompt.includes(String(memory.structured_context.source_kind_hint).toLowerCase())) {
+    score += 20;
+  }
+
+  const createdAt = memory?.created_at ? new Date(memory.created_at).getTime() : 0;
+  if (Number.isFinite(createdAt) && createdAt > 0) {
+    const ageHours = Math.max(0, (Date.now() - createdAt) / 36e5);
+    score += Math.max(0, 18 - Math.min(ageHours, 18));
+  }
+
+  return score;
+};
+
+const MEMORY_SOURCE_KINDS = ['reminder', 'task', 'event', 'customer', 'statistics', 'general'] as const;
+type MemorySourceKind = typeof MEMORY_SOURCE_KINDS[number];
+
+const summarizeStructuredContext = (sourceKind: MemorySourceKind, structuredContext: Record<string, any>) => {
+  switch (sourceKind) {
+    case 'task':
+      return `Task "${structuredContext.title || structuredContext.task_name || 'Untitled'}" ${structuredContext.action || 'updated'}${structuredContext.status ? ` with status ${structuredContext.status}` : ''}.`;
+    case 'event':
+      return `Event "${structuredContext.title || structuredContext.full_name || 'Untitled'}" ${structuredContext.action || 'updated'}${structuredContext.start_date ? ` for ${structuredContext.start_date}` : ''}.`;
+    case 'customer':
+      return `Customer "${structuredContext.title || structuredContext.full_name || 'Untitled'}" ${structuredContext.action || 'updated'}.`;
+    case 'statistics':
+      return structuredContext.summary_text || 'Business statistics were discussed in this chat.';
+    case 'general':
+      return structuredContext.summary_text || 'This topic was discussed earlier in this exact chat.';
+    case 'reminder':
+    default:
+      return `Reminder about "${structuredContext.title || 'Untitled'}" scheduled for ${structuredContext.remind_at || 'later'}.`;
+  }
+};
+
+async function createContextMemory({
+  supabaseAdmin,
+  ownerId,
+  channelId,
+  audienceType,
+  audienceSubUserId,
+  sourceKind,
+  sourceRecordId,
+  sourceMessageIds,
+  sourceQuote,
+  summary,
+  structuredContext,
+}: {
+  supabaseAdmin: any;
+  ownerId: string;
+  channelId: string;
+  audienceType: 'admin' | 'sub_user';
+  audienceSubUserId?: string | null;
+  sourceKind: MemorySourceKind;
+  sourceRecordId?: string | null;
+  sourceMessageIds?: string[];
+  sourceQuote: string;
+  summary?: string;
+  structuredContext: Record<string, any>;
+}) {
+  const memoryPayload = {
+    owner_id: ownerId,
+    audience_type: audienceType,
+    audience_sub_user_id: audienceType === 'sub_user' ? sanitizeUuid(audienceSubUserId ?? null) : null,
+    channel_id: channelId,
+    source_kind: sourceKind,
+    source_record_id: sanitizeUuid(sourceRecordId ?? null),
+    source_message_ids: sanitizeUuidArray(sourceMessageIds),
+    source_quote: truncateText(sourceQuote, 1000),
+    summary: truncateText(summary?.trim() || summarizeStructuredContext(sourceKind, structuredContext), 1500),
+    structured_context: structuredContext ?? {},
+  };
+
+  const { data, error } = await supabaseAdmin
+    .from('ai_context_memories')
+    .insert(memoryPayload)
+    .select('id')
+    .single();
+
+  if (!error && data?.id) {
+    return data.id;
+  }
+
+  console.error(`❌ Failed to create ${sourceKind} context memory:`, error, {
+    ownerId,
+    channelId,
+    audienceType,
+    audienceSubUserId: memoryPayload.audience_sub_user_id,
+    sourceRecordId: memoryPayload.source_record_id,
+    sourceMessageIdsCount: memoryPayload.source_message_ids.length,
+  });
+
+  const fallbackPayload = {
+    ...memoryPayload,
+    source_record_id: null,
+    source_message_ids: [],
+  };
+
+  const { data: fallbackData, error: fallbackError } = await supabaseAdmin
+    .from('ai_context_memories')
+    .insert(fallbackPayload)
+    .select('id')
+    .single();
+
+  if (fallbackError) {
+    console.error(`❌ Fallback memory write also failed for ${sourceKind}:`, fallbackError);
+    return null;
+  }
+
+  console.log(`✅ Recovered ${sourceKind} context memory with fallback payload:`, fallbackData?.id);
+  return fallbackData?.id ?? null;
+}
+
+async function createReminderContextMemory({
+  supabaseAdmin,
+  ownerId,
+  channelId,
+  audienceType,
+  audienceSubUserId,
+  sourceRecordId,
+  sourceMessageIds,
+  sourceQuote,
+  summary,
+  structuredContext,
+}: {
+  supabaseAdmin: any;
+  ownerId: string;
+  channelId: string;
+  audienceType: 'admin' | 'sub_user';
+  audienceSubUserId?: string | null;
+  sourceRecordId?: string | null;
+  sourceMessageIds?: string[];
+  sourceQuote: string;
+  summary: string;
+  structuredContext: Record<string, any>;
+}) {
+  return createContextMemory({
+    supabaseAdmin,
+    ownerId,
+    channelId,
+    audienceType,
+    audienceSubUserId,
+    sourceKind: 'reminder',
+    sourceRecordId,
+    sourceMessageIds,
+    sourceQuote,
+    summary,
+    structuredContext,
+  });
+}
+
+async function loadRelevantMemories({
+  supabaseAdmin,
+  ownerId,
+  channelId,
+  requesterType,
+  requesterIdentityId,
+  prompt,
+  conversationHistory = [],
+}: {
+  supabaseAdmin: any;
+  ownerId: string;
+  channelId: string;
+  requesterType: 'admin' | 'sub_user';
+  requesterIdentityId?: string | null;
+  prompt: string;
+  conversationHistory?: any[];
+}) {
+  const linkedMemoryIds = extractLinkedMemoryIds(conversationHistory);
+  const explicitRecall = isExplicitRecallPrompt(prompt || '');
+
+  if (!explicitRecall) {
+    return [];
+  }
+
+  const promptKeywords = extractPromptKeywords(prompt || '');
+  let query = supabaseAdmin
+    .from('ai_context_memories')
+    .select('id, source_kind, source_quote, summary, structured_context, created_at')
+    .eq('owner_id', ownerId)
+    .eq('channel_id', channelId)
+    .eq('audience_type', requesterType)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  if (requesterType === 'sub_user') {
+    query = query.eq('audience_sub_user_id', requesterIdentityId ?? '00000000-0000-0000-0000-000000000000');
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('⚠️ Failed to load AI context memories:', error);
+    return [];
+  }
+
+  const ranked = (data || [])
+    .map((memory: any) => ({
+      ...memory,
+      _score: scoreMemoryRelevance({
+        memory,
+        prompt,
+        promptKeywords,
+        linkedMemoryIds,
+      }),
+    }))
+    .filter((memory: any) => memory._score > 0 || linkedMemoryIds.includes(memory.id))
+    .sort((a: any, b: any) => {
+      if (b._score !== a._score) return b._score - a._score;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    })
+    .slice(0, 5)
+    .map(({ _score, ...memory }: any) => memory);
+
+  return ranked;
+}
+
+const buildSavedContextBlock = (memories: Array<any>) => {
+  if (!memories.length) return '';
+
+  return `\n\n🔒 SAVED PRIVATE CONTEXT FOR THIS EXACT USER\nUse this only for this same user/sub-user. If relevant, answer directly and quote the source naturally.\n\n${memories.map((memory, index) => {
+    const title = memory?.structured_context?.title;
+    const remindAt = memory?.structured_context?.remind_at;
+    return [
+      `Memory ${index + 1}:`,
+      memory?.source_kind ? `- Type: ${memory.source_kind}` : null,
+      title ? `- Title: ${title}` : null,
+      remindAt ? `- Time: ${remindAt}` : null,
+      `- Summary: ${memory.summary}`,
+      `- Source quote: ${memory.source_quote}`,
+    ].filter(Boolean).join('\n');
+  }).join('\n\n')}`;
+};
+
+const FOLLOW_UP_RECALL_REGEX = /(what\s+(?:was|is|did)|when\s+did|do\s+you\s+remember|remember\b|recall\b|asked\s+you|same\s+chat|this\s+chat|we\s+(?:discussed|talked)|\b(?:last|latest|previous|earlier|before)\b)/i;
+const DIRECT_ACTION_PREFIX_REGEX = /^(?:please\s+)?(?:(?:can|could|would|will)\s+you\s+|i\s+(?:need|want)(?:\s+you)?\s+to\s+|help\s+me\s+)?(?:create|add|make|schedule|set|move|change|update|edit|modify|delete|remove|complete|finish|mark|send|analy[sz]e|find|search|generate|export|email|upload|import|list|show|get|open)\b/i;
+
+const MEMORY_FAILURE_PATTERNS = [
+  'i cannot access your previous reminders',
+  'i cannot directly access the chat history',
+  "i can't tell you about your last reminder",
+  'i do not have enough information',
+  'could you please specify what "this" refers to',
+  'i am sorry, i cannot directly access the chat history',
+  'i am sorry, i do not have enough information',
+  'i couldn’t find a created',
+  "i couldn't find a created",
+  'i couldn’t find an updated',
+  "i couldn't find an updated",
+  'i couldn’t find a updated',
+  "i couldn't find a updated",
+  'so i won’t guess from unrelated context',
+  "so i won't guess from unrelated context",
+];
+
+type RecallActionIntent = 'created' | 'updated' | 'any';
+
+const classifyRecallKind = (prompt: string): MemorySourceKind | 'auto' => {
+  const lowerPrompt = (prompt || '').toLowerCase();
+  if (/(reminder|remind)/i.test(lowerPrompt)) return 'reminder';
+  if (/(task|todo)/i.test(lowerPrompt)) return 'task';
+  if (/(event|booking|calendar)/i.test(lowerPrompt)) return 'event';
+  if (/(customer|client|person)/i.test(lowerPrompt)) return 'customer';
+  if (/(stat|statistics|report|analytics|income|revenue)/i.test(lowerPrompt)) return 'statistics';
+  return 'auto';
+};
+
+const classifyRecallAction = (prompt: string): RecallActionIntent => {
+  const lowerPrompt = (prompt || '').toLowerCase();
+  if (/(create|created|add|added|made|scheduled|set up)/i.test(lowerPrompt)) return 'created';
+  if (/(update|updated|edit|edited|change|changed|modify|modified|complete|completed|finish|finished|done)/i.test(lowerPrompt)) return 'updated';
+  return 'any';
+};
+
+const isDirectActionPrompt = (prompt: string) => {
+  const lowerPrompt = (prompt || '').toLowerCase().trim();
+  if (!lowerPrompt) return false;
+
+  return DIRECT_ACTION_PREFIX_REGEX.test(lowerPrompt);
+};
+
+const isExplicitRecallPrompt = (prompt: string) => {
+  const lowerPrompt = (prompt || '').toLowerCase().trim();
+  if (!lowerPrompt) return false;
+
+  if (isDirectActionPrompt(lowerPrompt)) return false;
+
+  if (!FOLLOW_UP_RECALL_REGEX.test(lowerPrompt)) return false;
+
+  const hasRecallTarget =
+    classifyRecallKind(lowerPrompt) !== 'auto' ||
+    /\b(this|that|it)\b/i.test(lowerPrompt);
+
+  if (!hasRecallTarget) return false;
+  const explicitRecallPhrase = /(what\s+(?:was|is|did)|when\s+did|do\s+you\s+remember|remember\b|recall\b|asked\s+you|same\s+chat|this\s+chat|we\s+(?:discussed|talked)|\b(?:last|latest|previous|earlier|before)\b)/i.test(lowerPrompt);
+
+  if (!explicitRecallPhrase) return false;
+
+  return true;
+};
+
+const isFailureText = (value?: string | null) => {
+  const lowerValue = (value || '').toLowerCase();
+  return MEMORY_FAILURE_PATTERNS.some((pattern) => lowerValue.includes(pattern));
+};
+
+const isLowQualityMemory = (memory: any) => {
+  const combined = [
+    memory?.summary,
+    memory?.source_quote,
+    memory?.structured_context?.reply,
+    memory?.structured_context?.summary_text,
+    memory?.structured_context?.prompt,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return isFailureText(combined);
+};
+
+const messageMatchesRequestedAction = (content: string, requestedAction: RecallActionIntent) => {
+  if (requestedAction === 'any') return true;
+  if (requestedAction === 'created') {
+    return /(created|added|scheduled|set up)/i.test(content);
+  }
+
+  return /(updated|edited|changed|completed|done|finished)/i.test(content);
+};
+
+const extractRecentRecallFromHistory = ({
+  prompt,
+  requestedKind,
+  requestedAction,
+  conversationHistory,
+}: {
+  prompt: string;
+  requestedKind: MemorySourceKind;
+  requestedAction: RecallActionIntent;
+  conversationHistory: Array<any>;
+}) => {
+  const reversedHistory = [...(conversationHistory || [])].reverse();
+
+  const patternsByKind: Record<MemorySourceKind, RegExp[]> = {
+    reminder: [
+      /remind you about "([^"]+)"/i,
+      /reminder(?: about)?[:\s]+"?([^"\n.]+)"?/i,
+    ],
+    task: [
+      /task (?:created|updated):\s+"?([^"\n.]+)"?/i,
+      /(?:created|updated) task:\s+"?([^"\n.]+)"?/i,
+      /task "([^"]+)"/i,
+    ],
+    event: [
+      /event (?:created|updated):\s+"?([^"\n.]+)"?/i,
+      /(?:created|updated) event:\s+"?([^"\n.]+)"?/i,
+      /event "([^"]+)"/i,
+    ],
+    customer: [
+      /customer (?:created|updated):\s+"?([^"\n.]+)"?/i,
+      /(?:created|updated) customer:\s+"?([^"\n.]+)"?/i,
+      /customer "([^"]+)"/i,
+    ],
+    statistics: [],
+    general: [],
+  };
+
+  for (const message of reversedHistory) {
+    const content = String(message?.content || '').trim();
+    if (!content) continue;
+    if (isFailureText(content)) continue;
+
+    const senderRole = message?.role || '';
+    if (senderRole !== 'assistant') continue;
+    if (!messageMatchesRequestedAction(content, requestedAction)) continue;
+
+    const patterns = patternsByKind[requestedKind] || [];
+    for (const pattern of patterns) {
+      const match = content.match(pattern);
+      const title = match?.[1]?.trim();
+      if (!title) continue;
+
+      const label = requestedAction === 'created'
+        ? `last ${requestedKind} we created`
+        : requestedAction === 'updated'
+          ? `last ${requestedKind} we updated`
+          : `last ${requestedKind} in this chat`;
+
+      return {
+        content: `From this same chat, the ${label} was "${title}". Source: “${truncateText(content, 220)}”`,
+        memory: null,
+      };
+    }
+
+    if (requestedKind === 'statistics' && /(stat|statistics|report|analytics|income|revenue)/i.test(content)) {
+      return {
+        content: `From this same chat, the last statistics context I found was: “${truncateText(content, 220)}”`,
+        memory: null,
+      };
+    }
+  }
+
+  const noun = requestedKind === 'statistics' ? 'statistics discussion' : requestedKind;
+  const actionText = requestedAction === 'created'
+    ? `created ${noun}`
+    : requestedAction === 'updated'
+      ? `updated ${noun}`
+      : noun;
+
+  return {
+    content: `I couldn’t find a ${actionText} in this same chat, so I won’t guess from unrelated context.`,
+    memory: null,
+  };
+};
+
+const extractQuotedSource = (sourceQuote?: string | null) => {
+  if (!sourceQuote) return null;
+  const parts = sourceQuote.split(':');
+  if (parts.length < 2) return sourceQuote.trim();
+  return parts.slice(1).join(':').trim();
+};
+
+const buildDeterministicRecallAnswer = ({
+  prompt,
+  memories,
+  conversationHistory,
+}: {
+  prompt: string;
+  memories: Array<any>;
+  conversationHistory: Array<any>;
+}) => {
+  if (!isExplicitRecallPrompt(prompt || '')) return null;
+
+  const requestedKind = classifyRecallKind(prompt);
+  const requestedAction = classifyRecallAction(prompt);
+  const usableMemories = memories.filter((memory) => !isLowQualityMemory(memory));
+  const typedMemories = requestedKind === 'auto'
+    ? usableMemories
+    : usableMemories.filter((memory) => memory?.source_kind === requestedKind);
+  const actionMatchedMemories = requestedAction === 'any'
+    ? typedMemories
+    : typedMemories.filter((memory) => String(memory?.structured_context?.action || '').toLowerCase() === requestedAction);
+  const preferredMemory = requestedKind === 'auto'
+    ? usableMemories.find((memory) => memory?.source_kind !== 'general') || usableMemories[0]
+    : actionMatchedMemories[0] || typedMemories[0];
+
+  if (!preferredMemory && requestedKind !== 'auto') {
+    return extractRecentRecallFromHistory({
+      prompt,
+      requestedKind,
+      requestedAction,
+      conversationHistory,
+    });
+  }
+
+  if (!preferredMemory) return null;
+
+  const sourceKind = preferredMemory?.source_kind as MemorySourceKind | undefined;
+  const title = preferredMemory?.structured_context?.title;
+  const remindAt = preferredMemory?.structured_context?.remind_at;
+  const sourceText = extractQuotedSource(preferredMemory?.source_quote);
+
+  if (sourceKind === 'reminder') {
+    const base = title
+      ? `Your last reminder was about "${title}".`
+      : `Your last reminder was ${preferredMemory?.summary || 'found in this chat'}.`;
+    const timeLine = remindAt ? ` It was scheduled for ${remindAt}.` : '';
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${timeLine}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceKind === 'task') {
+    const base = title
+      ? `The last task we discussed was "${title}".`
+      : `The last task context I found is: ${preferredMemory?.summary || 'task discussion in this chat'}.`;
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceKind === 'event') {
+    const base = title
+      ? `The last event we discussed was "${title}".`
+      : `The last event context I found is: ${preferredMemory?.summary || 'event discussion in this chat'}.`;
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceKind === 'customer') {
+    const base = title
+      ? `The last customer we discussed was "${title}".`
+      : `The last customer context I found is: ${preferredMemory?.summary || 'customer discussion in this chat'}.`;
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceKind === 'statistics') {
+    const base = preferredMemory?.summary
+      ? `The last statistics topic we discussed was: ${preferredMemory.summary}`
+      : 'I found the last statistics discussion from this same chat.';
+    const quoteLine = sourceText ? ` Source: “${truncateText(sourceText, 220)}”` : '';
+    return { content: `${base}${quoteLine}`.trim(), memory: preferredMemory };
+  }
+
+  if (sourceText) {
+    return { content: `From this same chat, the last related context was: “${truncateText(sourceText, 240)}”`, memory: preferredMemory };
+  }
+
+  return preferredMemory?.summary ? { content: preferredMemory.summary, memory: preferredMemory } : null;
+};
+
+const shouldPersistGeneralMemory = (prompt: string, response: string) => {
+  if (isExplicitRecallPrompt(prompt || '') && classifyRecallKind(prompt) !== 'auto') {
+    return false;
+  }
+
+  if (isDirectActionPrompt(prompt || '')) {
+    return false;
+  }
+
+  const combined = `${prompt || ''} ${response || ''}`.toLowerCase();
+  return !(
+    MEMORY_FAILURE_PATTERNS.some((pattern) => combined.includes(pattern)) ||
+    combined.includes('i couldn’t find a created') ||
+    combined.includes("i couldn't find a created") ||
+    combined.includes('i couldn’t find a updated') ||
+    combined.includes("i couldn't find a updated") ||
+    combined.includes('so i won’t guess from unrelated context') ||
+    combined.includes("so i won't guess from unrelated context")
+  );
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -19,6 +710,7 @@ serve(async (req) => {
 
   try {
     const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType } = await req.json();
+    let normalizedConversationHistory = normalizeConversationHistory(conversationHistory);
     
     console.log('🤖 AI Chat request:', { 
       channelId, 
@@ -45,27 +737,31 @@ serve(async (req) => {
     const effectiveTZ = isValidTimeZone(userTimezone) ? userTimezone : null;
 
     function formatInUserZone(d: Date) {
-      if (effectiveTZ) {
-        return d.toLocaleString('en-US', {
-          timeZone: effectiveTZ,
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
-      }
-      // Fallback: shift by offset minutes, then print as UTC
+      // Primary: use manual offset shifting (most reliable in Deno edge functions)
+      // tzOffsetMinutes follows getTimezoneOffset() convention: UTC+4 = -240
       if (typeof tzOffsetMinutes === 'number') {
+        // Shift UTC date by the negated offset to get "local" wall-clock time
         const shifted = new Date(d.getTime() - tzOffsetMinutes * 60_000);
-        return shifted.toLocaleString('en-US', {
-          timeZone: 'UTC',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        });
+        const month = shifted.toLocaleString('en-US', { timeZone: 'UTC', month: 'short' });
+        const day = shifted.getUTCDate();
+        let hours = shifted.getUTCHours();
+        const minutes = shifted.getUTCMinutes().toString().padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        return `${month} ${day}, ${hours}:${minutes} ${ampm}`;
+      }
+      // Fallback: try Intl with IANA timezone  
+      if (effectiveTZ) {
+        try {
+          return d.toLocaleString('en-US', {
+            timeZone: effectiveTZ,
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          });
+        } catch { /* fall through */ }
       }
       // Last resort: UTC
       return d.toLocaleString('en-US', {
@@ -128,6 +824,15 @@ serve(async (req) => {
 
     console.log('✅ Channel validated:', { channelId, isAI: channel.is_ai, hasAuth, ownerId });
 
+    if (normalizedConversationHistory.length === 0) {
+      normalizedConversationHistory = await fetchRecentConversationHistory({
+        supabaseAdmin,
+        channelId,
+        ownerId,
+      });
+      console.log('🧠 Loaded fallback same-chat history from DB:', normalizedConversationHistory.length);
+    }
+
     // Detect user language from the LATEST user message BEFORE processing (needed for fast-paths)
     const detectLanguage = (text: string): string => {
       // Check for Cyrillic characters (Russian, etc.)
@@ -173,25 +878,9 @@ serve(async (req) => {
           let localStart = startDate.toISOString();
           let localEnd = endDate.toISOString();
           
-          if (effectiveTZ) {
-            try {
-              localStart = startDate.toLocaleString('en-US', { 
-                timeZone: effectiveTZ, 
-                year: 'numeric', 
-                month: '2-digit', 
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false 
-              });
-              localEnd = endDate.toLocaleString('en-US', { 
-                timeZone: effectiveTZ,
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false 
-              });
-            } catch {}
-          }
+          // Use formatInUserZone for consistent timezone display
+          localStart = formatInUserZone(startDate);
+          localEnd = formatInUserZone(endDate);
           
           preloadedCalendarContext += `• ${displayName} - ${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (Day ${dayNum}) at ${localStart} to ${localEnd}\n`;
           if (event.payment_status) preloadedCalendarContext += `  Payment: ${event.payment_status}${event.payment_amount ? ` ($${event.payment_amount})` : ''}\n`;
@@ -338,6 +1027,27 @@ serve(async (req) => {
         }
         
         console.log('✅ Reminder created successfully:', reminderData);
+        const reminderMemoryId = await createReminderContextMemory({
+          supabaseAdmin,
+          ownerId,
+          channelId,
+          audienceType: senderType === 'sub_user' ? 'sub_user' : 'admin',
+          audienceSubUserId: createdBySubUserId,
+          sourceRecordId: reminderData.id,
+          sourceMessageIds: normalizedConversationHistory.slice(-6).map((msg: any) => msg.messageId).filter(Boolean),
+          sourceQuote: buildReminderSourceQuote(prompt, title, senderName),
+          summary: `Reminder about \"${title}\" scheduled for ${remindAtUtc.toISOString()}.`,
+          structuredContext: {
+            title,
+            remind_at: remindAtUtc.toISOString(),
+            message: `Reminder: ${title}`,
+            sender_name: senderName || null,
+            sender_type: senderType || 'admin',
+          },
+        });
+        if (reminderMemoryId) {
+          await supabaseAdmin.from('custom_reminders').update({ context_memory_id: reminderMemoryId }).eq('id', reminderData.id);
+        }
         
         const reminderTimeFormatted = formatInUserZone(remindAtUtc);
         const content = userLanguage === 'ka' 
@@ -566,6 +1276,27 @@ serve(async (req) => {
         }
         
         console.log('✅ Reminder created successfully:', reminderData);
+        const reminderMemoryId = await createReminderContextMemory({
+          supabaseAdmin,
+          ownerId,
+          channelId,
+          audienceType: senderType === 'sub_user' ? 'sub_user' : 'admin',
+          audienceSubUserId: createdBySubUserId2,
+          sourceRecordId: reminderData.id,
+          sourceMessageIds: normalizedConversationHistory.slice(-6).map((msg: any) => msg.messageId).filter(Boolean),
+          sourceQuote: buildReminderSourceQuote(prompt, title, senderName),
+          summary: `Reminder about \"${title}\" scheduled for ${targetTime.toISOString()}.`,
+          structuredContext: {
+            title,
+            remind_at: targetTime.toISOString(),
+            message: `Reminder: ${title}`,
+            sender_name: senderName || null,
+            sender_type: senderType || 'admin',
+          },
+        });
+        if (reminderMemoryId) {
+          await supabaseAdmin.from('custom_reminders').update({ context_memory_id: reminderMemoryId }).eq('id', reminderData.id);
+        }
         
         const reminderTimeFormatted = formatInUserZone(targetTime);
         const content = userLanguage === 'ka' 
@@ -1039,6 +1770,83 @@ serve(async (req) => {
         if (contentType.includes('presentation') || /\.pptx?$/i.test(filename)) {
           console.log(`📊 PowerPoint detected: ${att.filename}`);
           return `📊 **PowerPoint: ${att.filename}**\nSize: ${Math.round((att.size || 0) / 1024)}KB\n\n⚠️ PowerPoint text extraction is not fully supported. Please describe the content or copy-paste key text.`;
+        }
+
+        // Audio/Voice files - transcribe using Gemini multimodal
+        if (contentType.startsWith('audio/') || /\.(ogg|mp3|wav|m4a|flac|aac|wma|opus|webm|oga|spx|amr|3gp)$/i.test(filename)) {
+          try {
+            const arrayBuffer = await fileBlob.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            
+            // Convert to base64 in chunks
+            let binary = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+              const chunk = bytes.subarray(i, i + chunkSize);
+              binary += String.fromCharCode.apply(null, Array.from(chunk));
+            }
+            const base64Audio = btoa(binary);
+            
+            const audioMime = contentType || 'audio/ogg';
+            console.log(`🎤 Transcribing audio: ${att.filename} (${Math.round(bytes.length / 1024)}KB, ${audioMime})`);
+            
+            // Use Gemini to transcribe via Lovable AI gateway
+            const transcribeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      { 
+                        type: "text", 
+                        text: "Transcribe this audio message exactly. Output ONLY the transcription text, nothing else. If the audio is in a non-English language, transcribe it in the original language. If the audio is unclear or silent, respond with '[Audio unclear or silent]'." 
+                      },
+                      {
+                        type: "input_audio",
+                        input_audio: {
+                          data: base64Audio,
+                          format: audioMime.includes('wav') ? 'wav' : audioMime.includes('mp3') ? 'mp3' : audioMime.includes('ogg') ? 'ogg' : audioMime.includes('flac') ? 'flac' : 'mp3'
+                        }
+                      }
+                    ]
+                  }
+                ],
+                temperature: 0.1,
+                max_tokens: 4096
+              }),
+            });
+            
+            if (transcribeResponse.ok) {
+              const transcribeResult = await transcribeResponse.json();
+              const transcription = transcribeResult.choices?.[0]?.message?.content?.trim();
+              
+              if (transcription && transcription !== '[Audio unclear or silent]') {
+                console.log(`✅ Audio transcribed: ${att.filename} → ${transcription.substring(0, 100)}...`);
+                return `🎤 **Voice/Audio: ${att.filename}**\n**Transcription:**\n${transcription}`;
+              } else {
+                console.log(`⚠️ Audio transcription empty or unclear for ${att.filename}`);
+                return `🎤 **Voice/Audio: ${att.filename}**\nThe audio was unclear or contained no speech. Duration: ~${Math.round((att.size || 0) / 1600)}s`;
+              }
+            } else {
+              const errText = await transcribeResponse.text();
+              console.error(`❌ Audio transcription API error: ${transcribeResponse.status}`, errText);
+              return `🎤 **Voice/Audio: ${att.filename}**\nCould not transcribe audio. Size: ${Math.round((att.size || 0) / 1024)}KB`;
+            }
+          } catch (audioErr) {
+            console.error(`❌ Audio transcription error for ${att.filename}:`, audioErr);
+            return `🎤 **Voice/Audio: ${att.filename}**\nFailed to process audio file. Size: ${Math.round((att.size || 0) / 1024)}KB`;
+          }
+        }
+
+        // Video files - extract audio context
+        if (contentType.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/i.test(filename)) {
+          return `🎥 **Video: ${att.filename}**\nSize: ${Math.round((att.size || 0) / 1024)}KB\nVideo analysis is not supported yet. Please describe the content or extract audio/screenshots.`;
         }
 
         // Fallback
@@ -1860,6 +2668,40 @@ User uploads Excel with 500 customers and says "import these to CRM"
             required: ["customers"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "setup_telegram_bot",
+          description: `Connect a Telegram bot to Smartbookly AI so the user can chat with their assistant via Telegram.
+
+🎯 USE THIS WHEN:
+- User says "connect Telegram", "set up Telegram", "link Telegram bot"
+- User provides a Telegram bot token (looks like: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz)
+- User asks about Telegram integration
+
+📋 WORKFLOW:
+1. If user hasn't provided a token yet, explain:
+   - Open Telegram and search for @BotFather
+   - Send /newbot and follow the steps to create a bot
+   - Copy the API token BotFather gives you
+   - Paste it here
+2. When user provides the token, call this tool with the token
+3. Tool validates the token with Telegram and saves the config
+4. Confirm: "Your bot @username is now connected! Open Telegram and send a message to your bot."
+
+⚠️ SECURITY: Bot tokens are stored securely and only accessible by the system.`,
+          parameters: {
+            type: "object",
+            properties: {
+              bot_token: {
+                type: "string",
+                description: "Telegram bot API token from BotFather (format: 123456789:ABCdefGHI...)"
+              }
+            },
+            required: ["bot_token"]
+          }
+        }
       }
     ];
 
@@ -1890,14 +2732,21 @@ User uploads Excel with 500 customers and says "import these to CRM"
 - NEVER say things like "Let me check your schedule" or "I'll look that up" - you already have access to all their data
 - Respond DIRECTLY and NATURALLY as a knowledgeable assistant who knows the user's business inside out
 
-🖼️🖼️🖼️ IMAGE & DOCUMENT ANALYSIS - YOU CAN DO THIS! 🖼️🖼️🖼️
-**YOU HAVE FULL VISION CAPABILITIES:**
+🖼️🖼️🖼️ IMAGE, AUDIO & DOCUMENT ANALYSIS - YOU CAN DO THIS! 🖼️🖼️🖼️
+**YOU HAVE FULL VISION AND AUDIO CAPABILITIES:**
 - ✅ You CAN analyze images, screenshots, photos, and pictures when users upload them
 - ✅ You CAN describe what you see in images - colors, text, layout, objects, people, etc.
 - ✅ You CAN read text from screenshots, documents, and forms
 - ✅ You CAN analyze PDFs, Word documents, Excel files, and other document types
+- ✅ You CAN transcribe and understand voice messages and audio files
+- ✅ When user sends a voice message, you receive the transcription automatically - respond to the content naturally
 - ✅ When user asks "analyze this picture" or "what do you see?" - DESCRIBE what you observe!
 - ✅ Be helpful and descriptive when analyzing visual content
+
+**AUDIO/VOICE MESSAGE EXAMPLES:**
+✅ User sends voice message saying "create a task for tomorrow" → You receive the transcription, create the task
+✅ User sends voice message in Georgian/Spanish/etc → You receive the transcription in that language, respond accordingly
+✅ User sends audio file → You receive the transcription, respond to the content
 
 **IMAGE ANALYSIS EXAMPLES:**
 ✅ User: "analyze this picture" → Describe what you see: colors, text, layout, objects
@@ -1928,7 +2777,8 @@ User uploads Excel with 500 customers and says "import these to CRM"
 
 **FORBIDDEN EXAMPLES:**
 ❌ "I cannot analyze images" - YOU CAN! You have vision capabilities!
-❌ "To confirm the events on November 3rd and 4th, I need to call the get_schedule tool"
+❌ "I can't process audio files" - YOU CAN! Audio is automatically transcribed for you!
+❌ "Could you please upload the content in a different format" - NEVER say this for audio/voice!
 ❌ "Let me check your database..."
 ❌ "I'll analyze your schedule..."
 ❌ "I can use the bulk_import_customers tool to add them"
@@ -3178,7 +4028,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         } else {
           // No match found, but client says sub-user - trust client but validate name
           requesterType = 'sub_user';
-          requesterIdentity = { email: senderName || authEmail || '' }; // Store email even without match
+          requesterIdentity = { id: authId || '00000000-0000-0000-0000-000000000000', email: senderName || authEmail || '' }; // Store email even without match
           baseName = (senderName && !senderName.includes('@'))
             ? senderName
             : nameFromEmail(senderName || authEmail);
@@ -3213,6 +4063,71 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     const requesterName = withAiSuffix(baseName);
     console.log(`👤 Resolved requester → ${requesterName} [${requesterType}]`);
+    const savedMemories = await loadRelevantMemories({
+      supabaseAdmin,
+      ownerId,
+      channelId,
+      requesterType,
+      requesterIdentityId: requesterIdentity?.id,
+      prompt,
+      conversationHistory: normalizedConversationHistory,
+    });
+    const explicitRecallPrompt = isExplicitRecallPrompt(prompt || '');
+    const directActionPrompt = isDirectActionPrompt(prompt || '');
+    const deterministicRecallResult = explicitRecallPrompt && !directActionPrompt
+      ? buildDeterministicRecallAnswer({
+          prompt,
+          memories: savedMemories,
+          conversationHistory: normalizedConversationHistory,
+        })
+      : null;
+    const llmConversationHistory = explicitRecallPrompt
+      ? normalizedConversationHistory
+      : normalizedConversationHistory.filter((msg: any) => !(msg?.role === 'assistant' && msg?.metadata?.context_memory_id));
+    const savedContextBlock = explicitRecallPrompt && !directActionPrompt ? buildSavedContextBlock(savedMemories) : '';
+    const recentDiscussionBlock = explicitRecallPrompt && !directActionPrompt && llmConversationHistory.length
+      ? `\n\n🧠 RECENT DISCUSSION IN THIS EXACT CHAT\nThis is the recent same-chat history for this exact user/sub-user. Use it to understand references like "that", "this", and "what we discussed".\n\n${llmConversationHistory
+          .slice(-24)
+          .map((msg: any, index: number) => `${index + 1}. [${msg.role}] ${truncateText(msg.content, 280)}`)
+          .join('\n')}`
+      : '';
+
+    if (explicitRecallPrompt && !directActionPrompt && deterministicRecallResult) {
+      const linkedMemory = deterministicRecallResult.memory ?? null;
+      const { data: aiMsgData, error: insertError } = await supabaseAdmin
+        .from('chat_messages')
+        .insert({
+          channel_id: channelId,
+          owner_id: ownerId,
+          sender_type: 'admin',
+          sender_name: 'Smartbookly AI',
+          content: deterministicRecallResult.content,
+          message_type: 'text',
+          metadata: linkedMemory?.id ? { context_memory_id: linkedMemory.id } : null,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('❌ Failed to insert deterministic recall response:', insertError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to save AI response' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('✅ Deterministic recall response inserted with id:', aiMsgData?.id);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          content: deterministicRecallResult.content,
+          aiMessage: aiMsgData,
+          toolCalls: [],
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Process attachments if any
     let attachmentContext = '';
@@ -3221,7 +4136,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     
     if (attachments && attachments.length > 0) {
       console.log(`📎 Processing ${attachments.length} attachments...`);
-      console.log(`📎 Attachment details:`, attachments.map(a => ({ 
+      console.log(`📎 Attachment details:`, attachments.map((a: any) => ({ 
         filename: a.filename, 
         file_path: a.file_path, 
         content_type: a.content_type,
@@ -3285,8 +4200,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       : prompt;
     
     const messages = [
-      { role: 'system', content: systemPrompt },
-      ...conversationHistory.map((msg: any) => ({
+      { role: 'system', content: `${systemPrompt}${savedContextBlock}${recentDiscussionBlock}` },
+      ...llmConversationHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content
       })),
@@ -3386,17 +4301,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               const userLocalTime = currentLocalTime || new Date().toISOString();
               const localDate = new Date(userLocalTime);
               
-              // Format the time in user's timezone for display
-              const userLocalTimeStr = localDate.toLocaleString('en-US', {
-                timeZone: userTimezone,
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-              });
+              // Format the time using the reliable offset-based formatter
+              const userLocalTimeStr = formatInUserZone(localDate);
               
               toolResult = {
                 currentTime: userLocalTime,
@@ -4294,6 +5200,20 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               };
               
               toolResult = summary;
+              await createContextMemory({
+                supabaseAdmin,
+                ownerId,
+                channelId,
+                audienceType: requesterType,
+                audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                sourceKind: 'statistics',
+                sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                sourceQuote: buildReminderSourceQuote(prompt, 'Business statistics', senderName),
+                structuredContext: {
+                  summary_text: `Business stats discussed for this month.`,
+                  ...summary,
+                },
+              });
               console.log(`    ✓ Payment summary: ${summary.total_events} events, $${summary.total_amount} total`);
               break;
             }
@@ -5314,11 +6234,35 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 .select()
                 .single();
               
-              if (reminderError) {
+                if (reminderError) {
                 console.error('❌ Failed to create reminder:', reminderError);
                 toolResult = { success: false, error: reminderError.message };
                 break;
               }
+                const reminderMemoryId = await createReminderContextMemory({
+                  supabaseAdmin,
+                  ownerId,
+                  channelId,
+                  audienceType: requesterType,
+                  audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                  sourceRecordId: reminderRow.id,
+                  sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                  sourceQuote: buildReminderSourceQuote(prompt, title, senderName),
+                  summary: `Reminder about \"${title}\" scheduled for ${remindAtUtc.toISOString()}.`,
+                  structuredContext: {
+                    title,
+                    remind_at: remindAtUtc.toISOString(),
+                    message: message || '',
+                    sender_name: senderName || null,
+                    sender_type: requesterType,
+                    recipient_email: recipientEmail,
+                    recipient_customer_id: recipientCustomerId,
+                    recipient_event_id: recipientEventId,
+                  },
+                });
+                if (reminderMemoryId) {
+                  await supabaseAdmin.from('custom_reminders').update({ context_memory_id: reminderMemoryId }).eq('id', reminderRow.id);
+                }
               
               // 6) Build HUMAN message on server (no LLM) - in user's language
               const display = formatInUserZone(remindAtUtc);
@@ -5748,6 +6692,26 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       times_preserved: !start_date || !end_date,
                       updated_fields: Object.keys(eventData).filter(k => k !== 'start_date' && k !== 'end_date')
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'event',
+                      sourceRecordId: result || finalEventId,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, full_name, senderName),
+                      structuredContext: {
+                        action: 'updated',
+                        title: full_name,
+                        full_name,
+                        start_date: startDateUTC,
+                        end_date: endDateUTC,
+                        notes: notes ?? null,
+                        event_name: event_name ?? null,
+                      },
+                    });
                     
                     // Broadcast change
                     const ch = supabaseAdmin.channel(`public_board_events_${ownerId}`);
@@ -5901,6 +6865,26 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       repeat_pattern: repeat_pattern || null,
                       repeat_until: repeat_until || null
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'event',
+                      sourceRecordId: newEventId,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, full_name, senderName),
+                      structuredContext: {
+                        action: 'created',
+                        title: full_name,
+                        full_name,
+                        start_date: startDateUTC,
+                        end_date: endDateUTC,
+                        notes: notes ?? null,
+                        event_name: event_name ?? null,
+                      },
+                    });
                     
                     // Broadcast change
                     const ch = supabaseAdmin.channel(`public_board_events_${ownerId}`);
@@ -6200,6 +7184,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
                       message: `Task updated: ${task_name}`
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'task',
+                      sourceRecordId: effectiveTaskId,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, task_name, senderName),
+                      structuredContext: {
+                        action: 'updated',
+                        title: task_name,
+                        task_name,
+                        status: normalizedStatus,
+                        description: description ?? null,
+                        deadline_at: deadlineUTC,
+                        reminder_at: reminderUTC,
+                        assigned_to_name: assignedToName,
+                      },
+                    });
                     
                     // Task update complete - frontend will pick it up via postgres_changes listener
                     console.log(`    ✅ Task updated in database: ${effectiveTaskId}`);
@@ -6237,6 +7242,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       assigned_to: assignedToType ? `${assignedToType}: ${assigned_to_name}` : 'unassigned',
                       message: `Task created: ${task_name}. ${uploadedFileRecords.length > 0 ? `Files attached: ${uploadedFileRecords.map(f => f.filename).join(', ')}.` : ''} ${assignedToType ? `Assigned to ${assigned_to_name}.` : ''}`
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'task',
+                      sourceRecordId: newTask.id,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, task_name, senderName),
+                      structuredContext: {
+                        action: 'created',
+                        title: task_name,
+                        task_name,
+                        status: normalizedStatus,
+                        description: description ?? null,
+                        deadline_at: deadlineUTC,
+                        reminder_at: reminderUTC,
+                        assigned_to_name: assignedToName,
+                      },
+                    });
                     
                     // Task created in database - frontend will pick it up via postgres_changes listener
                     console.log(`    ✅ Task created in database: ${newTask.id}`);
@@ -6426,6 +7452,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       message,
                       uploaded_files: uploadedFiles
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'customer',
+                      sourceRecordId: updatedCustomer.id,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, full_name, senderName),
+                      structuredContext: {
+                        action: 'updated',
+                        title: full_name,
+                        full_name,
+                        phone_number: phone_number ?? null,
+                        social_media: social_media ?? null,
+                        notes: notes ?? null,
+                        payment_status: payment_status ?? null,
+                        payment_amount: payment_amount ?? null,
+                      },
+                    });
                     
                     // Broadcast change for real-time sync
                     const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
@@ -6527,6 +7574,27 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                       message,
                       uploaded_files: uploadedFiles
                     };
+                    await createContextMemory({
+                      supabaseAdmin,
+                      ownerId,
+                      channelId,
+                      audienceType: requesterType,
+                      audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+                      sourceKind: 'customer',
+                      sourceRecordId: newCustomer.id,
+                      sourceMessageIds: normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean),
+                      sourceQuote: buildReminderSourceQuote(prompt, full_name, senderName),
+                      structuredContext: {
+                        action: 'created',
+                        title: full_name,
+                        full_name,
+                        phone_number: phone_number ?? null,
+                        social_media: social_media ?? null,
+                        notes: notes ?? null,
+                        payment_status: payment_status ?? null,
+                        payment_amount: payment_amount ?? null,
+                      },
+                    });
                     
                     // Broadcast change for real-time sync
                     const ch = supabaseAdmin.channel(`public_board_customers_${ownerId}`);
@@ -6645,7 +7713,43 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               }
               break;
             }
-            
+
+            case 'setup_telegram_bot': {
+              const { bot_token } = args;
+              console.log('    🤖 Setting up Telegram bot...');
+              
+              try {
+                if (!bot_token) {
+                  toolResult = { success: false, error: 'No bot token provided. Please provide the token from @BotFather.' };
+                  break;
+                }
+
+                // Call telegram-setup edge function
+                const { data: setupData, error: setupError } = await supabaseAdmin.functions.invoke(
+                  'telegram-setup',
+                  { body: { bot_token, user_id: ownerId } }
+                );
+
+                if (setupError) {
+                  console.error('    ❌ Telegram setup error:', setupError);
+                  toolResult = { success: false, error: 'Failed to validate the bot token. Please check it and try again.' };
+                } else if (setupData?.success) {
+                  console.log(`    ✅ Telegram bot connected: @${setupData.bot_username}`);
+                  toolResult = {
+                    success: true,
+                    bot_username: setupData.bot_username,
+                    message: `Bot @${setupData.bot_username} is now connected! Open Telegram, find your bot @${setupData.bot_username}, and start chatting. Your messages will be processed by Smartbookly AI and responses will appear both in Telegram and on your dashboard.`
+                  };
+                } else {
+                  toolResult = { success: false, error: setupData?.error || 'Failed to set up the Telegram bot.' };
+                }
+              } catch (error) {
+                console.error('    ❌ Telegram setup error:', error);
+                toolResult = { success: false, error: error.message || 'Unknown error setting up Telegram bot' };
+              }
+              break;
+            }
+
             default: {
               console.warn(`    ⚠️ Unknown tool called: ${funcName}`);
               toolResult = { 
@@ -6786,6 +7890,23 @@ Be direct. Be concise. No extra text.`
         }
         
         console.log('✅ Tool call AI message inserted with id:', aiMsgData?.id);
+        if (shouldPersistGeneralMemory(prompt, finalMessage.content || '')) {
+          await createContextMemory({
+            supabaseAdmin,
+            ownerId,
+            channelId,
+            audienceType: requesterType,
+            audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+            sourceKind: 'general',
+            sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
+            sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
+            structuredContext: {
+              summary_text: truncateText(finalMessage.content, 500),
+              prompt: truncateText(prompt, 500),
+              reply: truncateText(finalMessage.content, 800),
+            },
+          });
+        }
         
         return new Response(
           JSON.stringify({ 
@@ -6825,6 +7946,23 @@ Be direct. Be concise. No extra text.`
     }
     
     console.log('✅ Direct AI message inserted with id:', aiMsgData?.id);
+    if (shouldPersistGeneralMemory(prompt, message.content || '')) {
+      await createContextMemory({
+        supabaseAdmin,
+        ownerId,
+        channelId,
+        audienceType: requesterType,
+        audienceSubUserId: requesterType === 'sub_user' ? requesterIdentity?.id ?? null : null,
+        sourceKind: 'general',
+        sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
+        sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
+        structuredContext: {
+          summary_text: truncateText(message.content || '', 500),
+          prompt: truncateText(prompt, 500),
+          reply: truncateText(message.content || '', 800),
+        },
+      });
+    }
     
     return new Response(
       JSON.stringify({ 

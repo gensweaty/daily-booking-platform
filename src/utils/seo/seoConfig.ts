@@ -1,7 +1,7 @@
 
 export const SEO_CONFIG = {
-  defaultTitle: "Smartbookly - All in one SaaS for business productivity",
-  defaultDescription: "All-in-One CRM, Booking, and Task Management solution for modern businesses. Streamline your workflow with our powerful productivity tool.",
+  defaultTitle: "SmartBookly - Smart Business Management Powered by AI",
+  defaultDescription: "All-in-One CRM, Booking, Calendar, Task Management & AI Assistant for modern businesses. Manage everything in one platform with built-in AI support.",
   siteUrl: "https://smartbookly.com",
   
   // Language-specific configurations
