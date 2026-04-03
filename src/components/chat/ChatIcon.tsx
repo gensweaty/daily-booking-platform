@@ -49,11 +49,15 @@ export const ChatIcon = ({ onClick, isOpen, unreadCount = 0, isPending = false, 
               <circle cx="18" cy="10" r="3" fill="white" />
               <circle cx="30" cy="10" r="3" fill="white" />
               
-              {/* Single eye - large circle */}
-              <circle cx="24" cy="26" r="10" fill="#335CF4" />
-              <circle cx="24" cy="26" r="7" fill="white" />
-              <circle cx="22" cy="24" r="3.5" fill="#335CF4" />
-              <circle cx="21" cy="23" r="1.2" fill="white" />
+              {/* Animated eye group */}
+              <g className="robot-eye-blink" style={{ transformOrigin: '24px 26px' }}>
+                <circle cx="24" cy="26" r="10" fill="#335CF4" />
+                <circle cx="24" cy="26" r="7" fill="white" />
+                <g className="robot-eye-move" style={{ transformOrigin: '22px 24px' }}>
+                  <circle cx="22" cy="24" r="3.5" fill="#335CF4" />
+                  <circle cx="21" cy="23" r="1.2" fill="white" />
+                </g>
+              </g>
               
               {/* Little legs */}
               <rect x="14" y="40" width="4" height="5" rx="2" fill="white" />
