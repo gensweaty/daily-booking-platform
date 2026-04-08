@@ -1,5 +1,6 @@
 
 import { Link } from "react-router-dom";
+import { AnimatedRobotEye } from "@/components/shared/AnimatedRobotEye";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
@@ -179,15 +180,18 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
     <nav className="relative glass-morphism rounded-2xl px-4 py-3 mb-6 z-50" aria-label="Main navigation">
       <div className="flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2 hover:scale-105 transition-transform" aria-label="SmartBookly Home">
-          <img 
-            src={currentLogo}
-            alt="SmartBookly Logo" 
-            className="h-[32px] dark:h-[36px] md:h-[32px] dark:md:h-[36px] lg:h-[40px] dark:lg:h-[36px] w-auto max-w-[160px] lg:max-w-[180px] object-contain drop-shadow-lg" 
-            width="160" 
-            height="36"
-            loading="eager" 
-            fetchPriority="high" 
-          />
+          <div className="relative">
+            <img 
+              src={currentLogo}
+              alt="SmartBookly Logo" 
+              className="h-[32px] dark:h-[36px] md:h-[32px] dark:md:h-[36px] lg:h-[40px] dark:lg:h-[36px] w-auto max-w-[160px] lg:max-w-[180px] object-contain drop-shadow-lg" 
+              width="160" 
+              height="36"
+              loading="eager" 
+              fetchPriority="high" 
+            />
+            <AnimatedRobotEye size={12} top="46%" left="8%" />
+          </div>
         </Link>
         
         {user ? renderAuthenticatedNav() : renderUnauthenticatedNav()}
