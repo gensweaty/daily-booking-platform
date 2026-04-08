@@ -380,7 +380,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
   };
 
   return (
-    <div className={`w-full overflow-x-hidden ${isMobile ? 'space-y-2 px-0 pb-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
+    <div className={`w-full overflow-x-hidden min-w-0 ${isMobile ? 'space-y-2 px-0 pb-1' : 'space-y-3 sm:space-y-6 p-2 sm:p-4'}`}>
       <TaskFormHeader editingTask={editingTask} />
       <form onSubmit={handleSubmit} className={isMobile ? 'space-y-1' : 'space-y-3 sm:space-y-6'}>
         <TaskFormFields
