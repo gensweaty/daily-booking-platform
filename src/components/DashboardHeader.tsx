@@ -406,7 +406,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
             <AnimatedRobotEye 
               size={isMobile ? 14 : 16} 
               top="46%" 
-              left={isMobile ? "26%" : "8.5%"} 
+              left={isMobile ? "26%" : "9%"} 
             />
           </div>
         </Link>
