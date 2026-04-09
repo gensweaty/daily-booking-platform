@@ -113,7 +113,7 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
                   alt="SmartBookly Logo" 
                   className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain transition-transform duration-200 hover:scale-105"
                 />
-                <AnimatedRobotEye size={12} top="46%" left="9%" />
+                <AnimatedRobotEye size={11} top="44%" left="11%" />
               </div>
             </Link>
           </div>
