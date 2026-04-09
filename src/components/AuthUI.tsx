@@ -12,6 +12,7 @@ import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
+import { AnimatedRobotEye } from "@/components/shared/AnimatedRobotEye";
 
 interface AuthUIProps {
   defaultTab?: "signin" | "signup";
@@ -106,11 +107,14 @@ export const AuthUI = ({ defaultTab = "signin" }: AuthUIProps) => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src={currentLogo}
-                alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain transition-transform duration-200 hover:scale-105"
-              />
+              <div className="relative">
+                <img 
+                  src={currentLogo}
+                  alt="SmartBookly Logo" 
+                  className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain transition-transform duration-200 hover:scale-105"
+                />
+                <AnimatedRobotEye size={12} top="46%" left="9%" />
+              </div>
             </Link>
           </div>
           <div className="flex items-center gap-4">

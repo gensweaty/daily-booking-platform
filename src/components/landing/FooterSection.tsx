@@ -63,11 +63,14 @@ const FooterSection = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-4">
             <Link to="/" className="inline-block">
-              <img 
-                src={currentLogo}
-                alt="SmartBookly Logo" 
-                className="h-10" 
-              />
+              <div className="relative">
+                <img 
+                  src={currentLogo}
+                  alt="SmartBookly Logo" 
+                  className="h-10" 
+                />
+                <AnimatedRobotEye size={14} top="46%" left="9%" />
+              </div>
             </Link>
             <p className="text-muted-foreground">
               <LanguageText>{t('footer.description')}</LanguageText>

@@ -190,14 +190,17 @@ export const ResetPassword = () => {
               Back to Login
             </Link>
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src={theme === 'dark' 
-                  ? "/logo-dark.png"
-                  : "/logo-light.png"
-                }
-                alt="SmartBookly Logo" 
-                className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"
-              />
+              <div className="relative">
+                <img 
+                  src={theme === 'dark' 
+                    ? "/logo-dark.png"
+                    : "/logo-light.png"
+                  }
+                  alt="SmartBookly Logo" 
+                  className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"
+                />
+                <AnimatedRobotEye size={12} top="46%" left="9%" />
+              </div>
             </Link>
           </div>
           <div className="flex items-center gap-4">

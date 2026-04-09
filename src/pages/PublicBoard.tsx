@@ -700,14 +700,17 @@ const handleRegister = async () => {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <img 
-                  src={theme === 'dark' 
-                    ? "/logo-dark.png"
-                    : "/logo-light.png"
-                  }
-                  alt="SmartBookly Logo" 
-                  className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
-                />
+                <div className="relative">
+                  <img 
+                    src={theme === 'dark' 
+                      ? "/logo-dark.png"
+                      : "/logo-light.png"
+                    }
+                    alt="SmartBookly Logo" 
+                    className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
+                  />
+                  <AnimatedRobotEye size={14} top="46%" left="9%" />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <LanguageSwitcher />
@@ -870,16 +873,19 @@ const handleRegister = async () => {
       <header className="bg-background/80 backdrop-blur-sm border-b border-border/40 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img 
-                src={theme === 'dark' 
-                  ? "/logo-dark.png"
-                  : "/logo-light.png"
-                }
-                alt="SmartBookly Logo" 
-                className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
-              />
-            </div>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <img 
+                    src={theme === 'dark' 
+                      ? "/logo-dark.png"
+                      : "/logo-light.png"
+                    }
+                    alt="SmartBookly Logo" 
+                    className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
+                  />
+                  <AnimatedRobotEye size={14} top="46%" left="9%" />
+                </div>
+              </div>
             <div className="flex items-center gap-3">
               <span className="hidden sm:inline text-sm text-muted-foreground">
                 Hello, <span className="font-semibold">{fullName}</span>
