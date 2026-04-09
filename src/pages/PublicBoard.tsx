@@ -22,6 +22,7 @@ import { PublicBoardReminderNotifications } from "@/components/reminder/PublicBo
 import { PublicBoardTaskReminderNotifications } from "@/components/tasks/PublicBoardTaskReminderNotifications";
 import { PublicBoardEventReminderNotifications } from "@/components/Calendar/PublicBoardEventReminderNotifications";
 import { preloadNotificationSound, addMobileAudioUnlockListener } from "@/utils/audioManager";
+import { AnimatedRobotEye } from "@/components/shared/AnimatedRobotEye";
 
 // Password hashing utilities (PBKDF2, client-side)
 const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { AnimatedRobotEye } from "@/components/shared/AnimatedRobotEye";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react";

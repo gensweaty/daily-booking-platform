@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { AnimatedRobotEye } from "@/components/shared/AnimatedRobotEye";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useTheme } from "next-themes";
