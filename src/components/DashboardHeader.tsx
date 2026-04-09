@@ -404,9 +404,9 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
               className="h-10 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"
             />
             <AnimatedRobotEye 
-              size={isMobile ? 14 : 16} 
-              top="46%" 
-              left={isMobile ? "26%" : "9%"} 
+              size={isMobile ? 12 : 14} 
+              top="44%" 
+              left={isMobile ? "24%" : "11%"} 
             />
           </div>
         </Link>

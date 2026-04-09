@@ -710,7 +710,7 @@ const handleRegister = async () => {
                     alt="SmartBookly Logo" 
                     className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
                   />
-                  <AnimatedRobotEye size={14} top="46%" left="9%" />
+                  <AnimatedRobotEye size={12} top="44%" left="11%" />
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -884,7 +884,7 @@ const handleRegister = async () => {
                     alt="SmartBookly Logo" 
                     className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
                   />
-                  <AnimatedRobotEye size={14} top="46%" left="9%" />
+                  <AnimatedRobotEye size={12} top="44%" left="11%" />
                 </div>
               </div>
             <div className="flex items-center gap-3">

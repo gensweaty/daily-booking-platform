@@ -70,7 +70,7 @@ const FooterSection = () => {
                   alt="SmartBookly Logo" 
                   className="h-10" 
                 />
-                <AnimatedRobotEye size={14} top="46%" left="9%" />
+                <AnimatedRobotEye size={12} top="44%" left="11%" />
               </div>
             </Link>
             <p className="text-muted-foreground">

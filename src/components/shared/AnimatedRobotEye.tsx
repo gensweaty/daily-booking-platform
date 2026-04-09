@@ -9,6 +9,8 @@ interface AnimatedRobotEyeProps {
   left?: string;
   /** Whether to show white background to cover static PNG eye */
   coverBackground?: boolean;
+  /** Background color for the cover circle (use 'transparent' for chat avatars) */
+  coverColor?: string;
 }
 
 /**
@@ -17,9 +19,10 @@ interface AnimatedRobotEyeProps {
  */
 export const AnimatedRobotEye = memo(({ 
   size = 14, 
-  top = '42%', 
+  top = '44%', 
   left = '50%',
-  coverBackground = true
+  coverBackground = true,
+  coverColor = 'white'
 }: AnimatedRobotEyeProps) => {
   return (
     <svg
@@ -30,9 +33,9 @@ export const AnimatedRobotEye = memo(({
       style={{ top, left, transform: 'translate(-50%, -50%)' }}
       aria-hidden="true"
     >
-      {/* White background to cover static PNG eye */}
+      {/* Background to cover static PNG eye */}
       {coverBackground && (
-        <circle cx="12" cy="12" r="11" fill="white" />
+        <circle cx="12" cy="12" r="11" fill={coverColor} />
       )}
       
       {/* Animated blink group */}
