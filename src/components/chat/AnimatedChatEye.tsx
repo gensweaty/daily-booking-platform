@@ -12,7 +12,7 @@ export const AnimatedChatEye = memo(({ size = 12 }: { size?: number }) => {
       width={size}
       height={size}
       className="absolute pointer-events-none"
-      style={{ top: '38%', left: '48%', transform: 'translate(-50%, -50%)' }}
+      style={{ top: '40%', left: '50%', transform: 'translate(-50%, -50%)' }}
       aria-hidden="true"
     >
       {/* White background to cover static PNG eye */}
