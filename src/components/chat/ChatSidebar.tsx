@@ -607,7 +607,6 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shadow-sm">
                 <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
-                <AnimatedRobotEye size={12} top="38%" left="48%" coverColor="#335CF4" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-[15px] truncate">Smartbookly AI</div>
