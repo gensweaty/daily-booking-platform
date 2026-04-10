@@ -18,6 +18,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { MessageAttachments } from './MessageAttachments';
 import { supabase } from '@/integrations/supabase/client';
 import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
+import { AnimatedChatEye } from './AnimatedChatEye';
 
 type ChatMessage = {
   id: string;
@@ -229,8 +230,9 @@ export const MessageList = ({
               <div className="w-10 flex-shrink-0">
                 {isFirstInGroup ? (
                   message.sender_name === 'Smartbookly AI' ? (
-                    <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm">
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden shadow-sm">
                       <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
+                      <AnimatedChatEye size={12} />
                     </div>
                   ) : (
                     <Avatar className="h-10 w-10">
@@ -389,8 +391,9 @@ export const MessageList = ({
         <div className="group relative mt-4 animate-fade-in">
           <div className="flex gap-3">
             <div className="w-10 flex-shrink-0">
-              <div className="w-10 h-10 rounded-full overflow-hidden shadow-sm">
+              <div className="relative w-10 h-10 rounded-full overflow-hidden shadow-sm">
                 <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
+                <AnimatedChatEye size={12} />
               </div>
             </div>
             <div className="flex-1 min-w-0">

@@ -20,6 +20,7 @@ import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 import { useAIChannel } from '@/hooks/useAIChannel';
 import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
+import { AnimatedChatEye } from './AnimatedChatEye';
 import { AnimatedRobotEye } from '@/components/shared/AnimatedRobotEye';
 import { PublicBoardSettings } from '@/components/tasks/PublicBoardSettings';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
@@ -607,6 +608,7 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="relative flex-shrink-0 w-10 h-10 rounded-full overflow-hidden shadow-sm">
                 <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
+                <AnimatedChatEye size={12} />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-[15px] truncate">Smartbookly AI</div>
