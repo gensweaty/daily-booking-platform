@@ -20,6 +20,7 @@ import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 import { useAIChannel } from '@/hooks/useAIChannel';
 import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
+import { AnimatedChatEye } from './AnimatedChatEye';
 import { AnimatedRobotEye } from '@/components/shared/AnimatedRobotEye';
 import { PublicBoardSettings } from '@/components/tasks/PublicBoardSettings';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
