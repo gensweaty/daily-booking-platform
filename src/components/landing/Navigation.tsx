@@ -190,7 +190,7 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
               loading="eager" 
               fetchPriority="high" 
             />
-            <AnimatedRobotEye size={11} top="44%" left="11%" />
+            <AnimatedRobotEye size={11} top="44%" left={currentLogo.includes('compact') ? "24%" : "11%"} />
           </div>
         </Link>
         
