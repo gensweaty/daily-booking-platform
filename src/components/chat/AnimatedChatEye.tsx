@@ -15,7 +15,7 @@ export const AnimatedChatEye = memo(({ size = 12 }: { size?: number }) => {
       width={size}
       height={size}
       className="absolute pointer-events-none"
-      style={{ top: '44.5%', left: '50%', transform: 'translate(-50%, -50%)' }}
+      style={{ top: '46%', left: '50%', transform: 'translate(-50%, -50%)' }}
       aria-hidden="true"
     >
       <g transform={`translate(${CHAT_EYE_OFFSET} ${CHAT_EYE_OFFSET}) scale(${CHAT_EYE_SCALE})`}>
