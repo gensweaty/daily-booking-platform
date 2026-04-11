@@ -15,12 +15,12 @@ export const AnimatedChatEye = memo(({ size = 12 }: { size?: number }) => {
       width={size}
       height={size}
       className="absolute pointer-events-none"
-      style={{ top: '46.75%', left: '50%', transform: 'translate(-50%, -50%)' }}
+      style={{ top: '47.05%', left: '49.65%', transform: 'translate(-50%, -50%)' }}
       aria-hidden="true"
     >
       <g transform={`translate(${CHAT_EYE_OFFSET} ${CHAT_EYE_OFFSET}) scale(${CHAT_EYE_SCALE})`}>
         {/* White background to cover static PNG eye */}
-        <circle cx="12" cy="12" r="11" fill="white" />
+        <circle cx="12" cy="12" r="11.45" fill="white" />
         
         {/* Animated blink group */}
         <g className="robot-eye-blink" style={{ transformOrigin: '12px 12px' }}>
