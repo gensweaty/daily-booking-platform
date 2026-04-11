@@ -5,7 +5,7 @@ import { memo } from 'react';
  * Uses the same CSS keyframes (robot-eye-blink, robot-eye-move) but with
  * a dark/white color scheme to match the chat robot style.
  */
-const CHAT_EYE_SCALE = 0.82;
+const CHAT_EYE_SCALE = 0.78;
 const CHAT_EYE_OFFSET = 12 * (1 - CHAT_EYE_SCALE);
 
 export const AnimatedChatEye = memo(({ size = 12 }: { size?: number }) => {
@@ -15,7 +15,7 @@ export const AnimatedChatEye = memo(({ size = 12 }: { size?: number }) => {
       width={size}
       height={size}
       className="absolute pointer-events-none"
-      style={{ top: '43.5%', left: '50%', transform: 'translate(-50%, -50%)' }}
+      style={{ top: '44.5%', left: '50%', transform: 'translate(-50%, -50%)' }}
       aria-hidden="true"
     >
       <g transform={`translate(${CHAT_EYE_OFFSET} ${CHAT_EYE_OFFSET}) scale(${CHAT_EYE_SCALE})`}>
