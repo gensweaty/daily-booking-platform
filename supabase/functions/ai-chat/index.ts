@@ -3043,7 +3043,14 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 ✅ DO: Make reasonable assumptions and confirm: "✅ Task created: Call client (due tomorrow). Is this correct?"
 
 **USER TIMEZONE**: ${effectiveTZ || 'UTC (offset-based)'}
-**CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
+**CURRENT DATE CONTEXT (USER'S LOCAL CALENDAR — AUTHORITATIVE, DO NOT OVERRIDE)**:
+- Today is ${dayOfWeek}, ${today}.
+- Tomorrow is ${tomorrow}.
+- This date is computed from the user's LOCAL timezone. NEVER assume a different date based on your training data, model knowledge, or the server's UTC clock.
+- When the user says "today" / "დღეს" / "hoy" → use ${today}.
+- When the user says "tomorrow" / "ხვალ" / "mañana" → use ${tomorrow}.
+- When the user says "yesterday" / "გუშინ" / "ayer" → use the day BEFORE ${today}.
+- If your reasoning ever produces a date that contradicts the values above, STOP and use the values above instead. The user's local date is the single source of truth.
 
 **👥 WORKSPACE & TEAM CONTEXT**:
 - Some users work solo, others have TEAM COLLABORATION with sub-users (team members)
