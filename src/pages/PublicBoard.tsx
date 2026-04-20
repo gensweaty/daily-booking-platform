@@ -22,6 +22,7 @@ import { PublicBoardReminderNotifications } from "@/components/reminder/PublicBo
 import { PublicBoardTaskReminderNotifications } from "@/components/tasks/PublicBoardTaskReminderNotifications";
 import { PublicBoardEventReminderNotifications } from "@/components/Calendar/PublicBoardEventReminderNotifications";
 import { preloadNotificationSound, addMobileAudioUnlockListener } from "@/utils/audioManager";
+import { AnimatedRobotEye } from "@/components/shared/AnimatedRobotEye";
 
 // Password hashing utilities (PBKDF2, client-side)
 const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
@@ -700,14 +701,17 @@ const handleRegister = async () => {
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <img 
-                  src={theme === 'dark' 
-                    ? "/logo-dark.png"
-                    : "/logo-light.png"
-                  }
-                  alt="SmartBookly Logo" 
-                  className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
-                />
+                <div className="relative">
+                  <img 
+                    src={theme === 'dark' 
+                      ? "/logo-dark.png"
+                      : "/logo-light.png"
+                    }
+                    alt="SmartBookly Logo" 
+                    className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
+                  />
+                  <AnimatedRobotEye size={12} top="44%" left="11%" />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <LanguageSwitcher />
@@ -870,16 +874,19 @@ const handleRegister = async () => {
       <header className="bg-background/80 backdrop-blur-sm border-b border-border/40 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img 
-                src={theme === 'dark' 
-                  ? "/logo-dark.png"
-                  : "/logo-light.png"
-                }
-                alt="SmartBookly Logo" 
-                className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
-              />
-            </div>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <img 
+                    src={theme === 'dark' 
+                      ? "/logo-dark.png"
+                      : "/logo-light.png"
+                    }
+                    alt="SmartBookly Logo" 
+                    className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
+                  />
+                  <AnimatedRobotEye size={12} top="44%" left="11%" />
+                </div>
+              </div>
             <div className="flex items-center gap-3">
               <span className="hidden sm:inline text-sm text-muted-foreground">
                 Hello, <span className="font-semibold">{fullName}</span>

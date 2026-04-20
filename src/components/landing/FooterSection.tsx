@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { AnimatedRobotEye } from "@/components/shared/AnimatedRobotEye";
 import { useTheme } from "next-themes";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Facebook, Twitter, Instagram, Linkedin, Github } from "lucide-react";
@@ -63,11 +64,14 @@ const FooterSection = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="space-y-4">
             <Link to="/" className="inline-block">
-              <img 
-                src={currentLogo}
-                alt="SmartBookly Logo" 
-                className="h-10" 
-              />
+              <div className="relative">
+                <img 
+                  src={currentLogo}
+                  alt="SmartBookly Logo" 
+                  className="h-10" 
+                />
+                <AnimatedRobotEye size={12} top="44%" left="11%" />
+              </div>
             </Link>
             <p className="text-muted-foreground">
               <LanguageText>{t('footer.description')}</LanguageText>

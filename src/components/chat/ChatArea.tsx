@@ -13,6 +13,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
+import { AnimatedChatEye } from './AnimatedChatEye';
 
 type Message = {
   id: string;
@@ -1461,8 +1462,9 @@ export const ChatAreaLegacy = ({ onMessageInputFocus, isMinimized = false }: Cha
           <div className="flex items-center space-x-2 min-w-0 flex-1">
             {!isMinimized && (
               channelInfo?.is_ai ? (
-                <div className="h-10 w-10 rounded-full overflow-hidden flex-shrink-0 shadow-sm">
+                <div className="relative h-10 w-10 rounded-full overflow-hidden flex-shrink-0 shadow-sm">
                   <img src={aiRobotAvatar} alt="Smartbookly AI" className="w-full h-full object-cover" />
+                  <AnimatedChatEye size={12} />
                 </div>
               ) : channelInfo?.isDM && channelInfo?.dmPartner?.avatar ? (
                 <div className="h-10 w-10 rounded-full bg-muted overflow-hidden flex items-center justify-center flex-shrink-0">

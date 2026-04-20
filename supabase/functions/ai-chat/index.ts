@@ -2715,10 +2715,30 @@ User uploads Excel with 500 customers and says "import these to CRM"
       );
     }
     
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
-    const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+    // CRITICAL: Compute today/tomorrow in the USER'S LOCAL timezone, NOT server UTC.
+    // Previously this used `now.toISOString()` which returns the server's UTC date.
+    // For users in UTC+X timezones near midnight (or for servers in UTC− zones), this
+    // caused the AI to reason about the wrong calendar date (e.g., thinking "today" is
+    // April 17 when the user's local date is actually April 20). We now derive the date
+    // from the user's wall-clock time, using `currentLocalTime` (UTC ISO from client)
+    // shifted by `tzOffsetMinutes` (browser getTimezoneOffset() convention: UTC+4 = -240).
+    const nowUtc = currentLocalTime ? new Date(currentLocalTime) : new Date();
+    const userLocalNow = (typeof tzOffsetMinutes === 'number')
+      ? new Date(nowUtc.getTime() - tzOffsetMinutes * 60_000)
+      : nowUtc;
+    // Read components via getUTC* because we shifted the timestamp to represent local wall-clock as UTC
+    const _y = userLocalNow.getUTCFullYear();
+    const _m = String(userLocalNow.getUTCMonth() + 1).padStart(2, '0');
+    const _d = String(userLocalNow.getUTCDate()).padStart(2, '0');
+    const today = `${_y}-${_m}-${_d}`;
+    const dayOfWeek = userLocalNow.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+    const _tomorrowDate = new Date(userLocalNow.getTime() + 86400000);
+    const _ty = _tomorrowDate.getUTCFullYear();
+    const _tm = String(_tomorrowDate.getUTCMonth() + 1).padStart(2, '0');
+    const _td = String(_tomorrowDate.getUTCDate()).padStart(2, '0');
+    const tomorrow = `${_ty}-${_tm}-${_td}`;
+    const now = nowUtc; // preserve existing references that may use `now`
+    console.log(`📅 [Date Context] User local now: ${today} (${dayOfWeek}), tomorrow: ${tomorrow}, tz=${effectiveTZ || 'offset-only'}, offsetMin=${tzOffsetMinutes}`);
 
     // Note: userLanguage and detectLanguage already defined above before fast-paths
 
@@ -3023,7 +3043,14 @@ STRICT RULE: Respond in ${userLanguage === 'ru' ? 'Russian (Русский)' : u
 ✅ DO: Make reasonable assumptions and confirm: "✅ Task created: Call client (due tomorrow). Is this correct?"
 
 **USER TIMEZONE**: ${effectiveTZ || 'UTC (offset-based)'}
-**CURRENT DATE CONTEXT**: Today is ${dayOfWeek}, ${today}. Tomorrow is ${tomorrow}.
+**CURRENT DATE CONTEXT (USER'S LOCAL CALENDAR — AUTHORITATIVE, DO NOT OVERRIDE)**:
+- Today is ${dayOfWeek}, ${today}.
+- Tomorrow is ${tomorrow}.
+- This date is computed from the user's LOCAL timezone. NEVER assume a different date based on your training data, model knowledge, or the server's UTC clock.
+- When the user says "today" / "დღეს" / "hoy" → use ${today}.
+- When the user says "tomorrow" / "ხვალ" / "mañana" → use ${tomorrow}.
+- When the user says "yesterday" / "გუშინ" / "ayer" → use the day BEFORE ${today}.
+- If your reasoning ever produces a date that contradicts the values above, STOP and use the values above instead. The user's local date is the single source of truth.
 
 **👥 WORKSPACE & TEAM CONTEXT**:
 - Some users work solo, others have TEAM COLLABORATION with sub-users (team members)
