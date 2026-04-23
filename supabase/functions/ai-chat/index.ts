@@ -774,6 +774,82 @@ serve(async (req) => {
       });
     }
 
+    const pad2 = (value: number) => String(value).padStart(2, '0');
+    const relativeDayPatterns = {
+      today: [/\btoday\b/i, /\bდღეს\b/iu, /\bhoy\b/iu, /\bсегодня\b/iu],
+      tomorrow: [/\btomorrow\b/i, /\bხვალ\b/iu, /\bmañana\b/iu, /\bзавтра\b/iu],
+    } as const;
+    const promptHasRelativeDay = (kind: keyof typeof relativeDayPatterns) =>
+      relativeDayPatterns[kind].some((pattern) => pattern.test(prompt || ''));
+
+    const promptHasExplicitCalendarDate = (text: string) =>
+      /(?:\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}[\/.-]\d{1,2}(?:[\/.-]\d{2,4})?\b|\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b)/i.test(text);
+
+    const parseAbsoluteLocal = (value: string) => {
+      const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+      if (!match) return null;
+
+      return {
+        Y: Number(match[1]),
+        M: Number(match[2]),
+        D: Number(match[3]),
+        h: Number(match[4]),
+        m: Number(match[5]),
+      };
+    };
+
+    const shiftAbsoluteLocalByDays = (value: string, days: number) => {
+      const parsed = parseAbsoluteLocal(value);
+      if (!parsed) return value;
+
+      const shifted = new Date(Date.UTC(parsed.Y, parsed.M - 1, parsed.D + days, parsed.h, parsed.m, 0, 0));
+      return `${shifted.getUTCFullYear()}-${pad2(shifted.getUTCMonth() + 1)}-${pad2(shifted.getUTCDate())}T${pad2(shifted.getUTCHours())}:${pad2(shifted.getUTCMinutes())}`;
+    };
+
+    const getUserLocalNow = (base: Date) => {
+      if (typeof tzOffsetMinutes === 'number') {
+        return new Date(base.getTime() - tzOffsetMinutes * 60_000);
+      }
+
+      if (effectiveTZ) {
+        try {
+          const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: effectiveTZ,
+            hour12: false,
+            hourCycle: 'h23',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })
+            .formatToParts(base)
+            .reduce((acc, part) => {
+              acc[part.type] = part.value;
+              return acc;
+            }, {} as Record<string, string>);
+
+          return new Date(Date.UTC(
+            Number(parts.year),
+            Number(parts.month) - 1,
+            Number(parts.day),
+            Number(parts.hour),
+            Number(parts.minute),
+            Number(parts.second || '0'),
+            0,
+          ));
+        } catch (error) {
+          console.warn('⚠️ Failed to derive local wall-clock time from timezone:', error);
+        }
+      }
+
+      return base;
+    };
+
+    const getLocalDateKey = (localDate: Date) =>
+      `${localDate.getUTCFullYear()}-${pad2(localDate.getUTCMonth() + 1)}-${pad2(localDate.getUTCDate())}`;
+
     // Check if we have auth - for public board sub-users, there won't be an auth header
     const authHeader = req.headers.get('Authorization');
     const hasAuth = authHeader && authHeader !== 'Bearer undefined' && authHeader !== 'Bearer null';
@@ -1171,8 +1247,8 @@ serve(async (req) => {
         console.log(`🌍 Timezone offset minutes: ${tzOffsetMinutes}`);
         
         // Check if user explicitly said "TODAY" or "TOMORROW"
-        const hasToday = /\btoday\b/i.test(prompt);
-        const hasTomorrow = /\btomorrow\b/i.test(prompt);
+        const hasToday = promptHasRelativeDay('today');
+        const hasTomorrow = promptHasRelativeDay('tomorrow');
         
         console.log(`📅 Date context: TODAY=${hasToday}, TOMORROW=${hasTomorrow}`);
         
@@ -5981,6 +6057,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
               
               // 1) Base time is BROWSER time received from frontend
               const baseNow = currentLocalTime ? new Date(currentLocalTime) : new Date();
+              const localNow = getUserLocalNow(baseNow);
+              const promptWantsToday = promptHasRelativeDay('today');
+              const promptWantsTomorrow = promptHasRelativeDay('tomorrow');
+              const localTodayKey = getLocalDateKey(localNow);
+              const localTomorrowKey = getLocalDateKey(new Date(localNow.getTime() + 24 * 60 * 60 * 1000));
               
               // 2) Compute UTC remind time deterministically on server
               let remindAtUtc: Date;
@@ -5989,8 +6070,36 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
                 // Relative time: add offset to current browser time
                 remindAtUtc = new Date(baseNow.getTime() + offset_minutes * 60_000);
               } else if (absolute_local) {
+                let normalizedAbsoluteLocal = absolute_local;
+                let parsedLocal = parseAbsoluteLocal(normalizedAbsoluteLocal);
+
+                if (!parsedLocal) {
+                  toolResult = { success: false, error: 'absolute_local must use YYYY-MM-DDTHH:mm format.' };
+                  break;
+                }
+
+                if (promptWantsTomorrow && normalizedAbsoluteLocal.slice(0, 10) === localTodayKey) {
+                  normalizedAbsoluteLocal = shiftAbsoluteLocalByDays(normalizedAbsoluteLocal, 1);
+                  parsedLocal = parseAbsoluteLocal(normalizedAbsoluteLocal);
+                  console.log('📅 Corrected reminder date to tomorrow based on prompt intent:', normalizedAbsoluteLocal);
+                } else if (promptWantsToday && normalizedAbsoluteLocal.slice(0, 10) === localTomorrowKey) {
+                  normalizedAbsoluteLocal = shiftAbsoluteLocalByDays(normalizedAbsoluteLocal, -1);
+                  parsedLocal = parseAbsoluteLocal(normalizedAbsoluteLocal);
+                  console.log('📅 Corrected reminder date back to today based on prompt intent:', normalizedAbsoluteLocal);
+                }
+
+                const requestedLocalWallClock = new Date(Date.UTC(parsedLocal!.Y, parsedLocal!.M - 1, parsedLocal!.D, parsedLocal!.h, parsedLocal!.m, 0, 0));
+                const localNowWithBuffer = new Date(localNow.getTime() + 2000);
+                const promptMentionsSpecificDate = promptHasExplicitCalendarDate(prompt || '') || promptWantsToday || promptWantsTomorrow;
+
+                if (requestedLocalWallClock <= localNowWithBuffer && !promptMentionsSpecificDate) {
+                  normalizedAbsoluteLocal = shiftAbsoluteLocalByDays(normalizedAbsoluteLocal, 1);
+                  parsedLocal = parseAbsoluteLocal(normalizedAbsoluteLocal);
+                  console.log('⏭️ Shifted past time-only reminder to next day:', normalizedAbsoluteLocal);
+                }
+
                 // Absolute time: convert local wall time to UTC
-                const [d, t] = absolute_local.split('T');
+                const [d, t] = normalizedAbsoluteLocal.split('T');
                 const [Y, M, D] = d.split('-').map(Number);
                 const [h, m] = t.split(':').map(Number);
                 
