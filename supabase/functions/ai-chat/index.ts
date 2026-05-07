@@ -1072,6 +1072,12 @@ serve(async (req) => {
         }
       }
       
+      title = cleanReminderTitle(title) || 'Reminder';
+      if (isGenericReminderTitle(title)) {
+        const inferredTitle = await inferReminderTitleFromAttachments({ prompt, attachments });
+        if (inferredTitle) title = inferredTitle;
+      }
+
       console.log(`📝 Creating reminder: "${title}" in ${minutes} minute(s)`);
       
       try {
@@ -1252,6 +1258,12 @@ serve(async (req) => {
         }
       }
       
+      title = cleanReminderTitle(title) || 'Reminder';
+      if (isGenericReminderTitle(title)) {
+        const inferredTitle = await inferReminderTitleFromAttachments({ prompt, attachments });
+        if (inferredTitle) title = inferredTitle;
+      }
+
       console.log(`📝 Final title: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
       
       try {
