@@ -27,6 +27,25 @@ const sanitizeUuid = (value?: string | null) => {
 const sanitizeUuidArray = (values?: string[] | null) =>
   Array.from(new Set((values || []).map((value) => sanitizeUuid(value)).filter(Boolean) as string[]));
 
+const REMINDER_GENERIC_TITLE_REGEX = /^(?:this|that|it|thing|stuff|image|screenshot|photo|picture|file|document|attachment|reminder|about this|about that|about it)$/i;
+
+const cleanReminderTitle = (value?: string | null) => {
+  if (typeof value !== 'string') return '';
+
+  return value
+    .replace(/^['"“”‘’`]+|['"“”‘’`]+$/g, '')
+    .replace(/^about\s+/i, '')
+    .replace(/^to\s+/i, '')
+    .replace(/^for\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const isGenericReminderTitle = (value?: string | null) => {
+  const normalized = cleanReminderTitle(value);
+  return !normalized || REMINDER_GENERIC_TITLE_REGEX.test(normalized);
+};
+
 const buildConversationContent = (message: any) => {
   const labels: string[] = [];
 
