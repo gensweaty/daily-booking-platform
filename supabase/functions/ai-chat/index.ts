@@ -27,6 +27,25 @@ const sanitizeUuid = (value?: string | null) => {
 const sanitizeUuidArray = (values?: string[] | null) =>
   Array.from(new Set((values || []).map((value) => sanitizeUuid(value)).filter(Boolean) as string[]));
 
+const REMINDER_GENERIC_TITLE_REGEX = /^(?:this|that|it|thing|stuff|image|screenshot|photo|picture|file|document|attachment|reminder|about this|about that|about it)$/i;
+
+const cleanReminderTitle = (value?: string | null) => {
+  if (typeof value !== 'string') return '';
+
+  return value
+    .replace(/^['"“”‘’`]+|['"“”‘’`]+$/g, '')
+    .replace(/^about\s+/i, '')
+    .replace(/^to\s+/i, '')
+    .replace(/^for\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const isGenericReminderTitle = (value?: string | null) => {
+  const normalized = cleanReminderTitle(value);
+  return !normalized || REMINDER_GENERIC_TITLE_REGEX.test(normalized);
+};
+
 const buildConversationContent = (message: any) => {
   const labels: string[] = [];
 
@@ -1053,6 +1072,12 @@ serve(async (req) => {
         }
       }
       
+      title = cleanReminderTitle(title) || 'Reminder';
+      if (isGenericReminderTitle(title)) {
+        const inferredTitle = await inferReminderTitleFromAttachments({ prompt, attachments });
+        if (inferredTitle) title = inferredTitle;
+      }
+
       console.log(`📝 Creating reminder: "${title}" in ${minutes} minute(s)`);
       
       try {
@@ -1233,6 +1258,12 @@ serve(async (req) => {
         }
       }
       
+      title = cleanReminderTitle(title) || 'Reminder';
+      if (isGenericReminderTitle(title)) {
+        const inferredTitle = await inferReminderTitleFromAttachments({ prompt, attachments });
+        if (inferredTitle) title = inferredTitle;
+      }
+
       console.log(`📝 Final title: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
       
       try {
@@ -1933,6 +1964,110 @@ serve(async (req) => {
         return `[Error analyzing ${att.filename}]`;
       }
     }
+    async function inferReminderTitleFromAttachments({
+      prompt,
+      attachments,
+    }: {
+      prompt: string;
+      attachments: any[];
+    }) {
+      if (!attachments?.length) return null;
+
+      const imageInputs: Array<{ type: 'image_url'; image_url: { url: string } }> = [];
+
+      for (const att of attachments) {
+        const contentType = att?.content_type || '';
+        const filename = String(att?.filename || '').toLowerCase();
+        const isImage = contentType.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp)$/i.test(filename);
+        if (!isImage) continue;
+
+        try {
+          const { data: fileBlob, error } = await supabaseAdmin.storage
+            .from('chat_attachments')
+            .download(att.file_path);
+
+          if (error || !fileBlob) continue;
+
+          const arrayBuffer = await fileBlob.arrayBuffer();
+          const bytes = new Uint8Array(arrayBuffer);
+          let binary = '';
+          const chunkSize = 8192;
+
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            const chunk = bytes.subarray(i, i + chunkSize);
+            binary += String.fromCharCode.apply(null, Array.from(chunk));
+          }
+
+          const base64 = btoa(binary);
+          imageInputs.push({
+            type: 'image_url',
+            image_url: { url: `data:${contentType || 'image/png'};base64,${base64}` }
+          });
+        } catch (error) {
+          console.error('⚠️ Failed to prepare image attachment for reminder inference:', att?.filename, error);
+        }
+      }
+
+      if (!imageInputs.length) return null;
+
+      try {
+        const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+        if (!lovableApiKey) {
+          console.error('⚠️ LOVABLE_API_KEY missing for reminder attachment inference');
+          return null;
+        }
+
+        const inferenceResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              {
+                role: 'system',
+                content: 'You create short reminder subjects from uploaded screenshots/images. Return ONLY a concise noun phrase of 2-6 words that captures the real task or purpose shown in the image. Do not use vague words like this, that, it, screenshot, image, file, document, attachment, reminder. If the screenshot shows a form or application step, prefer actionable subjects like complete application form or finish lease application. No bullets, no quotes, no sentence.'
+              },
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'text',
+                    text: `User message: ${prompt}\nInfer the most useful reminder subject from the uploaded image context.`
+                  },
+                  ...imageInputs,
+                ]
+              }
+            ],
+            temperature: 0.1,
+            max_tokens: 30,
+          }),
+        });
+
+        if (!inferenceResponse.ok) {
+          const errorText = await inferenceResponse.text();
+          console.error('⚠️ Reminder attachment title inference failed:', inferenceResponse.status, errorText);
+          return null;
+        }
+
+        const inferenceResult = await inferenceResponse.json();
+        const inferredTitle = cleanReminderTitle(inferenceResult?.choices?.[0]?.message?.content);
+
+        if (!isGenericReminderTitle(inferredTitle)) {
+          console.log('🧠 Inferred reminder title from attachment:', inferredTitle);
+          return inferredTitle;
+        }
+
+        console.log('⚠️ Attachment inference returned generic reminder title:', inferredTitle);
+        return null;
+      } catch (error) {
+        console.error('⚠️ Reminder attachment title inference error:', error);
+        return null;
+      }
+    }
+
     // ---- END FILE ANALYSIS ----
 
     // ---- TASK HELPERS (resilient to schema drift) ----
