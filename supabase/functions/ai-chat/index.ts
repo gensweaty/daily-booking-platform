@@ -2011,10 +2011,16 @@ serve(async (req) => {
       if (!imageInputs.length) return null;
 
       try {
+        const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+        if (!lovableApiKey) {
+          console.error('⚠️ LOVABLE_API_KEY missing for reminder attachment inference');
+          return null;
+        }
+
         const inferenceResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            Authorization: `Bearer ${lovableApiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
