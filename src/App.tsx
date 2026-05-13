@@ -251,6 +251,7 @@ const AppContent = () => {
           <BusinessRouteInterceptor />
           <RouteAwareThemeProvider>
             <RouteAwareWrapper>
+              <SEOManager />
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/dashboard" element={<Index />} />
