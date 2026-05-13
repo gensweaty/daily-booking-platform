@@ -47,7 +47,7 @@ export const BusinessSEO = ({ business }: BusinessSEOProps) => {
       keywords: `${business.business_name}, business, booking, appointments, online scheduling`,
       ogTitle: title,
       ogDescription: description,
-      ogImage: business.cover_photo_url || '/og-image.png',
+      ogImage: business.cover_photo_url || `${SEO_CONFIG.siteUrl}/og-image.png`,
       canonicalUrl: `${SEO_CONFIG.siteUrl}/business/${businessSlug}`,
       hreflang: hreflangLinks,
       structuredData: businessSchema
