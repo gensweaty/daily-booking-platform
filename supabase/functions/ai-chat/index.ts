@@ -2096,6 +2096,78 @@ serve(async (req) => {
 
     // ---- END FILE ANALYSIS ----
 
+    // Infer a meaningful reminder title from RECENT CHAT CONTEXT when the user
+    // references prior messages with pronouns like "this", "that", "the screenshot", etc.
+    // Looks at the last few messages (user + assistant) including the AI's own summaries
+    // and uses Gemini to derive a concise actionable subject.
+    async function inferReminderTitleFromHistory({
+      prompt,
+      history,
+    }: {
+      prompt: string;
+      history: any[];
+    }) {
+      try {
+        if (!Array.isArray(history) || history.length === 0) return null;
+
+        const recent = history.slice(-8).filter((m: any) => typeof m?.content === 'string' && m.content.trim());
+        if (recent.length === 0) return null;
+
+        const transcript = recent
+          .map((m: any) => {
+            const role = m.role === 'assistant' ? 'Assistant' : (m.senderName || 'User');
+            return `${role}: ${String(m.content).slice(0, 800)}`;
+          })
+          .join('\n');
+
+        const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+        if (!lovableApiKey) return null;
+
+        const inferenceResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              {
+                role: 'system',
+                content: 'You write short, actionable reminder subjects (2-6 words) based on the recent chat context. The user said something vague like "remind me about this" and you must figure out what "this" refers to from the prior messages (including the assistant\'s own summaries of screenshots/files). Return ONLY the subject as a concise noun phrase — no quotes, no bullets, no full sentence. Never use vague words like this, that, it, image, screenshot, file, document, attachment, reminder. If the context is a form/application, prefer actionable phrases like "file confirmation statement" or "complete application form".',
+              },
+              {
+                role: 'user',
+                content: `Recent chat transcript (oldest first):\n${transcript}\n\nUser just asked: "${prompt}"\n\nWhat is the most useful, specific reminder subject?`,
+              },
+            ],
+            temperature: 0.1,
+            max_tokens: 30,
+          }),
+        });
+
+        if (!inferenceResponse.ok) {
+          const errorText = await inferenceResponse.text();
+          console.error('⚠️ History-based reminder title inference failed:', inferenceResponse.status, errorText);
+          return null;
+        }
+
+        const inferenceResult = await inferenceResponse.json();
+        const inferredTitle = cleanReminderTitle(inferenceResult?.choices?.[0]?.message?.content);
+
+        if (!isGenericReminderTitle(inferredTitle)) {
+          console.log('🧠 Inferred reminder title from chat history:', inferredTitle);
+          return inferredTitle;
+        }
+
+        console.log('⚠️ History inference returned generic reminder title:', inferredTitle);
+        return null;
+      } catch (error) {
+        console.error('⚠️ History-based reminder title inference error:', error);
+        return null;
+      }
+    }
+
     // ---- TASK HELPERS (resilient to schema drift) ----
     // DB uses: "todo" | "inprogress" | "done" (UI expects same)
     const TASK_DB_STATUSES = ["todo", "inprogress", "done"] as const;
