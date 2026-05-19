@@ -27,23 +27,49 @@ const sanitizeUuid = (value?: string | null) => {
 const sanitizeUuidArray = (values?: string[] | null) =>
   Array.from(new Set((values || []).map((value) => sanitizeUuid(value)).filter(Boolean) as string[]));
 
-const REMINDER_GENERIC_TITLE_REGEX = /^(?:this|that|it|thing|stuff|image|screenshot|photo|picture|file|document|attachment|reminder|about this|about that|about it)$/i;
+const REMINDER_GENERIC_TITLE_REGEX = /^(?:this|that|it|them|those|these|thing|stuff|image|screenshot|photo|picture|file|document|attachment|reminder|the (?:image|screenshot|photo|picture|file|document|attachment|email|message|form)|about (?:this|that|it|them))$/i;
+
+// Detects pronoun/anaphoric references in the user's request that depend on prior chat context
+const REMINDER_PRONOUN_REFERENCE_REGEX = /\b(?:about|of|on|regarding|re)\s+(?:this|that|it|them|these|those|the (?:image|screenshot|photo|picture|file|document|attachment|email|message|form|task|event|customer|reminder))\b/i;
 
 const cleanReminderTitle = (value?: string | null) => {
   if (typeof value !== 'string') return '';
 
-  return value
+  let v = value
     .replace(/^['"“”‘’`]+|['"“”‘’`]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Strip trailing connective time-phrases like "and tomorrow same time", "and tomorrow", "and at 16:00"
+  v = v
+    .replace(/\s+and\s+(?:tomorrow|today|tonight|later|then|also)(?:\s+(?:at\s+\d{1,2}(?::\d{2})?|same\s+time|same\s+hour))?\.?$/i, '')
+    .replace(/\s+and\s+at\s+\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?\.?$/i, '')
+    .replace(/\s+and\s+in\s+\d+\s*(?:minutes?|mins?|hours?|hrs?)\.?$/i, '')
+    .replace(/\s+(?:today|tomorrow|tonight)\s+(?:as\s+well|too|also)?\.?$/i, '')
+    .trim();
+
+  v = v
     .replace(/^about\s+/i, '')
     .replace(/^to\s+/i, '')
     .replace(/^for\s+/i, '')
-    .replace(/\s+/g, ' ')
+    .replace(/^and\s+/i, '')
     .trim();
+
+  return v;
 };
 
 const isGenericReminderTitle = (value?: string | null) => {
   const normalized = cleanReminderTitle(value);
-  return !normalized || REMINDER_GENERIC_TITLE_REGEX.test(normalized);
+  if (!normalized) return true;
+  if (REMINDER_GENERIC_TITLE_REGEX.test(normalized)) return true;
+  // Treat short pronoun-only phrases as generic too
+  if (/^(?:this|that|it|them|the\s+\w+)$/i.test(normalized)) return true;
+  return false;
+};
+
+const promptHasPronounReference = (prompt?: string | null) => {
+  if (typeof prompt !== 'string' || !prompt.trim()) return false;
+  return REMINDER_PRONOUN_REFERENCE_REGEX.test(prompt);
 };
 
 const buildConversationContent = (message: any) => {
