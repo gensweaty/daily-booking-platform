@@ -27,23 +27,49 @@ const sanitizeUuid = (value?: string | null) => {
 const sanitizeUuidArray = (values?: string[] | null) =>
   Array.from(new Set((values || []).map((value) => sanitizeUuid(value)).filter(Boolean) as string[]));
 
-const REMINDER_GENERIC_TITLE_REGEX = /^(?:this|that|it|thing|stuff|image|screenshot|photo|picture|file|document|attachment|reminder|about this|about that|about it)$/i;
+const REMINDER_GENERIC_TITLE_REGEX = /^(?:this|that|it|them|those|these|thing|stuff|image|screenshot|photo|picture|file|document|attachment|reminder|the (?:image|screenshot|photo|picture|file|document|attachment|email|message|form)|about (?:this|that|it|them))$/i;
+
+// Detects pronoun/anaphoric references in the user's request that depend on prior chat context
+const REMINDER_PRONOUN_REFERENCE_REGEX = /\b(?:about|of|on|regarding|re)\s+(?:this|that|it|them|these|those|the (?:image|screenshot|photo|picture|file|document|attachment|email|message|form|task|event|customer|reminder))\b/i;
 
 const cleanReminderTitle = (value?: string | null) => {
   if (typeof value !== 'string') return '';
 
-  return value
+  let v = value
     .replace(/^['"“”‘’`]+|['"“”‘’`]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Strip trailing connective time-phrases like "and tomorrow same time", "and tomorrow", "and at 16:00"
+  v = v
+    .replace(/\s+and\s+(?:tomorrow|today|tonight|later|then|also)(?:\s+(?:at\s+\d{1,2}(?::\d{2})?|same\s+time|same\s+hour))?\.?$/i, '')
+    .replace(/\s+and\s+at\s+\d{1,2}(?::\d{2})?(?:\s*(?:am|pm))?\.?$/i, '')
+    .replace(/\s+and\s+in\s+\d+\s*(?:minutes?|mins?|hours?|hrs?)\.?$/i, '')
+    .replace(/\s+(?:today|tomorrow|tonight)\s+(?:as\s+well|too|also)?\.?$/i, '')
+    .trim();
+
+  v = v
     .replace(/^about\s+/i, '')
     .replace(/^to\s+/i, '')
     .replace(/^for\s+/i, '')
-    .replace(/\s+/g, ' ')
+    .replace(/^and\s+/i, '')
     .trim();
+
+  return v;
 };
 
 const isGenericReminderTitle = (value?: string | null) => {
   const normalized = cleanReminderTitle(value);
-  return !normalized || REMINDER_GENERIC_TITLE_REGEX.test(normalized);
+  if (!normalized) return true;
+  if (REMINDER_GENERIC_TITLE_REGEX.test(normalized)) return true;
+  // Treat short pronoun-only phrases as generic too
+  if (/^(?:this|that|it|them|the\s+\w+)$/i.test(normalized)) return true;
+  return false;
+};
+
+const promptHasPronounReference = (prompt?: string | null) => {
+  if (typeof prompt !== 'string' || !prompt.trim()) return false;
+  return REMINDER_PRONOUN_REFERENCE_REGEX.test(prompt);
 };
 
 const buildConversationContent = (message: any) => {
@@ -1073,9 +1099,20 @@ serve(async (req) => {
       }
       
       title = cleanReminderTitle(title) || 'Reminder';
-      if (isGenericReminderTitle(title)) {
-        const inferredTitle = await inferReminderTitleFromAttachments({ prompt, attachments });
-        if (inferredTitle) title = inferredTitle;
+      {
+        const needsContextInference = isGenericReminderTitle(title) || promptHasPronounReference(prompt);
+        if (needsContextInference) {
+          const inferredFromAttachments = await inferReminderTitleFromAttachments({ prompt, attachments });
+          if (inferredFromAttachments) {
+            title = inferredFromAttachments;
+          } else {
+            const inferredFromHistory = await inferReminderTitleFromHistory({
+              prompt,
+              history: normalizedConversationHistory,
+            });
+            if (inferredFromHistory) title = inferredFromHistory;
+          }
+        }
       }
 
       console.log(`📝 Creating reminder: "${title}" in ${minutes} minute(s)`);
@@ -1259,9 +1296,20 @@ serve(async (req) => {
       }
       
       title = cleanReminderTitle(title) || 'Reminder';
-      if (isGenericReminderTitle(title)) {
-        const inferredTitle = await inferReminderTitleFromAttachments({ prompt, attachments });
-        if (inferredTitle) title = inferredTitle;
+      {
+        const needsContextInference = isGenericReminderTitle(title) || promptHasPronounReference(prompt);
+        if (needsContextInference) {
+          const inferredFromAttachments = await inferReminderTitleFromAttachments({ prompt, attachments });
+          if (inferredFromAttachments) {
+            title = inferredFromAttachments;
+          } else {
+            const inferredFromHistory = await inferReminderTitleFromHistory({
+              prompt,
+              history: normalizedConversationHistory,
+            });
+            if (inferredFromHistory) title = inferredFromHistory;
+          }
+        }
       }
 
       console.log(`📝 Final title: "${title}" at ${hours}:${String(minutes).padStart(2, '0')}`);
@@ -2069,6 +2117,78 @@ serve(async (req) => {
     }
 
     // ---- END FILE ANALYSIS ----
+
+    // Infer a meaningful reminder title from RECENT CHAT CONTEXT when the user
+    // references prior messages with pronouns like "this", "that", "the screenshot", etc.
+    // Looks at the last few messages (user + assistant) including the AI's own summaries
+    // and uses Gemini to derive a concise actionable subject.
+    async function inferReminderTitleFromHistory({
+      prompt,
+      history,
+    }: {
+      prompt: string;
+      history: any[];
+    }) {
+      try {
+        if (!Array.isArray(history) || history.length === 0) return null;
+
+        const recent = history.slice(-8).filter((m: any) => typeof m?.content === 'string' && m.content.trim());
+        if (recent.length === 0) return null;
+
+        const transcript = recent
+          .map((m: any) => {
+            const role = m.role === 'assistant' ? 'Assistant' : (m.senderName || 'User');
+            return `${role}: ${String(m.content).slice(0, 800)}`;
+          })
+          .join('\n');
+
+        const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+        if (!lovableApiKey) return null;
+
+        const inferenceResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              {
+                role: 'system',
+                content: 'You write short, actionable reminder subjects (2-6 words) based on the recent chat context. The user said something vague like "remind me about this" and you must figure out what "this" refers to from the prior messages (including the assistant\'s own summaries of screenshots/files). Return ONLY the subject as a concise noun phrase — no quotes, no bullets, no full sentence. Never use vague words like this, that, it, image, screenshot, file, document, attachment, reminder. If the context is a form/application, prefer actionable phrases like "file confirmation statement" or "complete application form".',
+              },
+              {
+                role: 'user',
+                content: `Recent chat transcript (oldest first):\n${transcript}\n\nUser just asked: "${prompt}"\n\nWhat is the most useful, specific reminder subject?`,
+              },
+            ],
+            temperature: 0.1,
+            max_tokens: 30,
+          }),
+        });
+
+        if (!inferenceResponse.ok) {
+          const errorText = await inferenceResponse.text();
+          console.error('⚠️ History-based reminder title inference failed:', inferenceResponse.status, errorText);
+          return null;
+        }
+
+        const inferenceResult = await inferenceResponse.json();
+        const inferredTitle = cleanReminderTitle(inferenceResult?.choices?.[0]?.message?.content);
+
+        if (!isGenericReminderTitle(inferredTitle)) {
+          console.log('🧠 Inferred reminder title from chat history:', inferredTitle);
+          return inferredTitle;
+        }
+
+        console.log('⚠️ History inference returned generic reminder title:', inferredTitle);
+        return null;
+      } catch (error) {
+        console.error('⚠️ History-based reminder title inference error:', error);
+        return null;
+      }
+    }
 
     // ---- TASK HELPERS (resilient to schema drift) ----
     // DB uses: "todo" | "inprogress" | "done" (UI expects same)
