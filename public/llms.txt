@@ -1,0 +1,16 @@
+# Smartbookly
+
+> All-in-One CRM, Bookings, Task Management, Calendar and AI Assistant for modern businesses.
+
+Smartbookly is a SaaS productivity platform that combines customer relationship management, an online booking system, calendar scheduling, task management and team chat in one place — augmented by an AI assistant that helps create reminders, manage events and analyze customers.
+
+## Pages
+
+- [Home](/): Product overview, features and pricing.
+- [Contact](/contact): Get in touch with the Smartbookly team.
+- [Legal](/legal): Terms of service and privacy policy.
+
+## Optional
+
+- [Spanish homepage](/?lang=es)
+- [Georgian homepage](/?lang=ka)

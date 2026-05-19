@@ -42,7 +42,10 @@ export const SEOManager = () => {
     
     let title = langConfig.title;
     let description = langConfig.description;
-    let structuredData: any = [generateOrganizationSchema()];
+    let structuredData: any = [
+      generateOrganizationSchema(),
+      generateWebsiteSchema(),
+    ];
     
     // Page-specific SEO
     if (currentPath === '/contact') {
@@ -55,6 +58,14 @@ export const SEOManager = () => {
         { name: 'Home', url: SEO_CONFIG.siteUrl },
         { name: 'Contact', url: `${SEO_CONFIG.siteUrl}/contact` }
       ]));
+      structuredData.push({
+        "@context": "https://schema.org",
+        "@type": "LocalBusiness",
+        "name": "Smartbookly",
+        "url": SEO_CONFIG.siteUrl,
+        "telephone": "+995 598 57 47 42",
+        "email": "info@smartbookly.com",
+      });
     } else if (currentPath === '/legal') {
       const legalConfig = SEO_CONFIG.pages.legal[currentLang as keyof typeof SEO_CONFIG.pages.legal];
       if (legalConfig) {
@@ -65,9 +76,6 @@ export const SEOManager = () => {
         { name: 'Home', url: SEO_CONFIG.siteUrl },
         { name: 'Legal', url: `${SEO_CONFIG.siteUrl}/legal` }
       ]));
-    } else if (currentPath === '/') {
-      // Homepage gets website schema
-      structuredData.push(generateWebsiteSchema());
     }
     
     // Update meta tags
