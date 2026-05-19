@@ -1099,9 +1099,20 @@ serve(async (req) => {
       }
       
       title = cleanReminderTitle(title) || 'Reminder';
-      if (isGenericReminderTitle(title)) {
-        const inferredTitle = await inferReminderTitleFromAttachments({ prompt, attachments });
-        if (inferredTitle) title = inferredTitle;
+      {
+        const needsContextInference = isGenericReminderTitle(title) || promptHasPronounReference(prompt);
+        if (needsContextInference) {
+          const inferredFromAttachments = await inferReminderTitleFromAttachments({ prompt, attachments });
+          if (inferredFromAttachments) {
+            title = inferredFromAttachments;
+          } else {
+            const inferredFromHistory = await inferReminderTitleFromHistory({
+              prompt,
+              history: normalizedConversationHistory,
+            });
+            if (inferredFromHistory) title = inferredFromHistory;
+          }
+        }
       }
 
       console.log(`📝 Creating reminder: "${title}" in ${minutes} minute(s)`);
