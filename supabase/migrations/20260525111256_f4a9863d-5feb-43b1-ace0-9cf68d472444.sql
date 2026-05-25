@@ -1,0 +1,1 @@
+TRUNCATE net._http_response;
