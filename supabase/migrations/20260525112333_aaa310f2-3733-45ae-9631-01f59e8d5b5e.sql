@@ -1,0 +1,1 @@
+DELETE FROM supabase_functions.hooks WHERE id IN (SELECT id FROM supabase_functions.hooks WHERE created_at < now() - interval '7 days' ORDER BY created_at LIMIT 300000);
