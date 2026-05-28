@@ -1953,7 +1953,7 @@ serve(async (req) => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
+                model: "google/gemini-3.1-flash-lite-preview",
                 messages: [
                   {
                     role: "user",
@@ -2072,7 +2072,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model: 'google/gemini-3.1-flash-lite-preview',
             messages: [
               {
                 role: 'system',
@@ -2152,7 +2152,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model: 'google/gemini-3.1-flash-lite-preview',
             messages: [
               {
                 role: 'system',
@@ -4614,7 +4614,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3.1-flash-lite-preview",
         messages,
         tools,
         tool_choice: "auto",
@@ -8264,7 +8264,7 @@ Be direct. Be concise. No extra text.`
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-3.1-flash-lite-preview",
           messages: [...finalMessages, responsePrompt],
           temperature: 0.7,
           max_tokens: 2048
