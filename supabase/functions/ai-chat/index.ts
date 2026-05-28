@@ -4691,9 +4691,82 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     }
 
     const aiResult = await response.json();
-    const message = aiResult.choices[0].message;
+    let message = aiResult.choices[0].message;
 
     console.log('📨 AI response received, tool calls:', message.tool_calls?.length || 0);
+
+    // ============================================================
+    // 🛡️ ANTI-HALLUCINATION GUARD
+    // If the user issued an action command (create/add/update/delete a
+    // customer/event/task/reminder/note) but the model returned plain text
+    // WITHOUT calling any tool, the model is hallucinating success.
+    // Retry once with a smarter model AND tool_choice forced to "required".
+    // ============================================================
+    const hasToolCalls = !!(message.tool_calls && message.tool_calls.length > 0);
+    const lowerPrompt = String(prompt || '').toLowerCase();
+    const ACTION_VERBS = /\b(add|create|new|make|update|edit|change|modify|set|delete|remove|cancel|mark|rename|move|attach|upload|import|register|book|schedule|remind|alert|notify)\b/;
+    const ACTION_ENTITIES = /\b(customer|client|contact|lead|event|booking|appointment|meeting|task|todo|to-do|checklist|reminder|note|file|attachment|document)\b/;
+    const looksLikeAction = ACTION_VERBS.test(lowerPrompt) && ACTION_ENTITIES.test(lowerPrompt);
+    const responseText = String(message.content || '').toLowerCase();
+    const claimsSuccess = /\b(created|updated|added|deleted|removed|scheduled|booked|saved|set|done|attached|uploaded|imported|marked)\b/.test(responseText)
+      || /✅|☑|✔/.test(message.content || '');
+
+    if (!hasToolCalls && looksLikeAction && claimsSuccess) {
+      console.warn('⚠️ HALLUCINATION DETECTED: action prompt + success claim + no tool calls. Retrying with tool_choice=required…');
+      try {
+        const retryMessages = [
+          ...messages,
+          {
+            role: 'system',
+            content: `CRITICAL CORRECTION: Your previous reply claimed an action was performed but you did NOT call any tool. NEVER fabricate success. You MUST invoke the correct tool now to actually perform the user's request:
+- "customer/client/contact/lead" → create_or_update_customer
+- "event/booking/appointment/meeting" → create_or_update_event
+- "task/todo/checklist" → create_or_update_task
+- "reminder/alert/notify" → create_custom_reminder
+Call the matching tool with the exact details from the user's last message. Do not reply with text — call the tool.`
+          }
+        ];
+        const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: retryMessages,
+            tools,
+            tool_choice: "required",
+            temperature: 0.2,
+            max_tokens: 2048
+          }),
+        });
+        if (retryResp.ok) {
+          const retryJson = await retryResp.json();
+          const retryMsg = retryJson?.choices?.[0]?.message;
+          if (retryMsg && retryMsg.tool_calls && retryMsg.tool_calls.length > 0) {
+            console.log('✅ Retry succeeded with', retryMsg.tool_calls.length, 'tool call(s)');
+            message = retryMsg;
+          } else {
+            console.warn('⚠️ Retry returned no tool calls either — surfacing honest failure to user');
+            message = {
+              ...message,
+              content: "I wasn't able to perform that action automatically. Could you rephrase it more explicitly? For example: \"create customer named John, phone 555-1234\", \"create event titled Meeting tomorrow 3pm\", \"create task Buy milk\", or \"remind me at 5pm to call mom\".",
+              tool_calls: undefined,
+            };
+          }
+        } else {
+          console.error('❌ Retry HTTP error:', retryResp.status);
+          message = {
+            ...message,
+            content: "I couldn't complete that action. Please try rephrasing — e.g. \"add customer named John, phone 555-1234\".",
+            tool_calls: undefined,
+          };
+        }
+      } catch (retryErr) {
+        console.error('❌ Retry threw:', retryErr);
+      }
+    }
 
     // 4. Execute any tool calls (read-only)
     let finalMessages = [...messages, message];
