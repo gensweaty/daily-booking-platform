@@ -1,0 +1,1 @@
+DELETE FROM supabase_functions.hooks WHERE id >= 1900000 AND id < 2300000 AND created_at < now() - interval '7 days';
