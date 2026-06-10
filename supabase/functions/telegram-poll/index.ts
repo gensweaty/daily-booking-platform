@@ -390,7 +390,14 @@ async function processBotUpdates(
     // Build prompt for AI
     let aiPrompt = messageText || '';
     if (uploadedFile && !aiPrompt) {
-      aiPrompt = `I've sent a file: ${uploadedFile.filename} (${uploadedFile.content_type}). Please analyze it.`;
+      const kind = uploadedFile.content_type.startsWith('image/')
+        ? 'image'
+        : uploadedFile.content_type.startsWith('audio/')
+          ? 'voice/audio message'
+          : uploadedFile.content_type === 'application/pdf'
+            ? 'PDF document'
+            : 'file';
+      aiPrompt = `I've sent you a ${kind} (${uploadedFile.filename}). Please analyze its contents and tell me what's in it. If it's a voice message, transcribe it and respond to what I said.`;
     } else if (uploadedFile && aiPrompt) {
       aiPrompt = `${aiPrompt}\n\n[Attached file: ${uploadedFile.filename} (${uploadedFile.content_type})]`;
     }
@@ -430,6 +437,34 @@ async function processBotUpdates(
 
     console.log(`🌍 Timezone: ${userTimezone}, offset: ${tzOffsetMinutes} min, now: ${currentLocalTimeISO}`);
 
+    // Backfill recent conversation history so AI has memory of previously
+    // sent files / messages (mirrors website chat behavior).
+    let conversationHistory: any[] = [];
+    try {
+      const { data: recentMsgs } = await supabase
+        .from('chat_messages')
+        .select('id, sender_type, sender_name, content, message_type, has_attachments')
+        .eq('channel_id', aiChannelId)
+        .eq('owner_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      conversationHistory = (recentMsgs || [])
+        .reverse()
+        .map((m: any) => ({
+          role: m.sender_name === 'Smartbookly AI' ? 'assistant' : 'user',
+          content: m.has_attachments && !m.content ? '[file attachment]' : (m.content || ''),
+          messageId: m.id,
+          senderType: m.sender_type,
+          senderName: m.sender_name,
+          messageType: m.message_type,
+        }))
+        .filter((m: any) => !!m.content);
+      console.log(`🧠 Loaded ${conversationHistory.length} prior messages for AI context`);
+    } catch (histErr) {
+      console.error('⚠️ Failed to backfill conversation history:', histErr);
+    }
+
     // Call ai-chat edge function
     try {
       const aiResponse = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
@@ -442,7 +477,7 @@ async function processBotUpdates(
           channelId: aiChannelId,
           prompt: aiPrompt,
           ownerId: userId,
-          conversationHistory: [],
+          conversationHistory,
           userTimezone: userTimezone,
           tzOffsetMinutes: tzOffsetMinutes,
           currentLocalTime: currentLocalTimeISO,
