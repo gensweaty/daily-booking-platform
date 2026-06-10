@@ -341,6 +341,8 @@ async function processBotUpdates(
     let uploadedFile: { file_path: string; filename: string; content_type: string; size: number } | null = null;
     if (hasFile) {
       console.log(`📁 Downloading file: ${fileInfo!.filename} (${fileInfo!.contentType})`);
+      // Let user know we're working on it (Telegram clears action after ~5s)
+      sendChatAction(botToken, chatId, fileInfo!.contentType).catch(() => {});
       uploadedFile = await downloadAndUploadFile(botToken, supabase, userId, fileInfo!);
       if (uploadedFile) {
         console.log(`✅ File ready: ${uploadedFile.file_path}`);
@@ -466,6 +468,12 @@ async function processBotUpdates(
     }
 
     // Call ai-chat edge function
+    // Keep "typing…" indicator alive while AI processes (Telegram action expires every ~5s)
+    const typingInterval = setInterval(() => {
+      sendChatAction(botToken, chatId, 'typing').catch(() => {});
+    }, 4000);
+    // Fire one immediately so the indicator appears without delay
+    sendChatAction(botToken, chatId, 'typing').catch(() => {});
     try {
       const aiResponse = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
         method: 'POST',
@@ -509,6 +517,8 @@ async function processBotUpdates(
       await sendTelegramMessage(botToken, chatId,
         '⚠️ Sorry, I encountered an error processing your message. Please try again.'
       );
+    } finally {
+      clearInterval(typingInterval);
     }
   }
 }
