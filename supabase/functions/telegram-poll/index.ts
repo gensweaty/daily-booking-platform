@@ -390,7 +390,14 @@ async function processBotUpdates(
     // Build prompt for AI
     let aiPrompt = messageText || '';
     if (uploadedFile && !aiPrompt) {
-      aiPrompt = `I've sent a file: ${uploadedFile.filename} (${uploadedFile.content_type}). Please analyze it.`;
+      const kind = uploadedFile.content_type.startsWith('image/')
+        ? 'image'
+        : uploadedFile.content_type.startsWith('audio/')
+          ? 'voice/audio message'
+          : uploadedFile.content_type === 'application/pdf'
+            ? 'PDF document'
+            : 'file';
+      aiPrompt = `I've sent you a ${kind} (${uploadedFile.filename}). Please analyze its contents and tell me what's in it. If it's a voice message, transcribe it and respond to what I said.`;
     } else if (uploadedFile && aiPrompt) {
       aiPrompt = `${aiPrompt}\n\n[Attached file: ${uploadedFile.filename} (${uploadedFile.content_type})]`;
     }
