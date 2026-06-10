@@ -547,6 +547,33 @@ async function ensureAIChannel(supabase: ReturnType<typeof createClient>, userId
 }
 
 async function sendTelegramMessage(botToken: string, chatId: number, text: string) {
+  // helper sits above
+}
+
+// Map a content type to the most appropriate Telegram chat action so the
+// user sees a contextual indicator (e.g. "uploading photo…", "recording…").
+function chatActionForContentType(contentType: string): string {
+  if (contentType === 'typing') return 'typing';
+  if (contentType.startsWith('image/')) return 'upload_photo';
+  if (contentType.startsWith('audio/')) return 'record_voice';
+  if (contentType.startsWith('video/')) return 'upload_video';
+  return 'upload_document';
+}
+
+async function sendChatAction(botToken: string, chatId: number, contentTypeOrAction: string) {
+  const action = chatActionForContentType(contentTypeOrAction);
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendChatAction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, action }),
+    });
+  } catch (err) {
+    console.error('⚠️ sendChatAction failed:', err);
+  }
+}
+
+async function _sendTelegramMessageImpl(botToken: string, chatId: number, text: string) {
   const chunks = [];
   let remaining = text;
   while (remaining.length > 0) {
