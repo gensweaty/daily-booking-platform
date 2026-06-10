@@ -546,10 +546,6 @@ async function ensureAIChannel(supabase: ReturnType<typeof createClient>, userId
   return null;
 }
 
-async function sendTelegramMessage(botToken: string, chatId: number, text: string) {
-  // helper sits above
-}
-
 // Map a content type to the most appropriate Telegram chat action so the
 // user sees a contextual indicator (e.g. "uploading photo…", "recording…").
 function chatActionForContentType(contentType: string): string {
@@ -573,7 +569,7 @@ async function sendChatAction(botToken: string, chatId: number, contentTypeOrAct
   }
 }
 
-async function _sendTelegramMessageImpl(botToken: string, chatId: number, text: string) {
+async function sendTelegramMessage(botToken: string, chatId: number, text: string) {
   const chunks = [];
   let remaining = text;
   while (remaining.length > 0) {
