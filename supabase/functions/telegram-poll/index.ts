@@ -447,13 +447,14 @@ async function processBotUpdates(
     // sent files / messages (mirrors website chat behavior).
     let conversationHistory: any[] = [];
     try {
+      // Match website behavior (60 messages) for parity in context recall.
       const { data: recentMsgs } = await supabase
         .from('chat_messages')
         .select('id, sender_type, sender_name, content, message_type, has_attachments')
         .eq('channel_id', aiChannelId)
         .eq('owner_id', userId)
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(60);
 
       conversationHistory = (recentMsgs || [])
         .reverse()
