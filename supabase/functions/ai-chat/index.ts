@@ -3984,7 +3984,7 @@ Step 4: Done - do NOT add any text response
 
 If the SAME user message asks to create/update a task (or event) AND attach a reminder to it (e.g. "add task X and remind me in 2 minutes", "create task anania, add reminder after 2 minutes on that task", "new event meeting tomorrow 3pm, remind me 10 min before"):
 - DO NOT call create_custom_reminder. That creates a separate generic reminder, which is WRONG.
-- Instead call create_or_update_task (or create_or_update_event) ONCE, passing BOTH the task fields AND the `reminder` parameter as an ISO timestamp.
+- Instead call create_or_update_task (or create_or_update_event) ONCE, passing BOTH the task fields AND the reminder parameter as an ISO timestamp.
 - The task itself carries the reminder. The user will get a task reminder notification, not an unrelated custom reminder.
 
 Examples:
