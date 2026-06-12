@@ -269,6 +269,19 @@ async function processBotUpdates(
 
   console.log(`📨 ${updates.length} new update(s) for @${config.bot_username}`);
 
+  // 🟢 Fire typing indicator for EVERY incoming chat IMMEDIATELY,
+  // before we start the sequential per-update processing. Otherwise the
+  // user who sent update #2 sees nothing while update #1's AI call runs.
+  const seenChatIds = new Set<number>();
+  for (const u of updates) {
+    const cid = u.message?.chat?.id;
+    if (cid && !seenChatIds.has(cid)) {
+      seenChatIds.add(cid);
+      // Await so the request actually leaves before we move on to heavy work.
+      await sendChatAction(botToken, cid, 'typing').catch(() => {});
+    }
+  }
+
   for (const update of updates) {
     const message = update.message;
     if (!message) continue;
@@ -276,6 +289,10 @@ async function processBotUpdates(
     const chatId = message.chat.id;
     const senderName = [message.from?.first_name, message.from?.last_name]
       .filter(Boolean).join(' ') || 'Telegram User';
+
+    // Refresh typing indicator for THIS chat right before its processing starts
+    // (Telegram clears the action after ~5s). Awaited so it flushes immediately.
+    await sendChatAction(botToken, chatId, 'typing').catch(() => {});
 
     const messageText = message.text || message.caption || '';
     const fileInfo = extractFileInfo(message);
@@ -341,6 +358,8 @@ async function processBotUpdates(
     let uploadedFile: { file_path: string; filename: string; content_type: string; size: number } | null = null;
     if (hasFile) {
       console.log(`📁 Downloading file: ${fileInfo!.filename} (${fileInfo!.contentType})`);
+      // Let user know we're working on it (Telegram clears action after ~5s)
+      sendChatAction(botToken, chatId, fileInfo!.contentType).catch(() => {});
       uploadedFile = await downloadAndUploadFile(botToken, supabase, userId, fileInfo!);
       if (uploadedFile) {
         console.log(`✅ File ready: ${uploadedFile.file_path}`);
@@ -390,7 +409,14 @@ async function processBotUpdates(
     // Build prompt for AI
     let aiPrompt = messageText || '';
     if (uploadedFile && !aiPrompt) {
-      aiPrompt = `I've sent a file: ${uploadedFile.filename} (${uploadedFile.content_type}). Please analyze it.`;
+      const kind = uploadedFile.content_type.startsWith('image/')
+        ? 'image'
+        : uploadedFile.content_type.startsWith('audio/')
+          ? 'voice/audio message'
+          : uploadedFile.content_type === 'application/pdf'
+            ? 'PDF document'
+            : 'file';
+      aiPrompt = `I've sent you a ${kind} (${uploadedFile.filename}). Please analyze its contents and tell me what's in it. If it's a voice message, transcribe it and respond to what I said.`;
     } else if (uploadedFile && aiPrompt) {
       aiPrompt = `${aiPrompt}\n\n[Attached file: ${uploadedFile.filename} (${uploadedFile.content_type})]`;
     }
@@ -430,7 +456,42 @@ async function processBotUpdates(
 
     console.log(`🌍 Timezone: ${userTimezone}, offset: ${tzOffsetMinutes} min, now: ${currentLocalTimeISO}`);
 
+    // Backfill recent conversation history so AI has memory of previously
+    // sent files / messages (mirrors website chat behavior).
+    let conversationHistory: any[] = [];
+    try {
+      // Match website behavior (60 messages) for parity in context recall.
+      const { data: recentMsgs } = await supabase
+        .from('chat_messages')
+        .select('id, sender_type, sender_name, content, message_type, has_attachments')
+        .eq('channel_id', aiChannelId)
+        .eq('owner_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(60);
+
+      conversationHistory = (recentMsgs || [])
+        .reverse()
+        .map((m: any) => ({
+          role: m.sender_name === 'Smartbookly AI' ? 'assistant' : 'user',
+          content: m.has_attachments && !m.content ? '[file attachment]' : (m.content || ''),
+          messageId: m.id,
+          senderType: m.sender_type,
+          senderName: m.sender_name,
+          messageType: m.message_type,
+        }))
+        .filter((m: any) => !!m.content);
+      console.log(`🧠 Loaded ${conversationHistory.length} prior messages for AI context`);
+    } catch (histErr) {
+      console.error('⚠️ Failed to backfill conversation history:', histErr);
+    }
+
     // Call ai-chat edge function
+    // Keep "typing…" indicator alive while AI processes (Telegram action expires every ~5s)
+    const typingInterval = setInterval(() => {
+      sendChatAction(botToken, chatId, 'typing').catch(() => {});
+    }, 4000);
+    // Fire one immediately so the indicator appears without delay
+    sendChatAction(botToken, chatId, 'typing').catch(() => {});
     try {
       const aiResponse = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
         method: 'POST',
@@ -442,7 +503,7 @@ async function processBotUpdates(
           channelId: aiChannelId,
           prompt: aiPrompt,
           ownerId: userId,
-          conversationHistory: [],
+          conversationHistory,
           userTimezone: userTimezone,
           tzOffsetMinutes: tzOffsetMinutes,
           currentLocalTime: currentLocalTimeISO,
@@ -474,6 +535,8 @@ async function processBotUpdates(
       await sendTelegramMessage(botToken, chatId,
         '⚠️ Sorry, I encountered an error processing your message. Please try again.'
       );
+    } finally {
+      clearInterval(typingInterval);
     }
   }
 }
@@ -499,6 +562,29 @@ async function ensureAIChannel(supabase: ReturnType<typeof createClient>, userId
   }
 
   return null;
+}
+
+// Map a content type to the most appropriate Telegram chat action so the
+// user sees a contextual indicator (e.g. "uploading photo…", "recording…").
+function chatActionForContentType(contentType: string): string {
+  if (contentType === 'typing') return 'typing';
+  if (contentType.startsWith('image/')) return 'upload_photo';
+  if (contentType.startsWith('audio/')) return 'record_voice';
+  if (contentType.startsWith('video/')) return 'upload_video';
+  return 'upload_document';
+}
+
+async function sendChatAction(botToken: string, chatId: number, contentTypeOrAction: string) {
+  const action = chatActionForContentType(contentTypeOrAction);
+  try {
+    await fetch(`https://api.telegram.org/bot${botToken}/sendChatAction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, action }),
+    });
+  } catch (err) {
+    console.error('⚠️ sendChatAction failed:', err);
+  }
 }
 
 async function sendTelegramMessage(botToken: string, chatId: number, text: string) {
