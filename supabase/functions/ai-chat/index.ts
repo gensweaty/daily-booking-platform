@@ -1065,6 +1065,14 @@ serve(async (req) => {
         console.log(`  ❌ Pattern ${key} no match:`, pattern.toString());
       }
     }
+
+    // Skip the generic reminder fast-path when the user is clearly creating/updating
+    // a task or event in the SAME message. In that case the reminder must be
+    // attached to that task/event, not turned into a standalone custom reminder.
+    if (reminderMatch && /\b(task|todo|to-?do|checklist|event|booking|appointment|meeting)\b/i.test(prompt) && /\b(add|new|create|make|set up|set|update|change)\b/i.test(prompt)) {
+      console.log('⏭️  Skipping reminder fast-path: prompt also creates/updates a task or event – letting LLM use create_or_update_task/event with reminder param.');
+      reminderMatch = null;
+    }
     
     if (reminderMatch) {
       const minutes = parseInt(reminderMatch[1], 10);
