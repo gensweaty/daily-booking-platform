@@ -269,6 +269,19 @@ async function processBotUpdates(
 
   console.log(`📨 ${updates.length} new update(s) for @${config.bot_username}`);
 
+  // 🟢 Fire typing indicator for EVERY incoming chat IMMEDIATELY,
+  // before we start the sequential per-update processing. Otherwise the
+  // user who sent update #2 sees nothing while update #1's AI call runs.
+  const seenChatIds = new Set<number>();
+  for (const u of updates) {
+    const cid = u.message?.chat?.id;
+    if (cid && !seenChatIds.has(cid)) {
+      seenChatIds.add(cid);
+      // Await so the request actually leaves before we move on to heavy work.
+      await sendChatAction(botToken, cid, 'typing').catch(() => {});
+    }
+  }
+
   for (const update of updates) {
     const message = update.message;
     if (!message) continue;
@@ -277,9 +290,9 @@ async function processBotUpdates(
     const senderName = [message.from?.first_name, message.from?.last_name]
       .filter(Boolean).join(' ') || 'Telegram User';
 
-    // 🟢 Show typing indicator IMMEDIATELY so the user gets instant feedback
-    // (before any DB writes, file downloads, history backfill, or AI call).
-    sendChatAction(botToken, chatId, 'typing').catch(() => {});
+    // Refresh typing indicator for THIS chat right before its processing starts
+    // (Telegram clears the action after ~5s). Awaited so it flushes immediately.
+    await sendChatAction(botToken, chatId, 'typing').catch(() => {});
 
     const messageText = message.text || message.caption || '';
     const fileInfo = extractFileInfo(message);
