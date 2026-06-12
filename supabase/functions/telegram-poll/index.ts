@@ -277,6 +277,10 @@ async function processBotUpdates(
     const senderName = [message.from?.first_name, message.from?.last_name]
       .filter(Boolean).join(' ') || 'Telegram User';
 
+    // 🟢 Show typing indicator IMMEDIATELY so the user gets instant feedback
+    // (before any DB writes, file downloads, history backfill, or AI call).
+    sendChatAction(botToken, chatId, 'typing').catch(() => {});
+
     const messageText = message.text || message.caption || '';
     const fileInfo = extractFileInfo(message);
     const hasText = messageText && messageText.trim().length > 0;
