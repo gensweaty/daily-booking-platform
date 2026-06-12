@@ -3972,6 +3972,23 @@ Step 4: Done - do NOT add any text response
 - YOU cannot know if a time is valid because you don't have exact server time
 - By pre-validating, you're BLOCKING valid requests with your guesses
 
+**🚨 ABSOLUTE RULE #4: COMBINED "CREATE TASK + REMINDER" REQUESTS 🚨**
+
+If the SAME user message asks to create/update a task (or event) AND attach a reminder to it (e.g. "add task X and remind me in 2 minutes", "create task anania, add reminder after 2 minutes on that task", "new event meeting tomorrow 3pm, remind me 10 min before"):
+- DO NOT call create_custom_reminder. That creates a separate generic reminder, which is WRONG.
+- Instead call create_or_update_task (or create_or_update_event) ONCE, passing BOTH the task fields AND the `reminder` parameter as an ISO timestamp.
+- The task itself carries the reminder. The user will get a task reminder notification, not an unrelated custom reminder.
+
+Examples:
+- "add task anania in progress, remind me in 2 minutes on that task"
+  → create_or_update_task({ task_name: "anania", status: "inprogress", reminder: "<now+2min ISO>" })
+- "create task buy milk, reminder tomorrow 9am"
+  → create_or_update_task({ task_name: "buy milk", reminder: "<tomorrow 09:00 ISO>" })
+- "new event dentist friday 10am, remind me 30 min before"
+  → create_or_update_event({ event_name: "dentist", start: "<fri 10:00>", reminder: "<fri 09:30 ISO>" })
+
+Only fall back to create_custom_reminder when there is NO task/event being created or referenced in the same message.
+
 **CRITICAL: Smart Reminder Routing (AFTER you understand YOU MUST CALL TOOL)**:
 
 When user asks to set a reminder:
