@@ -14,6 +14,7 @@ import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifi
 import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications"
 import { CustomReminderNotifications } from "@/components/reminder/CustomReminderNotifications"
 import { GlobalBookingNotificationListener } from "@/components/notifications/GlobalBookingNotificationListener"
+import { ScreenshotRequestListener } from "@/components/screenshot/ScreenshotRequestListener"
 import { ArchivedTasksPage } from "@/components/tasks/ArchivedTasksPage"
 import { PublicBoardSettings } from "@/components/tasks/PublicBoardSettings"
 import { motion, AnimatePresence } from "framer-motion"
@@ -183,6 +184,7 @@ export const DashboardContent = ({
       <EventReminderNotifications />
       <CustomReminderNotifications />
       <GlobalBookingNotificationListener />
+      <ScreenshotRequestListener />
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
         <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">

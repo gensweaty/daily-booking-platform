@@ -754,7 +754,8 @@ serve(async (req) => {
   }
 
   try {
-    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType } = await req.json();
+    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType, source } = await req.json();
+    const isFromTelegram = source === 'telegram' || /\(telegram\)/i.test(senderName || '');
     let normalizedConversationHistory = normalizeConversationHistory(conversationHistory);
     
     console.log('🤖 AI Chat request:', { 
@@ -3041,6 +3042,22 @@ User uploads Excel with 500 customers and says "import these to CRM"
             required: ["bot_token"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "request_screenshot",
+          description: `Ask the user's currently-open Smartbookly dashboard tab to capture a screenshot of what they are looking at and post it back into this chat (and Telegram if the request came from Telegram). Use this WHENEVER the user explicitly asks for a screenshot / "სქრინი" / "скриншот" / "captura" of any page (calendar, tasks, board, CRM, statistics, etc.) to verify what the AI says matches the UI. The dashboard must be open in at least one browser tab; if not, tell the user to open the dashboard first.`,
+          parameters: {
+            type: "object",
+            properties: {
+              page_hint: {
+                type: "string",
+                description: "Optional human label of which page the user asked about (e.g. 'calendar', 'tasks board', 'CRM', 'statistics'). Used only as caption.",
+              },
+            },
+          },
+        },
       }
     ];
 
@@ -8331,6 +8348,35 @@ Call the matching tool with the exact details from the user's last message. Do n
               } catch (error) {
                 console.error('    ❌ Telegram setup error:', error);
                 toolResult = { success: false, error: error.message || 'Unknown error setting up Telegram bot' };
+              }
+              break;
+            }
+
+            case 'request_screenshot': {
+              const { page_hint } = args || {};
+              console.log('    📸 Queuing screenshot request', { page_hint, isFromTelegram });
+              try {
+                const { data: row, error: insErr } = await supabaseAdmin
+                  .from('screenshot_requests')
+                  .insert({
+                    user_id: ownerId,
+                    page_hint: page_hint || null,
+                    via_telegram: !!isFromTelegram,
+                    ai_channel_id: channelId,
+                    caption: page_hint ? `Screenshot: ${page_hint}` : 'Screenshot',
+                    status: 'pending',
+                  })
+                  .select('id')
+                  .single();
+                if (insErr) throw insErr;
+                toolResult = {
+                  success: true,
+                  request_id: row.id,
+                  message: `📸 Screenshot request sent. If your Smartbookly dashboard is open in a browser tab, the image of ${page_hint || 'the current page'} will arrive here in a few seconds. If nothing arrives within ~30s, please open the dashboard and ask again.`,
+                };
+              } catch (error) {
+                console.error('    ❌ Screenshot request error:', error);
+                toolResult = { success: false, error: (error as Error).message || 'Could not queue screenshot request' };
               }
               break;
             }
