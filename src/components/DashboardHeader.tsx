@@ -62,6 +62,18 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [mounted, setMounted] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<string>('dark');
 
+  useEffect(() => {
+    const handleOpenProfileScreenshot = () => {
+      setDialogOpen(true);
+    };
+
+    window.addEventListener('open-dashboard-profile', handleOpenProfileScreenshot);
+
+    return () => {
+      window.removeEventListener('open-dashboard-profile', handleOpenProfileScreenshot);
+    };
+  }, []);
+
   // Handle theme detection after mount
   useEffect(() => {
     setMounted(true);

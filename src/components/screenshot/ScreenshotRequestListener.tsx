@@ -16,11 +16,11 @@ import { useAuth } from '@/contexts/AuthContext';
  * whichever panel is currently active.
  */
 const TAB_KEYWORDS: Array<{ tab: string; words: string[] }> = [
-  { tab: 'tasks', words: ['task', 'tasks', 'board', 'kanban', 'დავალებ', 'დაფა', 'задач', 'доск', 'tablero', 'tarea'] },
-  { tab: 'calendar', words: ['calendar', 'agenda', 'schedule', 'კალენდ', 'календ', 'calendario'] },
-  { tab: 'crm', words: ['crm', 'customer', 'client', 'კლიენტ', 'მომხმარებ', 'клиент', 'cliente'] },
-  { tab: 'statistics', words: ['statistic', 'stats', 'analytic', 'report', 'სტატისტ', 'статист', 'отчет', 'estadist'] },
-  { tab: 'business', words: ['business', 'profile', 'booking page', 'public page', 'ბიზნეს', 'бизнес', 'negocio'] },
+  { tab: 'tasks', words: ['task', 'tasks', 'todo', 'to do', 'board', 'kanban', 'დავალებ', 'ამოცან', 'დაფა', 'задач', 'доск', 'tablero', 'tarea', 'tareas'] },
+  { tab: 'calendar', words: ['calendar', 'booking calendar', 'agenda', 'schedule', 'კალენდ', 'ჯავშნ', 'календ', 'расписан', 'calendario'] },
+  { tab: 'crm', words: ['crm', 'customer', 'customers', 'client', 'clients', 'contact', 'კლიენტ', 'მომხმარებ', 'контакт', 'клиент', 'cliente', 'clientes'] },
+  { tab: 'statistics', words: ['statistic', 'statistics', 'stats', 'analytic', 'analytics', 'report', 'სტატისტ', 'ანალიტ', 'статист', 'аналит', 'отчет', 'estadist', 'informe'] },
+  { tab: 'business', words: ['my business', 'business', 'booking page', 'public page', 'ბიზნეს', 'бизнес', 'negocio'] },
 ];
 
 function resolveTab(hint?: string | null): string | null {
@@ -32,31 +32,45 @@ function resolveTab(hint?: string | null): string | null {
   return null;
 }
 
+function resolvePopupTarget(hint?: string | null, explicit?: string | null): string | null {
+  const h = `${explicit || ''} ${hint || ''}`.toLowerCase();
+  if (!h.trim()) return null;
+  if (/(business profile|business page|booking page|public page|ბიზნეს.*პროფილ|бизнес.*профил|perfil.*negocio)/i.test(h)) return null;
+  if (/(profile|account|avatar|პროფილ|аккаунт|профил|perfil)/i.test(h)) return 'profile';
+  if (/(add task|new task|create task|დაამატ.*დავალ|нов.*задач|crear.*tarea|agregar.*tarea)/i.test(h)) return 'add_task';
+  return null;
+}
+
 async function waitForTabPanel(
   expectedTab: string | null,
-  timeoutMs = 4000
+  timeoutMs = 7000
 ): Promise<HTMLElement | null> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    // Prefer the specific requested tab panel by value
     let el: HTMLElement | null = null;
     if (expectedTab) {
+      const trigger = document.querySelector(
+        `[data-dashboard-tab-trigger="${expectedTab}"][data-state="active"]`
+      ) as HTMLElement | null;
       el = document.querySelector(
-        `[role="tabpanel"][data-state="active"][data-value="${expectedTab}"]`
+        `[data-dashboard-tab-panel="${expectedTab}"][data-state="active"]:not([hidden])`
       ) as HTMLElement | null;
       if (!el) {
-        // Radix sometimes encodes value in id like "radix-:r0:-content-tasks"
         const all = Array.from(
-          document.querySelectorAll('[role="tabpanel"][data-state="active"]')
+          document.querySelectorAll('[role="tabpanel"][data-state="active"]:not([hidden])')
         ) as HTMLElement[];
         el =
           all.find((p) =>
             (p.id || '').toLowerCase().endsWith(`-${expectedTab}`)
           ) || null;
       }
+      if (!trigger || !el) {
+        await new Promise((r) => setTimeout(r, 120));
+        continue;
+      }
     } else {
       el = document.querySelector(
-        '[role="tabpanel"][data-state="active"]'
+        '[role="tabpanel"][data-state="active"]:not([hidden])'
       ) as HTMLElement | null;
     }
     if (el && el.offsetHeight > 50) return el;
@@ -64,8 +78,22 @@ async function waitForTabPanel(
   }
   // Fallback: any active tabpanel
   return document.querySelector(
-    '[role="tabpanel"][data-state="active"]'
+    '[role="tabpanel"][data-state="active"]:not([hidden])'
   ) as HTMLElement | null;
+}
+
+function getDashboardCaptureRoot(): HTMLElement | null {
+  return document.querySelector('[data-screenshot-dashboard-root="true"]') as HTMLElement | null;
+}
+
+async function waitForElement(selector: string, timeoutMs = 5000): Promise<HTMLElement | null> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    if (el && el.offsetWidth > 0 && el.offsetHeight > 0) return el;
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return document.querySelector(selector) as HTMLElement | null;
 }
 
 // Wait for all <img> inside the element to finish loading (best-effort)
@@ -109,6 +137,7 @@ export function ScreenshotRequestListener() {
 
       try {
         const targetTab = resolveTab(req.page_hint);
+        const popupTarget = resolvePopupTarget(req.page_hint, req.popup_target);
         let captureEl: HTMLElement = document.body;
 
         if (targetTab) {
@@ -118,10 +147,27 @@ export function ScreenshotRequestListener() {
           // Give React a moment to commit the state change before querying
           await new Promise((r) => setTimeout(r, 250));
           const panel = await waitForTabPanel(targetTab, 4000);
-          if (panel) captureEl = panel;
+          if (panel) captureEl = getDashboardCaptureRoot() || panel;
         } else {
           const active = await waitForTabPanel(null, 1000);
-          if (active) captureEl = active;
+          if (active) captureEl = getDashboardCaptureRoot() || active;
+        }
+
+        if (popupTarget === 'profile') {
+          window.dispatchEvent(new CustomEvent('open-dashboard-profile'));
+          const dialog = await waitForElement('[role="dialog"][data-state="open"]', 6000);
+          if (dialog) captureEl = dialog;
+        }
+
+        if (popupTarget === 'add_task') {
+          if (targetTab !== 'tasks') {
+            window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { detail: { tab: 'tasks' } }));
+            await waitForTabPanel('tasks', 5000);
+          }
+          const addButton = await waitForElement('[data-tutorial="tasks-add-btn"]', 3000);
+          addButton?.click();
+          const dialog = await waitForElement('[data-tutorial="task-dialog"], [role="dialog"][data-state="open"]', 6000);
+          if (dialog) captureEl = dialog;
         }
 
         // Wait for content to actually render. Stats has heavy charts that
@@ -160,6 +206,7 @@ export function ScreenshotRequestListener() {
             if (!(node instanceof HTMLElement)) return false;
             if (node.hasAttribute('data-screenshot-hide')) return true;
             const id = node.id || '';
+            if (['chat-floating-root', 'chat-overlay'].includes(id)) return true;
             if (
               id.startsWith('radix-') &&
               (id.includes('toast') || id.includes('tooltip'))
@@ -179,6 +226,16 @@ export function ScreenshotRequestListener() {
               return true;
             }
             return false;
+          },
+          onclone: (doc) => {
+            const root = (popupTarget
+              ? doc.querySelector('[role="dialog"][data-state="open"]')
+              : doc.querySelector('[data-screenshot-dashboard-root="true"]')) as HTMLElement | null;
+            if (!root) return;
+            root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+              el.style.animation = 'none';
+              el.style.transition = 'none';
+            });
           },
         });
         const blob: Blob = await new Promise((resolve, reject) =>
@@ -206,7 +263,7 @@ export function ScreenshotRequestListener() {
             sender_type: 'admin',
             sender_user_id: userId,
             sender_name: 'Smartbookly AI',
-            owner_id: userId,
+            owner_id: req.owner_id || userId,
             message_type: 'text',
             metadata: { source_kind: 'screenshot', screenshot_request_id: req.id },
           });
