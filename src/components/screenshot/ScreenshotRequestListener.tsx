@@ -32,16 +32,41 @@ function resolveTab(hint?: string | null): string | null {
   return null;
 }
 
-async function waitForTabPanel(timeoutMs = 1800): Promise<HTMLElement | null> {
+async function waitForTabPanel(timeoutMs = 2500): Promise<HTMLElement | null> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const el = document.querySelector(
       '[role="tabpanel"][data-state="active"]'
     ) as HTMLElement | null;
-    if (el) return el;
+    if (el && el.offsetHeight > 50) return el;
     await new Promise((r) => setTimeout(r, 100));
   }
   return null;
+}
+
+// Wait for all <img> inside the element to finish loading (best-effort)
+async function waitForImages(el: HTMLElement, timeoutMs = 3000): Promise<void> {
+  const imgs = Array.from(el.querySelectorAll('img')) as HTMLImageElement[];
+  if (imgs.length === 0) return;
+  await Promise.race([
+    Promise.all(
+      imgs.map((img) =>
+        img.complete && img.naturalWidth > 0
+          ? Promise.resolve()
+          : new Promise<void>((resolve) => {
+              img.addEventListener('load', () => resolve(), { once: true });
+              img.addEventListener('error', () => resolve(), { once: true });
+            })
+      )
+    ),
+    new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+  ]);
+}
+
+// Double rAF + small idle wait so React/Recharts finish painting
+async function waitForPaint(extraMs = 0) {
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  if (extraMs > 0) await new Promise((r) => setTimeout(r, extraMs));
 }
 
 export function ScreenshotRequestListener() {
@@ -66,12 +91,8 @@ export function ScreenshotRequestListener() {
           window.dispatchEvent(
             new CustomEvent('switch-dashboard-tab', { detail: { tab: targetTab } })
           );
-          const panel = await waitForTabPanel(1800);
-          if (panel) {
-            // let charts / data finish painting
-            await new Promise((r) => setTimeout(r, 700));
-            captureEl = panel;
-          }
+          const panel = await waitForTabPanel(2500);
+          if (panel) captureEl = panel;
         } else {
           const active = document.querySelector(
             '[role="tabpanel"][data-state="active"]'
@@ -79,12 +100,35 @@ export function ScreenshotRequestListener() {
           if (active) captureEl = active;
         }
 
+        // Wait for content to actually render. Stats has heavy charts that
+        // need extra settle time; tasks/CRM lists also need a beat.
+        await waitForPaint(0);
+        await waitForImages(captureEl, 3500);
+        // Heavier wait for tabs that mount async data (charts, lists)
+        const settleMs = targetTab === 'statistics' ? 1800 : 1000;
+        await new Promise((r) => setTimeout(r, settleMs));
+        await waitForPaint(0);
+
+        // Scroll element into view so html2canvas captures full content cleanly
+        captureEl.scrollIntoView({ block: 'start' });
+        await waitForPaint(50);
+
+        // Full-element capture: use the element's full scroll size so we get
+        // the whole page (not just the visible viewport)
+        const fullW = Math.max(captureEl.scrollWidth, captureEl.clientWidth);
+        const fullH = Math.max(captureEl.scrollHeight, captureEl.clientHeight);
         const canvas = await html2canvas(captureEl, {
           useCORS: true,
           allowTaint: false,
           backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
           logging: false,
           scale: Math.min(window.devicePixelRatio || 1, 2),
+          width: fullW,
+          height: fullH,
+          windowWidth: Math.max(document.documentElement.clientWidth, fullW),
+          windowHeight: Math.max(document.documentElement.clientHeight, fullH),
+          scrollX: 0,
+          scrollY: -window.scrollY,
         });
         const blob: Blob = await new Promise((resolve, reject) =>
           canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png', 0.92)

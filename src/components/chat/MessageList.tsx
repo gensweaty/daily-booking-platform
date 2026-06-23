@@ -311,6 +311,17 @@ export const MessageList = ({
                         pre: ({ node, ...props }) => (
                           <pre {...props} className="bg-muted p-2 rounded text-sm overflow-x-auto whitespace-pre-wrap break-words" />
                         ),
+                        img: ({ node, ...props }) => (
+                          // eslint-disable-next-line jsx-a11y/alt-text
+                          <a href={(props as any).src} target="_blank" rel="noopener noreferrer">
+                            <img
+                              {...props}
+                              loading="lazy"
+                              className="mt-2 rounded-lg border border-border max-w-full h-auto block"
+                              style={{ maxHeight: '70vh', objectFit: 'contain' }}
+                            />
+                          </a>
+                        ),
                       }}
                     >
                       {message.content}
