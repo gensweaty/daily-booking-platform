@@ -1517,6 +1517,48 @@ export type Database = {
         }
         Relationships: []
       }
+      screenshot_requests: {
+        Row: {
+          ai_channel_id: string | null
+          caption: string | null
+          created_at: string
+          error: string | null
+          fulfilled_at: string | null
+          id: string
+          image_url: string | null
+          page_hint: string | null
+          status: string
+          user_id: string
+          via_telegram: boolean
+        }
+        Insert: {
+          ai_channel_id?: string | null
+          caption?: string | null
+          created_at?: string
+          error?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          image_url?: string | null
+          page_hint?: string | null
+          status?: string
+          user_id: string
+          via_telegram?: boolean
+        }
+        Update: {
+          ai_channel_id?: string | null
+          caption?: string | null
+          created_at?: string
+          error?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          image_url?: string | null
+          page_hint?: string | null
+          status?: string
+          user_id?: string
+          via_telegram?: boolean
+        }
+        Relationships: []
+      }
       "Stripe cusotmers": {
         Row: {
           created_at: string
