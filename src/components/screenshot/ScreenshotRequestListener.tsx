@@ -32,6 +32,14 @@ function resolveTab(hint?: string | null): string | null {
   return null;
 }
 
+function resolvePopupTarget(hint?: string | null, explicit?: string | null): string | null {
+  const h = `${explicit || ''} ${hint || ''}`.toLowerCase();
+  if (!h.trim()) return null;
+  if (/(profile|account|avatar|პროფილ|аккаунт|профил|perfil)/i.test(h)) return 'profile';
+  if (/(add task|new task|create task|დაამატ.*დავალ|нов.*задач|crear.*tarea|agregar.*tarea)/i.test(h)) return 'add_task';
+  return null;
+}
+
 async function waitForTabPanel(
   expectedTab: string | null,
   timeoutMs = 7000
@@ -77,6 +85,16 @@ function getDashboardCaptureRoot(): HTMLElement | null {
   return document.querySelector('[data-screenshot-dashboard-root="true"]') as HTMLElement | null;
 }
 
+async function waitForElement(selector: string, timeoutMs = 5000): Promise<HTMLElement | null> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const el = document.querySelector(selector) as HTMLElement | null;
+    if (el && el.offsetWidth > 0 && el.offsetHeight > 0) return el;
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  return document.querySelector(selector) as HTMLElement | null;
+}
+
 // Wait for all <img> inside the element to finish loading (best-effort)
 async function waitForImages(el: HTMLElement, timeoutMs = 3000): Promise<void> {
   const imgs = Array.from(el.querySelectorAll('img')) as HTMLImageElement[];
@@ -118,6 +136,7 @@ export function ScreenshotRequestListener() {
 
       try {
         const targetTab = resolveTab(req.page_hint);
+        const popupTarget = resolvePopupTarget(req.page_hint, req.popup_target);
         let captureEl: HTMLElement = document.body;
 
         if (targetTab) {
@@ -131,6 +150,23 @@ export function ScreenshotRequestListener() {
         } else {
           const active = await waitForTabPanel(null, 1000);
           if (active) captureEl = getDashboardCaptureRoot() || active;
+        }
+
+        if (popupTarget === 'profile') {
+          window.dispatchEvent(new CustomEvent('open-dashboard-profile'));
+          const dialog = await waitForElement('[role="dialog"][data-state="open"]', 6000);
+          if (dialog) captureEl = dialog;
+        }
+
+        if (popupTarget === 'add_task') {
+          if (targetTab !== 'tasks') {
+            window.dispatchEvent(new CustomEvent('switch-dashboard-tab', { detail: { tab: 'tasks' } }));
+            await waitForTabPanel('tasks', 5000);
+          }
+          const addButton = await waitForElement('[data-tutorial="tasks-add-btn"]', 3000);
+          addButton?.click();
+          const dialog = await waitForElement('[data-tutorial="task-dialog"], [role="dialog"][data-state="open"]', 6000);
+          if (dialog) captureEl = dialog;
         }
 
         // Wait for content to actually render. Stats has heavy charts that
@@ -191,7 +227,9 @@ export function ScreenshotRequestListener() {
             return false;
           },
           onclone: (doc) => {
-            const root = doc.querySelector('[data-screenshot-dashboard-root="true"]') as HTMLElement | null;
+            const root = (popupTarget
+              ? doc.querySelector('[role="dialog"][data-state="open"]')
+              : doc.querySelector('[data-screenshot-dashboard-root="true"]')) as HTMLElement | null;
             if (!root) return;
             root.querySelectorAll<HTMLElement>('*').forEach((el) => {
               el.style.animation = 'none';
