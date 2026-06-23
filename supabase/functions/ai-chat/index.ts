@@ -8397,6 +8397,7 @@ Call the matching tool with the exact details from the user's last message. Do n
                   .from('screenshot_requests')
                   .insert({
                     user_id: targetScreenshotUserId,
+                    owner_id: ownerId,
                     page_hint: normalizedPageHint,
                     popup_target: normalizedPopupTarget,
                     via_telegram: !!isFromTelegram,

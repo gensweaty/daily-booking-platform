@@ -262,7 +262,7 @@ export function ScreenshotRequestListener() {
             sender_type: 'admin',
             sender_user_id: userId,
             sender_name: 'Smartbookly AI',
-            owner_id: userId,
+            owner_id: req.owner_id || userId,
             message_type: 'text',
             metadata: { source_kind: 'screenshot', screenshot_request_id: req.id },
           });
