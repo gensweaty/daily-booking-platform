@@ -8352,6 +8352,35 @@ Call the matching tool with the exact details from the user's last message. Do n
               break;
             }
 
+            case 'request_screenshot': {
+              const { page_hint } = args || {};
+              console.log('    📸 Queuing screenshot request', { page_hint, isFromTelegram });
+              try {
+                const { data: row, error: insErr } = await supabaseAdmin
+                  .from('screenshot_requests')
+                  .insert({
+                    user_id: ownerId,
+                    page_hint: page_hint || null,
+                    via_telegram: !!isFromTelegram,
+                    ai_channel_id: channelId,
+                    caption: page_hint ? `Screenshot: ${page_hint}` : 'Screenshot',
+                    status: 'pending',
+                  })
+                  .select('id')
+                  .single();
+                if (insErr) throw insErr;
+                toolResult = {
+                  success: true,
+                  request_id: row.id,
+                  message: `📸 Screenshot request sent. If your Smartbookly dashboard is open in a browser tab, the image of ${page_hint || 'the current page'} will arrive here in a few seconds. If nothing arrives within ~30s, please open the dashboard and ask again.`,
+                };
+              } catch (error) {
+                console.error('    ❌ Screenshot request error:', error);
+                toolResult = { success: false, error: (error as Error).message || 'Could not queue screenshot request' };
+              }
+              break;
+            }
+
             default: {
               console.warn(`    ⚠️ Unknown tool called: ${funcName}`);
               toolResult = { 
