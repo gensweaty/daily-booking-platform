@@ -4729,14 +4729,33 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     // ============================================================
     const hasToolCalls = !!(message.tool_calls && message.tool_calls.length > 0);
     const lowerPrompt = String(prompt || '').toLowerCase();
-    const ACTION_VERBS = /\b(add|create|new|make|update|edit|change|modify|set|delete|remove|cancel|mark|rename|move|attach|upload|import|register|book|schedule|remind|alert|notify)\b/;
-    const ACTION_ENTITIES = /\b(customer|client|contact|lead|event|booking|appointment|meeting|task|todo|to-do|checklist|reminder|note|file|attachment|document)\b/;
-    const looksLikeAction = ACTION_VERBS.test(lowerPrompt) && ACTION_ENTITIES.test(lowerPrompt);
-    const responseText = String(message.content || '').toLowerCase();
-    const claimsSuccess = /\b(created|updated|added|deleted|removed|scheduled|booked|saved|set|done|attached|uploaded|imported|marked)\b/.test(responseText)
-      || /✅|☑|✔/.test(message.content || '');
+    const rawPrompt = String(prompt || '');
+    // English action verbs/entities
+    const ACTION_VERBS_EN = /\b(add|create|new|make|update|edit|change|modify|set|delete|remove|cancel|mark|rename|move|attach|upload|import|register|book|schedule|remind|alert|notify|complete|finish|start|assign|reassign)\b/;
+    const ACTION_ENTITIES_EN = /\b(customer|client|contact|lead|event|booking|appointment|meeting|task|todo|to-do|checklist|reminder|note|file|attachment|document|status)\b/;
+    // Georgian action verbs (დაამატე/შექმენი/გადაიტანე/შეცვალე/წაშალე/მონიშნე/გადატანე/გადაიყვანე/დააფიქსირე/მისართე/მომაგონდი/რემაინდერი/შემახსენე)
+    const ACTION_VERBS_KA = /(დაამატ|შექმენ|გადაიტან|გადატან|შეცვალ|წაშალ|მონიშნ|დააფიქსირ|შემახსენ|მომაგონდ|გადაიყვან|დაასრულ|დაიწყ|დანიშნ|მიანიჭ|გადააკეთ)/;
+    const ACTION_ENTITIES_KA = /(თასქ|დავალებ|რემაინდერ|შემხსენებ|მომხმარებ|კლიენტ|ივენთ|ღონისძიებ|შეხვედრ|ჯავშნ|ფაილ|შენიშვნ|სტატუს)/;
+    // Spanish basics
+    const ACTION_VERBS_ES = /\b(crear|añadir|agregar|actualizar|cambiar|eliminar|borrar|mover|completar|marcar|recordar)\b/;
+    const ACTION_ENTITIES_ES = /\b(cliente|evento|cita|tarea|recordatorio|nota|archivo|estado)\b/;
+    const looksLikeAction =
+      (ACTION_VERBS_EN.test(lowerPrompt) && ACTION_ENTITIES_EN.test(lowerPrompt)) ||
+      (ACTION_VERBS_KA.test(rawPrompt) && ACTION_ENTITIES_KA.test(rawPrompt)) ||
+      (ACTION_VERBS_ES.test(lowerPrompt) && ACTION_ENTITIES_ES.test(lowerPrompt));
+    const responseTextRaw = String(message.content || '');
+    const responseText = responseTextRaw.toLowerCase();
+    const claimsSuccess =
+      /\b(created|updated|added|deleted|removed|scheduled|booked|saved|set|done|attached|uploaded|imported|marked|moved|completed|assigned)\b/.test(responseText)
+      || /(შევქმენ|შეიქმნ|დავამატ|დაემატ|განვაახლ|განახლდ|წავშალ|წაიშალ|გადავიტან|გადავიდ|გადატანილ|დასრულდ|დასრულებულ|მონიშნულ|დაიგეგმ|შენახულ|შენახ|დავუმატ)/.test(responseTextRaw)
+      || /\b(creado|actualizado|añadido|eliminado|movido|completado|marcado)\b/.test(responseText)
+      || /✅|☑|✔/.test(responseTextRaw);
+    // Trigger retry whenever model claims success but didn't call a tool —
+    // even if the prompt itself didn't obviously look like an action verb
+    // (Georgian / mixed-language prompts often slip past keyword gates).
+    const shouldRetry = !hasToolCalls && (looksLikeAction || claimsSuccess);
 
-    if (!hasToolCalls && looksLikeAction && claimsSuccess) {
+    if (shouldRetry) {
       console.warn('⚠️ HALLUCINATION DETECTED: action prompt + success claim + no tool calls. Retrying with tool_choice=required…');
       try {
         const retryMessages = [
