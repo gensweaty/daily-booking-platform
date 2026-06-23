@@ -32,7 +32,7 @@ const SCREENSHOT_TAB_KEYWORDS: Array<{ hint: string; words: string[] }> = [
   { hint: 'calendar', words: ['calendar', 'booking calendar', 'agenda', 'schedule', 'კალენდ', 'ჯავშნ', 'календ', 'расписан', 'calendario'] },
   { hint: 'crm', words: ['crm', 'customer', 'customers', 'client', 'clients', 'contact', 'კლიენტ', 'მომხმარებ', 'контакт', 'клиент', 'cliente', 'clientes'] },
   { hint: 'statistics', words: ['statistic', 'statistics', 'stats', 'analytic', 'analytics', 'report', 'სტატისტ', 'ანალიტ', 'статист', 'аналит', 'отчет', 'estadist', 'informe'] },
-  { hint: 'business', words: ['my business', 'business', 'profile', 'booking page', 'public page', 'ბიზნეს', 'პროფილ', 'бизнес', 'профил', 'negocio', 'perfil'] },
+  { hint: 'business', words: ['my business', 'business', 'booking page', 'public page', 'ბიზნეს', 'бизнес', 'negocio'] },
 ];
 
 const normalizeScreenshotPageHint = (...values: Array<string | null | undefined>) => {
@@ -3074,7 +3074,7 @@ User uploads Excel with 500 customers and says "import these to CRM"
         type: "function",
         function: {
           name: "request_screenshot",
-          description: `Ask the user's currently-open Smartbookly dashboard tab to capture a screenshot of the EXACT page the user named, and post it back into this chat (and Telegram if the request came from Telegram). Use this WHENEVER the user explicitly asks for a screenshot / "სქრინი" / "скриншот" / "captura" of any page. IMPORTANT: page_hint must literally contain the section the user named so the dashboard can navigate to it. Allowed sections: "calendar", "tasks board", "crm", "statistics", "business". If the user said "tasks" / "board" / "დავალებების დაფა" / "доска задач" → use "tasks board". If they said calendar / კალენდარი → "calendar". The dashboard must be open in at least one browser tab; only the requesting user's own viewport is captured (sub-users see only their own view).`,
+          description: `Ask the user's currently-open Smartbookly dashboard to navigate/click to the EXACT page or popup the user named, capture it, and post it back into this chat (and Telegram if the request came from Telegram). Use this WHENEVER the user explicitly asks for a screenshot / "სქრინი" / "скриншот" / "captura" of any page, section, or popup. IMPORTANT: page_hint must literally contain the section the user named so the dashboard can navigate to it. Allowed sections: "calendar", "tasks board", "crm", "statistics", "business". If the user said "tasks" / "board" / "დავალებების დაფა" / "доска задач" → use "tasks board". If they said calendar / კალენდარი → "calendar". If they ask for the profile/account/avatar popup, set popup_target="profile". If they ask for the add/new task popup, set page_hint="tasks board" and popup_target="add_task". The dashboard must be open in at least one browser tab; only the requesting user's own viewport is captured (sub-users see only their own view).`,
           parameters: {
             type: "object",
             properties: {
@@ -8401,7 +8401,9 @@ Call the matching tool with the exact details from the user's last message. Do n
                     popup_target: normalizedPopupTarget,
                     via_telegram: !!isFromTelegram,
                     ai_channel_id: channelId,
-                    caption: normalizedPageHint ? `Screenshot: ${normalizedPageHint}` : 'Screenshot',
+                    caption: normalizedPopupTarget
+                      ? `Screenshot: ${normalizedPopupTarget.replace('_', ' ')}${normalizedPageHint ? ` (${normalizedPageHint})` : ''}`
+                      : (normalizedPageHint ? `Screenshot: ${normalizedPageHint}` : 'Screenshot'),
                     status: 'pending',
                   })
                   .select('id')

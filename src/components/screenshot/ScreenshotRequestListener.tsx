@@ -20,7 +20,7 @@ const TAB_KEYWORDS: Array<{ tab: string; words: string[] }> = [
   { tab: 'calendar', words: ['calendar', 'booking calendar', 'agenda', 'schedule', 'კალენდ', 'ჯავშნ', 'календ', 'расписан', 'calendario'] },
   { tab: 'crm', words: ['crm', 'customer', 'customers', 'client', 'clients', 'contact', 'კლიენტ', 'მომხმარებ', 'контакт', 'клиент', 'cliente', 'clientes'] },
   { tab: 'statistics', words: ['statistic', 'statistics', 'stats', 'analytic', 'analytics', 'report', 'სტატისტ', 'ანალიტ', 'статист', 'аналит', 'отчет', 'estadist', 'informe'] },
-  { tab: 'business', words: ['my business', 'business', 'profile', 'booking page', 'public page', 'ბიზნეს', 'პროფილ', 'бизнес', 'профил', 'negocio', 'perfil'] },
+  { tab: 'business', words: ['my business', 'business', 'booking page', 'public page', 'ბიზნეს', 'бизнес', 'negocio'] },
 ];
 
 function resolveTab(hint?: string | null): string | null {
