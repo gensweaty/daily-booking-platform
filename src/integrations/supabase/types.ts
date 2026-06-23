@@ -1526,6 +1526,7 @@ export type Database = {
           fulfilled_at: string | null
           id: string
           image_url: string | null
+          owner_id: string | null
           page_hint: string | null
           popup_target: string | null
           status: string
@@ -1540,6 +1541,7 @@ export type Database = {
           fulfilled_at?: string | null
           id?: string
           image_url?: string | null
+          owner_id?: string | null
           page_hint?: string | null
           popup_target?: string | null
           status?: string
@@ -1554,6 +1556,7 @@ export type Database = {
           fulfilled_at?: string | null
           id?: string
           image_url?: string | null
+          owner_id?: string | null
           page_hint?: string | null
           popup_target?: string | null
           status?: string
