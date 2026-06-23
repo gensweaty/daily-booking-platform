@@ -16,11 +16,11 @@ import { useAuth } from '@/contexts/AuthContext';
  * whichever panel is currently active.
  */
 const TAB_KEYWORDS: Array<{ tab: string; words: string[] }> = [
-  { tab: 'tasks', words: ['task', 'tasks', 'board', 'kanban', 'დავალებ', 'დაფა', 'задач', 'доск', 'tablero', 'tarea'] },
-  { tab: 'calendar', words: ['calendar', 'agenda', 'schedule', 'კალენდ', 'календ', 'calendario'] },
-  { tab: 'crm', words: ['crm', 'customer', 'client', 'კლიენტ', 'მომხმარებ', 'клиент', 'cliente'] },
-  { tab: 'statistics', words: ['statistic', 'stats', 'analytic', 'report', 'სტატისტ', 'статист', 'отчет', 'estadist'] },
-  { tab: 'business', words: ['business', 'profile', 'booking page', 'public page', 'ბიზნეს', 'бизнес', 'negocio'] },
+  { tab: 'tasks', words: ['task', 'tasks', 'todo', 'to do', 'board', 'kanban', 'დავალებ', 'ამოცან', 'დაფა', 'задач', 'доск', 'tablero', 'tarea', 'tareas'] },
+  { tab: 'calendar', words: ['calendar', 'booking calendar', 'agenda', 'schedule', 'კალენდ', 'ჯავშნ', 'календ', 'расписан', 'calendario'] },
+  { tab: 'crm', words: ['crm', 'customer', 'customers', 'client', 'clients', 'contact', 'კლიენტ', 'მომხმარებ', 'контакт', 'клиент', 'cliente', 'clientes'] },
+  { tab: 'statistics', words: ['statistic', 'statistics', 'stats', 'analytic', 'analytics', 'report', 'სტატისტ', 'ანალიტ', 'статист', 'аналит', 'отчет', 'estadist', 'informe'] },
+  { tab: 'business', words: ['my business', 'business', 'profile', 'booking page', 'public page', 'ბიზნეს', 'პროფილ', 'бизнес', 'профил', 'negocio', 'perfil'] },
 ];
 
 function resolveTab(hint?: string | null): string | null {
@@ -34,29 +34,34 @@ function resolveTab(hint?: string | null): string | null {
 
 async function waitForTabPanel(
   expectedTab: string | null,
-  timeoutMs = 4000
+  timeoutMs = 7000
 ): Promise<HTMLElement | null> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    // Prefer the specific requested tab panel by value
     let el: HTMLElement | null = null;
     if (expectedTab) {
+      const trigger = document.querySelector(
+        `[data-dashboard-tab-trigger="${expectedTab}"][data-state="active"]`
+      ) as HTMLElement | null;
       el = document.querySelector(
-        `[role="tabpanel"][data-state="active"][data-value="${expectedTab}"]`
+        `[data-dashboard-tab-panel="${expectedTab}"][data-state="active"]:not([hidden])`
       ) as HTMLElement | null;
       if (!el) {
-        // Radix sometimes encodes value in id like "radix-:r0:-content-tasks"
         const all = Array.from(
-          document.querySelectorAll('[role="tabpanel"][data-state="active"]')
+          document.querySelectorAll('[role="tabpanel"][data-state="active"]:not([hidden])')
         ) as HTMLElement[];
         el =
           all.find((p) =>
             (p.id || '').toLowerCase().endsWith(`-${expectedTab}`)
           ) || null;
       }
+      if (!trigger || !el) {
+        await new Promise((r) => setTimeout(r, 120));
+        continue;
+      }
     } else {
       el = document.querySelector(
-        '[role="tabpanel"][data-state="active"]'
+        '[role="tabpanel"][data-state="active"]:not([hidden])'
       ) as HTMLElement | null;
     }
     if (el && el.offsetHeight > 50) return el;
@@ -64,8 +69,12 @@ async function waitForTabPanel(
   }
   // Fallback: any active tabpanel
   return document.querySelector(
-    '[role="tabpanel"][data-state="active"]'
+    '[role="tabpanel"][data-state="active"]:not([hidden])'
   ) as HTMLElement | null;
+}
+
+function getDashboardCaptureRoot(): HTMLElement | null {
+  return document.querySelector('[data-screenshot-dashboard-root="true"]') as HTMLElement | null;
 }
 
 // Wait for all <img> inside the element to finish loading (best-effort)
@@ -118,10 +127,10 @@ export function ScreenshotRequestListener() {
           // Give React a moment to commit the state change before querying
           await new Promise((r) => setTimeout(r, 250));
           const panel = await waitForTabPanel(targetTab, 4000);
-          if (panel) captureEl = panel;
+          if (panel) captureEl = getDashboardCaptureRoot() || panel;
         } else {
           const active = await waitForTabPanel(null, 1000);
-          if (active) captureEl = active;
+          if (active) captureEl = getDashboardCaptureRoot() || active;
         }
 
         // Wait for content to actually render. Stats has heavy charts that
@@ -160,6 +169,7 @@ export function ScreenshotRequestListener() {
             if (!(node instanceof HTMLElement)) return false;
             if (node.hasAttribute('data-screenshot-hide')) return true;
             const id = node.id || '';
+            if (['chat-floating-root', 'chat-overlay'].includes(id)) return true;
             if (
               id.startsWith('radix-') &&
               (id.includes('toast') || id.includes('tooltip'))
@@ -179,6 +189,14 @@ export function ScreenshotRequestListener() {
               return true;
             }
             return false;
+          },
+          onclone: (doc) => {
+            const root = doc.querySelector('[data-screenshot-dashboard-root="true"]') as HTMLElement | null;
+            if (!root) return;
+            root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+              el.style.animation = 'none';
+              el.style.transition = 'none';
+            });
           },
         });
         const blob: Blob = await new Promise((resolve, reject) =>

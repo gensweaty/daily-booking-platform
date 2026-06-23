@@ -191,6 +191,7 @@ export const DashboardContent = ({
           <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
             <TabsTrigger 
               value="calendar" 
+              data-dashboard-tab-trigger="calendar"
               data-tutorial-step="calendar"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
@@ -206,6 +207,7 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="statistics" 
+              data-dashboard-tab-trigger="statistics"
               data-tutorial-step="statistics"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
@@ -225,6 +227,7 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="tasks" 
+              data-dashboard-tab-trigger="tasks"
               data-tutorial-step="tasks"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
@@ -244,6 +247,7 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="crm" 
+              data-dashboard-tab-trigger="crm"
               data-tutorial-step="crm"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
             >
@@ -263,6 +267,7 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="business" 
+              data-dashboard-tab-trigger="business"
               data-tutorial-step="business"
               className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] relative"
             >
@@ -300,7 +305,7 @@ export const DashboardContent = ({
         </div>
 
         <AnimatePresence mode="wait">
-          <TabsContent key="calendar" value="calendar" className="mt-0">
+          <TabsContent key="calendar" value="calendar" data-dashboard-tab-panel="calendar" className="mt-0">
             <motion.div
               variants={tabVariants}
               initial="hidden"
@@ -323,7 +328,7 @@ export const DashboardContent = ({
             </motion.div>
           </TabsContent>
 
-          <TabsContent key="statistics" value="statistics">
+          <TabsContent key="statistics" value="statistics" data-dashboard-tab-panel="statistics">
             <motion.div
               variants={tabVariants}
               initial="hidden"
@@ -353,7 +358,7 @@ export const DashboardContent = ({
             </motion.div>
           </TabsContent>
 
-          <TabsContent key="tasks" value="tasks">
+          <TabsContent key="tasks" value="tasks" data-dashboard-tab-panel="tasks">
             <TaskFiltersProvider>
               <Card className="min-h-[calc(100vh-12rem)]">
                  <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
@@ -479,7 +484,7 @@ export const DashboardContent = ({
             </TaskFiltersProvider>
           </TabsContent>
 
-          <TabsContent key="crm" value="crm">
+          <TabsContent key="crm" value="crm" data-dashboard-tab-panel="crm">
             <motion.div
               variants={tabVariants}
               initial="hidden"
@@ -500,7 +505,7 @@ export const DashboardContent = ({
             </motion.div>
           </TabsContent>
 
-          <TabsContent key="business" value="business">
+          <TabsContent key="business" value="business" data-dashboard-tab-panel="business">
             <motion.div
               variants={tabVariants}
               initial="hidden"

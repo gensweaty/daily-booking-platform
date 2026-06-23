@@ -27,6 +27,25 @@ const sanitizeUuid = (value?: string | null) => {
 const sanitizeUuidArray = (values?: string[] | null) =>
   Array.from(new Set((values || []).map((value) => sanitizeUuid(value)).filter(Boolean) as string[]));
 
+const SCREENSHOT_TAB_KEYWORDS: Array<{ hint: string; words: string[] }> = [
+  { hint: 'tasks board', words: ['task', 'tasks', 'todo', 'to do', 'board', 'kanban', 'დავალებ', 'ამოცან', 'დაფა', 'задач', 'доск', 'tablero', 'tarea', 'tareas'] },
+  { hint: 'calendar', words: ['calendar', 'booking calendar', 'agenda', 'schedule', 'კალენდ', 'ჯავშნ', 'календ', 'расписан', 'calendario'] },
+  { hint: 'crm', words: ['crm', 'customer', 'customers', 'client', 'clients', 'contact', 'კლიენტ', 'მომხმარებ', 'контакт', 'клиент', 'cliente', 'clientes'] },
+  { hint: 'statistics', words: ['statistic', 'statistics', 'stats', 'analytic', 'analytics', 'report', 'სტატისტ', 'ანალიტ', 'статист', 'аналит', 'отчет', 'estadist', 'informe'] },
+  { hint: 'business', words: ['my business', 'business', 'profile', 'booking page', 'public page', 'ბიზნეს', 'პროფილ', 'бизнес', 'профил', 'negocio', 'perfil'] },
+];
+
+const normalizeScreenshotPageHint = (...values: Array<string | null | undefined>) => {
+  for (const value of values) {
+    const text = String(value || '').toLowerCase();
+    if (!text.trim()) continue;
+    for (const { hint, words } of SCREENSHOT_TAB_KEYWORDS) {
+      if (words.some((word) => text.includes(word))) return hint;
+    }
+  }
+  return null;
+};
+
 const REMINDER_GENERIC_TITLE_REGEX = /^(?:this|that|it|them|those|these|thing|stuff|image|screenshot|photo|picture|file|document|attachment|reminder|the (?:image|screenshot|photo|picture|file|document|attachment|email|message|form)|about (?:this|that|it|them))$/i;
 
 // Detects pronoun/anaphoric references in the user's request that depend on prior chat context
@@ -3053,9 +3072,11 @@ User uploads Excel with 500 customers and says "import these to CRM"
             properties: {
               page_hint: {
                 type: "string",
+                enum: ["calendar", "tasks board", "crm", "statistics", "business"],
                 description: "REQUIRED. One of: 'calendar', 'tasks board', 'crm', 'statistics', 'business'. Pick the value that matches the section the user named. The dashboard uses this to navigate to that tab before capturing.",
               },
             },
+            required: ["page_hint"],
           },
         },
       }
@@ -8353,17 +8374,19 @@ Call the matching tool with the exact details from the user's last message. Do n
             }
 
             case 'request_screenshot': {
-              const { page_hint } = args || {};
-              console.log('    📸 Queuing screenshot request', { page_hint, isFromTelegram });
+                  const { page_hint } = args || {};
+                  const normalizedPageHint = normalizeScreenshotPageHint(prompt, page_hint) || page_hint || null;
+                  const targetScreenshotUserId = requesterType === 'sub_user' && authId ? authId : ownerId;
+                  console.log('    📸 Queuing screenshot request', { page_hint, normalizedPageHint, targetScreenshotUserId, requesterType, isFromTelegram });
               try {
                 const { data: row, error: insErr } = await supabaseAdmin
                   .from('screenshot_requests')
                   .insert({
-                    user_id: ownerId,
-                    page_hint: page_hint || null,
+                    user_id: targetScreenshotUserId,
+                    page_hint: normalizedPageHint,
                     via_telegram: !!isFromTelegram,
                     ai_channel_id: channelId,
-                    caption: page_hint ? `Screenshot: ${page_hint}` : 'Screenshot',
+                    caption: normalizedPageHint ? `Screenshot: ${normalizedPageHint}` : 'Screenshot',
                     status: 'pending',
                   })
                   .select('id')
@@ -8372,7 +8395,7 @@ Call the matching tool with the exact details from the user's last message. Do n
                 toolResult = {
                   success: true,
                   request_id: row.id,
-                  message: `📸 Screenshot request sent. If your Smartbookly dashboard is open in a browser tab, the image of ${page_hint || 'the current page'} will arrive here in a few seconds. If nothing arrives within ~30s, please open the dashboard and ask again.`,
+                    message: `📸 Screenshot request sent. If your Smartbookly dashboard is open in a browser tab, the image of ${normalizedPageHint || 'the current page'} will arrive here in a few seconds. If nothing arrives within ~30s, please open the dashboard and ask again.`,
                 };
               } catch (error) {
                 console.error('    ❌ Screenshot request error:', error);

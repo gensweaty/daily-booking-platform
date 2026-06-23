@@ -170,6 +170,7 @@ const Index = () => {
     <>
       {user ? (
         <motion.div 
+          data-screenshot-dashboard-root="true"
           className="min-h-screen bg-background p-4"
           variants={containerVariants}
           initial="hidden"
