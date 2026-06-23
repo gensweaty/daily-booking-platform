@@ -4,13 +4,46 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 /**
- * Listens for AI-triggered screenshot requests on the current user.
- * When the AI inserts a row in `screenshot_requests`, the browser captures
- * the currently-visible page with html2canvas, uploads it to the private
- * `screenshots` bucket, then writes a chat message with the screenshot into
- * the AI channel and (if the request originated from Telegram) calls
- * `send-telegram-screenshot` to deliver the photo to the bot.
+ * Listens for AI-triggered screenshot requests for the CURRENT user only.
+ * Per-user isolation: each admin / sub-user captures and receives only
+ * their own viewport (filter is enforced both server-side via RLS and
+ * client-side here).
+ *
+ * If `page_hint` matches a known dashboard tab (calendar / tasks /
+ * crm / statistics / business — in EN / KA / RU / ES), we first
+ * dispatch `switch-dashboard-tab` so the dashboard navigates there,
+ * then capture ONLY the active tabpanel. Without a hint we capture
+ * whichever panel is currently active.
  */
+const TAB_KEYWORDS: Array<{ tab: string; words: string[] }> = [
+  { tab: 'tasks', words: ['task', 'tasks', 'board', 'kanban', 'დავალებ', 'დაფა', 'задач', 'доск', 'tablero', 'tarea'] },
+  { tab: 'calendar', words: ['calendar', 'agenda', 'schedule', 'კალენდ', 'календ', 'calendario'] },
+  { tab: 'crm', words: ['crm', 'customer', 'client', 'კლიენტ', 'მომხმარებ', 'клиент', 'cliente'] },
+  { tab: 'statistics', words: ['statistic', 'stats', 'analytic', 'report', 'სტატისტ', 'статист', 'отчет', 'estadist'] },
+  { tab: 'business', words: ['business', 'profile', 'booking page', 'public page', 'ბიზნეს', 'бизнес', 'negocio'] },
+];
+
+function resolveTab(hint?: string | null): string | null {
+  if (!hint) return null;
+  const h = hint.toLowerCase();
+  for (const { tab, words } of TAB_KEYWORDS) {
+    if (words.some((w) => h.includes(w))) return tab;
+  }
+  return null;
+}
+
+async function waitForTabPanel(timeoutMs = 1800): Promise<HTMLElement | null> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const el = document.querySelector(
+      '[role="tabpanel"][data-state="active"]'
+    ) as HTMLElement | null;
+    if (el) return el;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  return null;
+}
+
 export function ScreenshotRequestListener() {
   const { user } = useAuth();
   const handlingRef = useRef<Set<string>>(new Set());
@@ -21,14 +54,32 @@ export function ScreenshotRequestListener() {
 
     const handle = async (req: any) => {
       if (!req || req.status !== 'pending') return;
-      if (req.user_id !== userId) return;
+      if (req.user_id !== userId) return; // per-user isolation
       if (handlingRef.current.has(req.id)) return;
       handlingRef.current.add(req.id);
 
       try {
-        // 1. Capture current page
-        const target = document.body;
-        const canvas = await html2canvas(target, {
+        const targetTab = resolveTab(req.page_hint);
+        let captureEl: HTMLElement = document.body;
+
+        if (targetTab) {
+          window.dispatchEvent(
+            new CustomEvent('switch-dashboard-tab', { detail: { tab: targetTab } })
+          );
+          const panel = await waitForTabPanel(1800);
+          if (panel) {
+            // let charts / data finish painting
+            await new Promise((r) => setTimeout(r, 700));
+            captureEl = panel;
+          }
+        } else {
+          const active = document.querySelector(
+            '[role="tabpanel"][data-state="active"]'
+          ) as HTMLElement | null;
+          if (active) captureEl = active;
+        }
+
+        const canvas = await html2canvas(captureEl, {
           useCORS: true,
           allowTaint: false,
           backgroundColor: getComputedStyle(document.body).backgroundColor || '#ffffff',
@@ -39,21 +90,18 @@ export function ScreenshotRequestListener() {
           canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png', 0.92)
         );
 
-        // 2. Upload to private screenshots bucket
         const path = `${userId}/${req.id}.png`;
         const { error: upErr } = await supabase.storage
           .from('screenshots')
           .upload(path, blob, { contentType: 'image/png', upsert: true });
         if (upErr) throw upErr;
 
-        // 3. Signed URL valid 7 days
         const { data: signed, error: signErr } = await supabase.storage
           .from('screenshots')
           .createSignedUrl(path, 60 * 60 * 24 * 7);
         if (signErr || !signed?.signedUrl) throw signErr || new Error('sign failed');
         const imageUrl = signed.signedUrl;
 
-        // 4. Post into AI chat channel as a message with attached image (markdown)
         if (req.ai_channel_id) {
           const caption = req.caption || 'Screenshot';
           const content = `📸 ${caption}\n\n![screenshot](${imageUrl})`;
@@ -69,14 +117,12 @@ export function ScreenshotRequestListener() {
           });
         }
 
-        // 5. Forward to Telegram if request came from there
         if (req.via_telegram) {
           await supabase.functions.invoke('send-telegram-screenshot', {
             body: { user_id: userId, image_url: imageUrl, caption: req.caption || 'Screenshot' },
           });
         }
 
-        // 6. Mark fulfilled
         await supabase
           .from('screenshot_requests')
           .update({ status: 'fulfilled', image_url: imageUrl, fulfilled_at: new Date().toISOString() })
@@ -92,7 +138,6 @@ export function ScreenshotRequestListener() {
       }
     };
 
-    // Catch up on any pending requests that arrived while the tab was closed (last 2 minutes)
     (async () => {
       const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       const { data } = await supabase

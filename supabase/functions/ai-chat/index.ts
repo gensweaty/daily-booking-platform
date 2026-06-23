@@ -3047,13 +3047,13 @@ User uploads Excel with 500 customers and says "import these to CRM"
         type: "function",
         function: {
           name: "request_screenshot",
-          description: `Ask the user's currently-open Smartbookly dashboard tab to capture a screenshot of what they are looking at and post it back into this chat (and Telegram if the request came from Telegram). Use this WHENEVER the user explicitly asks for a screenshot / "სქრინი" / "скриншот" / "captura" of any page (calendar, tasks, board, CRM, statistics, etc.) to verify what the AI says matches the UI. The dashboard must be open in at least one browser tab; if not, tell the user to open the dashboard first.`,
+          description: `Ask the user's currently-open Smartbookly dashboard tab to capture a screenshot of the EXACT page the user named, and post it back into this chat (and Telegram if the request came from Telegram). Use this WHENEVER the user explicitly asks for a screenshot / "სქრინი" / "скриншот" / "captura" of any page. IMPORTANT: page_hint must literally contain the section the user named so the dashboard can navigate to it. Allowed sections: "calendar", "tasks board", "crm", "statistics", "business". If the user said "tasks" / "board" / "დავალებების დაფა" / "доска задач" → use "tasks board". If they said calendar / კალენდარი → "calendar". The dashboard must be open in at least one browser tab; only the requesting user's own viewport is captured (sub-users see only their own view).`,
           parameters: {
             type: "object",
             properties: {
               page_hint: {
                 type: "string",
-                description: "Optional human label of which page the user asked about (e.g. 'calendar', 'tasks board', 'CRM', 'statistics'). Used only as caption.",
+                description: "REQUIRED. One of: 'calendar', 'tasks board', 'crm', 'statistics', 'business'. Pick the value that matches the section the user named. The dashboard uses this to navigate to that tab before capturing.",
               },
             },
           },
