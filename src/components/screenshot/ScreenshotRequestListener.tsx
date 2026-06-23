@@ -32,16 +32,40 @@ function resolveTab(hint?: string | null): string | null {
   return null;
 }
 
-async function waitForTabPanel(timeoutMs = 2500): Promise<HTMLElement | null> {
+async function waitForTabPanel(
+  expectedTab: string | null,
+  timeoutMs = 4000
+): Promise<HTMLElement | null> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    const el = document.querySelector(
-      '[role="tabpanel"][data-state="active"]'
-    ) as HTMLElement | null;
+    // Prefer the specific requested tab panel by value
+    let el: HTMLElement | null = null;
+    if (expectedTab) {
+      el = document.querySelector(
+        `[role="tabpanel"][data-state="active"][data-value="${expectedTab}"]`
+      ) as HTMLElement | null;
+      if (!el) {
+        // Radix sometimes encodes value in id like "radix-:r0:-content-tasks"
+        const all = Array.from(
+          document.querySelectorAll('[role="tabpanel"][data-state="active"]')
+        ) as HTMLElement[];
+        el =
+          all.find((p) =>
+            (p.id || '').toLowerCase().endsWith(`-${expectedTab}`)
+          ) || null;
+      }
+    } else {
+      el = document.querySelector(
+        '[role="tabpanel"][data-state="active"]'
+      ) as HTMLElement | null;
+    }
     if (el && el.offsetHeight > 50) return el;
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, 120));
   }
-  return null;
+  // Fallback: any active tabpanel
+  return document.querySelector(
+    '[role="tabpanel"][data-state="active"]'
+  ) as HTMLElement | null;
 }
 
 // Wait for all <img> inside the element to finish loading (best-effort)
@@ -91,12 +115,12 @@ export function ScreenshotRequestListener() {
           window.dispatchEvent(
             new CustomEvent('switch-dashboard-tab', { detail: { tab: targetTab } })
           );
-          const panel = await waitForTabPanel(2500);
+          // Give React a moment to commit the state change before querying
+          await new Promise((r) => setTimeout(r, 250));
+          const panel = await waitForTabPanel(targetTab, 4000);
           if (panel) captureEl = panel;
         } else {
-          const active = document.querySelector(
-            '[role="tabpanel"][data-state="active"]'
-          ) as HTMLElement | null;
+          const active = await waitForTabPanel(null, 1000);
           if (active) captureEl = active;
         }
 
@@ -129,6 +153,33 @@ export function ScreenshotRequestListener() {
           windowHeight: Math.max(document.documentElement.clientHeight, fullH),
           scrollX: 0,
           scrollY: -window.scrollY,
+          // Exclude floating widgets (chat window, chat icon, dynamic island,
+          // toasts, tooltips, etc.) so the captured layout matches the page
+          // itself, not the overlays on top of it.
+          ignoreElements: (node: Element) => {
+            if (!(node instanceof HTMLElement)) return false;
+            if (node.hasAttribute('data-screenshot-hide')) return true;
+            const id = node.id || '';
+            if (
+              id.startsWith('radix-') &&
+              (id.includes('toast') || id.includes('tooltip'))
+            ) {
+              return true;
+            }
+            const cls = node.className && typeof node.className === 'string' ? node.className : '';
+            if (
+              cls.includes('chat-icon-root') ||
+              cls.includes('dynamic-island-root')
+            ) {
+              return true;
+            }
+            // Skip fixed-position overlays that are not part of the captured panel
+            const style = window.getComputedStyle(node);
+            if (style.position === 'fixed' && !captureEl.contains(node)) {
+              return true;
+            }
+            return false;
+          },
         });
         const blob: Blob = await new Promise((resolve, reject) =>
           canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png', 0.92)
