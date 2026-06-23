@@ -754,7 +754,8 @@ serve(async (req) => {
   }
 
   try {
-    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType } = await req.json();
+    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType, source } = await req.json();
+    const isFromTelegram = source === 'telegram' || /\(telegram\)/i.test(senderName || '');
     let normalizedConversationHistory = normalizeConversationHistory(conversationHistory);
     
     console.log('🤖 AI Chat request:', { 
