@@ -509,7 +509,8 @@ async function processBotUpdates(
           currentLocalTime: currentLocalTimeISO,
           attachments: aiAttachments,
           senderName: `${senderName} (Telegram)`,
-          senderType: 'admin'
+          senderType: 'admin',
+          source: 'telegram'
         })
       });
 
