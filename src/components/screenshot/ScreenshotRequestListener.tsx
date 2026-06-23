@@ -35,6 +35,7 @@ function resolveTab(hint?: string | null): string | null {
 function resolvePopupTarget(hint?: string | null, explicit?: string | null): string | null {
   const h = `${explicit || ''} ${hint || ''}`.toLowerCase();
   if (!h.trim()) return null;
+  if (/(business profile|business page|booking page|public page|ბიზნეს.*პროფილ|бизнес.*профил|perfil.*negocio)/i.test(h)) return null;
   if (/(profile|account|avatar|პროფილ|аккаунт|профил|perfil)/i.test(h)) return 'profile';
   if (/(add task|new task|create task|დაამატ.*დავალ|нов.*задач|crear.*tarea|agregar.*tarea)/i.test(h)) return 'add_task';
   return null;

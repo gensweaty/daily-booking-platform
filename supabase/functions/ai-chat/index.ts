@@ -49,6 +49,7 @@ const normalizeScreenshotPageHint = (...values: Array<string | null | undefined>
 const normalizeScreenshotPopupTarget = (...values: Array<string | null | undefined>) => {
   const text = values.map((value) => String(value || '')).join(' ').toLowerCase();
   if (!text.trim()) return null;
+  if (/(business profile|business page|booking page|public page|ბიზნეს.*პროფილ|бизнес.*профил|perfil.*negocio)/i.test(text)) return null;
   if (/(profile|account|avatar|პროფილ|аккаунт|профил|perfil)/i.test(text)) return 'profile';
   if (/(add task|new task|create task|დაამატ.*დავალ|нов.*задач|crear.*tarea|agregar.*tarea)/i.test(text)) return 'add_task';
   return null;
