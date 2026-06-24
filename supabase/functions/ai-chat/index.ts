@@ -8463,6 +8463,23 @@ Call the matching tool with the exact details from the user's last message. Do n
         }
       }
 
+      // Cost-saving short-circuit: if the only tool we ran was request_screenshot,
+      // skip the second LLM call entirely. The screenshot listener will post the
+      // captured image directly into the chat as the AI's reply.
+      if (screenshotOnly && screenshotQueued) {
+        console.log('⚡ Skipping final LLM call (screenshot-only request)');
+        return new Response(
+          JSON.stringify({
+            success: true,
+            content: '',
+            aiMessage: null,
+            toolCalls: message.tool_calls || [],
+            screenshot_pending: true,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Get final response with clear instructions
       console.log('📤 Getting final AI response with tool results...');
       
