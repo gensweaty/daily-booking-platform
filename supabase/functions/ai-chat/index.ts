@@ -4869,7 +4869,9 @@ Call the matching tool with the exact details from the user's last message. Do n
     
     if (message.tool_calls && message.tool_calls.length > 0) {
       console.log('🔧 Executing tool calls...');
-      
+      let screenshotOnly = true;
+      let screenshotQueued = false;
+
       for (const toolCall of message.tool_calls) {
         let funcName = toolCall.function.name;
         const args = JSON.parse(toolCall.function.arguments);
@@ -4894,6 +4896,11 @@ Call the matching tool with the exact details from the user's last message. Do n
         if (toolNameMap[normalizedName]) {
           console.log(`  ⚠️ Normalizing tool name: ${funcName} → ${toolNameMap[normalizedName]}`);
           funcName = toolNameMap[normalizedName];
+        }
+        if (funcName === 'request_screenshot') {
+          screenshotQueued = true;
+        } else {
+          screenshotOnly = false;
         }
 
         console.log(`  → ${funcName}(${JSON.stringify(args).substring(0, 500)}...)`);
