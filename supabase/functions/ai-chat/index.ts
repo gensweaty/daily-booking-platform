@@ -12,6 +12,54 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ────────────────────────────────────────────────────────────────
+// 💰 COST-SAVING FALLBACK: Lovable AI → Google free Gemini
+// Try Lovable AI first (uses workspace credits). If it returns
+// 402 (credits exhausted) or 429 (rate limited) AND GEMINI_API_KEY
+// is configured, transparently retry the same chat-completions
+// request against Google's OpenAI-compatible Gemini endpoint
+// (free tier: gemini-2.5-flash, 1M tokens/min).
+// This wraps the global fetch so every existing call site benefits
+// without changes.
+// ────────────────────────────────────────────────────────────────
+const _origFetch = globalThis.fetch.bind(globalThis);
+const LOVABLE_GW_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
+const GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+globalThis.fetch = (async (input: any, init?: any): Promise<Response> => {
+  const url = typeof input === 'string' ? input : (input?.url || '');
+  if (url !== LOVABLE_GW_URL) return _origFetch(input, init);
+
+  const resp = await _origFetch(input, init);
+  if (resp.status !== 402 && resp.status !== 429) return resp;
+
+  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+  if (!GEMINI_API_KEY) return resp;
+
+  try {
+    const bodyStr = typeof init?.body === 'string' ? init.body : '';
+    if (!bodyStr) return resp;
+    const body = JSON.parse(bodyStr);
+    // Force the free-tier model regardless of what was requested
+    body.model = 'gemini-2.5-flash';
+    console.warn(`💸 Lovable AI returned ${resp.status} — falling back to free Gemini`);
+    const fb = await _origFetch(GEMINI_OPENAI_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${GEMINI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!fb.ok) {
+      console.error('❌ Gemini fallback also failed:', fb.status, await fb.clone().text().catch(() => ''));
+    }
+    return fb;
+  } catch (e) {
+    console.error('❌ Gemini fallback error:', e);
+    return resp;
+  }
+}) as any;
+
 const AI_ASSISTANT_NAME = 'Smartbookly AI';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
