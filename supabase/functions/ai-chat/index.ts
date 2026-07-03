@@ -13,51 +13,65 @@ const corsHeaders = {
 };
 
 // ────────────────────────────────────────────────────────────────
-// 💰 COST-SAVING FALLBACK: Lovable AI → Google free Gemini
-// Try Lovable AI first (uses workspace credits). If it returns
-// 402 (credits exhausted) or 429 (rate limited) AND GEMINI_API_KEY
-// is configured, transparently retry the same chat-completions
-// request against Google's OpenAI-compatible Gemini endpoint
-// (free tier: gemini-2.5-flash, 1M tokens/min).
+// 💰 COST-SAVING ROUTING: Google free Gemini → Lovable AI
+// Priority order when GEMINI_API_KEY is configured:
+//   1) Google free tier: gemini-3.5-flash (newest, free-tier eligible)
+//   2) Google free tier: gemini-2.5-flash (fallback if 3.5 rate-limits/fails)
+//   3) Lovable AI Gateway (workspace credits) as last resort
+// If GEMINI_API_KEY is missing, fall through to Lovable AI directly.
 // This wraps the global fetch so every existing call site benefits
 // without changes.
 // ────────────────────────────────────────────────────────────────
 const _origFetch = globalThis.fetch.bind(globalThis);
 const LOVABLE_GW_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const GEMINI_FREE_MODELS = ['gemini-3.5-flash', 'gemini-2.5-flash'];
+
+async function callGeminiFree(bodyStr: string, apiKey: string, model: string): Promise<Response> {
+  const body = JSON.parse(bodyStr);
+  body.model = model;
+  return _origFetch(GEMINI_OPENAI_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 globalThis.fetch = (async (input: any, init?: any): Promise<Response> => {
   const url = typeof input === 'string' ? input : (input?.url || '');
   if (url !== LOVABLE_GW_URL) return _origFetch(input, init);
 
-  const resp = await _origFetch(input, init);
-  if (resp.status !== 402 && resp.status !== 429) return resp;
-
   const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-  if (!GEMINI_API_KEY) return resp;
+  const bodyStr = typeof init?.body === 'string' ? init.body : '';
 
-  try {
-    const bodyStr = typeof init?.body === 'string' ? init.body : '';
-    if (!bodyStr) return resp;
-    const body = JSON.parse(bodyStr);
-    // Force the free-tier model regardless of what was requested
-    body.model = 'gemini-2.5-flash';
-    console.warn(`💸 Lovable AI returned ${resp.status} — falling back to free Gemini`);
-    const fb = await _origFetch(GEMINI_OPENAI_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${GEMINI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    });
-    if (!fb.ok) {
-      console.error('❌ Gemini fallback also failed:', fb.status, await fb.clone().text().catch(() => ''));
+  // If we can't parse the body or no free key, just hit Lovable AI directly.
+  if (!GEMINI_API_KEY || !bodyStr) return _origFetch(input, init);
+
+  // Try each free Gemini model in order. On 429/402/5xx, try the next.
+  for (const model of GEMINI_FREE_MODELS) {
+    try {
+      const fb = await callGeminiFree(bodyStr, GEMINI_API_KEY, model);
+      if (fb.ok) return fb;
+      // Retryable: rate limit, quota, or transient upstream error.
+      if (fb.status === 429 || fb.status === 402 || fb.status >= 500) {
+        console.warn(`⚠️ Free Gemini ${model} returned ${fb.status} — trying next tier`);
+        continue;
+      }
+      // Non-retryable error from Gemini (e.g. 400 bad request). Fall back to Lovable AI.
+      console.warn(`⚠️ Free Gemini ${model} returned ${fb.status} — falling back to Lovable AI`);
+      break;
+    } catch (e) {
+      console.error(`❌ Free Gemini ${model} call failed:`, e);
+      continue;
     }
-    return fb;
-  } catch (e) {
-    console.error('❌ Gemini fallback error:', e);
-    return resp;
   }
+
+  // Last resort: Lovable AI Gateway (workspace credits).
+  console.warn('💸 All free Gemini tiers exhausted — using Lovable AI credits');
+  return _origFetch(input, init);
 }) as any;
 
 const AI_ASSISTANT_NAME = 'Smartbookly AI';
