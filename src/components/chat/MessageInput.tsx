@@ -888,8 +888,8 @@ export const MessageInput = ({
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             placeholder={isTranscribing ? "Transcribing voice..." : defaultPlaceholder}
-            className="min-h-[60px] max-h-32 resize-none pr-20 py-3"
-            rows={1}
+            className="min-h-[84px] max-h-40 resize-none pr-12 py-3"
+            rows={2}
             disabled={isUploading || isTranscribing}
           />
 
@@ -903,8 +903,8 @@ export const MessageInput = ({
             className="hidden"
           />
 
-          {/* Input Actions */}
-          <div className="absolute right-2 bottom-3 flex items-center gap-0.5">
+          {/* Input Actions - vertical stack to preserve typing space */}
+          <div className="absolute right-1.5 top-1.5 bottom-1.5 flex flex-col items-center justify-between gap-0.5">
             {!editingMessage && (
               <Button
                 type="button"
