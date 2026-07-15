@@ -187,7 +187,7 @@ export const DashboardContent = ({
       <ScreenshotRequestListener />
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-        <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">
+        <div className="bg-muted/30 border border-border/40 rounded-xl p-1.5 mb-3 shadow-inner">
           <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
             <TabsTrigger 
               value="calendar" 

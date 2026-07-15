@@ -309,7 +309,7 @@ export const PublicBoardNavigation = ({
           />
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">
+          <div className="bg-muted/30 border border-border/40 rounded-xl p-1.5 mb-3 shadow-inner">
             <TabsList className="grid w-full bg-transparent p-0 gap-1 h-auto" style={{ gridTemplateColumns: `repeat(${availableTabs.length}, minmax(0, 1fr))` }}>
               {availableTabs.map((tab) => (
                 <TabsTrigger 
