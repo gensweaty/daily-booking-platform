@@ -315,7 +315,7 @@ export const PublicBoardNavigation = ({
                 <TabsTrigger 
                   key={tab.id}
                   value={tab.id}
-                  className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+                  className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
                 >
                   <motion.div
                     whileHover={{ rotate: 15 }}

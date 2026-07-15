@@ -193,7 +193,7 @@ export const DashboardContent = ({
               value="calendar" 
               data-dashboard-tab-trigger="calendar"
               data-tutorial-step="calendar"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -209,7 +209,7 @@ export const DashboardContent = ({
               value="statistics" 
               data-dashboard-tab-trigger="statistics"
               data-tutorial-step="statistics"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -229,7 +229,7 @@ export const DashboardContent = ({
               value="tasks" 
               data-dashboard-tab-trigger="tasks"
               data-tutorial-step="tasks"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -249,7 +249,7 @@ export const DashboardContent = ({
               value="crm" 
               data-dashboard-tab-trigger="crm"
               data-tutorial-step="crm"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -269,7 +269,7 @@ export const DashboardContent = ({
               value="business" 
               data-dashboard-tab-trigger="business"
               data-tutorial-step="business"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] relative"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02] relative"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
