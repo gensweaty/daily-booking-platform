@@ -711,13 +711,11 @@ export const ChatSidebar = ({ onChannelSelect, onDMStart }: ChatSidebarProps = {
             {me?.type === 'admin' && !isPublicBoard && (
               <button
                 onClick={() => setBoardSettingsOpen(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/50 hover:bg-accent rounded-md transition-all text-muted-foreground hover:text-foreground border border-border/30 hover:border-border/60 shadow-sm"
+                className="flex items-center justify-center h-7 w-7 bg-muted/50 hover:bg-accent rounded-md transition-all text-muted-foreground hover:text-foreground border border-border/40 hover:border-border/70 shadow-sm flex-shrink-0"
                 title={t('publicBoard.manageTeam')}
+                aria-label={t('publicBoard.manageTeam')}
               >
-                <Settings className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className="hidden md:inline text-xs font-semibold whitespace-nowrap">
-                  {t('publicBoard.manageTeam')}
-                </span>
+                <Settings className="h-3.5 w-3.5" />
               </button>
             )}
           </div>

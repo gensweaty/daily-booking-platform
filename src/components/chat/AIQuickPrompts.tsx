@@ -86,9 +86,17 @@ export function AIQuickPrompts({ onPromptSelect, initiallyExpanded = false, onEx
   ];
 
   return (
-    <div className="border-t bg-muted/30">
-      <div className="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-muted/50" onClick={handleToggle}>
-        <div className="text-xs text-muted-foreground font-medium">Quick Actions</div>
+    <div className="border-t border-border/60 bg-gradient-to-b from-muted/40 to-muted/20">
+      <div
+        className="flex items-center justify-between px-3 py-1 cursor-pointer hover:bg-muted/60 transition-colors"
+        onClick={handleToggle}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary/70" />
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
+            Quick Actions
+          </div>
+        </div>
         <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
           {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
         </Button>
