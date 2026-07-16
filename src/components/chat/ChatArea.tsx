@@ -878,7 +878,22 @@ export const ChatAreaLegacy = ({ onMessageInputFocus, isMinimized = false }: Cha
     return () => window.removeEventListener('chat-reset', onReset as EventListener);
   }, []);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
+  // Single unified scroll-to-bottom effect. Instant on first paint, smooth after.
+  useEffect(() => {
+    if (!bottomRef.current) return;
+    if (!didInitialScrollRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'auto' });
+      if (messages.length > 0) didInitialScrollRef.current = true;
+    } else {
+      // Defer to next frame; avoids layout thrash while React commits
+      requestAnimationFrame(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+  }, [messages.length]);
+
+  // Reset the initial-scroll flag when switching channels so the new channel jumps instantly.
+  useEffect(() => { didInitialScrollRef.current = false; }, [activeChannelId]);
 
   // Auto-scroll when AI typing indicator appears so user sees it without manual scrolling
   useEffect(() => {
