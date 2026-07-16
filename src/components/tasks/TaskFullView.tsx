@@ -74,20 +74,6 @@ export const TaskFullView = ({
     fetchProfileUsername();
   }, [user?.id]);
   
-  useEffect(() => {
-    console.log("TaskFullView - task received:", task);
-    console.log("TaskFullView - permission props:", {
-      hasOnEdit: !!onEdit,
-      hasOnDelete: !!onDelete,
-      hasOnArchive: !!onArchive,
-      isArchived,
-      taskId: task.id,
-      createdByType: task.created_by_type,
-      createdByName: task.created_by_name,
-      createdByAI: task.created_by_ai
-    });
-  }, [task, onEdit, onDelete, onArchive, isArchived]);
-
   const { data: files, refetch } = useQuery({
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
@@ -97,10 +83,12 @@ export const TaskFullView = ({
         .eq('task_id', task.id);
       
       if (error) throw error;
-      console.log("Retrieved task files:", data);
       return data;
     },
     enabled: isOpen && !!task.id,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const handleFileDeleted = () => {
