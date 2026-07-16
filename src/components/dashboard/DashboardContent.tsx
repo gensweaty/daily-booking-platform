@@ -340,7 +340,9 @@ export const DashboardContent = ({
                       initial="hidden"
                       animate="visible"
                     >
-                      <Calendar defaultView="month" />
+                      <Suspense fallback={<TabLoader />}>
+                        <Calendar defaultView="month" />
+                      </Suspense>
                     </motion.div>
                   </div>
                 </CardContent>
@@ -371,7 +373,9 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    <Statistics />
+                    <Suspense fallback={<TabLoader />}>
+                      <Statistics />
+                    </Suspense>
                   </motion.div>
                 </CardContent>
               </Card>
@@ -497,7 +501,13 @@ export const DashboardContent = ({
                  </CardHeader>
                 <CardContent>
                   <div>
-                    {showArchive ? <ArchivedTasksPage /> : <TaskList username={username} />}
+                    {showArchive ? (
+                      <Suspense fallback={<TabLoader />}>
+                        <ArchivedTasksPage />
+                      </Suspense>
+                    ) : (
+                      <TaskList username={username} />
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -518,7 +528,9 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    <CRMWithPermissions />
+                    <Suspense fallback={<TabLoader />}>
+                      <CRMWithPermissions />
+                    </Suspense>
                   </motion.div>
                 </CardContent>
               </Card>
@@ -539,7 +551,9 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    <BusinessPage />
+                    <Suspense fallback={<TabLoader />}>
+                      <BusinessPage />
+                    </Suspense>
                   </motion.div>
                 </CardContent>
               </Card>
