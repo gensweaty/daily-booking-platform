@@ -822,11 +822,12 @@ export const ChatAreaLegacy = ({ onMessageInputFocus, isMinimized = false }: Cha
   }, [activeChannelId]);
 
   // 🔧 FIX: Periodic check for messages with missing attachments
+  // Uses messagesRef so the interval is NOT re-created on every message change.
   useEffect(() => {
     if (!activeChannelId) return;
-    
+
     const checkMissingAttachments = async () => {
-      const messagesWithMissingAttachments = messages.filter(m => 
+      const messagesWithMissingAttachments = messagesRef.current.filter(m => 
         ((m as any).has_attachments === true) && (!m.attachments || m.attachments.length === 0)
       );
       
@@ -858,9 +859,9 @@ export const ChatAreaLegacy = ({ onMessageInputFocus, isMinimized = false }: Cha
       }
     };
 
-    const interval = setInterval(checkMissingAttachments, 5000);
+    const interval = setInterval(checkMissingAttachments, 8000);
     return () => clearInterval(interval);
-  }, [activeChannelId, messages]);
+  }, [activeChannelId]);
 
   // Handle chat-reset event - CRITICAL: Only clear cache, not messages
   // Messages will be reloaded naturally via the loadMessages useEffect when dependencies are ready
