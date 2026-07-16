@@ -143,12 +143,10 @@ export const ChatAreaLegacy = ({ onMessageInputFocus, isMinimized = false }: Cha
   const [generalIdLoading, setGeneralIdLoading] = useState(true);
   const [isAITyping, setIsAITyping] = useState(false);
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages.length]);
+  // Track initial mount for smart scroll behavior (instant on first load, smooth after)
+  const didInitialScrollRef = useRef(false);
+  const messagesRef = useRef<Message[]>([]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   // -------- helper: fetch attachments correctly for public vs internal
   const fetchAttachments = async (messageId: string) => {
