@@ -321,3 +321,12 @@ const TaskCardInner = ({ task, index, onEdit, onView, onDelete, isPublicBoard = 
     </Draggable>
   );
 };
+
+export const TaskCard = memo(TaskCardInner, (prev, next) =>
+  prev.task === next.task &&
+  prev.index === next.index &&
+  prev.onEdit === next.onEdit &&
+  prev.onView === next.onView &&
+  prev.onDelete === next.onDelete &&
+  prev.isPublicBoard === next.isPublicBoard
+);
