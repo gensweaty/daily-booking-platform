@@ -5,17 +5,12 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell, Archive } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
-import { Calendar } from "@/components/Calendar/Calendar"
 import AddTaskForm from "@/components/AddTaskForm"
-import { Statistics } from "@/components/Statistics"
-import { CRMWithPermissions } from "@/components/crm/CRMWithPermissions"
-import { BusinessPage } from "@/components/business/BusinessPage"
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications"
 import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications"
 import { CustomReminderNotifications } from "@/components/reminder/CustomReminderNotifications"
 import { GlobalBookingNotificationListener } from "@/components/notifications/GlobalBookingNotificationListener"
 import { ScreenshotRequestListener } from "@/components/screenshot/ScreenshotRequestListener"
-import { ArchivedTasksPage } from "@/components/tasks/ArchivedTasksPage"
 import { PublicBoardSettings } from "@/components/tasks/PublicBoardSettings"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -23,7 +18,7 @@ import { useBusinessProfile } from "@/hooks/useBusinessProfile"
 import { useBookingRequests } from "@/hooks/useBookingRequests"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { useEffect, useState } from "react"
+import { useEffect, useState, lazy, Suspense } from "react"
 import { LanguageText } from "@/components/shared/LanguageText"
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText"
 import { cn } from "@/lib/utils"
@@ -31,6 +26,31 @@ import { useQueryClient } from "@tanstack/react-query"
 import { TasksPresenceHeader } from "@/components/tasks/TasksPresenceHeader"
 import { TaskFilterButton } from "@/components/tasks/TaskFilterButton"
 import { TaskFiltersProvider } from "@/hooks/useTaskFilters"
+
+// Lazy-loaded heavy tab views: they only mount when the user opens their tab.
+// This keeps the initial dashboard render fast and avoids running their
+// queries/effects until they are actually visible.
+const Calendar = lazy(() =>
+  import("@/components/Calendar/Calendar").then((m) => ({ default: m.Calendar }))
+)
+const Statistics = lazy(() =>
+  import("@/components/Statistics").then((m) => ({ default: m.Statistics }))
+)
+const CRMWithPermissions = lazy(() =>
+  import("@/components/crm/CRMWithPermissions").then((m) => ({ default: m.CRMWithPermissions }))
+)
+const BusinessPage = lazy(() =>
+  import("@/components/business/BusinessPage").then((m) => ({ default: m.BusinessPage }))
+)
+const ArchivedTasksPage = lazy(() =>
+  import("@/components/tasks/ArchivedTasksPage").then((m) => ({ default: m.ArchivedTasksPage }))
+)
+
+const TabLoader = () => (
+  <div className="flex items-center justify-center py-16">
+    <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+  </div>
+)
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
