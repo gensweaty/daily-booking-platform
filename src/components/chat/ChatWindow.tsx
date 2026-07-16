@@ -205,7 +205,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         "fixed bg-background border shadow-lg pointer-events-auto z-[12001]",
         "grid grid-rows-[auto,1fr] overflow-hidden",
         windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
-        isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-all duration-300'
+        isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-[width,height,transform,inset] duration-200 ease-out will-change-[width,height,transform]'
       )}
       style={getWindowStyle()}
     >
@@ -294,7 +294,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
           <div className={cn(
             "border-r overflow-hidden bg-muted/20",
             isSidebarCollapsed ? "w-0" : "w-52",
-            isMobile ? "chat-mobile-transition" : "transition-all duration-200"
+            isMobile ? "chat-mobile-transition" : "transition-[width] duration-200 ease-out will-change-[width]"
           )}
           onTouchStart={handleMobileSidebarTouchStart}
           onTouchMove={handleMobileSidebarTouchMove}
