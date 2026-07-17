@@ -2867,6 +2867,34 @@ Works across all languages. Can be immediate or scheduled.`,
       {
         type: "function",
         function: {
+          name: "list_pending_reminders",
+          description: `List the user's UPCOMING (pending, not yet sent, not deleted) custom reminders. Use this BEFORE cancel_reminder, or when the user references "that reminder", "the last reminder", "the reminder I set earlier", "the one for 10 o'clock", etc. and you need to identify which specific reminder they mean. Also use before recreating a reminder from an earlier conversation, so you match the correct title/time and don't guess.`,
+          parameters: {
+            type: "object",
+            properties: {
+              limit: { type: "number", description: "Max reminders to return (default 20).", minimum: 1, maximum: 50 }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "cancel_reminder",
+          description: `Cancel / deactivate / delete a pending custom reminder. Use when the user says things like "cancel that reminder", "delete the reminder", "deactivate it", "გააუქმე ეგ შეხსენება", "cancela ese recordatorio", "отмени напоминание". You MUST identify the correct reminder first: either the user provided an id (from list_pending_reminders), or match by title/time. If ambiguous (multiple pending reminders match), call list_pending_reminders first and ask the user which one. NEVER say a reminder was cancelled unless this tool returned success.`,
+          parameters: {
+            type: "object",
+            properties: {
+              reminder_id: { type: "string", description: "UUID of the reminder (preferred, from list_pending_reminders)." },
+              title_match: { type: "string", description: "Partial or full title to match if id is unknown. Case-insensitive substring match against pending reminders." },
+              latest: { type: "boolean", description: "If true and no id/title given, cancel the single most recently CREATED pending reminder. Only use when the user clearly refers to the last reminder they just set." }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "create_or_update_event",
           description: `Create or update calendar events/appointments/bookings - with AUTOMATIC event search built-in!
 
@@ -3399,6 +3427,36 @@ ONLY call tools when user EXPLICITLY requests an action with verbs like:
 
 ✅ GOOD - User says: "set reminder for tomorrow"
    ✅ Right: [calls create_custom_reminder with absolute time]
+
+🗑️ CANCELLING / DEACTIVATING / DELETING REMINDERS 🗑️
+
+When the user asks to CANCEL, DELETE, DEACTIVATE, DISABLE, TURN OFF, or REMOVE a reminder — in ANY language — you MUST use the cancel_reminder tool. Do NOT reply that you "can't cancel reminders technically". You CAN.
+
+Trigger phrases (any language, non-exhaustive):
+- EN: "cancel that reminder", "delete the reminder", "deactivate it", "remove the reminder", "turn off the reminder", "no, cancel it"
+- KA: "გააუქმე ეგ შეხსენება", "წაშალე შეხსენება", "გამორთე შეხსენება", "არა, გააუქმე"
+- ES: "cancela ese recordatorio", "elimina el recordatorio", "desactívalo"
+- RU: "отмени напоминание", "удали напоминание", "выключи его"
+
+How to pick the correct reminder to cancel:
+1. If the user JUST created a reminder in this same conversation and says "no, cancel that / that's wrong / cancel it" → call cancel_reminder({ latest: true }).
+2. If the user references a specific title or time ("cancel the 10 o'clock reminder", "the one about wedding") → call cancel_reminder({ title_match: "wedding" }).
+3. If unsure / multiple could match → FIRST call list_pending_reminders, then pick by id.
+4. If the tool returns ambiguous with a list of matches, ASK the user which one — do not guess.
+5. Only confirm cancellation AFTER cancel_reminder returned success. Say plainly what was cancelled and its time.
+
+🔁 RECREATING / RESCHEDULING A REMINDER FROM EARLIER IN THE CONVERSATION 🔁
+
+When the user says "recreate that reminder", "set that reminder again", "put it back", "same reminder for 10 o'clock", "შემახსენე ეს 10 საათში", etc., you MUST NOT blindly reuse the LAST reminder's title. That is a common wrong behaviour.
+
+Do this instead:
+1. Look BACK in the conversation history and identify which specific reminder the user is referring to (by the message being replied to, quoted text, subject keywords, or the most recently DISCUSSED reminder — NOT necessarily the last one you created).
+2. If the user is quoting/replying to a specific earlier Smartbookly reminder message, use THAT reminder's subject/title.
+3. If it's still ambiguous, call list_pending_reminders and/or ask the user which reminder they mean before creating a new one.
+4. Only then call create_custom_reminder with the correct title and the new time.
+5. If the user also wants to cancel the wrong one you just made, use cancel_reminder({ latest: true }).
+
+Never fabricate the title from the previous unrelated message. Never claim you "cannot" cancel — you have cancel_reminder.
 
 ⛔⛔⛔ ABSOLUTE TOOL USAGE ENFORCEMENT - TOP PRIORITY ⛔⛔⛔
 
@@ -4949,6 +5007,14 @@ Call the matching tool with the exact details from the user's last message. Do n
           'createorupdateevent': 'create_or_update_event',
           'createorupdatetask': 'create_or_update_task',
           'createcustomreminder': 'create_custom_reminder',
+          'cancelreminder': 'cancel_reminder',
+          'deletereminder': 'cancel_reminder',
+          'deactivatereminder': 'cancel_reminder',
+          'removereminder': 'cancel_reminder',
+          'listpendingreminders': 'list_pending_reminders',
+          'listreminders': 'list_pending_reminders',
+          'getpendingreminders': 'list_pending_reminders',
+          'getreminders': 'list_pending_reminders',
           'getalltasks': 'get_all_tasks',
           'getupcomingevents': 'get_upcoming_events',
           'getallcustomers': 'get_all_customers',
@@ -7027,6 +7093,115 @@ Call the matching tool with the exact details from the user's last message. Do n
                   headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 }
               );
+            }
+
+            case 'list_pending_reminders': {
+              const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 50);
+              const nowIso = new Date().toISOString();
+              let query = supabaseAdmin
+                .from('custom_reminders')
+                .select('id, title, message, remind_at, created_at, created_by_type, created_by_sub_user_id, recipient_email')
+                .eq('user_id', ownerId)
+                .is('deleted_at', null)
+                .is('reminder_sent_at', null)
+                .gte('remind_at', nowIso)
+                .order('remind_at', { ascending: true })
+                .limit(limit);
+              // Scope sub-user requests to only their own reminders (privacy parity)
+              if (requesterType === 'sub_user' && requesterIdentity?.id) {
+                query = query.eq('created_by_sub_user_id', requesterIdentity.id);
+              }
+              const { data: rows, error: listErr } = await query;
+              if (listErr) {
+                console.error('❌ list_pending_reminders error:', listErr);
+                toolResult = { success: false, error: listErr.message };
+                break;
+              }
+              const reminders = (rows || []).map(r => ({
+                id: r.id,
+                title: r.title,
+                message: r.message || '',
+                remind_at_utc: r.remind_at,
+                remind_at_local: formatInUserZone(new Date(r.remind_at)),
+                created_at: r.created_at,
+                for_recipient: r.recipient_email || null,
+              }));
+              toolResult = { success: true, count: reminders.length, reminders };
+              break;
+            }
+
+            case 'cancel_reminder': {
+              const { reminder_id, title_match, latest } = args || {};
+              const nowIso = new Date().toISOString();
+              let baseQuery = supabaseAdmin
+                .from('custom_reminders')
+                .select('id, title, remind_at, created_at, created_by_sub_user_id')
+                .eq('user_id', ownerId)
+                .is('deleted_at', null)
+                .is('reminder_sent_at', null)
+                .gte('remind_at', nowIso);
+              if (requesterType === 'sub_user' && requesterIdentity?.id) {
+                baseQuery = baseQuery.eq('created_by_sub_user_id', requesterIdentity.id);
+              }
+
+              let candidates: any[] = [];
+              if (reminder_id) {
+                const { data, error } = await baseQuery.eq('id', reminder_id).limit(1);
+                if (error) { toolResult = { success: false, error: error.message }; break; }
+                candidates = data || [];
+              } else if (title_match && String(title_match).trim()) {
+                const term = String(title_match).trim();
+                const { data, error } = await baseQuery.ilike('title', `%${term}%`).order('remind_at', { ascending: true });
+                if (error) { toolResult = { success: false, error: error.message }; break; }
+                candidates = data || [];
+              } else if (latest) {
+                const { data, error } = await baseQuery.order('created_at', { ascending: false }).limit(1);
+                if (error) { toolResult = { success: false, error: error.message }; break; }
+                candidates = data || [];
+              } else {
+                toolResult = { success: false, error: 'Provide reminder_id, title_match, or latest=true. Call list_pending_reminders first if unsure.' };
+                break;
+              }
+
+              if (candidates.length === 0) {
+                toolResult = { success: false, error: 'No matching pending reminder found. It may already have been sent or cancelled.' };
+                break;
+              }
+              if (candidates.length > 1) {
+                toolResult = {
+                  success: false,
+                  ambiguous: true,
+                  error: `Multiple pending reminders match. Ask the user which one, or pass a specific reminder_id.`,
+                  matches: candidates.map(c => ({
+                    id: c.id,
+                    title: c.title,
+                    remind_at_local: formatInUserZone(new Date(c.remind_at)),
+                  })),
+                };
+                break;
+              }
+
+              const target = candidates[0];
+              const { error: delErr } = await supabaseAdmin
+                .from('custom_reminders')
+                .update({ deleted_at: new Date().toISOString() })
+                .eq('id', target.id)
+                .eq('user_id', ownerId);
+              if (delErr) {
+                console.error('❌ cancel_reminder error:', delErr);
+                toolResult = { success: false, error: delErr.message };
+                break;
+              }
+              console.log(`🗑️ Reminder cancelled: ${target.id} (${target.title})`);
+              toolResult = {
+                success: true,
+                cancelled: {
+                  id: target.id,
+                  title: target.title,
+                  remind_at_local: formatInUserZone(new Date(target.remind_at)),
+                },
+              };
+              break;
             }
 
             case 'generate_excel_report': {
