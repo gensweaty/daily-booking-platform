@@ -7057,6 +7057,115 @@ Call the matching tool with the exact details from the user's last message. Do n
               );
             }
 
+            case 'list_pending_reminders': {
+              const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 50);
+              const nowIso = new Date().toISOString();
+              let query = supabaseAdmin
+                .from('custom_reminders')
+                .select('id, title, message, remind_at, created_at, created_by_type, created_by_sub_user_id, recipient_email')
+                .eq('user_id', ownerId)
+                .is('deleted_at', null)
+                .is('reminder_sent_at', null)
+                .gte('remind_at', nowIso)
+                .order('remind_at', { ascending: true })
+                .limit(limit);
+              // Scope sub-user requests to only their own reminders (privacy parity)
+              if (requesterType === 'sub_user' && requesterIdentity?.id) {
+                query = query.eq('created_by_sub_user_id', requesterIdentity.id);
+              }
+              const { data: rows, error: listErr } = await query;
+              if (listErr) {
+                console.error('❌ list_pending_reminders error:', listErr);
+                toolResult = { success: false, error: listErr.message };
+                break;
+              }
+              const reminders = (rows || []).map(r => ({
+                id: r.id,
+                title: r.title,
+                message: r.message || '',
+                remind_at_utc: r.remind_at,
+                remind_at_local: formatInUserZone(new Date(r.remind_at)),
+                created_at: r.created_at,
+                for_recipient: r.recipient_email || null,
+              }));
+              toolResult = { success: true, count: reminders.length, reminders };
+              break;
+            }
+
+            case 'cancel_reminder': {
+              const { reminder_id, title_match, latest } = args || {};
+              const nowIso = new Date().toISOString();
+              let baseQuery = supabaseAdmin
+                .from('custom_reminders')
+                .select('id, title, remind_at, created_at, created_by_sub_user_id')
+                .eq('user_id', ownerId)
+                .is('deleted_at', null)
+                .is('reminder_sent_at', null)
+                .gte('remind_at', nowIso);
+              if (requesterType === 'sub_user' && requesterIdentity?.id) {
+                baseQuery = baseQuery.eq('created_by_sub_user_id', requesterIdentity.id);
+              }
+
+              let candidates: any[] = [];
+              if (reminder_id) {
+                const { data, error } = await baseQuery.eq('id', reminder_id).limit(1);
+                if (error) { toolResult = { success: false, error: error.message }; break; }
+                candidates = data || [];
+              } else if (title_match && String(title_match).trim()) {
+                const term = String(title_match).trim();
+                const { data, error } = await baseQuery.ilike('title', `%${term}%`).order('remind_at', { ascending: true });
+                if (error) { toolResult = { success: false, error: error.message }; break; }
+                candidates = data || [];
+              } else if (latest) {
+                const { data, error } = await baseQuery.order('created_at', { ascending: false }).limit(1);
+                if (error) { toolResult = { success: false, error: error.message }; break; }
+                candidates = data || [];
+              } else {
+                toolResult = { success: false, error: 'Provide reminder_id, title_match, or latest=true. Call list_pending_reminders first if unsure.' };
+                break;
+              }
+
+              if (candidates.length === 0) {
+                toolResult = { success: false, error: 'No matching pending reminder found. It may already have been sent or cancelled.' };
+                break;
+              }
+              if (candidates.length > 1) {
+                toolResult = {
+                  success: false,
+                  ambiguous: true,
+                  error: `Multiple pending reminders match. Ask the user which one, or pass a specific reminder_id.`,
+                  matches: candidates.map(c => ({
+                    id: c.id,
+                    title: c.title,
+                    remind_at_local: formatInUserZone(new Date(c.remind_at)),
+                  })),
+                };
+                break;
+              }
+
+              const target = candidates[0];
+              const { error: delErr } = await supabaseAdmin
+                .from('custom_reminders')
+                .update({ deleted_at: new Date().toISOString() })
+                .eq('id', target.id)
+                .eq('user_id', ownerId);
+              if (delErr) {
+                console.error('❌ cancel_reminder error:', delErr);
+                toolResult = { success: false, error: delErr.message };
+                break;
+              }
+              console.log(`🗑️ Reminder cancelled: ${target.id} (${target.title})`);
+              toolResult = {
+                success: true,
+                cancelled: {
+                  id: target.id,
+                  title: target.title,
+                  remind_at_local: formatInUserZone(new Date(target.remind_at)),
+                },
+              };
+              break;
+            }
+
             case 'generate_excel_report': {
               const { report_type, months } = args;
               const finalMonths = months || 1; // Default to 1 month (this month) if not specified
