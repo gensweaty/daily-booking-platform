@@ -2867,6 +2867,34 @@ Works across all languages. Can be immediate or scheduled.`,
       {
         type: "function",
         function: {
+          name: "list_pending_reminders",
+          description: `List the user's UPCOMING (pending, not yet sent, not deleted) custom reminders. Use this BEFORE cancel_reminder, or when the user references "that reminder", "the last reminder", "the reminder I set earlier", "the one for 10 o'clock", etc. and you need to identify which specific reminder they mean. Also use before recreating a reminder from an earlier conversation, so you match the correct title/time and don't guess.`,
+          parameters: {
+            type: "object",
+            properties: {
+              limit: { type: "number", description: "Max reminders to return (default 20).", minimum: 1, maximum: 50 }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "cancel_reminder",
+          description: `Cancel / deactivate / delete a pending custom reminder. Use when the user says things like "cancel that reminder", "delete the reminder", "deactivate it", "გააუქმე ეგ შეხსენება", "cancela ese recordatorio", "отмени напоминание". You MUST identify the correct reminder first: either the user provided an id (from list_pending_reminders), or match by title/time. If ambiguous (multiple pending reminders match), call list_pending_reminders first and ask the user which one. NEVER say a reminder was cancelled unless this tool returned success.`,
+          parameters: {
+            type: "object",
+            properties: {
+              reminder_id: { type: "string", description: "UUID of the reminder (preferred, from list_pending_reminders)." },
+              title_match: { type: "string", description: "Partial or full title to match if id is unknown. Case-insensitive substring match against pending reminders." },
+              latest: { type: "boolean", description: "If true and no id/title given, cancel the single most recently CREATED pending reminder. Only use when the user clearly refers to the last reminder they just set." }
+            }
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "create_or_update_event",
           description: `Create or update calendar events/appointments/bookings - with AUTOMATIC event search built-in!
 
