@@ -4927,9 +4927,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     const responseTextRaw = String(message.content || '');
     const responseText = responseTextRaw.toLowerCase();
     const claimsSuccess =
-      /\b(created|updated|added|deleted|removed|scheduled|booked|saved|set|done|attached|uploaded|imported|marked|moved|completed|assigned)\b/.test(responseText)
-      || /(შევქმენ|შეიქმნ|დავამატ|დაემატ|განვაახლ|განახლდ|წავშალ|წაიშალ|გადავიტან|გადავიდ|გადატანილ|დასრულდ|დასრულებულ|მონიშნულ|დაიგეგმ|შენახულ|შენახ|დავუმატ)/.test(responseTextRaw)
-      || /\b(creado|actualizado|añadido|eliminado|movido|completado|marcado)\b/.test(responseText)
+      /\b(created|updated|added|deleted|removed|scheduled|booked|saved|set|done|attached|uploaded|imported|marked|moved|completed|assigned|cancell?ed|canceled|deactivated|disabled|turned off)\b/.test(responseText)
+      || /(შევქმენ|შეიქმნ|დავამატ|დაემატ|განვაახლ|განახლდ|წავშალ|წაიშალ|გადავიტან|გადავიდ|გადატანილ|დასრულდ|დასრულებულ|მონიშნულ|დაიგეგმ|შენახულ|შენახ|დავუმატ|გაუქმ|გავაუქმ|გაუქმდ|დეაქტივ)/.test(responseTextRaw)
+      || /\b(creado|actualizado|añadido|eliminado|movido|completado|marcado|cancelad[oa]|desactivad[oa])\b/.test(responseText)
       || /✅|☑|✔/.test(responseTextRaw);
     // Trigger retry whenever model claims success but didn't call a tool —
     // even if the prompt itself didn't obviously look like an action verb
