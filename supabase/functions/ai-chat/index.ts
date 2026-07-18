@@ -844,7 +844,7 @@ serve(async (req) => {
   }
 
   try {
-    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType, source } = await req.json();
+    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType, source, replyTo } = await req.json();
     const isFromTelegram = source === 'telegram' || /\(telegram\)/i.test(senderName || '');
     let normalizedConversationHistory = normalizeConversationHistory(conversationHistory);
     
@@ -4827,9 +4827,18 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     // Build conversation with history and attachments
     // CRITICAL: Make files automatically available like events - no manual ID lookup needed!
+    // If the user is REPLYING to a specific earlier message (Telegram reply or chat reply),
+    // prepend that quoted message so the AI resolves "this / that reminder / this task" correctly.
+    let replyContextBlock = '';
+    if (replyTo && (replyTo.content || replyTo.text)) {
+      const quotedSpeaker = (replyTo.sender_name || replyTo.senderName || 'Previous message').toString().slice(0, 80);
+      const quotedText = String(replyTo.content || replyTo.text || '').slice(0, 800);
+      replyContextBlock = `\n\n[The user is REPLYING to this earlier message from ${quotedSpeaker}]:\n"""${quotedText}"""\nInterpret words like "this", "that", "it", "same one" as referring to the quoted message above (its subject, its reminder, its task, its event, its customer). If the user asks to cancel/deactivate a reminder referenced by this quoted message, call cancel_reminder using its title/content. If they ask to recreate or reschedule the reminder from the quote, use its exact title and message.\n`;
+    }
+    const promptWithReply = replyContextBlock ? `${replyContextBlock}\n${prompt}` : prompt;
     const userMessage = attachmentContext 
-      ? `${prompt}\n\n--- Attached Files ---${attachmentContext}`
-      : prompt;
+      ? `${promptWithReply}\n\n--- Attached Files ---${attachmentContext}`
+      : promptWithReply;
     
     const messages = [
       { role: 'system', content: `${systemPrompt}${savedContextBlock}${recentDiscussionBlock}` },
@@ -4906,8 +4915,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     const ACTION_VERBS_EN = /\b(add|create|new|make|update|edit|change|modify|set|delete|remove|cancel|mark|rename|move|attach|upload|import|register|book|schedule|remind|alert|notify|complete|finish|start|assign|reassign)\b/;
     const ACTION_ENTITIES_EN = /\b(customer|client|contact|lead|event|booking|appointment|meeting|task|todo|to-do|checklist|reminder|note|file|attachment|document|status)\b/;
     // Georgian action verbs (დაამატე/შექმენი/გადაიტანე/შეცვალე/წაშალე/მონიშნე/გადატანე/გადაიყვანე/დააფიქსირე/მისართე/მომაგონდი/რემაინდერი/შემახსენე)
-    const ACTION_VERBS_KA = /(დაამატ|შექმენ|გადაიტან|გადატან|შეცვალ|წაშალ|მონიშნ|დააფიქსირ|შემახსენ|მომაგონდ|გადაიყვან|დაასრულ|დაიწყ|დანიშნ|მიანიჭ|გადააკეთ)/;
-    const ACTION_ENTITIES_KA = /(თასქ|დავალებ|რემაინდერ|შემხსენებ|მომხმარებ|კლიენტ|ივენთ|ღონისძიებ|შეხვედრ|ჯავშნ|ფაილ|შენიშვნ|სტატუს)/;
+    const ACTION_VERBS_KA = /(დაამატ|შექმენ|გადაიტან|გადატან|შეცვალ|წაშალ|მონიშნ|დააფიქსირ|შემახსენ|მომაგონდ|გადაიყვან|დაასრულ|დაიწყ|დანიშნ|მიანიჭ|გადააკეთ|გააუქმ|გაუქმ|დეაქტივ|გამორთ)/;
+    const ACTION_ENTITIES_KA = /(თასქ|დავალებ|რემაინდერ|შემხსენებ|შეხსენებ|მომხმარებ|კლიენტ|ივენთ|ღონისძიებ|შეხვედრ|ჯავშნ|ფაილ|შენიშვნ|სტატუს)/;
     // Spanish basics
     const ACTION_VERBS_ES = /\b(crear|añadir|agregar|actualizar|cambiar|eliminar|borrar|mover|completar|marcar|recordar)\b/;
     const ACTION_ENTITIES_ES = /\b(cliente|evento|cita|tarea|recordatorio|nota|archivo|estado)\b/;
@@ -4918,9 +4927,9 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     const responseTextRaw = String(message.content || '');
     const responseText = responseTextRaw.toLowerCase();
     const claimsSuccess =
-      /\b(created|updated|added|deleted|removed|scheduled|booked|saved|set|done|attached|uploaded|imported|marked|moved|completed|assigned)\b/.test(responseText)
-      || /(შევქმენ|შეიქმნ|დავამატ|დაემატ|განვაახლ|განახლდ|წავშალ|წაიშალ|გადავიტან|გადავიდ|გადატანილ|დასრულდ|დასრულებულ|მონიშნულ|დაიგეგმ|შენახულ|შენახ|დავუმატ)/.test(responseTextRaw)
-      || /\b(creado|actualizado|añadido|eliminado|movido|completado|marcado)\b/.test(responseText)
+      /\b(created|updated|added|deleted|removed|scheduled|booked|saved|set|done|attached|uploaded|imported|marked|moved|completed|assigned|cancell?ed|canceled|deactivated|disabled|turned off)\b/.test(responseText)
+      || /(შევქმენ|შეიქმნ|დავამატ|დაემატ|განვაახლ|განახლდ|წავშალ|წაიშალ|გადავიტან|გადავიდ|გადატანილ|დასრულდ|დასრულებულ|მონიშნულ|დაიგეგმ|შენახულ|შენახ|დავუმატ|გაუქმ|გავაუქმ|გაუქმდ|დეაქტივ)/.test(responseTextRaw)
+      || /\b(creado|actualizado|añadido|eliminado|movido|completado|marcado|cancelad[oa]|desactivad[oa])\b/.test(responseText)
       || /✅|☑|✔/.test(responseTextRaw);
     // Trigger retry whenever model claims success but didn't call a tool —
     // even if the prompt itself didn't obviously look like an action verb
@@ -4938,7 +4947,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 - "customer/client/contact/lead" → create_or_update_customer
 - "event/booking/appointment/meeting" → create_or_update_event
 - "task/todo/checklist" → create_or_update_task
-- "reminder/alert/notify" → create_custom_reminder
+- "reminder/alert/notify me" (CREATE) → create_custom_reminder
+- "cancel/delete/deactivate/turn off/remove reminder" (any language incl. Georgian "გააუქმე/წაშალე შეხსენება", Spanish "cancela recordatorio", Russian "отмени напоминание") → cancel_reminder ({ latest: true } if they mean the one just made, or { title_match: "..." })
+- "list/show my reminders" → list_pending_reminders
+If the user is REPLYING to an earlier message, treat that quoted message as the target (its reminder / task / event / customer).
 Call the matching tool with the exact details from the user's last message. Do not reply with text — call the tool.`
           }
         ];

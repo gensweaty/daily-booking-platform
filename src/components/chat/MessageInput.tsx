@@ -357,7 +357,12 @@ export const MessageInput = ({
               currentLocalTime: localTimeISO,
               attachments: uploadedFiles,
               senderName,
-              senderType
+              senderType,
+              replyTo: replyingTo ? {
+                id: replyingTo.id,
+                content: replyingTo.content,
+                sender_name: replyingTo.sender_name,
+              } : null
             }
           });
           

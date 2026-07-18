@@ -299,6 +299,19 @@ async function processBotUpdates(
     const hasText = messageText && messageText.trim().length > 0;
     const hasFile = fileInfo !== null;
 
+    // Capture Telegram reply context so AI understands "this reminder / that task"
+    // when user long-presses → Reply to a previous bot message.
+    const replyToMsg = (message as any).reply_to_message;
+    const replyToPayload = replyToMsg
+      ? {
+          id: String(replyToMsg.message_id ?? ''),
+          content: (replyToMsg.text || replyToMsg.caption || '').toString().slice(0, 2000),
+          sender_name: replyToMsg.from?.is_bot
+            ? 'Smartbookly AI'
+            : [replyToMsg.from?.first_name, replyToMsg.from?.last_name].filter(Boolean).join(' ') || 'User',
+        }
+      : null;
+
     // Skip if no text AND no file (e.g. service messages)
     if (!hasText && !hasFile) {
       // Still store the update so offset advances
@@ -510,7 +523,8 @@ async function processBotUpdates(
           attachments: aiAttachments,
           senderName: `${senderName} (Telegram)`,
           senderType: 'admin',
-          source: 'telegram'
+          source: 'telegram',
+          replyTo: replyToPayload
         })
       });
 
