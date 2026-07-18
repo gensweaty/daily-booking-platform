@@ -12,67 +12,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// ────────────────────────────────────────────────────────────────
-// 💰 COST-SAVING ROUTING: Google free Gemini → Lovable AI
-// Priority order when GEMINI_API_KEY is configured:
-//   1) Google free tier: gemini-3.5-flash (newest, free-tier eligible)
-//   2) Google free tier: gemini-2.5-flash (fallback if 3.5 rate-limits/fails)
-//   3) Lovable AI Gateway (workspace credits) as last resort
-// If GEMINI_API_KEY is missing, fall through to Lovable AI directly.
-// This wraps the global fetch so every existing call site benefits
-// without changes.
-// ────────────────────────────────────────────────────────────────
-const _origFetch = globalThis.fetch.bind(globalThis);
-const LOVABLE_GW_URL = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const GEMINI_OPENAI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const GEMINI_FREE_MODELS = ['gemini-3.5-flash', 'gemini-2.5-flash'];
-
-async function callGeminiFree(bodyStr: string, apiKey: string, model: string): Promise<Response> {
-  const body = JSON.parse(bodyStr);
-  body.model = model;
-  return _origFetch(GEMINI_OPENAI_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
-}
-
-globalThis.fetch = (async (input: any, init?: any): Promise<Response> => {
-  const url = typeof input === 'string' ? input : (input?.url || '');
-  if (url !== LOVABLE_GW_URL) return _origFetch(input, init);
-
-  const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-  const bodyStr = typeof init?.body === 'string' ? init.body : '';
-
-  // If we can't parse the body or no free key, just hit Lovable AI directly.
-  if (!GEMINI_API_KEY || !bodyStr) return _origFetch(input, init);
-
-  // Try each free Gemini model in order. On 429/402/5xx, try the next.
-  for (const model of GEMINI_FREE_MODELS) {
-    try {
-      const fb = await callGeminiFree(bodyStr, GEMINI_API_KEY, model);
-      if (fb.ok) return fb;
-      // Retryable: rate limit, quota, or transient upstream error.
-      if (fb.status === 429 || fb.status === 402 || fb.status >= 500) {
-        console.warn(`⚠️ Free Gemini ${model} returned ${fb.status} — trying next tier`);
-        continue;
-      }
-      // Non-retryable error from Gemini (e.g. 400 bad request). Fall back to Lovable AI.
-      console.warn(`⚠️ Free Gemini ${model} returned ${fb.status} — falling back to Lovable AI`);
-      break;
-    } catch (e) {
-      console.error(`❌ Free Gemini ${model} call failed:`, e);
-      continue;
-    }
-  }
-
-  // Last resort: Lovable AI Gateway (workspace credits).
-  console.warn('💸 All free Gemini tiers exhausted — using Lovable AI credits');
-  return _origFetch(input, init);
-}) as any;
+// AI calls intentionally use the app's existing Lovable AI Gateway path.
+// Do not override global fetch here: provider-level response routing must stay
+// stable so tool calls, chat persistence, and Telegram replies never get stuck.
 
 const AI_ASSISTANT_NAME = 'Smartbookly AI';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -7194,9 +7136,17 @@ Call the matching tool with the exact details from the user's last message. Do n
               }
 
               const target = candidates[0];
+              const cancelledAt = new Date().toISOString();
+              // custom_reminders is processed by reminder_sent_at/email_sent; use
+              // those existing fields so cancellation works even on older schemas
+              // that do not have deleted_at yet.
               const { error: delErr } = await supabaseAdmin
                 .from('custom_reminders')
-                .update({ deleted_at: new Date().toISOString() })
+                .update({
+                  reminder_sent_at: cancelledAt,
+                  email_sent: true,
+                  message: `[Cancelled] ${target.title || 'Reminder'}`
+                })
                 .eq('id', target.id)
                 .eq('user_id', ownerId);
               if (delErr) {
