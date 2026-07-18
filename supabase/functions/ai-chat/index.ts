@@ -844,7 +844,7 @@ serve(async (req) => {
   }
 
   try {
-    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType, source } = await req.json();
+    const { channelId, prompt, ownerId, conversationHistory = [], userTimezone, currentLocalTime, tzOffsetMinutes, attachments = [], senderName, senderType, source, replyTo } = await req.json();
     const isFromTelegram = source === 'telegram' || /\(telegram\)/i.test(senderName || '');
     let normalizedConversationHistory = normalizeConversationHistory(conversationHistory);
     
@@ -4827,9 +4827,18 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     // Build conversation with history and attachments
     // CRITICAL: Make files automatically available like events - no manual ID lookup needed!
+    // If the user is REPLYING to a specific earlier message (Telegram reply or chat reply),
+    // prepend that quoted message so the AI resolves "this / that reminder / this task" correctly.
+    let replyContextBlock = '';
+    if (replyTo && (replyTo.content || replyTo.text)) {
+      const quotedSpeaker = (replyTo.sender_name || replyTo.senderName || 'Previous message').toString().slice(0, 80);
+      const quotedText = String(replyTo.content || replyTo.text || '').slice(0, 800);
+      replyContextBlock = `\n\n[The user is REPLYING to this earlier message from ${quotedSpeaker}]:\n"""${quotedText}"""\nInterpret words like "this", "that", "it", "same one" as referring to the quoted message above (its subject, its reminder, its task, its event, its customer). If the user asks to cancel/deactivate a reminder referenced by this quoted message, call cancel_reminder using its title/content. If they ask to recreate or reschedule the reminder from the quote, use its exact title and message.\n`;
+    }
+    const promptWithReply = replyContextBlock ? `${replyContextBlock}\n${prompt}` : prompt;
     const userMessage = attachmentContext 
-      ? `${prompt}\n\n--- Attached Files ---${attachmentContext}`
-      : prompt;
+      ? `${promptWithReply}\n\n--- Attached Files ---${attachmentContext}`
+      : promptWithReply;
     
     const messages = [
       { role: 'system', content: `${systemPrompt}${savedContextBlock}${recentDiscussionBlock}` },
@@ -4938,7 +4947,10 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 - "customer/client/contact/lead" → create_or_update_customer
 - "event/booking/appointment/meeting" → create_or_update_event
 - "task/todo/checklist" → create_or_update_task
-- "reminder/alert/notify" → create_custom_reminder
+- "reminder/alert/notify me" (CREATE) → create_custom_reminder
+- "cancel/delete/deactivate/turn off/remove reminder" (any language incl. Georgian "გააუქმე/წაშალე შეხსენება", Spanish "cancela recordatorio", Russian "отмени напоминание") → cancel_reminder ({ latest: true } if they mean the one just made, or { title_match: "..." })
+- "list/show my reminders" → list_pending_reminders
+If the user is REPLYING to an earlier message, treat that quoted message as the target (its reminder / task / event / customer).
 Call the matching tool with the exact details from the user's last message. Do not reply with text — call the tool.`
           }
         ];
