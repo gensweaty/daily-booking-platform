@@ -7056,7 +7056,6 @@ Call the matching tool with the exact details from the user's last message. Do n
                 .from('custom_reminders')
                 .select('id, title, message, remind_at, created_at, created_by_type, created_by_sub_user_id, recipient_email')
                 .eq('user_id', ownerId)
-                .is('deleted_at', null)
                 .is('reminder_sent_at', null)
                 .gte('remind_at', nowIso)
                 .order('remind_at', { ascending: true })
@@ -7091,7 +7090,6 @@ Call the matching tool with the exact details from the user's last message. Do n
                 .from('custom_reminders')
                 .select('id, title, remind_at, created_at, created_by_sub_user_id')
                 .eq('user_id', ownerId)
-                .is('deleted_at', null)
                 .is('reminder_sent_at', null)
                 .gte('remind_at', nowIso);
               if (requesterType === 'sub_user' && requesterIdentity?.id) {
