@@ -4915,8 +4915,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     const ACTION_VERBS_EN = /\b(add|create|new|make|update|edit|change|modify|set|delete|remove|cancel|mark|rename|move|attach|upload|import|register|book|schedule|remind|alert|notify|complete|finish|start|assign|reassign)\b/;
     const ACTION_ENTITIES_EN = /\b(customer|client|contact|lead|event|booking|appointment|meeting|task|todo|to-do|checklist|reminder|note|file|attachment|document|status)\b/;
     // Georgian action verbs (დაამატე/შექმენი/გადაიტანე/შეცვალე/წაშალე/მონიშნე/გადატანე/გადაიყვანე/დააფიქსირე/მისართე/მომაგონდი/რემაინდერი/შემახსენე)
-    const ACTION_VERBS_KA = /(დაამატ|შექმენ|გადაიტან|გადატან|შეცვალ|წაშალ|მონიშნ|დააფიქსირ|შემახსენ|მომაგონდ|გადაიყვან|დაასრულ|დაიწყ|დანიშნ|მიანიჭ|გადააკეთ)/;
-    const ACTION_ENTITIES_KA = /(თასქ|დავალებ|რემაინდერ|შემხსენებ|მომხმარებ|კლიენტ|ივენთ|ღონისძიებ|შეხვედრ|ჯავშნ|ფაილ|შენიშვნ|სტატუს)/;
+    const ACTION_VERBS_KA = /(დაამატ|შექმენ|გადაიტან|გადატან|შეცვალ|წაშალ|მონიშნ|დააფიქსირ|შემახსენ|მომაგონდ|გადაიყვან|დაასრულ|დაიწყ|დანიშნ|მიანიჭ|გადააკეთ|გააუქმ|გაუქმ|დეაქტივ|გამორთ)/;
+    const ACTION_ENTITIES_KA = /(თასქ|დავალებ|რემაინდერ|შემხსენებ|შეხსენებ|მომხმარებ|კლიენტ|ივენთ|ღონისძიებ|შეხვედრ|ჯავშნ|ფაილ|შენიშვნ|სტატუს)/;
     // Spanish basics
     const ACTION_VERBS_ES = /\b(crear|añadir|agregar|actualizar|cambiar|eliminar|borrar|mover|completar|marcar|recordar)\b/;
     const ACTION_ENTITIES_ES = /\b(cliente|evento|cita|tarea|recordatorio|nota|archivo|estado)\b/;
