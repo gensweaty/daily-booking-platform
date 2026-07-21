@@ -1192,6 +1192,11 @@ serve(async (req) => {
       console.log('⏭️  Skipping reminder fast-path: prompt also creates/updates a task or event – letting LLM use create_or_update_task/event with reminder param.');
       reminderMatch = null;
     }
+
+    if (reminderMatch && isReminderCancelRequest(prompt, replyTo)) {
+      console.log('⏭️  Skipping reminder create fast-path: prompt is a cancellation request.');
+      reminderMatch = null;
+    }
     
     if (reminderMatch) {
       const minutes = parseInt(reminderMatch[1], 10);
@@ -1327,7 +1332,8 @@ serve(async (req) => {
           sender_type: 'admin',
           sender_name: 'Smartbookly AI',
           content: content,
-          message_type: 'text'
+          message_type: 'text',
+          metadata: reminderMemoryId ? { context_memory_id: reminderMemoryId } : null,
         }).select().single();
         
         if (aiMsgError) {
@@ -1593,7 +1599,8 @@ serve(async (req) => {
           sender_type: 'admin',
           sender_name: 'Smartbookly AI',
           content: content,
-          message_type: 'text'
+          message_type: 'text',
+          metadata: reminderMemoryId ? { context_memory_id: reminderMemoryId } : null,
         }).select().single();
         
         if (aiMsgError) {
