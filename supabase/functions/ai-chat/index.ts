@@ -1365,7 +1365,7 @@ serve(async (req) => {
     
     // Fast-path 2: Detect "at HH:MM" or "on HH:MM" patterns, with optional TODAY/TOMORROW
     const timeMatch = prompt.match(/\b(?:at|on)\s+(\d{1,2}):(\d{2})\b/i);
-    if (timeMatch) {
+    if (timeMatch && !isReminderCancelRequest(prompt, replyTo)) {
       const hours = parseInt(timeMatch[1], 10);
       const minutes = parseInt(timeMatch[2], 10);
       console.log(`⚡ Time reminder fast-path triggered: ${hours}:${String(minutes).padStart(2, '0')}`);
@@ -1746,7 +1746,8 @@ serve(async (req) => {
                 sender_type: 'admin',
                 sender_name: 'Smartbookly AI',
                 content: responseText,
-                message_type: 'text'
+                message_type: 'text',
+                metadata: reminderMemoryId ? { context_memory_id: reminderMemoryId } : null,
               });
               
               return new Response(
@@ -7355,6 +7356,7 @@ Call the matching tool with the exact details from the user's last message. Do n
                 .select('id, title, message, remind_at, created_at, created_by_type, created_by_sub_user_id, recipient_email')
                 .eq('user_id', ownerId)
                 .is('reminder_sent_at', null)
+                .is('deleted_at', null)
                 .gte('remind_at', nowIso)
                 .order('remind_at', { ascending: true })
                 .limit(limit);
@@ -7389,6 +7391,7 @@ Call the matching tool with the exact details from the user's last message. Do n
                 .select('id, title, remind_at, created_at, created_by_sub_user_id')
                 .eq('user_id', ownerId)
                 .is('reminder_sent_at', null)
+                .is('deleted_at', null)
                 .gte('remind_at', nowIso);
               if (requesterType === 'sub_user' && requesterIdentity?.id) {
                 baseQuery = baseQuery.eq('created_by_sub_user_id', requesterIdentity.id);
@@ -7439,6 +7442,7 @@ Call the matching tool with the exact details from the user's last message. Do n
               const { error: delErr } = await supabaseAdmin
                 .from('custom_reminders')
                 .update({
+                  deleted_at: cancelledAt,
                   reminder_sent_at: cancelledAt,
                   email_sent: true,
                   message: `[Cancelled] ${target.title || 'Reminder'}`
