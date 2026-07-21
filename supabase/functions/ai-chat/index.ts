@@ -4723,6 +4723,211 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     const requesterName = withAiSuffix(baseName);
     console.log(`👤 Resolved requester → ${requesterName} [${requesterType}]`);
+
+    const buildReminderScopeQuery = () => {
+      const nowIso = new Date().toISOString();
+      let query = supabaseAdmin
+        .from('custom_reminders')
+        .select('id, title, message, remind_at, created_at, created_by_type, created_by_sub_user_id, context_memory_id')
+        .eq('user_id', ownerId)
+        .is('reminder_sent_at', null)
+        .is('deleted_at', null)
+        .gte('remind_at', nowIso);
+
+      if (requesterType === 'sub_user' && requesterIdentity?.id) {
+        query = query.eq('created_by_sub_user_id', requesterIdentity.id);
+      }
+
+      return query;
+    };
+
+    const fetchPendingRemindersForAction = async () => {
+      const { data, error } = await buildReminderScopeQuery()
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('❌ Failed to fetch pending reminders for deterministic action:', error);
+        return { reminders: [] as any[], error };
+      }
+
+      return { reminders: data || [], error: null };
+    };
+
+    const replyText = String(replyTo?.content || replyTo?.text || '').trim();
+    const replyTitleHints = extractReminderTitleHintsFromText(replyText);
+    let resolvedReplyReminder: any = null;
+
+    const resolveReminderFromReply = async () => {
+      if (!replyTo || resolvedReplyReminder) return resolvedReplyReminder;
+
+      const replyId = sanitizeUuid(replyTo.id || replyTo.messageId);
+      const replyContextMemoryId = sanitizeUuid(replyTo?.metadata?.context_memory_id);
+      const { reminders } = await fetchPendingRemindersForAction();
+
+      if (replyContextMemoryId) {
+        const byMemory = reminders.find((reminder: any) => reminder.context_memory_id === replyContextMemoryId);
+        if (byMemory) {
+          resolvedReplyReminder = byMemory;
+          return resolvedReplyReminder;
+        }
+      }
+
+      if (replyId) {
+        const byHistoryMessage = [...normalizedConversationHistory].reverse().find((message: any) => message.messageId === replyId);
+        const historyHints = extractReminderTitleHintsFromText(byHistoryMessage?.content || replyText);
+        for (const hint of historyHints) {
+          const normalizedHint = normalizeReminderMatchText(hint);
+          const byHint = reminders.find((reminder: any) => {
+            const title = normalizeReminderMatchText(reminder.title);
+            const message = normalizeReminderMatchText(reminder.message);
+            return title.includes(normalizedHint) || normalizedHint.includes(title) || message.includes(normalizedHint);
+          });
+          if (byHint) {
+            resolvedReplyReminder = byHint;
+            return resolvedReplyReminder;
+          }
+        }
+      }
+
+      for (const hint of replyTitleHints) {
+        const normalizedHint = normalizeReminderMatchText(hint);
+        const byHint = reminders.find((reminder: any) => {
+          const title = normalizeReminderMatchText(reminder.title);
+          const message = normalizeReminderMatchText(reminder.message);
+          return title.includes(normalizedHint) || normalizedHint.includes(title) || message.includes(normalizedHint);
+        });
+        if (byHint) {
+          resolvedReplyReminder = byHint;
+          return resolvedReplyReminder;
+        }
+      }
+
+      return null;
+    };
+
+    const cancelReminderAndRespond = async (target: any) => {
+      const cancelledAt = new Date().toISOString();
+      const { error: updateError } = await supabaseAdmin
+        .from('custom_reminders')
+        .update({
+          deleted_at: cancelledAt,
+          reminder_sent_at: cancelledAt,
+          email_sent: true,
+          message: `[Cancelled] ${target.title || 'Reminder'}`,
+        })
+        .eq('id', target.id)
+        .eq('user_id', ownerId);
+
+      if (updateError) {
+        console.error('❌ Deterministic reminder cancellation failed:', updateError);
+        const errorText = userLanguage === 'ka'
+          ? 'ვერ გავაუქმე შეხსენება. გთხოვთ სცადოთ თავიდან.'
+          : userLanguage === 'es'
+          ? 'No pude cancelar el recordatorio. Inténtalo de nuevo.'
+          : userLanguage === 'ru'
+          ? 'Не удалось отменить напоминание. Попробуйте ещё раз.'
+          : "I couldn't cancel the reminder. Please try again.";
+        return new Response(JSON.stringify({ success: false, error: errorText }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const display = formatInUserZone(new Date(target.remind_at));
+      const content = userLanguage === 'ka'
+        ? `✅ შეხსენება გაუქმებულია: '${target.title}' (${display}). შეტყობინება აღარ გაიგზავნება.`
+        : userLanguage === 'es'
+        ? `✅ Recordatorio cancelado: '${target.title}' (${display}). Ya no se enviará ninguna notificación.`
+        : userLanguage === 'ru'
+        ? `✅ Напоминание отменено: '${target.title}' (${display}). Уведомление больше не будет отправлено.`
+        : `✅ Reminder cancelled: '${target.title}' (${display}). No notification will be sent.`;
+
+      const { data: aiMsgData, error: insertError } = await supabaseAdmin
+        .from('chat_messages')
+        .insert({
+          channel_id: channelId,
+          owner_id: ownerId,
+          sender_type: 'admin',
+          sender_name: 'Smartbookly AI',
+          content,
+          message_type: 'text',
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('⚠️ Reminder cancelled but failed to save AI confirmation:', insertError);
+      }
+
+      return new Response(JSON.stringify({ success: true, content, aiMessage: aiMsgData || null, toolCalls: [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    };
+
+    const tryDeterministicReminderCancel = async () => {
+      if (!isReminderCancelRequest(prompt, replyTo)) return null;
+      console.log('⚡ Deterministic reminder cancellation fast-path triggered');
+
+      const { reminders, error } = await fetchPendingRemindersForAction();
+      if (error) return null;
+
+      if (!reminders.length) {
+        const content = userLanguage === 'ka'
+          ? 'გასაუქმებელი აქტიური შეხსენება ვერ ვიპოვე.'
+          : userLanguage === 'es'
+          ? 'No encontré ningún recordatorio pendiente para cancelar.'
+          : userLanguage === 'ru'
+          ? 'Я не нашёл активное напоминание для отмены.'
+          : "I couldn't find any pending reminder to cancel.";
+        await supabaseAdmin.from('chat_messages').insert({ channel_id: channelId, owner_id: ownerId, sender_type: 'admin', sender_name: 'Smartbookly AI', content, message_type: 'text' });
+        return new Response(JSON.stringify({ success: true, content, toolCalls: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const replyReminder = await resolveReminderFromReply();
+      if (replyReminder) return cancelReminderAndRespond(replyReminder);
+
+      const promptHints = extractReminderTitleHintsFromCancelPrompt(prompt);
+      for (const hint of promptHints) {
+        const normalizedHint = normalizeReminderMatchText(hint);
+        const matches = reminders.filter((reminder: any) => {
+          const title = normalizeReminderMatchText(reminder.title);
+          const message = normalizeReminderMatchText(reminder.message);
+          return title.includes(normalizedHint) || normalizedHint.includes(title) || message.includes(normalizedHint);
+        });
+        if (matches.length === 1) return cancelReminderAndRespond(matches[0]);
+        if (matches.length > 1) {
+          const list = matches.slice(0, 5).map((reminder: any, index: number) => `${index + 1}. ${reminder.title} — ${formatInUserZone(new Date(reminder.remind_at))}`).join('\n');
+          const content = userLanguage === 'ka'
+            ? `რამდენიმე მსგავსი შეხსენება ვიპოვე. რომელი გავაუქმო?\n${list}`
+            : userLanguage === 'es'
+            ? `Encontré varios recordatorios similares. ¿Cuál cancelo?\n${list}`
+            : userLanguage === 'ru'
+            ? `Я нашёл несколько похожих напоминаний. Какое отменить?\n${list}`
+            : `I found multiple matching reminders. Which one should I cancel?\n${list}`;
+          await supabaseAdmin.from('chat_messages').insert({ channel_id: channelId, owner_id: ownerId, sender_type: 'admin', sender_name: 'Smartbookly AI', content, message_type: 'text' });
+          return new Response(JSON.stringify({ success: true, content, toolCalls: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
+
+      const referencesLatest = REFERENCE_WORD_REGEX.test(prompt) || /\b(?:cancel|delete|remove)\s+(?:reminder|it)\b/i.test(prompt);
+      if (referencesLatest && reminders.length) return cancelReminderAndRespond(reminders[0]);
+
+      const list = reminders.slice(0, 5).map((reminder: any, index: number) => `${index + 1}. ${reminder.title} — ${formatInUserZone(new Date(reminder.remind_at))}`).join('\n');
+      const content = userLanguage === 'ka'
+        ? `რომელი შეხსენება გავაუქმო?\n${list}`
+        : userLanguage === 'es'
+        ? `¿Qué recordatorio debo cancelar?\n${list}`
+        : userLanguage === 'ru'
+        ? `Какое напоминание отменить?\n${list}`
+        : `Which reminder should I cancel?\n${list}`;
+      await supabaseAdmin.from('chat_messages').insert({ channel_id: channelId, owner_id: ownerId, sender_type: 'admin', sender_name: 'Smartbookly AI', content, message_type: 'text' });
+      return new Response(JSON.stringify({ success: true, content, toolCalls: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    };
+
+    const deterministicReminderCancelResponse = await tryDeterministicReminderCancel();
+    if (deterministicReminderCancelResponse) return deterministicReminderCancelResponse;
+
     const savedMemories = await loadRelevantMemories({
       supabaseAdmin,
       ownerId,
