@@ -309,6 +309,10 @@ async function processBotUpdates(
           sender_name: replyToMsg.from?.is_bot
             ? 'Smartbookly AI'
             : [replyToMsg.from?.first_name, replyToMsg.from?.last_name].filter(Boolean).join(' ') || 'User',
+          sender_type: replyToMsg.from?.is_bot ? 'admin' : 'admin',
+          message_type: replyToMsg.document || replyToMsg.photo || replyToMsg.voice || replyToMsg.audio ? 'file' : 'text',
+          created_at: replyToMsg.date ? new Date(replyToMsg.date * 1000).toISOString() : null,
+          telegram_message_id: replyToMsg.message_id ?? null,
         }
       : null;
 
@@ -476,7 +480,7 @@ async function processBotUpdates(
       // Match website behavior (60 messages) for parity in context recall.
       const { data: recentMsgs } = await supabase
         .from('chat_messages')
-        .select('id, sender_type, sender_name, content, message_type, has_attachments')
+        .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata, reply_to_id, created_at')
         .eq('channel_id', aiChannelId)
         .eq('owner_id', userId)
         .order('created_at', { ascending: false })
@@ -491,6 +495,9 @@ async function processBotUpdates(
           senderType: m.sender_type,
           senderName: m.sender_name,
           messageType: m.message_type,
+          replyToId: m.reply_to_id,
+          createdAt: m.created_at,
+          metadata: m.metadata ?? null,
         }))
         .filter((m: any) => !!m.content);
       console.log(`🧠 Loaded ${conversationHistory.length} prior messages for AI context`);

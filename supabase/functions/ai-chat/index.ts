@@ -104,6 +104,85 @@ const promptHasPronounReference = (prompt?: string | null) => {
   return REMINDER_PRONOUN_REFERENCE_REGEX.test(prompt);
 };
 
+const REMINDER_CANCEL_VERB_REGEX = /\b(?:cancel|delete|remove|deactivate|disable|stop|turn\s+off|undo|clear)\b|(?:გააუქმე|გაუქმება|წაშალე|წაშლა|გამორთე|შეწყვიტე|შეჩერება)|(?:cancelar|cancela|cancele|eliminar|elimina|borra|borrar|desactiva|desactivar)|(?:отмени|отменить|удали|удалить|отключи|отключить|убери)/iu;
+const REMINDER_ENTITY_REGEX = /\breminders?\b|recordatorios?|напоминан|შეხსენ/iu;
+const REFERENCE_WORD_REGEX = /\b(?:this|that|it|last|latest|previous|wrong|same|one)\b|(?:ეს|ეგ|ის|ბოლო|წინა|არასწორ)|(?:eso|este|esta|ese|esa|último|ultimo|anterior)|(?:это|этот|эта|последн|предыдущ)/iu;
+
+const isReminderLikeText = (value?: string | null) => {
+  const text = String(value || '');
+  return REMINDER_ENTITY_REGEX.test(text) || /reminder\s*:/i.test(text) || /🔔/.test(text);
+};
+
+const isReminderCancelRequest = (prompt?: string | null, replyTo?: any) => {
+  const text = String(prompt || '');
+  if (!REMINDER_CANCEL_VERB_REGEX.test(text)) return false;
+  if (REMINDER_ENTITY_REGEX.test(text)) return true;
+  if (replyTo && isReminderLikeText(replyTo.content || replyTo.text)) return true;
+  return REFERENCE_WORD_REGEX.test(text);
+};
+
+const normalizeReminderMatchText = (value?: string | null) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/["'“”‘’`]/g, '')
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const uniqueTitleHints = (values: Array<string | null | undefined>) => {
+  const seen = new Set<string>();
+  return values
+    .map((value) => cleanReminderTitle(value || ''))
+    .map((value) => value.replace(/^(?:reminder\s*alert|reminder|შეხსენება|recordatorio|напоминание)\s*:?\s*/iu, '').trim())
+    .filter((value) => value && !isGenericReminderTitle(value) && value.length >= 2)
+    .filter((value) => {
+      const key = normalizeReminderMatchText(value);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 5);
+};
+
+const extractReminderTitleHintsFromText = (value?: string | null) => {
+  const text = String(value || '').trim();
+  if (!text) return [];
+
+  const hints: Array<string | null> = [];
+  const quoted = Array.from(text.matchAll(/["'“”‘’]([^"'“”‘’]{2,180})["'“”‘’]/gu)).map((match) => match[1]);
+  hints.push(...quoted);
+
+  const reminderPrefix = text.match(/(?:Reminder\s*:\s*|შეგახსენებთ\s+|გაგახსენებთ\s+|recordatorio\s*:\s*|напоминание\s*:\s*)([^\n.]{2,180})/iu);
+  if (reminderPrefix?.[1]) hints.push(reminderPrefix[1]);
+
+  const aboutMatch = text.match(/(?:about|for|to|sobre|о)\s+["'“”‘’]?([^"'“”‘’\n.]{2,180}?)(?:\s+(?:at|on|en|a\s+las|в)\b|[.!?]|$)/iu);
+  if (aboutMatch?.[1]) hints.push(aboutMatch[1]);
+
+  const meaningfulLines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^(?:🔔\s*)?(?:reminder\s*alert|reminder|შეხსენება|recordatorio|напоминание)$/iu.test(line))
+    .filter((line) => !/^✅/.test(line))
+    .filter((line) => !/^(?:you'?ll receive|მიიღებთ|recibirás|вы получите)/iu.test(line));
+  if (meaningfulLines[0]) hints.push(meaningfulLines[0]);
+
+  return uniqueTitleHints(hints);
+};
+
+const extractReminderTitleHintsFromCancelPrompt = (value?: string | null) => {
+  const text = String(value || '').trim();
+  if (!text) return [];
+  const withoutCancelWords = text
+    .replace(REMINDER_CANCEL_VERB_REGEX, ' ')
+    .replace(REMINDER_ENTITY_REGEX, ' ')
+    .replace(REFERENCE_WORD_REGEX, ' ')
+    .replace(/\b(?:please|me|my|the|a|an|that|this|it|one|for|about|of|to)\b/giu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return uniqueTitleHints([withoutCancelWords, ...extractReminderTitleHintsFromText(text)]);
+};
+
 const buildConversationContent = (message: any) => {
   const labels: string[] = [];
 
@@ -130,6 +209,8 @@ const mapStoredMessageToConversationHistory = (message: any) => ({
   senderType: message?.sender_type,
   senderName: message?.sender_name,
   messageType: message?.message_type,
+  replyToId: message?.reply_to_id ?? null,
+  createdAt: message?.created_at ?? null,
   metadata: message?.metadata ?? null,
 });
 
@@ -146,7 +227,7 @@ async function fetchRecentConversationHistory({
 }) {
   const { data, error } = await supabaseAdmin
     .from('chat_messages')
-    .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata')
+    .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata, reply_to_id, created_at')
     .eq('channel_id', channelId)
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: false })
@@ -170,6 +251,11 @@ const normalizeConversationHistory = (history: any[] = []) =>
       role: msg?.senderName === AI_ASSISTANT_NAME || msg?.role === 'assistant' ? 'assistant' : 'user',
       content: msg.content.trim(),
       messageId: msg?.messageId,
+      senderType: msg?.senderType,
+      senderName: msg?.senderName,
+      messageType: msg?.messageType,
+      replyToId: msg?.replyToId,
+      createdAt: msg?.createdAt,
       metadata: msg?.metadata ?? null,
     }));
 
@@ -1106,6 +1192,11 @@ serve(async (req) => {
       console.log('⏭️  Skipping reminder fast-path: prompt also creates/updates a task or event – letting LLM use create_or_update_task/event with reminder param.');
       reminderMatch = null;
     }
+
+    if (reminderMatch && isReminderCancelRequest(prompt, replyTo)) {
+      console.log('⏭️  Skipping reminder create fast-path: prompt is a cancellation request.');
+      reminderMatch = null;
+    }
     
     if (reminderMatch) {
       const minutes = parseInt(reminderMatch[1], 10);
@@ -1241,7 +1332,8 @@ serve(async (req) => {
           sender_type: 'admin',
           sender_name: 'Smartbookly AI',
           content: content,
-          message_type: 'text'
+          message_type: 'text',
+          metadata: reminderMemoryId ? { context_memory_id: reminderMemoryId } : null,
         }).select().single();
         
         if (aiMsgError) {
@@ -1273,7 +1365,7 @@ serve(async (req) => {
     
     // Fast-path 2: Detect "at HH:MM" or "on HH:MM" patterns, with optional TODAY/TOMORROW
     const timeMatch = prompt.match(/\b(?:at|on)\s+(\d{1,2}):(\d{2})\b/i);
-    if (timeMatch) {
+    if (timeMatch && !isReminderCancelRequest(prompt, replyTo)) {
       const hours = parseInt(timeMatch[1], 10);
       const minutes = parseInt(timeMatch[2], 10);
       console.log(`⚡ Time reminder fast-path triggered: ${hours}:${String(minutes).padStart(2, '0')}`);
@@ -1507,7 +1599,8 @@ serve(async (req) => {
           sender_type: 'admin',
           sender_name: 'Smartbookly AI',
           content: content,
-          message_type: 'text'
+          message_type: 'text',
+          metadata: reminderMemoryId ? { context_memory_id: reminderMemoryId } : null,
         }).select().single();
         
         if (aiMsgError) {
@@ -1653,7 +1746,8 @@ serve(async (req) => {
                 sender_type: 'admin',
                 sender_name: 'Smartbookly AI',
                 content: responseText,
-                message_type: 'text'
+                message_type: 'text',
+                metadata: reminderMemoryId ? { context_memory_id: reminderMemoryId } : null,
               });
               
               return new Response(
@@ -4637,6 +4731,211 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     const requesterName = withAiSuffix(baseName);
     console.log(`👤 Resolved requester → ${requesterName} [${requesterType}]`);
+
+    const buildReminderScopeQuery = () => {
+      const nowIso = new Date().toISOString();
+      let query = supabaseAdmin
+        .from('custom_reminders')
+        .select('id, title, message, remind_at, created_at, created_by_type, created_by_sub_user_id, context_memory_id')
+        .eq('user_id', ownerId)
+        .is('reminder_sent_at', null)
+        .is('deleted_at', null)
+        .gte('remind_at', nowIso);
+
+      if (requesterType === 'sub_user' && requesterIdentity?.id) {
+        query = query.eq('created_by_sub_user_id', requesterIdentity.id);
+      }
+
+      return query;
+    };
+
+    const fetchPendingRemindersForAction = async () => {
+      const { data, error } = await buildReminderScopeQuery()
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('❌ Failed to fetch pending reminders for deterministic action:', error);
+        return { reminders: [] as any[], error };
+      }
+
+      return { reminders: data || [], error: null };
+    };
+
+    const replyText = String(replyTo?.content || replyTo?.text || '').trim();
+    const replyTitleHints = extractReminderTitleHintsFromText(replyText);
+    let resolvedReplyReminder: any = null;
+
+    const resolveReminderFromReply = async () => {
+      if (!replyTo || resolvedReplyReminder) return resolvedReplyReminder;
+
+      const replyId = sanitizeUuid(replyTo.id || replyTo.messageId);
+      const replyContextMemoryId = sanitizeUuid(replyTo?.metadata?.context_memory_id);
+      const { reminders } = await fetchPendingRemindersForAction();
+
+      if (replyContextMemoryId) {
+        const byMemory = reminders.find((reminder: any) => reminder.context_memory_id === replyContextMemoryId);
+        if (byMemory) {
+          resolvedReplyReminder = byMemory;
+          return resolvedReplyReminder;
+        }
+      }
+
+      if (replyId) {
+        const byHistoryMessage = [...normalizedConversationHistory].reverse().find((message: any) => message.messageId === replyId);
+        const historyHints = extractReminderTitleHintsFromText(byHistoryMessage?.content || replyText);
+        for (const hint of historyHints) {
+          const normalizedHint = normalizeReminderMatchText(hint);
+          const byHint = reminders.find((reminder: any) => {
+            const title = normalizeReminderMatchText(reminder.title);
+            const message = normalizeReminderMatchText(reminder.message);
+            return title.includes(normalizedHint) || normalizedHint.includes(title) || message.includes(normalizedHint);
+          });
+          if (byHint) {
+            resolvedReplyReminder = byHint;
+            return resolvedReplyReminder;
+          }
+        }
+      }
+
+      for (const hint of replyTitleHints) {
+        const normalizedHint = normalizeReminderMatchText(hint);
+        const byHint = reminders.find((reminder: any) => {
+          const title = normalizeReminderMatchText(reminder.title);
+          const message = normalizeReminderMatchText(reminder.message);
+          return title.includes(normalizedHint) || normalizedHint.includes(title) || message.includes(normalizedHint);
+        });
+        if (byHint) {
+          resolvedReplyReminder = byHint;
+          return resolvedReplyReminder;
+        }
+      }
+
+      return null;
+    };
+
+    const cancelReminderAndRespond = async (target: any) => {
+      const cancelledAt = new Date().toISOString();
+      const { error: updateError } = await supabaseAdmin
+        .from('custom_reminders')
+        .update({
+          deleted_at: cancelledAt,
+          reminder_sent_at: cancelledAt,
+          email_sent: true,
+          message: `[Cancelled] ${target.title || 'Reminder'}`,
+        })
+        .eq('id', target.id)
+        .eq('user_id', ownerId);
+
+      if (updateError) {
+        console.error('❌ Deterministic reminder cancellation failed:', updateError);
+        const errorText = userLanguage === 'ka'
+          ? 'ვერ გავაუქმე შეხსენება. გთხოვთ სცადოთ თავიდან.'
+          : userLanguage === 'es'
+          ? 'No pude cancelar el recordatorio. Inténtalo de nuevo.'
+          : userLanguage === 'ru'
+          ? 'Не удалось отменить напоминание. Попробуйте ещё раз.'
+          : "I couldn't cancel the reminder. Please try again.";
+        return new Response(JSON.stringify({ success: false, error: errorText }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const display = formatInUserZone(new Date(target.remind_at));
+      const content = userLanguage === 'ka'
+        ? `✅ შეხსენება გაუქმებულია: '${target.title}' (${display}). შეტყობინება აღარ გაიგზავნება.`
+        : userLanguage === 'es'
+        ? `✅ Recordatorio cancelado: '${target.title}' (${display}). Ya no se enviará ninguna notificación.`
+        : userLanguage === 'ru'
+        ? `✅ Напоминание отменено: '${target.title}' (${display}). Уведомление больше не будет отправлено.`
+        : `✅ Reminder cancelled: '${target.title}' (${display}). No notification will be sent.`;
+
+      const { data: aiMsgData, error: insertError } = await supabaseAdmin
+        .from('chat_messages')
+        .insert({
+          channel_id: channelId,
+          owner_id: ownerId,
+          sender_type: 'admin',
+          sender_name: 'Smartbookly AI',
+          content,
+          message_type: 'text',
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('⚠️ Reminder cancelled but failed to save AI confirmation:', insertError);
+      }
+
+      return new Response(JSON.stringify({ success: true, content, aiMessage: aiMsgData || null, toolCalls: [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    };
+
+    const tryDeterministicReminderCancel = async () => {
+      if (!isReminderCancelRequest(prompt, replyTo)) return null;
+      console.log('⚡ Deterministic reminder cancellation fast-path triggered');
+
+      const { reminders, error } = await fetchPendingRemindersForAction();
+      if (error) return null;
+
+      if (!reminders.length) {
+        const content = userLanguage === 'ka'
+          ? 'გასაუქმებელი აქტიური შეხსენება ვერ ვიპოვე.'
+          : userLanguage === 'es'
+          ? 'No encontré ningún recordatorio pendiente para cancelar.'
+          : userLanguage === 'ru'
+          ? 'Я не нашёл активное напоминание для отмены.'
+          : "I couldn't find any pending reminder to cancel.";
+        await supabaseAdmin.from('chat_messages').insert({ channel_id: channelId, owner_id: ownerId, sender_type: 'admin', sender_name: 'Smartbookly AI', content, message_type: 'text' });
+        return new Response(JSON.stringify({ success: true, content, toolCalls: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const replyReminder = await resolveReminderFromReply();
+      if (replyReminder) return cancelReminderAndRespond(replyReminder);
+
+      const promptHints = extractReminderTitleHintsFromCancelPrompt(prompt);
+      for (const hint of promptHints) {
+        const normalizedHint = normalizeReminderMatchText(hint);
+        const matches = reminders.filter((reminder: any) => {
+          const title = normalizeReminderMatchText(reminder.title);
+          const message = normalizeReminderMatchText(reminder.message);
+          return title.includes(normalizedHint) || normalizedHint.includes(title) || message.includes(normalizedHint);
+        });
+        if (matches.length === 1) return cancelReminderAndRespond(matches[0]);
+        if (matches.length > 1) {
+          const list = matches.slice(0, 5).map((reminder: any, index: number) => `${index + 1}. ${reminder.title} — ${formatInUserZone(new Date(reminder.remind_at))}`).join('\n');
+          const content = userLanguage === 'ka'
+            ? `რამდენიმე მსგავსი შეხსენება ვიპოვე. რომელი გავაუქმო?\n${list}`
+            : userLanguage === 'es'
+            ? `Encontré varios recordatorios similares. ¿Cuál cancelo?\n${list}`
+            : userLanguage === 'ru'
+            ? `Я нашёл несколько похожих напоминаний. Какое отменить?\n${list}`
+            : `I found multiple matching reminders. Which one should I cancel?\n${list}`;
+          await supabaseAdmin.from('chat_messages').insert({ channel_id: channelId, owner_id: ownerId, sender_type: 'admin', sender_name: 'Smartbookly AI', content, message_type: 'text' });
+          return new Response(JSON.stringify({ success: true, content, toolCalls: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
+
+      const referencesLatest = REFERENCE_WORD_REGEX.test(prompt) || /\b(?:cancel|delete|remove)\s+(?:reminder|it)\b/i.test(prompt);
+      if (referencesLatest && reminders.length) return cancelReminderAndRespond(reminders[0]);
+
+      const list = reminders.slice(0, 5).map((reminder: any, index: number) => `${index + 1}. ${reminder.title} — ${formatInUserZone(new Date(reminder.remind_at))}`).join('\n');
+      const content = userLanguage === 'ka'
+        ? `რომელი შეხსენება გავაუქმო?\n${list}`
+        : userLanguage === 'es'
+        ? `¿Qué recordatorio debo cancelar?\n${list}`
+        : userLanguage === 'ru'
+        ? `Какое напоминание отменить?\n${list}`
+        : `Which reminder should I cancel?\n${list}`;
+      await supabaseAdmin.from('chat_messages').insert({ channel_id: channelId, owner_id: ownerId, sender_type: 'admin', sender_name: 'Smartbookly AI', content, message_type: 'text' });
+      return new Response(JSON.stringify({ success: true, content, toolCalls: [] }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    };
+
+    const deterministicReminderCancelResponse = await tryDeterministicReminderCancel();
+    if (deterministicReminderCancelResponse) return deterministicReminderCancelResponse;
+
     const savedMemories = await loadRelevantMemories({
       supabaseAdmin,
       ownerId,
@@ -4775,7 +5074,18 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     if (replyTo && (replyTo.content || replyTo.text)) {
       const quotedSpeaker = (replyTo.sender_name || replyTo.senderName || 'Previous message').toString().slice(0, 80);
       const quotedText = String(replyTo.content || replyTo.text || '').slice(0, 800);
-      replyContextBlock = `\n\n[The user is REPLYING to this earlier message from ${quotedSpeaker}]:\n"""${quotedText}"""\nInterpret words like "this", "that", "it", "same one" as referring to the quoted message above (its subject, its reminder, its task, its event, its customer). If the user asks to cancel/deactivate a reminder referenced by this quoted message, call cancel_reminder using its title/content. If they ask to recreate or reschedule the reminder from the quote, use its exact title and message.\n`;
+      const linkedReplyReminder = await resolveReminderFromReply();
+      const resolvedReminderLine = linkedReplyReminder
+        ? `\nRESOLVED REMINDER FROM REPLY: id=${linkedReplyReminder.id}, title="${linkedReplyReminder.title}", time=${formatInUserZone(new Date(linkedReplyReminder.remind_at))}. Use this exact reminder for actions about the replied message.`
+        : replyTitleHints.length
+        ? `\nLIKELY REMINDER TITLES FROM REPLY: ${replyTitleHints.map((hint) => `"${hint}"`).join(', ')}.`
+        : '';
+      const quotedMeta = [
+        replyTo.id ? `message_id=${replyTo.id}` : null,
+        replyTo.message_type || replyTo.messageType ? `message_type=${replyTo.message_type || replyTo.messageType}` : null,
+        replyTo.created_at || replyTo.createdAt ? `created_at=${replyTo.created_at || replyTo.createdAt}` : null,
+      ].filter(Boolean).join(', ');
+      replyContextBlock = `\n\n[HIGH PRIORITY REPLY CONTEXT]\nThe user's new message is a direct reply to an earlier message from ${quotedSpeaker}${quotedMeta ? ` (${quotedMeta})` : ''}:\n"""${quotedText}"""${resolvedReminderLine}\nInterpret words like "this", "that", "it", "same one", "ეს", "ეგ", "eso", "это" as referring to the quoted message above. If the user asks to recreate/reschedule/convert/update something from the quote, use the quoted subject and resolved reminder details, not the latest unrelated chat item.\n`;
     }
     const promptWithReply = replyContextBlock ? `${replyContextBlock}\n${prompt}` : prompt;
     const userMessage = attachmentContext 
@@ -7057,6 +7367,7 @@ Call the matching tool with the exact details from the user's last message. Do n
                 .select('id, title, message, remind_at, created_at, created_by_type, created_by_sub_user_id, recipient_email')
                 .eq('user_id', ownerId)
                 .is('reminder_sent_at', null)
+                .is('deleted_at', null)
                 .gte('remind_at', nowIso)
                 .order('remind_at', { ascending: true })
                 .limit(limit);
@@ -7091,6 +7402,7 @@ Call the matching tool with the exact details from the user's last message. Do n
                 .select('id, title, remind_at, created_at, created_by_sub_user_id')
                 .eq('user_id', ownerId)
                 .is('reminder_sent_at', null)
+                .is('deleted_at', null)
                 .gte('remind_at', nowIso);
               if (requesterType === 'sub_user' && requesterIdentity?.id) {
                 baseQuery = baseQuery.eq('created_by_sub_user_id', requesterIdentity.id);
@@ -7141,6 +7453,7 @@ Call the matching tool with the exact details from the user's last message. Do n
               const { error: delErr } = await supabaseAdmin
                 .from('custom_reminders')
                 .update({
+                  deleted_at: cancelledAt,
                   reminder_sent_at: cancelledAt,
                   email_sent: true,
                   message: `[Cancelled] ${target.title || 'Reminder'}`

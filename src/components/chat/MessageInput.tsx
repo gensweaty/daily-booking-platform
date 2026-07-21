@@ -84,6 +84,8 @@ const mapMessageToConversationHistory = (message: any) => ({
   senderType: message?.sender_type,
   senderName: message?.sender_name,
   messageType: message?.message_type,
+  replyToId: message?.reply_to_id ?? null,
+  createdAt: message?.created_at ?? null,
   metadata: message?.metadata ?? null,
 });
 
@@ -301,7 +303,7 @@ export const MessageInput = ({
         // Get recent conversation history with enough context for AI memory recall
         const { data: recentMessages } = await supabase
           .from('chat_messages')
-          .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata')
+          .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata, reply_to_id, created_at')
           .eq('channel_id', currentChannelId)
           .eq('owner_id', effectiveBoardOwnerId) // Use effective board owner ID
           .order('created_at', { ascending: false })
@@ -362,6 +364,16 @@ export const MessageInput = ({
                 id: replyingTo.id,
                 content: replyingTo.content,
                 sender_name: replyingTo.sender_name,
+                sender_type: replyingTo.sender_type,
+                message_type: replyingTo.message_type,
+                created_at: replyingTo.created_at,
+                metadata: (replyingTo as any).metadata ?? null,
+                attachments: replyingTo.attachments?.map((attachment) => ({
+                  id: attachment.id,
+                  filename: attachment.filename,
+                  content_type: attachment.content_type,
+                  size: attachment.size,
+                })) ?? [],
               } : null
             }
           });
