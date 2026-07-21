@@ -5074,7 +5074,18 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     if (replyTo && (replyTo.content || replyTo.text)) {
       const quotedSpeaker = (replyTo.sender_name || replyTo.senderName || 'Previous message').toString().slice(0, 80);
       const quotedText = String(replyTo.content || replyTo.text || '').slice(0, 800);
-      replyContextBlock = `\n\n[The user is REPLYING to this earlier message from ${quotedSpeaker}]:\n"""${quotedText}"""\nInterpret words like "this", "that", "it", "same one" as referring to the quoted message above (its subject, its reminder, its task, its event, its customer). If the user asks to cancel/deactivate a reminder referenced by this quoted message, call cancel_reminder using its title/content. If they ask to recreate or reschedule the reminder from the quote, use its exact title and message.\n`;
+      const linkedReplyReminder = await resolveReminderFromReply();
+      const resolvedReminderLine = linkedReplyReminder
+        ? `\nRESOLVED REMINDER FROM REPLY: id=${linkedReplyReminder.id}, title="${linkedReplyReminder.title}", time=${formatInUserZone(new Date(linkedReplyReminder.remind_at))}. Use this exact reminder for actions about the replied message.`
+        : replyTitleHints.length
+        ? `\nLIKELY REMINDER TITLES FROM REPLY: ${replyTitleHints.map((hint) => `"${hint}"`).join(', ')}.`
+        : '';
+      const quotedMeta = [
+        replyTo.id ? `message_id=${replyTo.id}` : null,
+        replyTo.message_type || replyTo.messageType ? `message_type=${replyTo.message_type || replyTo.messageType}` : null,
+        replyTo.created_at || replyTo.createdAt ? `created_at=${replyTo.created_at || replyTo.createdAt}` : null,
+      ].filter(Boolean).join(', ');
+      replyContextBlock = `\n\n[HIGH PRIORITY REPLY CONTEXT]\nThe user's new message is a direct reply to an earlier message from ${quotedSpeaker}${quotedMeta ? ` (${quotedMeta})` : ''}:\n"""${quotedText}"""${resolvedReminderLine}\nInterpret words like "this", "that", "it", "same one", "ეს", "ეგ", "eso", "это" as referring to the quoted message above. If the user asks to recreate/reschedule/convert/update something from the quote, use the quoted subject and resolved reminder details, not the latest unrelated chat item.\n`;
     }
     const promptWithReply = replyContextBlock ? `${replyContextBlock}\n${prompt}` : prompt;
     const userMessage = attachmentContext 
