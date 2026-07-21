@@ -15,6 +15,7 @@ export interface ChatMessage {
   sender_name?: string;
   has_attachments?: boolean;
   message_type?: string;
+  metadata?: Record<string, any> | null;
   attachments?: ChatAttachment[];
   is_deleted?: boolean;
   edited_at?: string;
