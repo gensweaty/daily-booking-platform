@@ -104,6 +104,85 @@ const promptHasPronounReference = (prompt?: string | null) => {
   return REMINDER_PRONOUN_REFERENCE_REGEX.test(prompt);
 };
 
+const REMINDER_CANCEL_VERB_REGEX = /\b(?:cancel|delete|remove|deactivate|disable|stop|turn\s+off|undo|clear)\b|(?:გააუქმე|გაუქმება|წაშალე|წაშლა|გამორთე|შეწყვიტე|შეჩერება)|(?:cancelar|cancela|cancele|eliminar|elimina|borra|borrar|desactiva|desactivar)|(?:отмени|отменить|удали|удалить|отключи|отключить|убери)/iu;
+const REMINDER_ENTITY_REGEX = /\breminders?\b|recordatorios?|напоминан|შეხსენ/iu;
+const REFERENCE_WORD_REGEX = /\b(?:this|that|it|last|latest|previous|wrong|same|one)\b|(?:ეს|ეგ|ის|ბოლო|წინა|არასწორ)|(?:eso|este|esta|ese|esa|último|ultimo|anterior)|(?:это|этот|эта|последн|предыдущ)/iu;
+
+const isReminderLikeText = (value?: string | null) => {
+  const text = String(value || '');
+  return REMINDER_ENTITY_REGEX.test(text) || /reminder\s*:/i.test(text) || /🔔/.test(text);
+};
+
+const isReminderCancelRequest = (prompt?: string | null, replyTo?: any) => {
+  const text = String(prompt || '');
+  if (!REMINDER_CANCEL_VERB_REGEX.test(text)) return false;
+  if (REMINDER_ENTITY_REGEX.test(text)) return true;
+  if (replyTo && isReminderLikeText(replyTo.content || replyTo.text)) return true;
+  return REFERENCE_WORD_REGEX.test(text);
+};
+
+const normalizeReminderMatchText = (value?: string | null) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/["'“”‘’`]/g, '')
+    .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const uniqueTitleHints = (values: Array<string | null | undefined>) => {
+  const seen = new Set<string>();
+  return values
+    .map((value) => cleanReminderTitle(value || ''))
+    .map((value) => value.replace(/^(?:reminder\s*alert|reminder|შეხსენება|recordatorio|напоминание)\s*:?\s*/iu, '').trim())
+    .filter((value) => value && !isGenericReminderTitle(value) && value.length >= 2)
+    .filter((value) => {
+      const key = normalizeReminderMatchText(value);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 5);
+};
+
+const extractReminderTitleHintsFromText = (value?: string | null) => {
+  const text = String(value || '').trim();
+  if (!text) return [];
+
+  const hints: Array<string | null> = [];
+  const quoted = Array.from(text.matchAll(/["'“”‘’]([^"'“”‘’]{2,180})["'“”‘’]/gu)).map((match) => match[1]);
+  hints.push(...quoted);
+
+  const reminderPrefix = text.match(/(?:Reminder\s*:\s*|შეგახსენებთ\s+|გაგახსენებთ\s+|recordatorio\s*:\s*|напоминание\s*:\s*)([^\n.]{2,180})/iu);
+  if (reminderPrefix?.[1]) hints.push(reminderPrefix[1]);
+
+  const aboutMatch = text.match(/(?:about|for|to|sobre|о)\s+["'“”‘’]?([^"'“”‘’\n.]{2,180}?)(?:\s+(?:at|on|en|a\s+las|в)\b|[.!?]|$)/iu);
+  if (aboutMatch?.[1]) hints.push(aboutMatch[1]);
+
+  const meaningfulLines = text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^(?:🔔\s*)?(?:reminder\s*alert|reminder|შეხსენება|recordatorio|напоминание)$/iu.test(line))
+    .filter((line) => !/^✅/.test(line))
+    .filter((line) => !/^(?:you'?ll receive|მიიღებთ|recibirás|вы получите)/iu.test(line));
+  if (meaningfulLines[0]) hints.push(meaningfulLines[0]);
+
+  return uniqueTitleHints(hints);
+};
+
+const extractReminderTitleHintsFromCancelPrompt = (value?: string | null) => {
+  const text = String(value || '').trim();
+  if (!text) return [];
+  const withoutCancelWords = text
+    .replace(REMINDER_CANCEL_VERB_REGEX, ' ')
+    .replace(REMINDER_ENTITY_REGEX, ' ')
+    .replace(REFERENCE_WORD_REGEX, ' ')
+    .replace(/\b(?:please|me|my|the|a|an|that|this|it|one|for|about|of|to)\b/giu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return uniqueTitleHints([withoutCancelWords, ...extractReminderTitleHintsFromText(text)]);
+};
+
 const buildConversationContent = (message: any) => {
   const labels: string[] = [];
 
@@ -130,6 +209,8 @@ const mapStoredMessageToConversationHistory = (message: any) => ({
   senderType: message?.sender_type,
   senderName: message?.sender_name,
   messageType: message?.message_type,
+  replyToId: message?.reply_to_id ?? null,
+  createdAt: message?.created_at ?? null,
   metadata: message?.metadata ?? null,
 });
 
@@ -146,7 +227,7 @@ async function fetchRecentConversationHistory({
 }) {
   const { data, error } = await supabaseAdmin
     .from('chat_messages')
-    .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata')
+    .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata, reply_to_id, created_at')
     .eq('channel_id', channelId)
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: false })
@@ -170,6 +251,11 @@ const normalizeConversationHistory = (history: any[] = []) =>
       role: msg?.senderName === AI_ASSISTANT_NAME || msg?.role === 'assistant' ? 'assistant' : 'user',
       content: msg.content.trim(),
       messageId: msg?.messageId,
+      senderType: msg?.senderType,
+      senderName: msg?.senderName,
+      messageType: msg?.messageType,
+      replyToId: msg?.replyToId,
+      createdAt: msg?.createdAt,
       metadata: msg?.metadata ?? null,
     }));
 
