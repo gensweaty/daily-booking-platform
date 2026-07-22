@@ -199,7 +199,9 @@ const handler = async (req: Request): Promise<Response> => {
       const { data: dueCustomReminders, error: customError } = await supabase
         .from('custom_reminders')
         .select('*')
-        .lte('remind_at', reminderCheckTime.toISOString())
+        // Do not process custom reminders early. Users must be able to cancel
+        // a just-created reminder until its actual due time.
+        .lte('remind_at', now.toISOString())
         .is('reminder_sent_at', null)
         .is('deleted_at', null);
 
