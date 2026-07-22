@@ -17,6 +17,9 @@ const corsHeaders = {
 // stable so tool calls, chat persistence, and Telegram replies never get stuck.
 
 const AI_ASSISTANT_NAME = 'Smartbookly AI';
+const PRIMARY_CHAT_MODEL = 'google/gemini-3.6-flash';
+const RETRY_CHAT_MODEL = 'google/gemini-3.6-flash';
+const LIGHTWEIGHT_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const truncateText = (value: string, max = 600) =>
@@ -104,9 +107,9 @@ const promptHasPronounReference = (prompt?: string | null) => {
   return REMINDER_PRONOUN_REFERENCE_REGEX.test(prompt);
 };
 
-const REMINDER_CANCEL_VERB_REGEX = /\b(?:cancel|delete|remove|deactivate|disable|stop|turn\s+off|undo|clear)\b|(?:გააუქმე|გაუქმება|წაშალე|წაშლა|გამორთე|შეწყვიტე|შეჩერება)|(?:cancelar|cancela|cancele|eliminar|elimina|borra|borrar|desactiva|desactivar)|(?:отмени|отменить|удали|удалить|отключи|отключить|убери)/iu;
-const REMINDER_ENTITY_REGEX = /\breminders?\b|recordatorios?|напоминан|შეხსენ/iu;
-const REFERENCE_WORD_REGEX = /\b(?:this|that|it|last|latest|previous|wrong|same|one)\b|(?:ეს|ეგ|ის|ბოლო|წინა|არასწორ)|(?:eso|este|esta|ese|esa|último|ultimo|anterior)|(?:это|этот|эта|последн|предыдущ)/iu;
+const REMINDER_CANCEL_VERB_REGEX = /\b(?:cancel(?:l?ed|l?ing|s)?|delete(?:d|s)?|remove(?:d|s)?|deactivate(?:d|s)?|disable(?:d|s)?|stop(?:ped|s)?|turn\s+off|undo|clear(?:ed|s)?)\b|(?:გააუქმე|გავაუქმო|გაუქმება|გაუქმდეს|წაშალე|წავშალო|წაშლა|გამორთე|გამოვრთო|შეწყვიტე|შეჩერება)|(?:cancelar|cancela|cancele|cancelado|eliminar|elimina|borra|borrar|desactiva|desactivar)|(?:отмени|отменить|отменил|удали|удалить|отключи|отключить|убери)/iu;
+const REMINDER_ENTITY_REGEX = /\b(?:reminders?|remind(?:er|ed|ded|d)?|remided|r[me]{1,2}inder|recordatorios?)\b|напоминан|შეხსენ|რემაინდერ/iu;
+const REFERENCE_WORD_REGEX = /\b(?:this|that|it|last|latest|previous|wrong|same|one|those|these)\b|(?:ეს|ეგ|ის|ბოლო|წინა|არასწორ|იგივე)|(?:eso|este|esta|ese|esa|último|ultimo|anterior)|(?:это|этот|эта|последн|предыдущ)/iu;
 
 const isReminderLikeText = (value?: string | null) => {
   const text = String(value || '');
@@ -118,7 +121,7 @@ const isReminderCancelRequest = (prompt?: string | null, replyTo?: any) => {
   if (!REMINDER_CANCEL_VERB_REGEX.test(text)) return false;
   if (REMINDER_ENTITY_REGEX.test(text)) return true;
   if (replyTo && isReminderLikeText(replyTo.content || replyTo.text)) return true;
-  return REFERENCE_WORD_REGEX.test(text);
+  return REFERENCE_WORD_REGEX.test(text) || Boolean(replyTo);
 };
 
 const normalizeReminderMatchText = (value?: string | null) =>
@@ -2088,7 +2091,7 @@ serve(async (req) => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
+                model: LIGHTWEIGHT_CHAT_MODEL,
                 messages: [
                   {
                     role: "user",
@@ -2207,7 +2210,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-3.1-flash-lite-preview',
+            model: LIGHTWEIGHT_CHAT_MODEL,
             messages: [
               {
                 role: 'system',
@@ -2287,7 +2290,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-3.1-flash-lite-preview',
+            model: LIGHTWEIGHT_CHAT_MODEL,
             messages: [
               {
                 role: 'system',
@@ -4736,9 +4739,8 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       const nowIso = new Date().toISOString();
       let query = supabaseAdmin
         .from('custom_reminders')
-        .select('id, title, message, remind_at, created_at, created_by_type, created_by_sub_user_id, context_memory_id')
+        .select('id, title, message, remind_at, reminder_sent_at, created_at, created_by_type, created_by_sub_user_id, context_memory_id')
         .eq('user_id', ownerId)
-        .is('reminder_sent_at', null)
         .is('deleted_at', null)
         .gte('remind_at', nowIso);
 
@@ -4822,7 +4824,6 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
           deleted_at: cancelledAt,
           reminder_sent_at: cancelledAt,
           email_sent: true,
-          message: `[Cancelled] ${target.title || 'Reminder'}`,
         })
         .eq('id', target.id)
         .eq('user_id', ownerId);
@@ -4843,7 +4844,16 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       }
 
       const display = formatInUserZone(new Date(target.remind_at));
-      const content = userLanguage === 'ka'
+      const alreadySent = Boolean(target.reminder_sent_at);
+      const content = alreadySent
+        ? userLanguage === 'ka'
+          ? `✅ შეხსენება გაუქმებულია: '${target.title}' (${display}). თუ შეტყობინება უკვე გაიგზავნა, თავიდან აღარ განმეორდება.`
+          : userLanguage === 'es'
+          ? `✅ Recordatorio cancelado: '${target.title}' (${display}). Si ya se envió una notificación, no se repetirá.`
+          : userLanguage === 'ru'
+          ? `✅ Напоминание отменено: '${target.title}' (${display}). Если уведомление уже было отправлено, оно не повторится.`
+          : `✅ Reminder cancelled: '${target.title}' (${display}). If a notification was already sent, it won't repeat.`
+        : userLanguage === 'ka'
         ? `✅ შეხსენება გაუქმებულია: '${target.title}' (${display}). შეტყობინება აღარ გაიგზავნება.`
         : userLanguage === 'es'
         ? `✅ Recordatorio cancelado: '${target.title}' (${display}). Ya no se enviará ninguna notificación.`
@@ -5122,7 +5132,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.1-flash-lite-preview",
+        model: PRIMARY_CHAT_MODEL,
         messages,
         tools,
         tool_choice: "auto",
@@ -5213,7 +5223,7 @@ Call the matching tool with the exact details from the user's last message. Do n
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
+            model: RETRY_CHAT_MODEL,
             messages: retryMessages,
             tools,
             tool_choice: "required",
@@ -7399,9 +7409,8 @@ Call the matching tool with the exact details from the user's last message. Do n
               const nowIso = new Date().toISOString();
               let baseQuery = supabaseAdmin
                 .from('custom_reminders')
-                .select('id, title, remind_at, created_at, created_by_sub_user_id')
+                .select('id, title, remind_at, reminder_sent_at, created_at, created_by_sub_user_id')
                 .eq('user_id', ownerId)
-                .is('reminder_sent_at', null)
                 .is('deleted_at', null)
                 .gte('remind_at', nowIso);
               if (requesterType === 'sub_user' && requesterIdentity?.id) {
@@ -7456,7 +7465,6 @@ Call the matching tool with the exact details from the user's last message. Do n
                   deleted_at: cancelledAt,
                   reminder_sent_at: cancelledAt,
                   email_sent: true,
-                  message: `[Cancelled] ${target.title || 'Reminder'}`
                 })
                 .eq('id', target.id)
                 .eq('user_id', ownerId);
@@ -7472,6 +7480,7 @@ Call the matching tool with the exact details from the user's last message. Do n
                   id: target.id,
                   title: target.title,
                   remind_at_local: formatInUserZone(new Date(target.remind_at)),
+                  already_sent: Boolean(target.reminder_sent_at),
                 },
               };
               break;
@@ -9053,7 +9062,7 @@ Be direct. Be concise. No extra text.`
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3.1-flash-lite-preview",
+          model: PRIMARY_CHAT_MODEL,
           messages: [...finalMessages, responsePrompt],
           temperature: 0.7,
           max_tokens: 2048
