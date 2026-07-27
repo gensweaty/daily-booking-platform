@@ -17,9 +17,13 @@ const corsHeaders = {
 // stable so tool calls, chat persistence, and Telegram replies never get stuck.
 
 const AI_ASSISTANT_NAME = 'Smartbookly AI';
-const PRIMARY_CHAT_MODEL = 'google/gemini-3.6-flash';
+// Primary = cheapest/fastest current Gemini for high-volume chat.
+// Retry/vision fallback = smarter flash model when the lite model returns
+// empty content (common on vision or complex tool routing).
+const PRIMARY_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
 const RETRY_CHAT_MODEL = 'google/gemini-3.6-flash';
 const LIGHTWEIGHT_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
+const VISION_FALLBACK_MODEL = 'google/gemini-3.6-flash';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const truncateText = (value: string, max = 600) =>
@@ -9138,7 +9142,49 @@ Be direct. Be concise. No extra text.`
 
     // No tool calls or direct response
     console.log('✅ Direct response (no tools)');
-    
+
+    // 🛡️ EMPTY-CONTENT GUARD (esp. for image/file analysis on the cheap model).
+    // Some models occasionally return empty content when analyzing images or
+    // complex attachments. Retry ONCE with the smarter vision model so file
+    // analysis (PDF, image, Excel, etc.) never silently fails.
+    if (!message.content || String(message.content).trim() === '') {
+      const hadAttachments = Array.isArray(attachments) && attachments.length > 0;
+      console.warn('⚠️ Direct AI response was empty. hadAttachments=', hadAttachments);
+      try {
+        const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: hadAttachments ? VISION_FALLBACK_MODEL : RETRY_CHAT_MODEL,
+            messages,
+            temperature: 0.7,
+            max_tokens: 2048
+          }),
+        });
+        if (retryResp.ok) {
+          const retryJson = await retryResp.json();
+          const retryContent = retryJson?.choices?.[0]?.message?.content;
+          if (retryContent && String(retryContent).trim() !== '') {
+            console.log('✅ Empty-content retry succeeded with', hadAttachments ? VISION_FALLBACK_MODEL : RETRY_CHAT_MODEL);
+            message = { ...message, content: retryContent };
+          }
+        } else {
+          console.error('❌ Empty-content retry failed:', retryResp.status, await retryResp.text());
+        }
+      } catch (retryErr) {
+        console.error('❌ Empty-content retry threw:', retryErr);
+      }
+    }
+
+    // Final fallback so we NEVER insert null content (violates NOT NULL constraint
+    // and previously crashed the whole request, leaving the user with no reply).
+    const safeContent = (message.content && String(message.content).trim() !== '')
+      ? message.content
+      : "I couldn't generate a response for that. Could you try rephrasing or resending the file?";
+
     // Insert AI response into database with select to get the row back
     const { data: aiMsgData, error: insertError } = await supabaseAdmin
       .from('chat_messages')
@@ -9147,7 +9193,7 @@ Be direct. Be concise. No extra text.`
         owner_id: ownerId,
         sender_type: 'admin',
         sender_name: 'Smartbookly AI',
-        content: message.content,
+        content: safeContent,
         message_type: 'text'
       })
       .select()
@@ -9162,7 +9208,7 @@ Be direct. Be concise. No extra text.`
     }
     
     console.log('✅ Direct AI message inserted with id:', aiMsgData?.id);
-    if (shouldPersistGeneralMemory(prompt, message.content || '')) {
+    if (shouldPersistGeneralMemory(prompt, safeContent)) {
       await createContextMemory({
         supabaseAdmin,
         ownerId,
@@ -9173,9 +9219,9 @@ Be direct. Be concise. No extra text.`
         sourceMessageIds: [...normalizedConversationHistory.slice(-8).map((msg: any) => msg.messageId).filter(Boolean), aiMsgData?.id].filter(Boolean),
         sourceQuote: buildReminderSourceQuote(prompt, 'Chat discussion', senderName),
         structuredContext: {
-          summary_text: truncateText(message.content || '', 500),
+          summary_text: truncateText(safeContent, 500),
           prompt: truncateText(prompt, 500),
-          reply: truncateText(message.content || '', 800),
+          reply: truncateText(safeContent, 800),
         },
       });
     }
@@ -9183,7 +9229,7 @@ Be direct. Be concise. No extra text.`
     return new Response(
       JSON.stringify({ 
         success: true,
-        content: message.content,
+        content: safeContent,
         aiMessage: aiMsgData,
         toolCalls: []
       }),
