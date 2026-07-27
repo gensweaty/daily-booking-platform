@@ -17,9 +17,13 @@ const corsHeaders = {
 // stable so tool calls, chat persistence, and Telegram replies never get stuck.
 
 const AI_ASSISTANT_NAME = 'Smartbookly AI';
-const PRIMARY_CHAT_MODEL = 'google/gemini-3.6-flash';
+// Primary = cheapest/fastest current Gemini for high-volume chat.
+// Retry/vision fallback = smarter flash model when the lite model returns
+// empty content (common on vision or complex tool routing).
+const PRIMARY_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
 const RETRY_CHAT_MODEL = 'google/gemini-3.6-flash';
 const LIGHTWEIGHT_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
+const VISION_FALLBACK_MODEL = 'google/gemini-3.6-flash';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const truncateText = (value: string, max = 600) =>
