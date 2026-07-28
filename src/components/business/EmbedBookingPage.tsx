@@ -32,7 +32,7 @@ export const EmbedBookingPage = () => {
         setError("Business not found");
       } else {
         setBusinessId(data.id);
-        setWorkingHours((data.working_hours as WorkingHoursConfig) || null);
+        setWorkingHours((data.working_hours as unknown as WorkingHoursConfig) || null);
       }
       setLoading(false);
     };
