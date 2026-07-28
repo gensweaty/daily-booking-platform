@@ -10,6 +10,7 @@ import Contact from "@/pages/Contact";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ResetPassword } from "@/components/ResetPassword";
 import { PublicBusinessPage } from "@/components/business/PublicBusinessPage";
+import { EmbedBookingPage } from "@/components/business/EmbedBookingPage";
 import { PublicBoard } from "@/pages/PublicBoard";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ForgotPassword } from "@/components/ForgotPassword";
@@ -164,7 +165,7 @@ const RouteAwareWrapper = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   
   // More reliable business page detection
-  const isExternalPage = location.pathname.startsWith('/business/') || location.pathname === '/business';
+  const isExternalPage = location.pathname.startsWith('/business/') || location.pathname === '/business' || location.pathname.startsWith('/embed/');
   
   // If accessing from business path, set the flag early
   useEffect(() => {
@@ -261,6 +262,7 @@ const AppContent = () => {
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/business/:slug" element={<PublicBusinessPage />} />
+                <Route path="/embed/business/:slug" element={<EmbedBookingPage />} />
                 <Route path="/board/:slug" element={<PublicBoard />} />
                 <Route path="/login" element={<Index />} />
                 <Route path="/signup" element={<Index />} />
