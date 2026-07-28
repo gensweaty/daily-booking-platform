@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, ExternalLink, QrCode, Share, Bell, Code2, Copy, Check } from "lucide-react";
+import { MessageSquare, ExternalLink, QrCode, Share, Bell } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
@@ -18,6 +18,7 @@ import { toast } from "@/components/ui/use-toast";
 import { BookingNotificationManager } from "./BookingNotificationManager";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { BusinessPageSkeleton, BusinessEmptyState } from "./BusinessPageSkeleton";
+import { EmbedCodeCard } from "./EmbedCodeCard";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -28,7 +29,6 @@ export const BusinessPage = () => {
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const [embedCopied, setEmbedCopied] = useState(false);
 
   // Use the centralized hook - no duplicate query
   const { businessProfile, isLoading } = useBusinessProfile();
