@@ -18,6 +18,7 @@ import { toast } from "@/components/ui/use-toast";
 import { BookingNotificationManager } from "./BookingNotificationManager";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { BusinessPageSkeleton, BusinessEmptyState } from "./BusinessPageSkeleton";
+import { EmbedCodeCard } from "./EmbedCodeCard";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -240,6 +241,16 @@ export const BusinessPage = () => {
         onNewRequest={handleNewBookingRequest}
       />
       
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">
+          {isGeorgian ? (
+            <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
+          ) : (
+            <LanguageText>{t("business.myBusiness")}</LanguageText>
+          )}
+        </h1>
+      </div>
+
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
           <TabsTrigger 
@@ -270,17 +281,17 @@ export const BusinessPage = () => {
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">
-              {isGeorgian ? (
-                <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
-              ) : (
-                <LanguageText>{t("business.myBusiness")}</LanguageText>
+          {publicUrl && businessProfile?.slug && (
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              <EmbedCodeCard slug={businessProfile.slug} isGeorgian={isGeorgian} />
+              {!isMobile && (
+                <div className="w-full lg:w-[220px] shrink-0">
+                  {renderViewPublicPageButton()}
+                </div>
               )}
-            </h1>
-            {!isMobile && publicUrl && renderViewPublicPageButton()}
-          </div>
-          
+            </div>
+          )}
+
           {isMobile && publicUrl && (
             <div className="w-full mb-6">
               {renderViewPublicPageButton()}

@@ -5,7 +5,7 @@ import { Task } from "@/lib/types";
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent } from "./ui/dialog";
 import { useToast } from "./ui/use-toast";
 import AddTaskForm from "./AddTaskForm";
@@ -142,18 +142,21 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
     });
   };
 
-  const handleDeleteClick = (id: string) => {
+  const handleDeleteClick = useCallback((id: string) => {
     setTaskToDelete(id);
     setIsDeleteConfirmOpen(true);
-  };
+  }, []);
 
-  const handleDeleteTask = (id: string) => {
+  const handleDeleteTask = useCallback((id: string) => {
     deleteTaskMutation.mutate(id);
-  };
+  }, [deleteTaskMutation]);
 
-  const handleArchiveClick = (id: string) => {
+  const handleArchiveClick = useCallback((id: string) => {
     archiveTaskMutation.mutate(id);
-  };
+  }, [archiveTaskMutation]);
+
+  const handleEdit = useCallback((task: Task) => setEditingTask(task), []);
+  const handleView = useCallback((task: Task) => setViewingTask(task), []);
 
   const handleDeleteConfirm = () => {
     if (taskToDelete) {
@@ -318,8 +321,8 @@ export const TaskList = ({ username }: TaskListProps = {}) => {
               key={status}
               status={status}
               tasks={statusTasks}
-              onEdit={setEditingTask}
-              onView={setViewingTask}
+              onEdit={handleEdit}
+              onView={handleView}
               onDelete={handleDeleteTask}
             />
           ))}

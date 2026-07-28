@@ -84,6 +84,8 @@ const mapMessageToConversationHistory = (message: any) => ({
   senderType: message?.sender_type,
   senderName: message?.sender_name,
   messageType: message?.message_type,
+  replyToId: message?.reply_to_id ?? null,
+  createdAt: message?.created_at ?? null,
   metadata: message?.metadata ?? null,
 });
 
@@ -301,7 +303,7 @@ export const MessageInput = ({
         // Get recent conversation history with enough context for AI memory recall
         const { data: recentMessages } = await supabase
           .from('chat_messages')
-          .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata')
+          .select('id, sender_type, sender_name, content, message_type, has_attachments, metadata, reply_to_id, created_at')
           .eq('channel_id', currentChannelId)
           .eq('owner_id', effectiveBoardOwnerId) // Use effective board owner ID
           .order('created_at', { ascending: false })
@@ -357,7 +359,22 @@ export const MessageInput = ({
               currentLocalTime: localTimeISO,
               attachments: uploadedFiles,
               senderName,
-              senderType
+              senderType,
+              replyTo: replyingTo ? {
+                id: replyingTo.id,
+                content: replyingTo.content,
+                sender_name: replyingTo.sender_name,
+                sender_type: replyingTo.sender_type,
+                message_type: replyingTo.message_type,
+                created_at: replyingTo.created_at,
+                metadata: (replyingTo as any).metadata ?? null,
+                attachments: replyingTo.attachments?.map((attachment) => ({
+                  id: attachment.id,
+                  filename: attachment.filename,
+                  content_type: attachment.content_type,
+                  size: attachment.size,
+                })) ?? [],
+              } : null
             }
           });
           
@@ -888,8 +905,8 @@ export const MessageInput = ({
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             placeholder={isTranscribing ? "Transcribing voice..." : defaultPlaceholder}
-            className="min-h-[60px] max-h-32 resize-none pr-20 py-3"
-            rows={1}
+            className="min-h-[104px] max-h-44 resize-none pr-12 py-3"
+            rows={2}
             disabled={isUploading || isTranscribing}
           />
 
@@ -903,19 +920,19 @@ export const MessageInput = ({
             className="hidden"
           />
 
-          {/* Input Actions */}
-          <div className="absolute right-2 bottom-3 flex items-center gap-0.5">
+          {/* Input Actions - vertical stack to preserve typing space */}
+          <div className="absolute right-1.5 top-1.5 bottom-1.5 flex flex-col items-center justify-between gap-0.5">
             {!editingMessage && (
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
-                className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                 disabled={isUploading}
                 aria-label="Attach files"
               >
-                <Paperclip className="h-5 w-5" />
+                <Paperclip className="h-4 w-4" />
               </Button>
             )}
 
@@ -928,11 +945,11 @@ export const MessageInput = ({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                         disabled={isUploading}
                         aria-label="Insert emoji"
                       >
-                        <Smile className="h-5 w-5" />
+                        <Smile className="h-4 w-4" />
                       </Button>
                     </SheetTrigger>
                     <SheetContent 
@@ -960,7 +977,7 @@ export const MessageInput = ({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
                         disabled={isUploading}
                         aria-label="Insert emoji"
                         onClick={(e) => {
@@ -969,7 +986,7 @@ export const MessageInput = ({
                           setShowEmojiPicker(!showEmojiPicker);
                         }}
                       >
-                        <Smile className="h-5 w-5" />
+                        <Smile className="h-4 w-4" />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent 
@@ -991,13 +1008,13 @@ export const MessageInput = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-9 w-9 p-0 text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-500/10"
+                className="h-8 w-8 p-0 text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-500/10"
                 disabled={isUploading || isTranscribing}
                 onClick={() => isRecording ? handleStopAndSend() : startRecording()}
                 aria-label={isRecording ? "Stop recording" : "Record voice"}
                 title={isRecording ? "Stop recording and send" : "Record voice message (max 60s)"}
               >
-                {isRecording ? <Square className="h-5 w-5 text-destructive" /> : <Mic className="h-5 w-5" />}
+                {isRecording ? <Square className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
               </Button>
             )}
 
@@ -1007,12 +1024,12 @@ export const MessageInput = ({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-9 w-9 p-0 text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-500/10"
+                className="h-8 w-8 p-0 text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-500/10"
                 onClick={startVoiceRecording}
                 title="Record voice message (max 60s)"
                 aria-label="Record voice message"
               >
-                <Mic className="h-5 w-5" />
+                <Mic className="h-4 w-4" />
               </Button>
             )}
 

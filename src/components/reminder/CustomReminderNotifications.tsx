@@ -26,6 +26,7 @@ export function CustomReminderNotifications() {
         .select('*')
         .eq('user_id', user.id)
         .lte('remind_at', futureWindow.toISOString())
+        .is('reminder_sent_at', null)
         .is('deleted_at', null)
         .or('created_by_type.is.null,created_by_type.neq.sub_user') // Exclude sub-user reminders
         .order('remind_at', { ascending: true });

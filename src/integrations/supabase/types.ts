@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "12.2.3 (519615d)"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1514,6 +1514,54 @@ export type Database = {
           sent_at?: string | null
           subject?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      screenshot_requests: {
+        Row: {
+          ai_channel_id: string | null
+          caption: string | null
+          created_at: string
+          error: string | null
+          fulfilled_at: string | null
+          id: string
+          image_url: string | null
+          owner_id: string | null
+          page_hint: string | null
+          popup_target: string | null
+          status: string
+          user_id: string
+          via_telegram: boolean
+        }
+        Insert: {
+          ai_channel_id?: string | null
+          caption?: string | null
+          created_at?: string
+          error?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          image_url?: string | null
+          owner_id?: string | null
+          page_hint?: string | null
+          popup_target?: string | null
+          status?: string
+          user_id: string
+          via_telegram?: boolean
+        }
+        Update: {
+          ai_channel_id?: string | null
+          caption?: string | null
+          created_at?: string
+          error?: string | null
+          fulfilled_at?: string | null
+          id?: string
+          image_url?: string | null
+          owner_id?: string | null
+          page_hint?: string | null
+          popup_target?: string | null
+          status?: string
+          user_id?: string
+          via_telegram?: boolean
         }
         Relationships: []
       }

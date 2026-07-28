@@ -1483,7 +1483,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         <div className="contents" key={identityKey}>
           {!isOpen && (
             <>
-              <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]">
+              <div id="chat-floating-root" className="fixed bottom-4 right-4 z-[40]" data-screenshot-hide="true">
                 <ChatIcon 
                   onClick={toggle} 
                   isOpen={isOpen} 
@@ -1500,6 +1500,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           {isOpen && (
             <div
               id="chat-overlay"
+              data-screenshot-hide="true"
               className="fixed inset-0 pointer-events-none z-[12000]"
             >
               <ChatWindow isOpen={isOpen} onClose={close} />

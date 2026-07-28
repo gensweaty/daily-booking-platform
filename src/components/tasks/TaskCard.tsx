@@ -9,7 +9,7 @@ import { GeorgianAuthText } from "../shared/GeorgianAuthText";
 import { TaskDateInfo } from "./TaskDateInfo";
 import { TaskAssigneeDisplay } from "./TaskAssigneeDisplay";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { memo, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 
@@ -22,22 +22,12 @@ interface TaskCardProps {
   isPublicBoard?: boolean;
 }
 
-export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard = false }: TaskCardProps) => {
+const TaskCardInner = ({ task, index, onEdit, onView, onDelete, isPublicBoard = false }: TaskCardProps) => {
   const { language, t } = useLanguage();
   const isGeorgian = language === 'ka';
   const [isHovered, setIsHovered] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  
-  // Debug logging for permission issues
-  console.log('TaskCard render:', { 
-    taskId: task.id, 
-    title: task.title,
-    hasOnEdit: !!onEdit, 
-    hasOnDelete: !!onDelete,
-    createdByType: task.created_by_type,
-    createdByName: task.created_by_name
-  });
-  
+
   const { data: files } = useQuery({
     queryKey: ['taskFiles', task.id],
     queryFn: async () => {
@@ -47,6 +37,9 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
         .eq('task_id', task.id);
       return data || [];
     },
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const getTaskStyle = (status: string) => {
@@ -328,3 +321,12 @@ export const TaskCard = ({ task, index, onEdit, onView, onDelete, isPublicBoard 
     </Draggable>
   );
 };
+
+export const TaskCard = memo(TaskCardInner, (prev, next) =>
+  prev.task === next.task &&
+  prev.index === next.index &&
+  prev.onEdit === next.onEdit &&
+  prev.onView === next.onView &&
+  prev.onDelete === next.onDelete &&
+  prev.isPublicBoard === next.isPublicBoard
+);

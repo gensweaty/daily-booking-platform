@@ -5,16 +5,12 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell, Archive } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
-import { Calendar } from "@/components/Calendar/Calendar"
 import AddTaskForm from "@/components/AddTaskForm"
-import { Statistics } from "@/components/Statistics"
-import { CRMWithPermissions } from "@/components/crm/CRMWithPermissions"
-import { BusinessPage } from "@/components/business/BusinessPage"
 import { TaskReminderNotifications } from "@/components/tasks/TaskReminderNotifications"
 import { EventReminderNotifications } from "@/components/Calendar/EventReminderNotifications"
 import { CustomReminderNotifications } from "@/components/reminder/CustomReminderNotifications"
 import { GlobalBookingNotificationListener } from "@/components/notifications/GlobalBookingNotificationListener"
-import { ArchivedTasksPage } from "@/components/tasks/ArchivedTasksPage"
+import { ScreenshotRequestListener } from "@/components/screenshot/ScreenshotRequestListener"
 import { PublicBoardSettings } from "@/components/tasks/PublicBoardSettings"
 import { motion, AnimatePresence } from "framer-motion"
 import { useLanguage } from "@/contexts/LanguageContext"
@@ -22,7 +18,7 @@ import { useBusinessProfile } from "@/hooks/useBusinessProfile"
 import { useBookingRequests } from "@/hooks/useBookingRequests"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { useEffect, useState } from "react"
+import { useEffect, useState, lazy, Suspense } from "react"
 import { LanguageText } from "@/components/shared/LanguageText"
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText"
 import { cn } from "@/lib/utils"
@@ -30,6 +26,31 @@ import { useQueryClient } from "@tanstack/react-query"
 import { TasksPresenceHeader } from "@/components/tasks/TasksPresenceHeader"
 import { TaskFilterButton } from "@/components/tasks/TaskFilterButton"
 import { TaskFiltersProvider } from "@/hooks/useTaskFilters"
+
+// Lazy-loaded heavy tab views: they only mount when the user opens their tab.
+// This keeps the initial dashboard render fast and avoids running their
+// queries/effects until they are actually visible.
+const Calendar = lazy(() =>
+  import("@/components/Calendar/Calendar").then((m) => ({ default: m.Calendar }))
+)
+const Statistics = lazy(() =>
+  import("@/components/Statistics").then((m) => ({ default: m.Statistics }))
+)
+const CRMWithPermissions = lazy(() =>
+  import("@/components/crm/CRMWithPermissions").then((m) => ({ default: m.CRMWithPermissions }))
+)
+const BusinessPage = lazy(() =>
+  import("@/components/business/BusinessPage").then((m) => ({ default: m.BusinessPage }))
+)
+const ArchivedTasksPage = lazy(() =>
+  import("@/components/tasks/ArchivedTasksPage").then((m) => ({ default: m.ArchivedTasksPage }))
+)
+
+const TabLoader = () => (
+  <div className="flex items-center justify-center py-16">
+    <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+  </div>
+)
 
 interface DashboardContentProps {
   isTaskDialogOpen: boolean
@@ -74,6 +95,21 @@ export const DashboardContent = ({
   const [pendingEventEditId, setPendingEventEditId] = useState<string | null>(null)
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
+
+  // Prefetch all lazy tab chunks on mount so switching tabs is instant.
+  // This fixes slow first-open of My Business (and others) after login.
+  useEffect(() => {
+    const idle = (cb: () => void) =>
+      (window as any).requestIdleCallback
+        ? (window as any).requestIdleCallback(cb, { timeout: 1500 })
+        : setTimeout(cb, 300)
+    idle(() => {
+      import("@/components/business/BusinessPage")
+      import("@/components/Statistics")
+      import("@/components/crm/CRMWithPermissions")
+      import("@/components/tasks/ArchivedTasksPage")
+    })
+  }, [])
 
   // Show notification when pendingCount changes (new request arrives)
   useEffect(() => {
@@ -183,14 +219,16 @@ export const DashboardContent = ({
       <EventReminderNotifications />
       <CustomReminderNotifications />
       <GlobalBookingNotificationListener />
+      <ScreenshotRequestListener />
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-        <div className="bg-muted/50 border border-border/60 rounded-lg p-1 mb-2">
+        <div className="bg-muted/30 border border-border/40 rounded-xl p-1.5 mb-3 shadow-inner">
           <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
             <TabsTrigger 
               value="calendar" 
+              data-dashboard-tab-trigger="calendar"
               data-tutorial-step="calendar"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -204,8 +242,9 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="statistics" 
+              data-dashboard-tab-trigger="statistics"
               data-tutorial-step="statistics"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -223,8 +262,9 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="tasks" 
+              data-dashboard-tab-trigger="tasks"
               data-tutorial-step="tasks"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -242,8 +282,9 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="crm" 
+              data-dashboard-tab-trigger="crm"
               data-tutorial-step="crm"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02]"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -261,8 +302,9 @@ export const DashboardContent = ({
             </TabsTrigger>
             <TabsTrigger 
               value="business" 
+              data-dashboard-tab-trigger="business"
               data-tutorial-step="business"
-              className="flex items-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-105 active:scale-95 bg-transparent rounded-md px-3 py-2 hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:scale-[1.02] relative"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02] relative"
             >
               <motion.div
                 whileHover={{ rotate: 15 }}
@@ -298,7 +340,7 @@ export const DashboardContent = ({
         </div>
 
         <AnimatePresence mode="wait">
-          <TabsContent key="calendar" value="calendar" className="mt-0">
+          <TabsContent key="calendar" value="calendar" data-dashboard-tab-panel="calendar" className="mt-0">
             <motion.div
               variants={tabVariants}
               initial="hidden"
@@ -313,7 +355,9 @@ export const DashboardContent = ({
                       initial="hidden"
                       animate="visible"
                     >
-                      <Calendar defaultView="month" />
+                      <Suspense fallback={<TabLoader />}>
+                        <Calendar defaultView="month" />
+                      </Suspense>
                     </motion.div>
                   </div>
                 </CardContent>
@@ -321,7 +365,7 @@ export const DashboardContent = ({
             </motion.div>
           </TabsContent>
 
-          <TabsContent key="statistics" value="statistics">
+          <TabsContent key="statistics" value="statistics" data-dashboard-tab-panel="statistics">
             <motion.div
               variants={tabVariants}
               initial="hidden"
@@ -344,14 +388,16 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    <Statistics />
+                    <Suspense fallback={<TabLoader />}>
+                      <Statistics />
+                    </Suspense>
                   </motion.div>
                 </CardContent>
               </Card>
             </motion.div>
           </TabsContent>
 
-          <TabsContent key="tasks" value="tasks">
+          <TabsContent key="tasks" value="tasks" data-dashboard-tab-panel="tasks">
             <TaskFiltersProvider>
               <Card className="min-h-[calc(100vh-12rem)]">
                  <CardHeader className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
@@ -470,14 +516,20 @@ export const DashboardContent = ({
                  </CardHeader>
                 <CardContent>
                   <div>
-                    {showArchive ? <ArchivedTasksPage /> : <TaskList username={username} />}
+                    {showArchive ? (
+                      <Suspense fallback={<TabLoader />}>
+                        <ArchivedTasksPage />
+                      </Suspense>
+                    ) : (
+                      <TaskList username={username} />
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </TaskFiltersProvider>
           </TabsContent>
 
-          <TabsContent key="crm" value="crm">
+          <TabsContent key="crm" value="crm" data-dashboard-tab-panel="crm">
             <motion.div
               variants={tabVariants}
               initial="hidden"
@@ -491,14 +543,16 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    <CRMWithPermissions />
+                    <Suspense fallback={<TabLoader />}>
+                      <CRMWithPermissions />
+                    </Suspense>
                   </motion.div>
                 </CardContent>
               </Card>
             </motion.div>
           </TabsContent>
 
-          <TabsContent key="business" value="business">
+          <TabsContent key="business" value="business" data-dashboard-tab-panel="business">
             <motion.div
               variants={tabVariants}
               initial="hidden"
@@ -512,7 +566,9 @@ export const DashboardContent = ({
                     initial="hidden"
                     animate="visible"
                   >
-                    <BusinessPage />
+                    <Suspense fallback={<TabLoader />}>
+                      <BusinessPage />
+                    </Suspense>
                   </motion.div>
                 </CardContent>
               </Card>

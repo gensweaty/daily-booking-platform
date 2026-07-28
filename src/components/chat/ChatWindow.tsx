@@ -205,7 +205,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         "fixed bg-background border shadow-lg pointer-events-auto z-[12001]",
         "grid grid-rows-[auto,1fr] overflow-hidden",
         windowState === 'maximized' ? 'rounded-none' : 'rounded-lg',
-        isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-all duration-300'
+        isMobile ? 'chat-mobile-transition chat-mobile-viewport chat-container-mobile' : 'transition-[width,height,transform,inset] duration-200 ease-out will-change-[width,height,transform]'
       )}
       style={getWindowStyle()}
     >
@@ -293,15 +293,15 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
         {windowState !== 'minimized' && (
           <div className={cn(
             "border-r overflow-hidden bg-muted/20",
-            isSidebarCollapsed ? "w-0" : "w-64",
-            isMobile ? "chat-mobile-transition" : "transition-all duration-200"
+            isSidebarCollapsed ? "w-0" : "w-52",
+            isMobile ? "chat-mobile-transition" : "transition-[width] duration-200 ease-out will-change-[width]"
           )}
           onTouchStart={handleMobileSidebarTouchStart}
           onTouchMove={handleMobileSidebarTouchMove}
           onTouchEnd={resetMobileSidebarTouch}
           >
             {!isInitialized ? (
-              <div className="flex items-center justify-center h-full w-64">
+              <div className="flex items-center justify-center h-full w-52">
                 <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
               </div>
             ) : (
@@ -318,7 +318,7 @@ export const ChatWindow = ({ isOpen, onClose }: ChatWindowProps) => {
             type="button"
             aria-label="Close sidebar"
             onClick={handleMobileSidebarAutoClose}
-            className="absolute inset-y-0 left-64 right-0 z-10 bg-background/40"
+            className="absolute inset-y-0 left-52 right-0 z-10 bg-background/40"
           />
         )}
         
