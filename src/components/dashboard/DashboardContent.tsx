@@ -96,6 +96,21 @@ export const DashboardContent = ({
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
+  // Prefetch all lazy tab chunks on mount so switching tabs is instant.
+  // This fixes slow first-open of My Business (and others) after login.
+  useEffect(() => {
+    const idle = (cb: () => void) =>
+      (window as any).requestIdleCallback
+        ? (window as any).requestIdleCallback(cb, { timeout: 1500 })
+        : setTimeout(cb, 300)
+    idle(() => {
+      import("@/components/business/BusinessPage")
+      import("@/components/Statistics")
+      import("@/components/crm/CRMWithPermissions")
+      import("@/components/tasks/ArchivedTasksPage")
+    })
+  }, [])
+
   // Show notification when pendingCount changes (new request arrives)
   useEffect(() => {
     if (pendingCount > 0 && activeTab !== "business") {

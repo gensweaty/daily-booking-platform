@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, ExternalLink, QrCode, Share, Bell, Code2, Copy, Check } from "lucide-react";
+import { MessageSquare, ExternalLink, QrCode, Share, Bell } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
@@ -18,6 +18,7 @@ import { toast } from "@/components/ui/use-toast";
 import { BookingNotificationManager } from "./BookingNotificationManager";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { BusinessPageSkeleton, BusinessEmptyState } from "./BusinessPageSkeleton";
+import { EmbedCodeCard } from "./EmbedCodeCard";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -28,7 +29,6 @@ export const BusinessPage = () => {
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
-  const [embedCopied, setEmbedCopied] = useState(false);
 
   // Use the centralized hook - no duplicate query
   const { businessProfile, isLoading } = useBusinessProfile();
@@ -281,58 +281,16 @@ export const BusinessPage = () => {
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
-          {publicUrl && businessProfile?.slug && (() => {
-            const embedUrl = `${window.location.protocol}//${window.location.host}/embed/business/${businessProfile.slug}`;
-            const embedCode = `<iframe src="${embedUrl}" width="100%" height="800" style="border:0;border-radius:12px;overflow:hidden;" loading="lazy" title="Booking Calendar"></iframe>`;
-            const copyEmbed = () => {
-              navigator.clipboard.writeText(embedCode).then(() => {
-                setEmbedCopied(true);
-                toast({ title: isGeorgian ? "კოდი დაკოპირდა!" : "Embed code copied!" });
-                setTimeout(() => setEmbedCopied(false), 2000);
-              });
-            };
-            return (
-              <div className="flex flex-col lg:flex-row gap-6 items-start">
-                <div className="flex-1 w-full rounded-lg border bg-card p-4 sm:p-5 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Code2 className="h-5 w-5 text-primary" />
-                    <h2 className="text-lg font-semibold">
-                      {isGeorgian ? "ჩააშენე ჯავშნის კალენდარი" : "Embed Booking Calendar"}
-                    </h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {isGeorgian
-                      ? "დააკოპირე კოდი და ჩააგდე შენს ვებგვერდზე. მომხმარებლებს შეეძლებათ ჯავშნის მოთხოვნების გამოგზავნა პირდაპირ შენს საიტიდან — ისინი აქ გამოჩნდება Booking Requests-ში."
-                      : "Copy this code and paste it into your website. Visitors can request bookings straight from your site — requests appear here in Booking Requests."}
-                  </p>
-                  <pre className="text-xs bg-muted/50 border rounded-md p-3 overflow-x-auto whitespace-pre-wrap break-all font-mono">
-{embedCode}
-                  </pre>
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={copyEmbed} variant="info" className="flex items-center gap-2">
-                      {embedCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      {embedCopied
-                        ? (isGeorgian ? "დაკოპირდა" : "Copied")
-                        : (isGeorgian ? "კოდის კოპირება" : "Copy code")}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      onClick={() => window.open(embedUrl, "_blank")}
-                      className="flex items-center gap-2"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      {isGeorgian ? "გადახედვა" : "Preview"}
-                    </Button>
-                  </div>
+          {publicUrl && businessProfile?.slug && (
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              <EmbedCodeCard slug={businessProfile.slug} isGeorgian={isGeorgian} />
+              {!isMobile && (
+                <div className="w-full lg:w-[220px] shrink-0">
+                  {renderViewPublicPageButton()}
                 </div>
-                {!isMobile && (
-                  <div className="w-full lg:w-[220px] shrink-0">
-                    {renderViewPublicPageButton()}
-                  </div>
-                )}
-              </div>
-            );
-          })()}
+              )}
+            </div>
+          )}
 
           {isMobile && publicUrl && (
             <div className="w-full mb-6">
