@@ -222,26 +222,43 @@ export const BookingRequestForm = ({
         // Check if it's a working day
         if (!isWorkingDay(startDateTime, workingHours)) {
           toast({
-            translateKeys: {
-              titleKey: "events.timeSlotNotAvailable",
-              descriptionKey: "business.outsideWorkingHours"
-            }
+            title: t("events.timeSlotNotAvailable"),
+            description: `${t("business.closed")}. ${t("business.outsideWorkingHours")}`,
+            variant: "destructive"
           });
           setIsSubmitting(false);
           return;
         }
 
-        // Check if the time is within working hours
+        const dayWorkingHours = getWorkingHoursForDay(startDateTime, workingHours);
+        const workingHoursMessage = dayWorkingHours
+          ? ` (${dayWorkingHours.start} - ${dayWorkingHours.end})`
+          : '';
+
+        // Check start time
         const startHour = startDateTime.getHours();
         if (!isWithinWorkingHours(startDateTime, startHour, workingHours)) {
-          const dayWorkingHours = getWorkingHoursForDay(startDateTime, workingHours);
-          const workingHoursMessage = dayWorkingHours 
-            ? `${dayWorkingHours.start} - ${dayWorkingHours.end}`
-            : '';
-          
           toast({
             title: t("events.timeSlotNotAvailable"),
-            description: `${t("business.outsideWorkingHours")} ${workingHoursMessage}`,
+            description: `${t("business.outsideWorkingHours")}${workingHoursMessage}`,
+            variant: "destructive"
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Check end time (end must be within or exactly at closing hour)
+        const endHour = endDateTime.getHours();
+        const endMinutes = endDateTime.getMinutes();
+        const effectiveEndHour = endMinutes > 0 ? endHour : endHour - 1;
+        if (
+          !isSameDay(startDateTime, endDateTime) ||
+          (effectiveEndHour >= 0 &&
+            !isWithinWorkingHours(startDateTime, Math.max(effectiveEndHour, startHour), workingHours))
+        ) {
+          toast({
+            title: t("events.timeSlotNotAvailable"),
+            description: `${t("business.outsideWorkingHours")}${workingHoursMessage}`,
             variant: "destructive"
           });
           setIsSubmitting(false);
