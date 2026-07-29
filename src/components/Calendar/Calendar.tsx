@@ -32,7 +32,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { supabase } from "@/lib/supabase";
-import { WorkingHoursConfig, isWithinWorkingHours, isWorkingDay } from "@/types/workingHours";
+import { WorkingHoursConfig, isWithinWorkingHours, isWorkingDay, getWorkingHoursForDay } from "@/types/workingHours";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CalendarProps {
@@ -301,21 +301,23 @@ const CalendarContent = ({
     // Check working hours for external calendar
     if (isExternalCalendar && allowBookingRequests) {
       const hourToCheck = hour !== undefined ? hour : 9;
-      
+
       // Check if the day/hour is within working hours
       if (!isWorkingDay(clickedDate, workingHours)) {
         toast({
           title: t("events.timeSlotNotAvailable"),
-          description: t("business.closed"),
+          description: `${t("business.closed")}. ${t("business.outsideWorkingHours")}`,
           variant: "destructive",
         });
         return;
       }
-      
+
       if (!isWithinWorkingHours(clickedDate, hourToCheck, workingHours)) {
+        const dayHours = getWorkingHoursForDay(clickedDate, workingHours);
+        const range = dayHours ? ` (${dayHours.start} - ${dayHours.end})` : "";
         toast({
           title: t("events.timeSlotNotAvailable"),
-          description: t("business.closed"),
+          description: `${t("business.outsideWorkingHours")}${range}`,
           variant: "destructive",
         });
         return;

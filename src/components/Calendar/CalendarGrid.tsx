@@ -60,6 +60,15 @@ export const CalendarGrid = ({
     }
     return !isWorkingDay(date, workingHours);
   };
+
+  // Helper to check if a specific hour on a specific day is outside working hours
+  const isClosedHour = (date: Date, hour: number): boolean => {
+    if (!isExternalCalendar || !workingHours || !workingHours.enabled) {
+      return false;
+    }
+    if (!isWorkingDay(date, workingHours)) return true;
+    return !isWithinWorkingHours(date, hour, workingHours);
+  };
   
   const selectedMonthEnd = endOfMonth(selectedDate);
   const lastDayOfGrid = endOfWeek(selectedMonthEnd);
@@ -214,10 +223,16 @@ export const CalendarGrid = ({
               }}
             >
               {view === 'day' ? (
+                (() => {
+                  const closed = isClosedHour(days[0], hourIndex);
+                  return (
                 <div
                   key={`${days[0].toISOString()}-${hourIndex}`}
-                  className={`${isDarkTheme ? 'hover:bg-primary/8 hover:border-l-2 hover:border-l-primary/40' : 'hover:bg-primary/5 hover:border-l-2 hover:border-l-primary/30'} p-1 relative transition-all duration-200 cursor-pointer`}
-                  onClick={() => onDayClick?.(days[0], hourIndex)}
+                  className={`${closed
+                    ? (isDarkTheme ? 'bg-muted/10 cursor-not-allowed opacity-60' : 'bg-muted/30 cursor-not-allowed opacity-70')
+                    : (isDarkTheme ? 'hover:bg-primary/8 hover:border-l-2 hover:border-l-primary/40 cursor-pointer' : 'hover:bg-primary/5 hover:border-l-2 hover:border-l-primary/30 cursor-pointer')} p-1 relative transition-all duration-200`}
+                  onClick={() => !closed && onDayClick?.(days[0], hourIndex)}
+                  title={closed ? t("business.closed") : undefined}
                 >
                   {events
                     .filter((event) => {
@@ -282,14 +297,22 @@ export const CalendarGrid = ({
                       );
                     })}
                 </div>
+                  );
+                })()
               ) : (
                 days.map((day, colIndex) => (
+                  (() => {
+                    const closed = isClosedHour(day, hourIndex);
+                    return (
                   <div
                     key={`${day.toISOString()}-${hourIndex}`}
-                    className={`${isDarkTheme ? 'hover:bg-primary/8 hover:border-l-2 hover:border-l-primary/40' : 'hover:bg-primary/5 hover:border-l-2 hover:border-l-primary/30'} ${colIndex < days.length - 1 ? 'border-r border-border/20' : ''} p-1 relative transition-all duration-200 cursor-pointer ${
+                    className={`${closed
+                      ? (isDarkTheme ? 'bg-muted/10 cursor-not-allowed opacity-60' : 'bg-muted/30 cursor-not-allowed opacity-70')
+                      : (isDarkTheme ? 'hover:bg-primary/8 hover:border-l-2 hover:border-l-primary/40 cursor-pointer' : 'hover:bg-primary/5 hover:border-l-2 hover:border-l-primary/30 cursor-pointer')} ${colIndex < days.length - 1 ? 'border-r border-border/20' : ''} p-1 relative transition-all duration-200 ${
                       !isSameMonth(day, selectedDate) ? 'opacity-40' : ''
                     }`}
-                    onClick={() => onDayClick?.(day, hourIndex)}
+                    onClick={() => !closed && onDayClick?.(day, hourIndex)}
+                    title={closed ? t("business.closed") : undefined}
                   >
                     {events
                       .filter((event) => {
@@ -354,6 +377,8 @@ export const CalendarGrid = ({
                         );
                       })}
                   </div>
+                    );
+                  })()
                 ))
               )}
             </div>
