@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
