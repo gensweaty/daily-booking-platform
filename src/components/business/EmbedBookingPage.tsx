@@ -10,6 +10,7 @@ export const EmbedBookingPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState<string>("");
   const [businessAvatar, setBusinessAvatar] = useState<string | null>(null);
   const [businessSlug, setBusinessSlug] = useState<string>("");
@@ -53,13 +54,14 @@ export const EmbedBookingPage = () => {
       }
       const { data, error } = await supabase
         .from("business_profiles")
-        .select("id, business_name, avatar_url, slug, working_hours")
+        .select("id, user_id, business_name, avatar_url, slug, working_hours")
         .ilike("slug", slug)
         .maybeSingle();
       if (error || !data) {
         setError("Business not found");
       } else {
         setBusinessId(data.id);
+        setBusinessUserId((data as { user_id?: string }).user_id || null);
         setBusinessName(data.business_name || "");
         setBusinessAvatar(data.avatar_url || null);
         setBusinessSlug(data.slug || slug);
@@ -89,12 +91,14 @@ export const EmbedBookingPage = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {workingHours?.enabled && (
-        <div className="shrink-0 border-b border-border/60 bg-muted/30 px-3 py-2 flex items-center gap-2 overflow-x-auto">
-          <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
-          <span className="text-xs font-medium text-foreground shrink-0">
-            {t("business.workingHours") || "Working Hours"}:
+        <div className="shrink-0 border-b border-border/60 bg-muted/30 px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <span className="flex items-center gap-1.5 shrink-0">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="text-xs font-medium text-foreground">
+              {t("business.workingHours") || "Working Hours"}:
+            </span>
           </span>
-          <div className="flex items-center gap-1.5 flex-nowrap">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
             {DAYS_OF_WEEK.map((day) => {
               const cfg = workingHours.days?.[day as DayOfWeek];
               if (!cfg?.enabled) return null;
@@ -103,10 +107,10 @@ export const EmbedBookingPage = () => {
               return (
                 <span
                   key={day}
-                  className="text-[11px] px-2 py-0.5 rounded-md bg-background border border-border/60 whitespace-nowrap"
+                  className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-md bg-background border border-border/60 whitespace-nowrap"
                 >
                   <span className="font-semibold text-foreground">{short}</span>
-                  <span className="text-muted-foreground ml-1">{cfg.start}-{cfg.end}</span>
+                  <span className="text-muted-foreground ml-1 tabular-nums">{cfg.start}-{cfg.end}</span>
                 </span>
               );
             })}
@@ -114,7 +118,11 @@ export const EmbedBookingPage = () => {
         </div>
       )}
       <div className="flex-1 p-2 sm:p-3">
-        <ExternalCalendar businessId={businessId} workingHours={workingHours} />
+        <ExternalCalendar
+          businessId={businessId}
+          workingHours={workingHours}
+          initialBusinessUserId={businessUserId}
+        />
       </div>
       {!hideBranding && (
         <div className="shrink-0 border-t border-border/60 py-2 px-3 flex items-center justify-between gap-3 text-xs text-muted-foreground bg-background/80">
