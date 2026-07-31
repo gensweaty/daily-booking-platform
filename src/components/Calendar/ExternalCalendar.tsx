@@ -12,35 +12,57 @@ import { WorkingHoursConfig } from "@/types/workingHours";
 interface ExternalCalendarProps {
   businessId: string;
   workingHours?: WorkingHoursConfig | null;
+  /** Optional pre-resolved owner id — skips an extra network round-trip on load */
+  initialBusinessUserId?: string | null;
 }
 
-export const ExternalCalendar = ({ businessId, workingHours }: ExternalCalendarProps) => {
+export const ExternalCalendar = ({ businessId, workingHours, initialBusinessUserId }: ExternalCalendarProps) => {
   const [view, setView] = useState<CalendarViewType>("month");
-  const [events, setEvents] = useState<CalendarEventType[]>([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [events, setEvents] = useState<CalendarEventType[]>(() => {
+    // Instant paint from last known events (per-tab), refreshed right after.
+    try {
+      const cached = sessionStorage.getItem(`calendar_events_${businessId}`);
+      return cached ? (JSON.parse(cached) as CalendarEventType[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isInitialLoading, setIsInitialLoading] = useState(!initialBusinessUserId);
   const { toast } = useToast();
-  const [businessUserId, setBusinessUserId] = useState<string | null>(null);
+  const [businessUserId, setBusinessUserId] = useState<string | null>(
+    initialBusinessUserId ||
+      (typeof sessionStorage !== "undefined"
+        ? sessionStorage.getItem(`business_user_id_${businessId}`)
+        : null)
+  );
   const { t } = useLanguage();
   const queryClient = useQueryClient();
 
   // Immediate loading optimization
   useEffect(() => {
-    console.log("[External Calendar] Mounted with business ID:", businessId);
     clearCalendarCache();
-    
-    // Quick timeout to ensure calendar shows immediately
-    const loadingTimeout = setTimeout(() => {
-      console.log("[External Calendar] Quick loading timeout");
-      setIsInitialLoading(false);
-    }, 500);
-    
+    // Never block the calendar UI for more than a frame-ish window
+    const loadingTimeout = setTimeout(() => setIsInitialLoading(false), 250);
     return () => clearTimeout(loadingTimeout);
   }, [businessId]);
+
+  // Keep in sync when the parent resolves the owner id
+  useEffect(() => {
+    if (initialBusinessUserId) {
+      setBusinessUserId(initialBusinessUserId);
+      setIsInitialLoading(false);
+      try {
+        sessionStorage.setItem(`business_user_id_${businessId}`, initialBusinessUserId);
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [initialBusinessUserId, businessId]);
 
   // Fast business user ID lookup with immediate cache check
   useEffect(() => {
     const getBusinessUserId = async () => {
-      if (!businessId) {
+      if (!businessId || initialBusinessUserId) {
         setIsInitialLoading(false);
         return;
       }
@@ -79,7 +101,7 @@ export const ExternalCalendar = ({ businessId, workingHours }: ExternalCalendarP
     };
     
     getBusinessUserId();
-  }, [businessId]);
+  }, [businessId, initialBusinessUserId]);
 
   // Step 2: Fetch events - simplified without retry loops
   useEffect(() => {
