@@ -107,10 +107,10 @@ export const EmbedBookingPage = () => {
               return (
                 <span
                   key={day}
-                  className="text-[11px] px-2 py-0.5 rounded-md bg-background border border-border/60 whitespace-nowrap"
+                  className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-md bg-background border border-border/60 whitespace-nowrap"
                 >
                   <span className="font-semibold text-foreground">{short}</span>
-                  <span className="text-muted-foreground ml-1">{cfg.start}-{cfg.end}</span>
+                  <span className="text-muted-foreground ml-1 tabular-nums">{cfg.start}-{cfg.end}</span>
                 </span>
               );
             })}
