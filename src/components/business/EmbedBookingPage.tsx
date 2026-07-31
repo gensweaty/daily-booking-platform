@@ -91,15 +91,14 @@ export const EmbedBookingPage = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {workingHours?.enabled && (
-        <div className="shrink-0 border-b border-border/60 bg-muted/30 px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
-          <span className="flex items-center gap-1.5 shrink-0">
+        <div className="shrink-0 border-b border-border/60 bg-muted/30 px-3 py-2 grid grid-cols-4 items-center gap-x-1.5 gap-y-1.5 sm:flex sm:flex-wrap sm:gap-x-2">
+          <span className="col-span-2 flex items-center gap-1.5 shrink-0">
             <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
-            <span className="text-xs font-medium text-foreground">
+            <span className="text-[11px] sm:text-xs font-medium text-foreground leading-tight">
               {t("business.workingHours") || "Working Hours"}:
             </span>
           </span>
-          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-            {DAYS_OF_WEEK.map((day) => {
+          {DAYS_OF_WEEK.map((day) => {
               const cfg = workingHours.days?.[day as DayOfWeek];
               if (!cfg?.enabled) return null;
               const label = t(`calendar.days.${day}`) || day;
@@ -107,14 +106,13 @@ export const EmbedBookingPage = () => {
               return (
                 <span
                   key={day}
-                  className="text-[10px] sm:text-[11px] px-1.5 sm:px-2 py-0.5 rounded-md bg-background border border-border/60 whitespace-nowrap"
+                  className="min-w-0 flex flex-col items-center sm:flex-row sm:items-baseline text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 rounded-md bg-background border border-border/60 whitespace-nowrap leading-tight"
                 >
                   <span className="font-semibold text-foreground">{short}</span>
-                  <span className="text-muted-foreground ml-1 tabular-nums">{cfg.start}-{cfg.end}</span>
+                  <span className="text-muted-foreground sm:ml-1 tabular-nums">{cfg.start}-{cfg.end}</span>
                 </span>
               );
-            })}
-          </div>
+          })}
         </div>
       )}
       <div className="flex-1 p-2 sm:p-3">
