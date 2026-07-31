@@ -91,12 +91,14 @@ export const EmbedBookingPage = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {workingHours?.enabled && (
-        <div className="shrink-0 border-b border-border/60 bg-muted/30 px-3 py-2 flex items-center gap-2 overflow-x-auto">
-          <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
-          <span className="text-xs font-medium text-foreground shrink-0">
-            {t("business.workingHours") || "Working Hours"}:
+        <div className="shrink-0 border-b border-border/60 bg-muted/30 px-3 py-2 flex flex-wrap items-center gap-x-2 gap-y-1.5">
+          <span className="flex items-center gap-1.5 shrink-0">
+            <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span className="text-xs font-medium text-foreground">
+              {t("business.workingHours") || "Working Hours"}:
+            </span>
           </span>
-          <div className="flex items-center gap-1.5 flex-nowrap">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
             {DAYS_OF_WEEK.map((day) => {
               const cfg = workingHours.days?.[day as DayOfWeek];
               if (!cfg?.enabled) return null;
