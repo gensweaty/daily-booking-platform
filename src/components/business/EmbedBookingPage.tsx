@@ -118,7 +118,11 @@ export const EmbedBookingPage = () => {
         </div>
       )}
       <div className="flex-1 p-2 sm:p-3">
-        <ExternalCalendar businessId={businessId} workingHours={workingHours} />
+        <ExternalCalendar
+          businessId={businessId}
+          workingHours={workingHours}
+          initialBusinessUserId={businessUserId}
+        />
       </div>
       {!hideBranding && (
         <div className="shrink-0 border-t border-border/60 py-2 px-3 flex items-center justify-between gap-3 text-xs text-muted-foreground bg-background/80">
