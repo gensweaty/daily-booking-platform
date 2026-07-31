@@ -10,6 +10,7 @@ export const EmbedBookingPage = () => {
   const { slug } = useParams<{ slug: string }>();
   const [searchParams] = useSearchParams();
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [businessUserId, setBusinessUserId] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState<string>("");
   const [businessAvatar, setBusinessAvatar] = useState<string | null>(null);
   const [businessSlug, setBusinessSlug] = useState<string>("");
@@ -53,13 +54,14 @@ export const EmbedBookingPage = () => {
       }
       const { data, error } = await supabase
         .from("business_profiles")
-        .select("id, business_name, avatar_url, slug, working_hours")
+        .select("id, user_id, business_name, avatar_url, slug, working_hours")
         .ilike("slug", slug)
         .maybeSingle();
       if (error || !data) {
         setError("Business not found");
       } else {
         setBusinessId(data.id);
+        setBusinessUserId((data as { user_id?: string }).user_id || null);
         setBusinessName(data.business_name || "");
         setBusinessAvatar(data.avatar_url || null);
         setBusinessSlug(data.slug || slug);
