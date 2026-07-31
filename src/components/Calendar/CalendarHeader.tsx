@@ -79,36 +79,48 @@ export const CalendarHeader = ({
 
   return (
     <div className="flex flex-col gap-1.5 sm:gap-0">
-      {/* Mobile: Two rows layout */}
-      {/* Row 1: Navigation arrows + Date (left) + Add Event (right) */}
-      <div className="flex sm:hidden items-center justify-between w-full -mt-2">
-        <div className="flex items-center gap-1.5 min-w-0">
+      {/* Mobile: Two compact rows */}
+      {/* Row 1: Arrows (left) + View switcher (center) + Add Event (right) */}
+      <div className="flex sm:hidden items-center justify-between w-full gap-1 -mt-2">
+        <div className="flex items-center gap-1 shrink-0">
           <Button 
             variant="outline" 
             size="icon" 
             onClick={onPrevious}
-            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+            className="rounded-lg border-border/50 hover:bg-muted/50 transition-all duration-200 h-7 w-7"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3.5 w-3.5" />
           </Button>
           <Button 
             variant="outline" 
             size="icon" 
             onClick={onNext}
-            className="rounded-xl border-border/50 hover:bg-muted/50 transition-all duration-200 h-8 w-8"
+            className="rounded-lg border-border/50 hover:bg-muted/50 transition-all duration-200 h-7 w-7"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3.5 w-3.5" />
           </Button>
+        </div>
 
-          <h2 className={cn(
-            "text-sm font-semibold tracking-tight whitespace-nowrap mr-2",
-            isGeorgian ? "font-georgian" : ""
-          )}>
-            {view === "month" 
-              ? (isGeorgian ? `${selectedDate.getFullYear()} ${formatDate(selectedDate, "monthYear").split(' ')[0]}` : formatDate(selectedDate, "monthYear"))
-              : formatDate(selectedDate, "dayMonth")
-            }
-          </h2>
+        <div className="flex gap-0.5 bg-muted/50 dark:bg-muted/30 backdrop-blur-md rounded-full p-1 border border-border/40 dark:border-border/30 shadow-md shrink-0">
+          {(["day", "week", "month"] as const).map((v) => (
+            <Button
+              key={v}
+              variant={view === v ? "default" : "ghost"}
+              size="sm"
+              onClick={() => onViewChange(v)}
+              className={cn(
+                "h-6 px-2 rounded-full transition-all duration-200 font-semibold text-[10px] relative",
+                view === v 
+                  ? "shadow-md shadow-primary/30 bg-primary hover:bg-primary/90" 
+                  : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
+              )}
+            >
+              {renderButtonText(v)}
+              {preferredView === v && (
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border border-background" />
+              )}
+            </Button>
+          ))}
         </div>
 
         {onAddEvent && (
@@ -117,12 +129,12 @@ export const CalendarHeader = ({
             data-tutorial="calendar-add-event"
             size="sm" 
             className={cn(
-              "font-semibold rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] bg-gradient-to-r from-primary to-primary/85 text-primary-foreground hover:from-primary/95 hover:to-primary/80 border border-primary/20",
-              isGeorgian ? "font-georgian h-8 px-3 text-xs" : "h-8 px-3"
+              "font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 bg-gradient-to-r from-primary to-primary/85 text-primary-foreground hover:from-primary/95 hover:to-primary/80 border border-primary/20 shrink-0 h-7 px-2 text-[11px] gap-1",
+              isGeorgian ? "font-georgian" : ""
             )}
             type="button"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             {isExternalCalendar 
               ? t("calendar.bookNow") 
               : (isGeorgian ? "ჯავშნის დამატება" : t("calendar.addEvent"))
@@ -131,59 +143,18 @@ export const CalendarHeader = ({
         )}
       </div>
       
-      {/* Row 2: View switcher + Pin (Mobile only) */}
-      <div className="flex sm:hidden items-center justify-center gap-1.5">
-        <div className="flex gap-1 bg-muted/50 dark:bg-muted/30 backdrop-blur-md rounded-full p-1.5 border border-border/40 dark:border-border/30 shadow-lg">
-          <Button
-            variant={view === "day" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("day")}
-            className={cn(
-              "px-4 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs relative",
-              view === "day" 
-                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
-                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
-            )}
-          >
-            {renderButtonText("day")}
-            {preferredView === "day" && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border border-background" />
-            )}
-          </Button>
-          <Button
-            variant={view === "week" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("week")}
-            className={cn(
-              "px-4 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs relative",
-              view === "week" 
-                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
-                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
-            )}
-          >
-            {renderButtonText("week")}
-            {preferredView === "week" && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border border-background" />
-            )}
-          </Button>
-          <Button
-            variant={view === "month" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => onViewChange("month")}
-            className={cn(
-              "px-4 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs relative",
-              view === "month" 
-                ? "shadow-xl shadow-primary/40 dark:shadow-primary/50 bg-primary hover:bg-primary/90" 
-                : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
-            )}
-          >
-            {renderButtonText("month")}
-            {preferredView === "month" && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border border-background" />
-            )}
-          </Button>
-        </div>
-        
+      {/* Row 2: Date (left, under arrows) + Pin */}
+      <div className="flex sm:hidden items-center justify-between gap-1.5">
+        <h2 className={cn(
+          "text-sm font-semibold tracking-tight whitespace-nowrap pl-0.5",
+          isGeorgian ? "font-georgian" : ""
+        )}>
+          {view === "month" 
+            ? (isGeorgian ? `${selectedDate.getFullYear()} ${formatDate(selectedDate, "monthYear").split(' ')[0]}` : formatDate(selectedDate, "monthYear"))
+            : formatDate(selectedDate, "dayMonth")
+          }
+        </h2>
+
         {onSetPreferredView && (
           <TooltipProvider>
             <Tooltip>
