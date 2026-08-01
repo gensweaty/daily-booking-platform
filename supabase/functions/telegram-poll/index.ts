@@ -6,7 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MAX_RUNTIME_MS = 55_000;
+// Cron fires every 60s — stay comfortably below that so two invocations never
+// long-poll the same bot at once (Telegram rejects concurrent getUpdates).
+const MAX_RUNTIME_MS = 45_000;
 const MIN_REMAINING_MS = 5_000;
 
 serve(async (req) => {
@@ -44,15 +46,19 @@ serve(async (req) => {
 
     console.log(`📡 Polling ${configs.length} active bot(s)`);
 
-    for (const config of configs) {
-      const elapsed = Date.now() - startTime;
-      if (MAX_RUNTIME_MS - elapsed < MIN_REMAINING_MS) break;
+    // Keep long-polling in a loop for the whole invocation window instead of a
+    // single pass. The cron fires once a minute, so a single 30s long-poll left
+    // a dead window where new messages waited up to ~60s before being picked up.
+    while (MAX_RUNTIME_MS - (Date.now() - startTime) >= MIN_REMAINING_MS) {
+      for (const config of configs) {
+        if (MAX_RUNTIME_MS - (Date.now() - startTime) < MIN_REMAINING_MS) break;
 
-      try {
-        await processBotUpdates(supabase, config, supabaseUrl, supabaseAnonKey, startTime);
-        totalProcessed++;
-      } catch (err) {
-        console.error(`❌ Error processing bot @${config.bot_username}:`, err);
+        try {
+          await processBotUpdates(supabase, config, supabaseUrl, supabaseAnonKey, startTime, configs.length);
+          totalProcessed++;
+        } catch (err) {
+          console.error(`❌ Error processing bot @${config.bot_username}:`, err);
+        }
       }
     }
 
@@ -223,7 +229,8 @@ async function processBotUpdates(
   config: any,
   supabaseUrl: string,
   supabaseAnonKey: string,
-  startTime: number
+  startTime: number,
+  botCount = 1
 ) {
   const botToken = config.bot_token;
   const userId = config.user_id;
@@ -240,7 +247,10 @@ async function processBotUpdates(
 
   const elapsed = Date.now() - startTime;
   const remainingMs = MAX_RUNTIME_MS - elapsed;
-  const timeout = Math.min(30, Math.floor(remainingMs / 1000) - 5);
+  // With several bots we round-robin, so keep each long-poll short to avoid one
+  // idle bot blocking another bot's incoming messages.
+  const maxWait = botCount > 1 ? 5 : 20;
+  const timeout = Math.min(maxWait, Math.floor(remainingMs / 1000) - 5);
   if (timeout < 1) return;
 
   console.log(`🔄 Polling @${config.bot_username} (offset: ${offset}, timeout: ${timeout}s)`);
