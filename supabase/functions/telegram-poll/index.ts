@@ -6,7 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MAX_RUNTIME_MS = 55_000;
+// Cron fires every 60s — stay comfortably below that so two invocations never
+// long-poll the same bot at once (Telegram rejects concurrent getUpdates).
+const MAX_RUNTIME_MS = 45_000;
 const MIN_REMAINING_MS = 5_000;
 
 serve(async (req) => {
