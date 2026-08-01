@@ -109,7 +109,8 @@ export const CalendarHeader = ({
               size="sm"
               onClick={() => onViewChange(v)}
               className={cn(
-                "h-6 px-2 rounded-full transition-all duration-200 font-semibold text-[10px] relative",
+                "rounded-full transition-all duration-200 font-semibold relative",
+                isExternalCalendar ? "h-7 px-2.5 text-[11.5px]" : "h-6 px-2 text-[10px]",
                 view === v 
                   ? "shadow-md shadow-primary/30 bg-primary hover:bg-primary/90" 
                   : "hover:bg-muted/70 dark:hover:bg-muted/40 text-foreground/70 hover:text-foreground"
