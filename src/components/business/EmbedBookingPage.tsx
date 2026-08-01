@@ -93,8 +93,8 @@ export const EmbedBookingPage = () => {
       {workingHours?.enabled && (
         <div className="shrink-0 border-b border-border/60 bg-muted/30 px-3 py-2 grid grid-cols-4 items-center gap-x-1.5 gap-y-1.5 sm:flex sm:flex-wrap sm:gap-x-2">
           <span className="col-span-2 flex items-center gap-1.5 shrink-0">
-            <Clock className="h-3.5 w-3.5 shrink-0 text-primary" />
-            <span className="text-[11px] sm:text-xs font-medium text-foreground leading-tight">
+            <Clock className="h-4 w-4 shrink-0 text-primary" />
+            <span className="text-[12.5px] sm:text-xs font-medium text-foreground leading-tight">
               {t("business.workingHours") || "Working Hours"}:
             </span>
           </span>
@@ -106,7 +106,7 @@ export const EmbedBookingPage = () => {
               return (
                 <span
                   key={day}
-                  className="min-w-0 flex flex-col items-center sm:flex-row sm:items-baseline text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 rounded-md bg-background border border-border/60 whitespace-nowrap leading-tight"
+                  className="min-w-0 flex flex-col items-center sm:flex-row sm:items-baseline text-[10.5px] sm:text-[11px] px-1 sm:px-2 py-0.5 rounded-md bg-background border border-border/60 whitespace-nowrap leading-tight"
                 >
                   <span className="font-semibold text-foreground">{short}</span>
                   <span className="text-muted-foreground sm:ml-1 tabular-nums">{cfg.start}-{cfg.end}</span>
