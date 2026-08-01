@@ -89,7 +89,12 @@ export const EmbedBookingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="embed-root min-h-screen h-screen overflow-y-auto overscroll-contain bg-background flex flex-col">
+      <style>{`
+        html, body, #root { height: 100%; }
+        .embed-root { -webkit-overflow-scrolling: touch; }
+        .embed-root .embed-calendar-shell > div { overflow: visible !important; min-height: 0 !important; }
+      `}</style>
       {workingHours?.enabled && (
         <div className="shrink-0 border-b border-border/60 bg-muted/30 px-3 py-2 grid grid-cols-4 items-center gap-x-1.5 gap-y-1.5 sm:flex sm:flex-wrap sm:gap-x-2">
           <span className="col-span-2 flex items-center gap-1.5 shrink-0">
@@ -115,7 +120,7 @@ export const EmbedBookingPage = () => {
           })}
         </div>
       )}
-      <div className="flex-1 p-2 sm:p-3">
+      <div className="embed-calendar-shell flex-1 p-2 sm:p-3">
         <ExternalCalendar
           businessId={businessId}
           workingHours={workingHours}
