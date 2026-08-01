@@ -52,7 +52,7 @@ serve(async (req) => {
         if (MAX_RUNTIME_MS - (Date.now() - startTime) < MIN_REMAINING_MS) break;
 
         try {
-          await processBotUpdates(supabase, config, supabaseUrl, supabaseAnonKey, startTime);
+          await processBotUpdates(supabase, config, supabaseUrl, supabaseAnonKey, startTime, configs.length);
           totalProcessed++;
         } catch (err) {
           console.error(`❌ Error processing bot @${config.bot_username}:`, err);
@@ -227,7 +227,8 @@ async function processBotUpdates(
   config: any,
   supabaseUrl: string,
   supabaseAnonKey: string,
-  startTime: number
+  startTime: number,
+  botCount = 1
 ) {
   const botToken = config.bot_token;
   const userId = config.user_id;
@@ -244,7 +245,10 @@ async function processBotUpdates(
 
   const elapsed = Date.now() - startTime;
   const remainingMs = MAX_RUNTIME_MS - elapsed;
-  const timeout = Math.min(30, Math.floor(remainingMs / 1000) - 5);
+  // With several bots we round-robin, so keep each long-poll short to avoid one
+  // idle bot blocking another bot's incoming messages.
+  const maxWait = botCount > 1 ? 5 : 20;
+  const timeout = Math.min(maxWait, Math.floor(remainingMs / 1000) - 5);
   if (timeout < 1) return;
 
   console.log(`🔄 Polling @${config.bot_username} (offset: ${offset}, timeout: ${timeout}s)`);
