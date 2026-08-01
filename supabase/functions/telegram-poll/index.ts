@@ -44,15 +44,19 @@ serve(async (req) => {
 
     console.log(`📡 Polling ${configs.length} active bot(s)`);
 
-    for (const config of configs) {
-      const elapsed = Date.now() - startTime;
-      if (MAX_RUNTIME_MS - elapsed < MIN_REMAINING_MS) break;
+    // Keep long-polling in a loop for the whole invocation window instead of a
+    // single pass. The cron fires once a minute, so a single 30s long-poll left
+    // a dead window where new messages waited up to ~60s before being picked up.
+    while (MAX_RUNTIME_MS - (Date.now() - startTime) >= MIN_REMAINING_MS) {
+      for (const config of configs) {
+        if (MAX_RUNTIME_MS - (Date.now() - startTime) < MIN_REMAINING_MS) break;
 
-      try {
-        await processBotUpdates(supabase, config, supabaseUrl, supabaseAnonKey, startTime);
-        totalProcessed++;
-      } catch (err) {
-        console.error(`❌ Error processing bot @${config.bot_username}:`, err);
+        try {
+          await processBotUpdates(supabase, config, supabaseUrl, supabaseAnonKey, startTime);
+          totalProcessed++;
+        } catch (err) {
+          console.error(`❌ Error processing bot @${config.bot_username}:`, err);
+        }
       }
     }
 
