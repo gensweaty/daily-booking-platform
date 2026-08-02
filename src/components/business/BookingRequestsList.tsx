@@ -386,7 +386,7 @@ export const BookingRequestsList = ({
     <>
       <div className="rounded-md border">
         <div className="overflow-x-auto w-full">
-          <Table className="min-w-[750px]">
+          <Table className="min-w-[900px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead className="w-1/6">{renderGeorgianText("business.customer")}</TableHead>
@@ -394,7 +394,7 @@ export const BookingRequestsList = ({
                 <TableHead className="w-1/6">{renderGeorgianText("business.dateTime")}</TableHead>
                 <TableHead className="w-1/6">{renderGeorgianText("business.comments")}</TableHead>
                 <TableHead className="w-1/6">{renderGeorgianText("business.attachments")}</TableHead>
-                <TableHead className="w-1/6 text-right">{renderGeorgianText("business.actions")}</TableHead>
+                <TableHead className="w-[280px] text-right">{renderGeorgianText("business.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
