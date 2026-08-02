@@ -24,7 +24,7 @@ import { supabase } from "@/lib/supabase";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
-  onApprove?: (id: string) => void;
+  onApprove?: (id: string, ownerNote?: string) => void | Promise<any>;
   onReject?: (id: string) => void;
   onDelete: (id: string) => void;
 }
@@ -40,6 +40,7 @@ export const BookingRequestsList = ({
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [requestFiles, setRequestFiles] = useState<{[key: string]: FileRecord[]}>({});
+  const [ownerNotes, setOwnerNotes] = useState<{[key: string]: string}>({});
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
   const currencySymbol = getCurrencySymbol(language);
@@ -106,7 +107,8 @@ export const BookingRequestsList = ({
     
     setProcessingId(id);
     try {
-      await onApprove?.(id);
+      await onApprove?.(id, ownerNotes[id]?.trim() || undefined);
+      setOwnerNotes(prev => ({ ...prev, [id]: '' }));
     } finally {
       setProcessingId(null);
     }
@@ -227,11 +229,164 @@ export const BookingRequestsList = ({
     );
   }
 
+  const noteLabel = language === 'ka'
+    ? 'კომენტარი მომხმარებლისთვის (გაიგზავნება დადასტურებისას)'
+    : language === 'es'
+      ? 'Comentario para el cliente (se envía al aprobar)'
+      : 'Comment to customer (sent with approval)';
+  const notePlaceholder = language === 'ka'
+    ? 'მაგ. Google Meet ბმული ან დამატებითი ინფორმაცია...'
+    : language === 'es'
+      ? 'Ej. enlace de Google Meet o información adicional...'
+      : 'e.g. Google Meet link or extra details...';
+
+  const renderOwnerNoteField = (requestId: string) => (
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-muted-foreground" htmlFor={`owner-note-${requestId}`}>
+        {noteLabel}
+      </label>
+      <textarea
+        id={`owner-note-${requestId}`}
+        value={ownerNotes[requestId] || ''}
+        onChange={(e) => setOwnerNotes(prev => ({ ...prev, [requestId]: e.target.value }))}
+        placeholder={notePlaceholder}
+        rows={2}
+        maxLength={1000}
+        className="w-full rounded-md border bg-background p-2 text-base sm:text-sm resize-y min-h-[56px] focus:outline-none focus:ring-2 focus:ring-ring"
+      />
+    </div>
+  );
+
+  // ---------- Mobile card layout (no horizontal scrolling) ----------
+  if (isMobile) {
+    return (
+      <>
+        <div className="space-y-3">
+          {requests.map((request) => (
+            <div key={request.id} className="rounded-lg border bg-card p-3 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="font-medium break-words">
+                    {request.user_surname || request.requester_name}
+                  </div>
+                  <div className="text-sm text-muted-foreground break-all">
+                    {request.requester_email || request.requester_phone}
+                  </div>
+                </div>
+                <div className="shrink-0">
+                  {renderPaymentStatus(request.payment_status, request.payment_amount)}
+                </div>
+              </div>
+
+              {request.start_date && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">{renderGeorgianText("business.dateTime")}: </span>
+                  {formatDate(new Date(request.start_date), 'MMM d, yyyy')}{' '}
+                  {formatDate(new Date(request.start_date), 'h:mm a')}
+                  {request.end_date ? ` - ${formatDate(new Date(request.end_date), 'h:mm a')}` : ''}
+                </div>
+              )}
+
+              {request.description && (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">{renderGeorgianText("business.comments")}: </span>
+                  <span className="whitespace-pre-wrap break-words">{request.description}</span>
+                </div>
+              )}
+
+              {requestFiles[request.id] && requestFiles[request.id].length > 0 && (
+                <div className="text-sm">
+                  <div className="text-muted-foreground mb-1">{renderGeorgianText("business.attachments")}</div>
+                  <FileDisplay
+                    files={requestFiles[request.id]}
+                    bucketName="booking_attachments"
+                    allowDelete={false}
+                    parentType="event"
+                    fallbackBuckets={['event_attachments', 'customer_attachments']}
+                  />
+                </div>
+              )}
+
+              {onApprove && renderOwnerNoteField(request.id)}
+
+              <div className="flex flex-col gap-2">
+                {onApprove && (
+                  <Button
+                    variant="approve"
+                    size="sm"
+                    className="flex gap-1 items-center w-full"
+                    onClick={() => handleApprove(request.id)}
+                    disabled={processingId === request.id}
+                  >
+                    {processingId === request.id ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <Check className="h-4 w-4" />
+                    )}
+                    <span>
+                      {processingId === request.id
+                        ? <LanguageText>{t("common.processing")}</LanguageText>
+                        : renderGeorgianText("business.approve")}
+                    </span>
+                  </Button>
+                )}
+                <div className="flex gap-2">
+                  {onReject && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex gap-1 items-center flex-1 hover:bg-red-100 hover:text-red-700 hover:border-red-300"
+                      onClick={() => handleReject(request.id)}
+                      disabled={processingId === request.id}
+                    >
+                      <X className="h-4 w-4 text-red-600" />
+                      <span>{renderGeorgianText("business.reject")}</span>
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive flex gap-1 items-center flex-1 hover:bg-destructive/10"
+                    onClick={() => handleDeleteClick(request.id)}
+                    disabled={processingId === request.id}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>{renderGeorgianText("business.delete")}</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+          <AlertDialogContent className="max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                <LanguageText>{t("business.deleteBookingRequest")}</LanguageText>
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                <LanguageText>{t("common.deleteConfirmMessage")}</LanguageText>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel><LanguageText>{t("common.cancel")}</LanguageText></AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <LanguageText>{t("common.delete")}</LanguageText>
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="rounded-md border">
         <div className="overflow-x-auto w-full">
-          <Table className="min-w-[750px]">
+          <Table className="min-w-[900px]">
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead className="w-1/6">{renderGeorgianText("business.customer")}</TableHead>
@@ -239,7 +394,7 @@ export const BookingRequestsList = ({
                 <TableHead className="w-1/6">{renderGeorgianText("business.dateTime")}</TableHead>
                 <TableHead className="w-1/6">{renderGeorgianText("business.comments")}</TableHead>
                 <TableHead className="w-1/6">{renderGeorgianText("business.attachments")}</TableHead>
-                <TableHead className="w-1/6 text-right">{renderGeorgianText("business.actions")}</TableHead>
+                <TableHead className="w-[280px] text-right">{renderGeorgianText("business.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -299,6 +454,11 @@ export const BookingRequestsList = ({
                     )}
                   </TableCell>
                   <TableCell className="text-right py-2">
+                    {onApprove && (
+                      <div className="mb-2 text-left">
+                        {renderOwnerNoteField(request.id)}
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2 justify-end sm:justify-end">
                       {onApprove && (
                         <Button 
