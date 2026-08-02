@@ -22,6 +22,7 @@ interface BookingApprovalEmailRequest {
   language?: string; // Used to determine email language
   eventNotes?: string; // Added event notes field
   ownerEmail?: string; // Business owner email for copy
+  ownerNote?: string; // Optional message written by the business owner at approval time
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -410,7 +411,8 @@ const handler = async (req: Request): Promise<Response> => {
       source,
       language,
       eventNotes,
-      ownerEmail
+      ownerEmail,
+      ownerNote
     } = parsedBody;
 
     console.log("Request body:", {
@@ -529,6 +531,23 @@ const handler = async (req: Request): Promise<Response> => {
           : (language === 'es' ? "Notas del evento" : "Event notes");
         
         eventNotesInfo = `<p style="margin: 8px 0;"><strong>${notesLabel}:</strong> ${eventNotes.trim()}</p>`;
+      }
+
+      // Prepare business owner message section (written in the dashboard before approving)
+      if (ownerNote && typeof ownerNote === 'string' && ownerNote.trim() !== "") {
+        const ownerNoteLabel = language === 'ka'
+          ? "შეტყობინება"
+          : (language === 'es' ? "Mensaje" : "Message");
+        const safeNote = ownerNote
+          .trim()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        // Auto-link URLs (e.g. Google Meet links) so they are clickable in the email
+        const linkedNote = safeNote
+          .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:#335CF4;" target="_blank" rel="noopener">$1</a>')
+          .replace(/\n/g, "<br/>");
+        eventNotesInfo += `<div style="margin: 12px 0; padding: 12px; border-left: 3px solid #335CF4; background: #f5f7ff; border-radius: 6px;"><strong>${ownerNoteLabel}:</strong><br/>${linkedNote}</div>`;
       }
       
       // Create HTML email content based on source and language
