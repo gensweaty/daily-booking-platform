@@ -24,7 +24,7 @@ import { supabase } from "@/lib/supabase";
 
 interface BookingRequestsListProps {
   requests: BookingRequest[];
-  onApprove?: (id: string) => void;
+  onApprove?: (id: string, ownerNote?: string) => void | Promise<any>;
   onReject?: (id: string) => void;
   onDelete: (id: string) => void;
 }
@@ -40,6 +40,7 @@ export const BookingRequestsList = ({
   const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [requestFiles, setRequestFiles] = useState<{[key: string]: FileRecord[]}>({});
+  const [ownerNotes, setOwnerNotes] = useState<{[key: string]: string}>({});
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
   const currencySymbol = getCurrencySymbol(language);
@@ -106,7 +107,8 @@ export const BookingRequestsList = ({
     
     setProcessingId(id);
     try {
-      await onApprove?.(id);
+      await onApprove?.(id, ownerNotes[id]?.trim() || undefined);
+      setOwnerNotes(prev => ({ ...prev, [id]: '' }));
     } finally {
       setProcessingId(null);
     }
