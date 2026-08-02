@@ -70,7 +70,9 @@ export const useBookingRequests = (businessId?: string) => {
   const rejectedRequests = bookingRequests.filter(req => req.status === 'rejected');
 
   const approveBookingRequest = useMutation({
-    mutationFn: async (bookingId: string) => {
+    mutationFn: async (input: string | { bookingId: string; ownerNote?: string }) => {
+      const bookingId = typeof input === 'string' ? input : input.bookingId;
+      const ownerNote = typeof input === 'string' ? '' : (input.ownerNote || '').trim();
       if (!user?.id) throw new Error("User not authenticated");
 
       console.log("[useBookingRequests] Approving booking request:", bookingId);
@@ -194,7 +196,7 @@ export const useBookingRequests = (businessId?: string) => {
         payment_amount: bookingToApprove.payment_amount,
         start_date: bookingToApprove.start_date,
         end_date: bookingToApprove.end_date,
-        event_notes: bookingToApprove.description,
+          event_notes: [bookingToApprove.description, ownerNote].filter(Boolean).join('\n\n'),
         type: 'booking_request',
         create_event: true,
         event_id: bookingToApprove.id // CRITICAL: Set event_id to booking ID for CRM file linking
@@ -231,7 +233,7 @@ export const useBookingRequests = (businessId?: string) => {
           payment_amount: bookingToApprove.payment_amount,
           type: 'booking_request',
           booking_request_id: bookingId,
-          event_notes: bookingToApprove.description,
+          event_notes: [bookingToApprove.description, ownerNote].filter(Boolean).join('\n\n'),
           language: bookingToApprove.language || 'en'
         }])
         .select()
@@ -290,7 +292,8 @@ export const useBookingRequests = (businessId?: string) => {
             bookingId,
             bookingToApprove.language || 'en',
             bookingToApprove.description || '',
-            user?.email || undefined
+            user?.email || undefined,
+            ownerNote || undefined
           );
           
           console.log("[useBookingRequests] Approval email sent successfully (including owner copy)");

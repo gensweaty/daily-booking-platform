@@ -23,6 +23,8 @@ export const GlobalBookingNotificationListener = () => {
   const { language } = useLanguage();
   const channelRef = useRef<any>(null);
   const lastNotifiedIdRef = useRef<string | null>(null);
+  const notifiedIdsRef = useRef<Set<string>>(new Set());
+  const seedRef = useRef(false);
 
   // Fetch the user's business profile ID
   const { data: businessProfile } = useQuery({
@@ -42,6 +44,86 @@ export const GlobalBookingNotificationListener = () => {
   });
 
   const businessProfileId = businessProfile?.id;
+
+  // Shared dispatcher so realtime and polling produce identical notifications
+  const notifyRef = useRef<(r: BookingRequest) => Promise<void>>();
+  notifyRef.current = async (newRequest: BookingRequest) => {
+    if (notifiedIdsRef.current.has(newRequest.id)) return;
+    notifiedIdsRef.current.add(newRequest.id);
+
+    const isGeorgian = language === 'ka';
+    const title = isGeorgian ? "ახალი ჯავშნის მოთხოვნა!" : "New Booking Request!";
+    const description = isGeorgian
+      ? `${newRequest.requester_name}-ისგან: ${newRequest.title}`
+      : `From ${newRequest.requester_name}: ${newRequest.title}`;
+
+    try {
+      const { playNotificationSound } = await import('@/utils/audioManager');
+      await playNotificationSound();
+    } catch (error) {
+      console.warn('[GlobalBookingNotificationListener] Failed to play sound:', error);
+    }
+
+    window.dispatchEvent(new CustomEvent('dashboard-notification', {
+      detail: {
+        type: 'booking',
+        title,
+        message: description,
+        actionData: { bookingId: newRequest.id },
+        targetAudience: 'internal',
+      }
+    }));
+  };
+
+  // Safety-net polling: if realtime drops or the socket never connects,
+  // new pending requests still reach the Dynamic Island.
+  useEffect(() => {
+    if (!businessProfileId || !user?.id) return;
+
+    const seenKey = `booking-notified-${user.id}`;
+    try {
+      const stored = JSON.parse(localStorage.getItem(seenKey) || '[]') as string[];
+      stored.forEach(id => notifiedIdsRef.current.add(id));
+    } catch { /* ignore */ }
+
+    let cancelled = false;
+
+    const poll = async () => {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from('booking_requests')
+        .select('id, requester_name, title, start_date, created_at, status')
+        .eq('business_id', businessProfileId)
+        .eq('status', 'pending')
+        .is('deleted_at', null)
+        .gte('created_at', since)
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+      if (cancelled || error || !data) return;
+
+      if (!seedRef.current) {
+        // First pass: remember what already exists without alerting for history
+        data.forEach(r => notifiedIdsRef.current.add(r.id));
+        seedRef.current = true;
+      } else {
+        for (const r of data) {
+          await notifyRef.current?.(r as BookingRequest);
+        }
+      }
+
+      try {
+        localStorage.setItem(seenKey, JSON.stringify(Array.from(notifiedIdsRef.current).slice(-200)));
+      } catch { /* ignore */ }
+    };
+
+    poll();
+    const interval = setInterval(poll, 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [businessProfileId, user?.id]);
 
   // Set up real-time subscription for booking requests
   useEffect(() => {
@@ -65,44 +147,11 @@ export const GlobalBookingNotificationListener = () => {
         async (payload) => {
           console.log('[GlobalBookingNotificationListener] New booking request:', payload);
           const newRequest = payload.new as BookingRequest;
-          
-          // Prevent duplicate notifications
-          if (lastNotifiedIdRef.current === newRequest.id) {
-            console.log('[GlobalBookingNotificationListener] Duplicate notification prevented');
-            return;
-          }
-          
-          // Only show notification for pending requests
+
           if (newRequest.status === 'pending') {
             lastNotifiedIdRef.current = newRequest.id;
-            
-            const isGeorgian = language === 'ka';
-            const title = isGeorgian ? "ახალი ჯავშნის მოთხოვნა!" : "New Booking Request!";
-            const description = isGeorgian 
-              ? `${newRequest.requester_name}-ისგან: ${newRequest.title}`
-              : `From ${newRequest.requester_name}: ${newRequest.title}`;
-
-            // Play notification sound
-            try {
-              const { playNotificationSound } = await import('@/utils/audioManager');
-              await playNotificationSound();
-              console.log('[GlobalBookingNotificationListener] Sound played');
-            } catch (error) {
-              console.warn('[GlobalBookingNotificationListener] Failed to play sound:', error);
-            }
-
-            // Emit to Dynamic Island - internal dashboard only
-            window.dispatchEvent(new CustomEvent('dashboard-notification', {
-              detail: {
-                type: 'booking',
-                title,
-                message: description,
-                actionData: { bookingId: newRequest.id },
-                targetAudience: 'internal'
-              }
-            }));
-
-            console.log('[GlobalBookingNotificationListener] Notification dispatched to Dynamic Island');
+            seedRef.current = true;
+            await notifyRef.current?.(newRequest);
           }
         }
       )

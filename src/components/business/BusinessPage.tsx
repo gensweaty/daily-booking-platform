@@ -339,7 +339,7 @@ export const BusinessPage = () => {
               </h2>
               <BookingRequestsList
                 requests={pendingRequests}
-                onApprove={approveRequest}
+                onApprove={(id, ownerNote) => approveRequest({ bookingId: id, ownerNote })}
                 onReject={rejectRequest}
                 onDelete={deleteBookingRequest}
               />
