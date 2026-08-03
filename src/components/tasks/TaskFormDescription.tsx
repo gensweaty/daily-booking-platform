@@ -18,7 +18,7 @@ export const TaskFormDescription = ({ description, setDescription }: TaskFormDes
     <div className="space-y-2 min-w-0 w-full overflow-hidden">
       <Label 
         htmlFor="description" 
-        className={cn(isGeorgian ? "font-georgian" : "")}
+        className={cn("text-sm font-semibold text-foreground", isGeorgian ? "font-georgian" : "")}
         style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
       >
         <LanguageText>{t("tasks.descriptionLabel")}</LanguageText>
