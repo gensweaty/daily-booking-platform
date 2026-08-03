@@ -156,10 +156,10 @@ export const TaskFullView = ({
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl sm:max-w-3xl w-[92vw] sm:w-full max-h-[90vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 bg-background border-border text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
-          <DialogHeader className="pb-0 mt-1 sm:mt-3">
+        <DialogContent className="w-[92vw] sm:w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 bg-background border-border text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
+          <DialogHeader className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 -mt-3 sm:-mt-6 lg:-mt-8 px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 lg:pt-8 pb-3 bg-background">
             {/* Highlighted Task Title */}
-            <div className="p-2 sm:p-4 rounded-lg border border-input bg-muted/50">
+            <div className="p-3 sm:p-4 pr-12 rounded-lg border border-border bg-card">
               <DialogTitle className="flex items-start gap-2 sm:gap-3 text-left">
                 <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary mt-0.5 flex-shrink-0" />
                 <span className="text-base sm:text-xl font-bold leading-tight break-words">{task.title}</span>
