@@ -1,6 +1,6 @@
 
 import { SimpleFileDisplay } from "../shared/SimpleFileDisplay";
-import { FileUploadField } from "../shared/FileUploadField";
+import { AttachmentDropzone } from "../shared/AttachmentDropzone";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Task } from "@/lib/types";
@@ -14,14 +14,15 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTimezoneValidation } from "@/hooks/useTimezoneValidation";
 import { ensureNotificationPermission } from "@/utils/notificationUtils";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { UserCheck, Paperclip, CalendarClock } from "lucide-react";
 
 interface TaskFormFieldsProps {
   title: string;
   setTitle: (title: string) => void;
   description: string;
   setDescription: (description: string) => void;
-  selectedFile: File | null;
-  setSelectedFile: (file: File | null) => void;
+  selectedFiles: File[];
+  setSelectedFiles: (files: File[]) => void;
   fileError: string;
   setFileError: (error: string) => void;
   editingTask: Task | null;
@@ -43,8 +44,8 @@ export const TaskFormFields = ({
   setTitle,
   description,
   setDescription,
-  selectedFile,
-  setSelectedFile,
+  selectedFiles,
+  setSelectedFiles,
   fileError,
   setFileError,
   editingTask,
@@ -64,28 +65,25 @@ export const TaskFormFields = ({
   const { t } = useLanguage();
   const { validateDateTime } = useTimezoneValidation();
   const isMobile = useMediaQuery("(max-width: 640px)");
-  
-  // Fixed query to properly fetch task files
+
   const { data: existingFiles = [], refetch } = useQuery({
     queryKey: ['taskFiles', editingTask?.id],
     queryFn: async () => {
       if (!editingTask?.id) return [];
-      console.log('Fetching files for task:', editingTask.id);
-      
       const { data, error } = await supabase
         .from('files')
         .select('*')
         .eq('task_id', editingTask.id);
-      
+
       if (error) {
         console.error('Error fetching task files:', error);
         throw error;
       }
-      
-      console.log('Task files found:', data);
       return data || [];
     },
     enabled: !!editingTask?.id,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const handleFileDeleted = () => {
@@ -103,7 +101,7 @@ export const TaskFormFields = ({
         'reminder',
         deadline
       );
-      
+
       if (!validationResult.valid) {
         toast({
           title: t("common.warning"),
@@ -120,73 +118,74 @@ export const TaskFormFields = ({
     }
 
     setReminderAt(newReminder);
-    
+
     // CRITICAL: Force enable email reminder when reminder is set and keep it enabled
     if (newReminder) {
-      console.log('🔔 CRITICAL: Enabling email reminder for task with reminder set at:', newReminder);
       setEmailReminder(true);
-      
+
       // If editing existing task, immediately update the database to persist the setting
       if (editingTask?.id) {
-        console.log('🔄 Updating existing task to preserve email reminder setting');
         try {
           const { error } = await supabase
             .from('tasks')
-            .update({ 
+            .update({
               reminder_at: newReminder,
-              email_reminder_enabled: true // Force enable regardless of current status
+              email_reminder_enabled: true
             })
             .eq('id', editingTask.id);
-            
+
           if (error) {
             console.error('❌ Failed to update task reminder settings:', error);
-          } else {
-            console.log('✅ Successfully updated task reminder settings in database');
           }
         } catch (error) {
           console.error('❌ Exception updating task reminder:', error);
         }
       }
     } else {
-      console.log('🔕 Disabling email reminder as reminder was removed');
       setEmailReminder(false);
     }
   };
 
-  const acceptedFormats = ".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt";
+  const sectionClassName = isMobile
+    ? "rounded-lg border border-border bg-card p-3 overflow-x-hidden min-w-0"
+    : "rounded-xl border border-border bg-card p-4 lg:p-5 min-w-0";
 
-  const sectionClassName = isMobile 
-    ? "bg-muted/30 rounded-lg p-2 border border-muted/40 overflow-x-hidden min-w-0"
-    : "bg-muted/30 rounded-lg p-4 border border-muted/40 min-w-0";
-  
-  const containerClassName = isMobile ? "space-y-2" : "space-y-6";
+  const containerClassName = isMobile ? "space-y-3" : "space-y-4 lg:space-y-5";
+
+  const SectionLabel = ({ icon: Icon, children }: { icon: any; children: React.ReactNode }) => (
+    <div className="flex items-center gap-2 mb-2.5">
+      <Icon className="h-4 w-4 text-primary" />
+      <span className="text-sm font-semibold text-foreground">{children}</span>
+    </div>
+  );
 
   return (
-    <div className={`${containerClassName} min-w-0 w-full overflow-hidden`}>
+    <div className={`${containerClassName} min-w-0 w-full`}>
       <div className={sectionClassName}>
         <TaskFormTitle title={title} setTitle={setTitle} />
       </div>
-      
+
       <div className={sectionClassName}>
         <TaskFormDescription description={description} setDescription={setDescription} />
       </div>
 
-      <div className={sectionClassName}>
-        <TaskStatusSelect status={status} setStatus={setStatus} />
-      </div>
+      <div className={`grid gap-4 lg:gap-5 ${isMobile ? '' : 'md:grid-cols-2'}`}>
+        <div className={sectionClassName}>
+          <TaskStatusSelect status={status} setStatus={setStatus} />
+        </div>
 
-      <div className={sectionClassName}>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Assign</label>
-          <TaskAssigneeSelect 
-            value={assignedTo} 
+        <div className={sectionClassName}>
+          <SectionLabel icon={UserCheck}>Assign</SectionLabel>
+          <TaskAssigneeSelect
+            value={assignedTo}
             onChange={setAssignedTo}
             boardOwnerId={boardOwnerId}
           />
         </div>
       </div>
-      
-      <div className={`${sectionClassName} ${isMobile ? 'space-y-0.5' : 'space-y-4'}`}>
+
+      <div className={`${sectionClassName} ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
+        <SectionLabel icon={CalendarClock}>{t("common.schedule")}</SectionLabel>
         <TaskDateTimePicker
           label="Deadline"
           value={deadline}
@@ -194,7 +193,7 @@ export const TaskFormFields = ({
           placeholder="Set deadline (optional)"
           type="deadline"
         />
-        
+
         <TaskDateTimePicker
           label="Reminder"
           value={reminderAt}
@@ -206,11 +205,12 @@ export const TaskFormFields = ({
           onEmailReminderChange={setEmailReminder}
         />
       </div>
-      
+
       {editingTask?.id && existingFiles && existingFiles.length > 0 && (
         <div className={sectionClassName}>
-          <SimpleFileDisplay 
-            files={existingFiles} 
+          <SectionLabel icon={Paperclip}>{t("common.attachments")}</SectionLabel>
+          <SimpleFileDisplay
+            files={existingFiles}
             parentType="task"
             allowDelete
             onFileDeleted={handleFileDeleted}
@@ -218,13 +218,13 @@ export const TaskFormFields = ({
           />
         </div>
       )}
-      
+
       <div className={sectionClassName}>
-        <FileUploadField 
-          onChange={setSelectedFile}
-          fileError={fileError}
-          setFileError={setFileError}
-          acceptedFileTypes={acceptedFormats}
+        <AttachmentDropzone
+          files={selectedFiles}
+          onFilesChange={setSelectedFiles}
+          error={fileError}
+          setError={setFileError}
         />
       </div>
     </div>

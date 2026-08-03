@@ -156,10 +156,10 @@ export const TaskFullView = ({
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl sm:max-w-3xl w-[92vw] sm:w-full max-h-[90vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 bg-background border-border text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
-          <DialogHeader className="pb-0 mt-1 sm:mt-3">
+        <DialogContent className="w-[92vw] sm:w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 bg-background border-border text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
+          <DialogHeader className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 -mt-3 sm:-mt-6 lg:-mt-8 px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 lg:pt-8 pb-3 bg-background">
             {/* Highlighted Task Title */}
-            <div className="p-2 sm:p-4 rounded-lg border border-input bg-muted/50">
+            <div className="p-3 sm:p-4 pr-12 rounded-lg border border-border bg-card">
               <DialogTitle className="flex items-start gap-2 sm:gap-3 text-left">
                 <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary mt-0.5 flex-shrink-0" />
                 <span className="text-base sm:text-xl font-bold leading-tight break-words">{task.title}</span>
@@ -169,19 +169,19 @@ export const TaskFullView = ({
 
           <div className="space-y-2 sm:space-y-4 mt-2 sm:mt-4">
             {/* Description Section */}
-            <Card className="border-muted/40 bg-muted/20">
+            <Card className="border-border bg-card">
               <CardContent className="p-2 sm:p-4">
                 <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
-                  <h3 className="text-sm sm:text-base font-medium text-muted-foreground">{t("tasks.descriptionLabel")}</h3>
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                  <h3 className="text-sm sm:text-base font-semibold text-foreground">{t("tasks.descriptionLabel")}</h3>
                 </div>
                 {task.description ? (
                   <div 
-                    className="text-base sm:text-lg text-foreground leading-relaxed prose-sm max-w-none bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40 overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full"
+                    className="text-base sm:text-lg text-foreground leading-relaxed prose-sm max-w-none bg-muted/40 rounded-md p-3 border border-border overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full"
                     dangerouslySetInnerHTML={{ __html: task.description }}
                   />
                 ) : (
-                  <p className="text-base sm:text-lg text-muted-foreground italic bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40">
+                  <p className="text-base sm:text-lg text-muted-foreground italic bg-muted/40 rounded-md p-3 border border-border">
                     {t("common.noDescription")}
                   </p>
                 )}
@@ -190,13 +190,13 @@ export const TaskFullView = ({
 
             {/* Schedule Section */}
             {(task.deadline_at || task.reminder_at) && (
-              <Card className="border-muted/40 bg-muted/20">
+              <Card className="border-border bg-card">
                 <CardContent className="p-2 sm:p-4">
                   <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                    <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">{t("common.schedule")}</h3>
+                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground">{t("common.schedule")}</h3>
                   </div>
-                  <div className="bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40">
+                  <div className="bg-muted/40 rounded-md p-3 border border-border">
                     <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
                   </div>
                 </CardContent>
@@ -204,13 +204,13 @@ export const TaskFullView = ({
             )}
 
             {/* Assignment Section */}
-            <Card className="border-muted/40 bg-muted/20">
+            <Card className="border-border bg-card">
               <CardContent className="p-2 sm:p-4">
                 <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <UserCheck className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                  <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">Assigned To</h3>
+                  <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                  <h3 className="text-sm sm:text-base font-semibold text-foreground">Assigned To</h3>
                 </div>
-                <div className="bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40">
+                <div className="bg-muted/40 rounded-md p-3 border border-border">
                   {task.assigned_to_id && task.assigned_to_name ? (
                     <div className="flex items-center gap-2 text-sm">
                       <TaskAssigneeDisplay task={task} size="md" />
@@ -227,15 +227,15 @@ export const TaskFullView = ({
 
             {/* Attachments Section */}
             {files && files.length > 0 && (
-              <Card className="border-muted/40 bg-muted/20">
+              <Card className="border-border bg-card">
                 <CardContent className="p-2 sm:p-4">
                   <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <Paperclip className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
-                    <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">
+                    <Paperclip className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                    <h3 className="text-sm sm:text-base font-semibold text-foreground">
                       {t("common.attachments")}
                     </h3>
                   </div>
-                  <div className="bg-muted/30 rounded-md p-2 sm:p-3 border border-muted/40">
+                  <div className="bg-muted/40 rounded-md p-3 border border-border">
                     <SimpleFileDisplay 
                       files={files} 
                       parentType="task"
@@ -302,7 +302,7 @@ export const TaskFullView = ({
           </div>
 
           {/* Action Buttons - mobile optimized */}
-          <div className="flex flex-wrap justify-end gap-1 sm:gap-3 pt-2 sm:pt-4 border-t border-muted/20">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-2 sm:gap-3 pt-4 border-t border-border">
             {isArchived ? (
               // Archived view - only show restore button
               <Tooltip>
@@ -329,7 +329,7 @@ export const TaskFullView = ({
                     variant="secondary" 
                     size="sm" 
                     onClick={handleEditClick}
-                    className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 h-9 sm:h-10 font-medium border border-border/50 hover:border-primary/30 transition-all"
+                    className="w-full sm:w-auto justify-center flex items-center gap-1.5 sm:gap-2 text-sm px-4 h-10 font-medium border border-border/50 hover:border-primary/30 transition-all"
                   >
                     <Pen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                     <span>{t("tasks.editTask")}</span>
@@ -343,7 +343,7 @@ export const TaskFullView = ({
                         variant="secondary" 
                         size="sm" 
                         onClick={handleArchiveClick}
-                        className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 h-9 sm:h-10 font-medium border border-border/50 hover:border-amber-500/30 transition-all"
+                        className="w-full sm:w-auto justify-center flex items-center gap-1.5 sm:gap-2 text-sm px-4 h-10 font-medium border border-border/50 hover:border-amber-500/30 transition-all"
                       >
                         <Archive className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         <span>{t("tasks.archive")}</span>
@@ -362,7 +362,7 @@ export const TaskFullView = ({
                         variant="destructive" 
                         size="sm" 
                         onClick={handleDeleteClick}
-                        className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm px-3 py-1.5 sm:px-4 sm:py-2 h-9 sm:h-10 font-medium shadow-sm transition-all"
+                        className="w-full sm:w-auto justify-center flex items-center gap-1.5 sm:gap-2 text-sm px-4 h-10 font-medium shadow-sm transition-all"
                       >
                         <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         <span>{t("common.delete")}</span>
