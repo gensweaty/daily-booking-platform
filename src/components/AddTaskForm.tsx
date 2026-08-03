@@ -30,7 +30,7 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [fileError, setFileError] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [deadline, setDeadline] = useState<string | undefined>();
   const [reminderAt, setReminderAt] = useState<string | undefined>();
   const [emailReminder, setEmailReminder] = useState(false);
@@ -198,44 +198,39 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
         taskResponse = await createTask(taskData);
       }
 
-      // Handle file upload with proper bucket assignment
-      if (selectedFile && taskResponse) {
-        console.log('Uploading file for task:', taskResponse.id);
-        const fileExt = selectedFile.name.split('.').pop();
-        const filePath = `${crypto.randomUUID()}.${fileExt}`;
-        
-        // Upload to task_attachments bucket
-        const { error: uploadError } = await supabase.storage
-          .from('task_attachments')
-          .upload(filePath, selectedFile);
+      // Handle file uploads (picked, pasted or dropped)
+      if (selectedFiles.length > 0 && taskResponse) {
+        for (const file of selectedFiles) {
+          const fileExt = file.name.split('.').pop();
+          const filePath = `${crypto.randomUUID()}.${fileExt}`;
 
-        if (uploadError) {
-          console.error('File upload error:', uploadError);
-          throw uploadError;
+          const { error: uploadError } = await supabase.storage
+            .from('task_attachments')
+            .upload(filePath, file);
+
+          if (uploadError) {
+            console.error('File upload error:', uploadError);
+            throw uploadError;
+          }
+
+          const { error: fileRecordError } = await supabase
+            .from('files')
+            .insert({
+              task_id: taskResponse.id,
+              filename: file.name,
+              file_path: filePath,
+              content_type: file.type,
+              size: file.size,
+              user_id: boardUserId || user.id,
+              source: 'task',
+              parent_type: 'task'
+            });
+
+          if (fileRecordError) {
+            console.error('File record creation error:', fileRecordError);
+            throw fileRecordError;
+          }
         }
-
-        console.log('File uploaded successfully, creating database record');
-        
-        // Create file record in files table
-        const { error: fileRecordError } = await supabase
-          .from('files')
-          .insert({
-            task_id: taskResponse.id,
-            filename: selectedFile.name,
-            file_path: filePath,
-            content_type: selectedFile.type,
-            size: selectedFile.size,
-            user_id: boardUserId || user.id,
-            source: 'task',
-            parent_type: 'task'
-          });
-
-        if (fileRecordError) {
-          console.error('File record creation error:', fileRecordError);
-          throw fileRecordError;
-        }
-
-        console.log('File record created successfully');
       }
 
       if (boardUserId) {
@@ -388,8 +383,8 @@ const AddTaskForm = ({ onClose, editingTask, boardUserId, externalUserName, user
           setTitle={setTitle}
           description={description}
           setDescription={setDescription}
-          selectedFile={selectedFile}
-          setSelectedFile={setSelectedFile}
+          selectedFiles={selectedFiles}
+          setSelectedFiles={setSelectedFiles}
           fileError={fileError}
           setFileError={setFileError}
           editingTask={editingTask}
