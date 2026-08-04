@@ -42,14 +42,29 @@ const TaskCardInner = ({ task, index, onEdit, onView, onDelete, isPublicBoard = 
     refetchOnWindowFocus: false,
   });
 
-  const getTaskStyle = (status: string) => {
+  const statusMeta = (status: string) => {
     switch (status) {
       case 'in-progress':
-        return 'border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50/70 to-transparent dark:from-amber-900/20 dark:to-transparent';
+        return {
+          label: t('tasks.inProgress'),
+          chip: 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25',
+          dot: 'bg-amber-500',
+          accent: 'from-amber-500/70 via-amber-500/20 to-transparent',
+        };
       case 'done':
-        return 'border-l-4 border-l-green-500 bg-gradient-to-r from-green-50/70 to-transparent dark:from-green-900/20 dark:to-transparent';
+        return {
+          label: t('tasks.done'),
+          chip: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25',
+          dot: 'bg-emerald-500',
+          accent: 'from-emerald-500/70 via-emerald-500/20 to-transparent',
+        };
       default:
-        return 'border-l-4 border-l-gray-400 dark:border-l-gray-600 bg-gradient-to-r from-gray-50/70 to-transparent dark:from-gray-800/50 dark:to-transparent';
+        return {
+          label: t('tasks.todo'),
+          chip: 'bg-primary/12 text-primary ring-primary/25',
+          dot: 'bg-primary',
+          accent: 'from-primary/70 via-primary/20 to-transparent',
+        };
     }
   };
 
