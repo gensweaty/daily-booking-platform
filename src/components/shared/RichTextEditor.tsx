@@ -308,7 +308,8 @@ const RichTextEditor = memo(function RichTextEditor({
     },
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[140px]',
+        class:
+          'prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none min-h-[150px] text-base leading-relaxed',
       },
     },
   });
@@ -354,7 +355,7 @@ const RichTextEditor = memo(function RichTextEditor({
       >
         <EditorContent
           editor={editor}
-          className="prose dark:prose-invert max-w-none p-3 sm:p-4 min-w-0 [&_.ProseMirror]:break-words [&_.ProseMirror]:[overflow-wrap:break-word] [&_.ProseMirror]:[word-break:break-word] [&_.ProseMirror]:min-h-[140px] [&_.ProseMirror_p]:my-1.5 [&_.ProseMirror_ul]:my-1.5 [&_.ProseMirror_ol]:my-1.5"
+          className="max-w-none p-3 sm:p-4 min-w-0 [&_.ProseMirror]:break-words [&_.ProseMirror]:[overflow-wrap:break-word] [&_.ProseMirror]:[word-break:break-word] [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror_p]:my-1.5 [&_.ProseMirror_ul]:my-1.5 [&_.ProseMirror_ol]:my-1.5"
         />
       </div>
     </div>
