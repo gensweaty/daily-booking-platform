@@ -224,25 +224,24 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
                 variants={emptyStateVariants}
                 initial="hidden"
                 animate="visible"
-                className="flex flex-col items-center justify-center py-16 text-center"
+                className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 py-14 text-center"
               >
                 <motion.div
                   animate={{ 
-                    y: [0, -8, 0],
-                    rotate: [0, 10, -10, 0],
-                    opacity: [0.4, 0.8, 0.4]
+                    y: [0, -6, 0],
+                    opacity: [0.5, 0.9, 0.5]
                   }}
                   transition={{ 
                     duration: 4,
                     repeat: Infinity
                   }}
-                  className="mb-6"
+                  className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/60"
                 >
-                  <Plus className="h-16 w-16 text-muted-foreground/30" />
+                  <Plus className="h-5 w-5 text-muted-foreground/70" />
                 </motion.div>
                 
                 <motion.p 
-                  className="text-muted-foreground text-base font-medium mb-2"
+                  className="text-muted-foreground text-sm font-medium mb-1"
                   animate={{ opacity: [0.6, 1, 0.6] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 >
@@ -251,7 +250,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
                 
                 {status === 'todo' && (
                   <motion.p 
-                    className="text-sm text-muted-foreground/60"
+                    className="text-xs text-muted-foreground/60"
                     animate={{ opacity: [0.4, 0.8, 0.4] }}
                     transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
                   >
@@ -269,20 +268,19 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
-                  className="absolute inset-0 border-2 border-dashed border-primary/40 bg-primary/5 rounded-xl flex items-center justify-center pointer-events-none backdrop-blur-sm"
+                  className="absolute inset-0 border-2 border-dashed border-primary/40 bg-primary/5 rounded-xl flex items-center justify-center pointer-events-none"
                 >
                   <motion.div
                     animate={{ 
-                      scale: [1, 1.2, 1],
-                      rotate: [0, 5, -5, 0]
+                      scale: [1, 1.06, 1]
                     }}
                     transition={{ 
                       duration: 1.5, 
                       repeat: Infinity
                     }}
-                    className="text-primary/70 text-lg font-bold bg-background/80 px-4 py-2 rounded-lg shadow-lg"
+                    className="text-primary text-sm font-semibold bg-background/90 px-3.5 py-1.5 rounded-full shadow-md ring-1 ring-primary/20"
                   >
-                    Drop here ✨
+                    Drop here
                   </motion.div>
                 </motion.div>
               )}
