@@ -135,34 +135,61 @@ const TaskCardInner = ({ task, index, onEdit, onView, onDelete, isPublicBoard = 
   return (
     <Draggable draggableId={String(task.id)} index={index}>
       {(provided, snapshot) => {
+        const meta = statusMeta(task.status);
         const child = (
           <div
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
             data-is-dragging={snapshot.isDragging}
-            className={`p-4 bg-card dark:bg-gray-800 rounded-xl relative overflow-hidden border border-border/80 dark:border-border/50 ${getTaskStyle(task.status)} ${
-              snapshot.isDragging ? 'shadow-2xl z-50 opacity-95 scale-105' : 'shadow hover:shadow-md'
-            } transition-shadow duration-100`}
+            className={`group p-4 bg-card rounded-2xl relative overflow-hidden border border-border/70 hover:border-primary/40 ${
+              snapshot.isDragging
+                ? 'shadow-2xl shadow-primary/20 z-50 opacity-95 scale-[1.03] border-primary/50'
+                : 'shadow-sm hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5'
+            } transition-all duration-200`}
             style={getStyle(provided.draggableProps.style, snapshot)}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            {/* Subtle animated background gradient */}
+            {/* Status accent line */}
+            <span
+              aria-hidden
+              className={`absolute left-0 top-0 h-full w-[3px] bg-gradient-to-b ${meta.accent}`}
+            />
+            {/* Subtle hover glow */}
             <motion.div
-              className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/[0.06] to-transparent opacity-0"
               animate={{ opacity: isHovered && !snapshot.isDragging ? 1 : 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ duration: 0.25 }}
             />
             
             <div className="relative z-10">
+              {/* Top meta row: status chip + indicators */}
+              <div className="flex items-center gap-2 mb-2.5">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${meta.chip}`}
+                >
+                  <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                  {meta.label}
+                </span>
+                <div className="ml-auto flex items-center gap-1.5">
+                  {getPriorityIndicator()}
+                  {files && files.length > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      <Paperclip className="h-3 w-3" />
+                      {files.length}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               <div className="flex justify-between items-start gap-2 mb-3">
-                <div className={`flex-1 min-w-0 ${task.status === 'done' ? 'line-through text-gray-500' : 'text-foreground'}`}>
+                <div className={`flex-1 min-w-0 ${task.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                   <div className="flex items-start gap-2 mb-2">
                     <div className="flex-1 min-w-0">
                       {isGeorgian ? (
                         <motion.h3 
-                          className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight" 
+                          className="text-[15px] font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-snug tracking-tight"
                           onClick={handleTitleClick}
                           title={task.title}
                           style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
@@ -171,7 +198,7 @@ const TaskCardInner = ({ task, index, onEdit, onView, onDelete, isPublicBoard = 
                         </motion.h3>
                       ) : (
                         <motion.h3 
-                          className="font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-tight"
+                          className="text-[15px] font-semibold cursor-pointer hover:text-primary transition-colors break-words line-clamp-2 leading-snug tracking-tight"
                           onClick={handleTitleClick}
                           title={task.title}
                           style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
@@ -180,38 +207,18 @@ const TaskCardInner = ({ task, index, onEdit, onView, onDelete, isPublicBoard = 
                         </motion.h3>
                       )}
                     </div>
-                    
-                    {/* Priority indicators and file count */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      {getPriorityIndicator()}
-                      {files && files.length > 0 && (
-                        <motion.div 
-                          className="flex items-center text-gray-600"
-                        >
-                          <Paperclip className="h-4 w-4" />
-                          <motion.span 
-                            className="text-sm ml-1 bg-primary/10 text-primary px-1.5 py-0.5 rounded-full"
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ delay: 0.1 }}
-                          >
-                            {files.length}
-                          </motion.span>
-                        </motion.div>
-                      )}
-                    </div>
                   </div>
                   
                   {task.description && (
                     <motion.div 
-                      className="prose dark:prose-invert max-w-none mt-2 line-clamp-3 text-sm opacity-70 hover:opacity-100 transition-opacity cursor-pointer"
+                      className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-muted-foreground hover:text-foreground/80 transition-colors cursor-pointer [&_*]:!m-0 [&_*]:!text-[13px] [&_*]:!font-normal [&_*]:!leading-relaxed"
                       onClick={handleDescriptionClick}
                       role="button"
                       dangerouslySetInnerHTML={{ __html: task.description }}
                     />
                   )}
                   
-                  <div className="mt-3">
+                  <div className="mt-2.5">
                     <TaskDateInfo 
                       deadline={task.deadline_at} 
                       reminderAt={task.reminder_at} 
@@ -221,7 +228,7 @@ const TaskCardInner = ({ task, index, onEdit, onView, onDelete, isPublicBoard = 
                 </div>
                 
                 <motion.div 
-                  className="flex gap-1 flex-shrink-0 opacity-0"
+                  className="flex gap-0.5 flex-shrink-0 opacity-0 rounded-lg bg-background/70 backdrop-blur-sm p-0.5 ring-1 ring-border/60"
                   animate={{ opacity: isHovered ? 1 : 0 }}
                   transition={{ duration: 0.2, delay: 0.1 }}
                 >
@@ -263,7 +270,7 @@ const TaskCardInner = ({ task, index, onEdit, onView, onDelete, isPublicBoard = 
               </div>
 
               {/* Bottom row with assignee and delete button on the right */}
-              <div className="flex justify-end items-center gap-2 mt-2">
+              <div className="flex justify-end items-center gap-2 mt-3 pt-2.5 border-t border-border/50">
                 {/* Assignee avatar - always visible */}
                 <div className="flex-shrink-0">
                   <TaskAssigneeDisplay task={task} size="sm" />
