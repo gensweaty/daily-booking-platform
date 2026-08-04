@@ -131,7 +131,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
         <div
           ref={provided.innerRef}
           {...provided.droppableProps}
-          className={`p-6 min-h-[500px] flex flex-col relative overflow-visible ${getColumnStyle(status)}`}
+          className={`p-3.5 sm:p-4 min-h-[500px] flex flex-col relative overflow-visible ${getColumnStyle(status)}`}
           onDragEnter={() => setIsDragOver(true)}
           onDragLeave={() => setIsDragOver(false)}
         >
@@ -153,26 +153,24 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
           
           {/* Column Header */}
           <motion.div 
-            className="flex items-center justify-between mb-6 pb-4 border-b border-border/60 dark:border-border/40"
+            className="flex items-center justify-between mb-4 px-1 pb-3 border-b border-border/50"
             variants={headerVariants}
-            whileHover={{ y: -2 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <motion.div
                 animate={{ 
-                  rotate: snapshot.isDraggingOver ? 180 : 0,
-                  scale: snapshot.isDraggingOver ? 1.2 : 1
+                  scale: snapshot.isDraggingOver ? 1.15 : 1
                 }}
                 transition={{ 
-                  duration: 0.4
+                  duration: 0.25
                 }}
-                className="flex-shrink-0"
+                className="flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-background/80 ring-1 ring-border/60"
               >
                 {getColumnIcon(status)}
               </motion.div>
               
-              <h3 className="font-bold text-foreground flex-shrink-0 text-lg tracking-tight">
+              <h3 className="font-semibold text-foreground flex-shrink-0 text-sm uppercase tracking-wide">
                 {isGeorgian ? (
                   <GeorgianAuthText fontWeight="bold">
                     <LanguageText>{getColumnTitle(status)}</LanguageText>
@@ -193,24 +191,18 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
                 duration: 0.4
               }}
             >
-              <motion.span 
-                className="bg-muted/60 text-muted-foreground px-3 py-1.5 rounded-full text-sm font-bold min-w-[2rem] text-center backdrop-blur-sm"
-                animate={{ 
-                  backgroundColor: tasks.length > 0 ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted) / 0.6)",
-                  color: tasks.length > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
-                  scale: tasks.length > 0 ? 1.05 : 1
-                }}
-                transition={{ 
-                  duration: 0.3
-                }}
+              <span
+                className={`px-2.5 py-1 rounded-full text-xs font-bold min-w-[1.75rem] text-center ${
+                  tasks.length > 0 ? getAccent(status).chip : 'bg-muted/60 text-muted-foreground'
+                }`}
               >
                 {tasks.length}
-              </motion.span>
+              </span>
             </motion.div>
           </motion.div>
           
           {/* Tasks Container */}
-          <div className="space-y-4 flex-1 relative">
+          <div className="space-y-3 flex-1 relative">
             {tasks.length > 0 ? (
               tasks.map((task: Task, index: number) => {
                 const allowEdit = canEditTask ? canEditTask(task) : true;
