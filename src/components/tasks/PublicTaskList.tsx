@@ -292,7 +292,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
   if (isLoading) {
     return (
       <motion.div 
-        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+        className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
@@ -437,7 +437,7 @@ export const PublicTaskList = ({ boardUserId, externalUserName, externalUserEmai
 
         <DragDropContext onDragEnd={handleDragEnd}>
           <div 
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-5"
           >
             {Object.entries(columns).map(([status, statusTasks]) => (
               <TaskColumn
