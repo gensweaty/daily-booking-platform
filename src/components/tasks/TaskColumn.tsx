@@ -26,40 +26,44 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
   const [isDragOver, setIsDragOver] = useState(false);
   
   const getColumnStyle = (status: string) => {
-    const baseStyle = "border rounded-xl transition-all duration-300 backdrop-blur-sm bg-card/70 ring-1 ring-border/60 dark:ring-0";
-    
+    const baseStyle =
+      "rounded-2xl border border-border/60 bg-muted/25 dark:bg-card/40 shadow-sm transition-all duration-300";
+
     if (isDragOver) {
       switch (status) {
         case 'in-progress':
-          return `${baseStyle} bg-gradient-to-br from-amber-50/80 to-amber-100/60 dark:from-amber-900/40 dark:to-amber-800/20 border-amber-300 dark:border-amber-600 shadow-xl shadow-amber-500/30`;
+          return `${baseStyle} border-amber-500/50 shadow-lg shadow-amber-500/10`;
         case 'done':
-          return `${baseStyle} bg-gradient-to-br from-green-50/80 to-green-100/60 dark:from-green-900/40 dark:to-green-800/20 border-green-300 dark:border-green-600 shadow-xl shadow-green-500/30`;
+          return `${baseStyle} border-emerald-500/50 shadow-lg shadow-emerald-500/10`;
         default:
-          return `${baseStyle} bg-gradient-to-br from-blue-50/80 to-blue-100/60 dark:from-blue-900/40 dark:to-blue-800/20 border-blue-300 dark:border-blue-600 shadow-xl shadow-blue-500/30`;
+          return `${baseStyle} border-primary/50 shadow-lg shadow-primary/10`;
       }
     }
-    
+
+    return baseStyle;
+  };
+
+  const getAccent = (status: string) => {
     switch (status) {
       case 'in-progress':
-        return `${baseStyle} bg-gradient-to-br from-amber-50/60 to-amber-100/30 dark:from-amber-900/10 dark:to-amber-800/5 border-amber-200/70 dark:border-amber-700/30 shadow-lg shadow-amber-500/10`;
+        return { dot: 'bg-amber-500', chip: 'bg-amber-500/12 text-amber-600 dark:text-amber-400' };
       case 'done':
-        return `${baseStyle} bg-gradient-to-br from-green-50/60 to-green-100/30 dark:from-green-900/10 dark:to-green-800/5 border-green-200/70 dark:border-green-700/30 shadow-lg shadow-green-500/10`;
+        return { dot: 'bg-emerald-500', chip: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400' };
       default:
-        return `${baseStyle} bg-gradient-to-br from-gray-50/60 to-gray-100/30 dark:from-gray-900/10 dark:to-gray-800/5 border-gray-200/70 dark:border-gray-700/30 shadow-lg`;
-
+        return { dot: 'bg-primary', chip: 'bg-primary/12 text-primary' };
     }
   };
 
   const getColumnIcon = (status: string) => {
     switch (status) {
       case 'todo':
-        return <Circle className="h-5 w-5 text-gray-500" />;
+        return <Circle className="h-4 w-4 text-primary" />;
       case 'in-progress':
-        return <Clock className="h-5 w-5 text-amber-500" />;
+        return <Clock className="h-4 w-4 text-amber-500" />;
       case 'done':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-emerald-500" />;
       default:
-        return <Circle className="h-5 w-5" />;
+        return <Circle className="h-4 w-4" />;
     }
   };
 
@@ -127,7 +131,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
         <div
           ref={provided.innerRef}
           {...provided.droppableProps}
-          className={`p-6 min-h-[500px] flex flex-col relative overflow-visible ${getColumnStyle(status)}`}
+          className={`p-3.5 sm:p-4 min-h-[500px] flex flex-col relative overflow-visible ${getColumnStyle(status)}`}
           onDragEnter={() => setIsDragOver(true)}
           onDragLeave={() => setIsDragOver(false)}
         >
@@ -149,26 +153,24 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
           
           {/* Column Header */}
           <motion.div 
-            className="flex items-center justify-between mb-6 pb-4 border-b border-border/60 dark:border-border/40"
+            className="flex items-center justify-between mb-4 px-1 pb-3 border-b border-border/50"
             variants={headerVariants}
-            whileHover={{ y: -2 }}
             transition={{ duration: 0.2 }}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <motion.div
                 animate={{ 
-                  rotate: snapshot.isDraggingOver ? 180 : 0,
-                  scale: snapshot.isDraggingOver ? 1.2 : 1
+                  scale: snapshot.isDraggingOver ? 1.15 : 1
                 }}
                 transition={{ 
-                  duration: 0.4
+                  duration: 0.25
                 }}
-                className="flex-shrink-0"
+                className="flex-shrink-0 flex h-7 w-7 items-center justify-center rounded-lg bg-background/80 ring-1 ring-border/60"
               >
                 {getColumnIcon(status)}
               </motion.div>
               
-              <h3 className="font-bold text-foreground flex-shrink-0 text-lg tracking-tight">
+              <h3 className="font-semibold text-foreground flex-shrink-0 text-sm uppercase tracking-wide">
                 {isGeorgian ? (
                   <GeorgianAuthText fontWeight="bold">
                     <LanguageText>{getColumnTitle(status)}</LanguageText>
@@ -189,24 +191,18 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
                 duration: 0.4
               }}
             >
-              <motion.span 
-                className="bg-muted/60 text-muted-foreground px-3 py-1.5 rounded-full text-sm font-bold min-w-[2rem] text-center backdrop-blur-sm"
-                animate={{ 
-                  backgroundColor: tasks.length > 0 ? "hsl(var(--primary) / 0.15)" : "hsl(var(--muted) / 0.6)",
-                  color: tasks.length > 0 ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
-                  scale: tasks.length > 0 ? 1.05 : 1
-                }}
-                transition={{ 
-                  duration: 0.3
-                }}
+              <span
+                className={`px-2.5 py-1 rounded-full text-xs font-bold min-w-[1.75rem] text-center ${
+                  tasks.length > 0 ? getAccent(status).chip : 'bg-muted/60 text-muted-foreground'
+                }`}
               >
                 {tasks.length}
-              </motion.span>
+              </span>
             </motion.div>
           </motion.div>
           
           {/* Tasks Container */}
-          <div className="space-y-4 flex-1 relative">
+          <div className="space-y-3 flex-1 relative">
             {tasks.length > 0 ? (
               tasks.map((task: Task, index: number) => {
                 const allowEdit = canEditTask ? canEditTask(task) : true;
@@ -228,25 +224,24 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
                 variants={emptyStateVariants}
                 initial="hidden"
                 animate="visible"
-                className="flex flex-col items-center justify-center py-16 text-center"
+                className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 py-14 text-center"
               >
                 <motion.div
                   animate={{ 
-                    y: [0, -8, 0],
-                    rotate: [0, 10, -10, 0],
-                    opacity: [0.4, 0.8, 0.4]
+                    y: [0, -6, 0],
+                    opacity: [0.5, 0.9, 0.5]
                   }}
                   transition={{ 
                     duration: 4,
                     repeat: Infinity
                   }}
-                  className="mb-6"
+                  className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/60"
                 >
-                  <Plus className="h-16 w-16 text-muted-foreground/30" />
+                  <Plus className="h-5 w-5 text-muted-foreground/70" />
                 </motion.div>
                 
                 <motion.p 
-                  className="text-muted-foreground text-base font-medium mb-2"
+                  className="text-muted-foreground text-sm font-medium mb-1"
                   animate={{ opacity: [0.6, 1, 0.6] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 >
@@ -255,7 +250,7 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
                 
                 {status === 'todo' && (
                   <motion.p 
-                    className="text-sm text-muted-foreground/60"
+                    className="text-xs text-muted-foreground/60"
                     animate={{ opacity: [0.4, 0.8, 0.4] }}
                     transition={{ duration: 2.5, repeat: Infinity, delay: 0.5 }}
                   >
@@ -273,20 +268,19 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
-                  className="absolute inset-0 border-2 border-dashed border-primary/40 bg-primary/5 rounded-xl flex items-center justify-center pointer-events-none backdrop-blur-sm"
+                  className="absolute inset-0 border-2 border-dashed border-primary/40 bg-primary/5 rounded-xl flex items-center justify-center pointer-events-none"
                 >
                   <motion.div
                     animate={{ 
-                      scale: [1, 1.2, 1],
-                      rotate: [0, 5, -5, 0]
+                      scale: [1, 1.06, 1]
                     }}
                     transition={{ 
                       duration: 1.5, 
                       repeat: Infinity
                     }}
-                    className="text-primary/70 text-lg font-bold bg-background/80 px-4 py-2 rounded-lg shadow-lg"
+                    className="text-primary text-sm font-semibold bg-background/90 px-3.5 py-1.5 rounded-full shadow-md ring-1 ring-primary/20"
                   >
-                    Drop here ✨
+                    Drop here
                   </motion.div>
                 </motion.div>
               )}
