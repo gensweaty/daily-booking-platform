@@ -26,40 +26,44 @@ export const TaskColumn = ({ status, tasks, onEdit, onView, onDelete, isPublicBo
   const [isDragOver, setIsDragOver] = useState(false);
   
   const getColumnStyle = (status: string) => {
-    const baseStyle = "border rounded-xl transition-all duration-300 backdrop-blur-sm bg-card/70 ring-1 ring-border/60 dark:ring-0";
-    
+    const baseStyle =
+      "rounded-2xl border border-border/60 bg-muted/25 dark:bg-card/40 shadow-sm transition-all duration-300";
+
     if (isDragOver) {
       switch (status) {
         case 'in-progress':
-          return `${baseStyle} bg-gradient-to-br from-amber-50/80 to-amber-100/60 dark:from-amber-900/40 dark:to-amber-800/20 border-amber-300 dark:border-amber-600 shadow-xl shadow-amber-500/30`;
+          return `${baseStyle} border-amber-500/50 shadow-lg shadow-amber-500/10`;
         case 'done':
-          return `${baseStyle} bg-gradient-to-br from-green-50/80 to-green-100/60 dark:from-green-900/40 dark:to-green-800/20 border-green-300 dark:border-green-600 shadow-xl shadow-green-500/30`;
+          return `${baseStyle} border-emerald-500/50 shadow-lg shadow-emerald-500/10`;
         default:
-          return `${baseStyle} bg-gradient-to-br from-blue-50/80 to-blue-100/60 dark:from-blue-900/40 dark:to-blue-800/20 border-blue-300 dark:border-blue-600 shadow-xl shadow-blue-500/30`;
+          return `${baseStyle} border-primary/50 shadow-lg shadow-primary/10`;
       }
     }
-    
+
+    return baseStyle;
+  };
+
+  const getAccent = (status: string) => {
     switch (status) {
       case 'in-progress':
-        return `${baseStyle} bg-gradient-to-br from-amber-50/60 to-amber-100/30 dark:from-amber-900/10 dark:to-amber-800/5 border-amber-200/70 dark:border-amber-700/30 shadow-lg shadow-amber-500/10`;
+        return { dot: 'bg-amber-500', chip: 'bg-amber-500/12 text-amber-600 dark:text-amber-400' };
       case 'done':
-        return `${baseStyle} bg-gradient-to-br from-green-50/60 to-green-100/30 dark:from-green-900/10 dark:to-green-800/5 border-green-200/70 dark:border-green-700/30 shadow-lg shadow-green-500/10`;
+        return { dot: 'bg-emerald-500', chip: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400' };
       default:
-        return `${baseStyle} bg-gradient-to-br from-gray-50/60 to-gray-100/30 dark:from-gray-900/10 dark:to-gray-800/5 border-gray-200/70 dark:border-gray-700/30 shadow-lg`;
-
+        return { dot: 'bg-primary', chip: 'bg-primary/12 text-primary' };
     }
   };
 
   const getColumnIcon = (status: string) => {
     switch (status) {
       case 'todo':
-        return <Circle className="h-5 w-5 text-gray-500" />;
+        return <Circle className="h-4 w-4 text-primary" />;
       case 'in-progress':
-        return <Clock className="h-5 w-5 text-amber-500" />;
+        return <Clock className="h-4 w-4 text-amber-500" />;
       case 'done':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-4 w-4 text-emerald-500" />;
       default:
-        return <Circle className="h-5 w-5" />;
+        return <Circle className="h-4 w-4" />;
     }
   };
 
