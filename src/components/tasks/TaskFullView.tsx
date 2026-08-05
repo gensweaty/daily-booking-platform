@@ -156,86 +156,101 @@ export const TaskFullView = ({
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[92vw] sm:w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 bg-background border-border text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
-          <DialogHeader className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 -mt-3 sm:-mt-6 lg:-mt-8 px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 lg:pt-8 pb-3 bg-background">
-            {/* Highlighted Task Title */}
-            <div className="p-3 sm:p-4 pr-12 rounded-lg border border-border bg-card">
-              <DialogTitle className="flex items-start gap-2 sm:gap-3 text-left">
-                <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-base sm:text-xl font-bold leading-tight break-words">{task.title}</span>
+        <DialogContent className="w-[92vw] sm:w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 rounded-2xl bg-background border-border/60 text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
+          <DialogHeader className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 -mt-3 sm:-mt-6 lg:-mt-8 px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 lg:pt-8 pb-3 bg-background/95 backdrop-blur-sm border-b border-border/50">
+            <div className="pr-12">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${
+                  task.status === 'done'
+                    ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25'
+                    : task.status === 'in-progress'
+                      ? 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25'
+                      : 'bg-primary/12 text-primary ring-primary/25'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${
+                    task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-500' : 'bg-primary'
+                  }`} />
+                  {task.status === 'done' ? t('tasks.done') : task.status === 'in-progress' ? t('tasks.inProgress') : t('tasks.todo')}
+                </span>
+                {files && files.length > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    <Paperclip className="h-3 w-3" />
+                    {files.length}
+                  </span>
+                )}
+              </div>
+              <DialogTitle className="text-left">
+                <span className="text-lg sm:text-2xl font-semibold tracking-tight leading-snug break-words">{task.title}</span>
               </DialogTitle>
             </div>
           </DialogHeader>
 
-          <div className="space-y-2 sm:space-y-4 mt-2 sm:mt-4">
+          <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
             {/* Description Section */}
-            <Card className="border-border bg-card">
-              <CardContent className="p-2 sm:p-4">
-                <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  <h3 className="text-sm sm:text-base font-semibold text-foreground">{t("tasks.descriptionLabel")}</h3>
-                </div>
-                {task.description ? (
-                  <div 
-                    className="text-base sm:text-lg text-foreground leading-relaxed prose-sm max-w-none bg-muted/40 rounded-md p-3 border border-border overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full"
-                    dangerouslySetInnerHTML={{ __html: task.description }}
-                  />
-                ) : (
-                  <p className="text-base sm:text-lg text-muted-foreground italic bg-muted/40 rounded-md p-3 border border-border">
-                    {t("common.noDescription")}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <section className="rounded-2xl border border-border/60 bg-card/60 p-3 sm:p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                </span>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("tasks.descriptionLabel")}</h3>
+              </div>
+              {task.description ? (
+                <div 
+                  className="text-[15px] text-foreground leading-relaxed prose-sm max-w-none overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full"
+                  dangerouslySetInnerHTML={{ __html: task.description }}
+                />
+              ) : (
+                <p className="text-[15px] text-muted-foreground italic">
+                  {t("common.noDescription")}
+                </p>
+              )}
+            </section>
 
             {/* Schedule Section */}
             {(task.deadline_at || task.reminder_at) && (
-              <Card className="border-border bg-card">
-                <CardContent className="p-2 sm:p-4">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    <h3 className="text-sm sm:text-base font-semibold text-foreground">{t("common.schedule")}</h3>
-                  </div>
-                  <div className="bg-muted/40 rounded-md p-3 border border-border">
-                    <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
-                  </div>
-                </CardContent>
-              </Card>
+              <section className="rounded-2xl border border-border/60 bg-card/60 p-3 sm:p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                  </span>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("common.schedule")}</h3>
+                </div>
+                <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
+              </section>
             )}
 
             {/* Assignment Section */}
-            <Card className="border-border bg-card">
-              <CardContent className="p-2 sm:p-4">
-                <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  <h3 className="text-sm sm:text-base font-semibold text-foreground">Assigned To</h3>
+            <section className="rounded-2xl border border-border/60 bg-card/60 p-3 sm:p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+                  <UserCheck className="h-3.5 w-3.5 text-primary" />
+                </span>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Assigned To</h3>
+              </div>
+              {task.assigned_to_id && task.assigned_to_name ? (
+                <div className="inline-flex items-center gap-2 rounded-full bg-muted/50 pl-1 pr-3 py-1 text-sm">
+                  <TaskAssigneeDisplay task={task} size="sm" />
+                  <span className="text-foreground font-medium">{task.assigned_to_name}</span>
                 </div>
-                <div className="bg-muted/40 rounded-md p-3 border border-border">
-                  {task.assigned_to_id && task.assigned_to_name ? (
-                    <div className="flex items-center gap-2 text-sm">
-                      <TaskAssigneeDisplay task={task} size="md" />
-                      <span className="text-foreground">{task.assigned_to_name}</span>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">
-                      Unassigned
-                    </div>
-                  )}
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  Unassigned
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </section>
 
             {/* Attachments Section */}
             {files && files.length > 0 && (
-              <Card className="border-border bg-card">
-                <CardContent className="p-2 sm:p-4">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <Paperclip className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    <h3 className="text-sm sm:text-base font-semibold text-foreground">
-                      {t("common.attachments")}
-                    </h3>
-                  </div>
-                  <div className="bg-muted/40 rounded-md p-3 border border-border">
+              <section className="rounded-2xl border border-border/60 bg-card/60 p-3 sm:p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+                    <Paperclip className="h-3.5 w-3.5 text-primary" />
+                  </span>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {t("common.attachments")}
+                  </h3>
+                </div>
+                <div>
                     <SimpleFileDisplay 
                       files={files} 
                       parentType="task"
@@ -246,14 +261,13 @@ export const TaskFullView = ({
                       currentUserType={externalUserName ? 'sub_user' : 'admin'}
                       isSubUser={!!externalUserName}
                     />
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </section>
             )}
           </div>
 
           {/* Created and Last Updated indicators - mobile optimized */}
-          <div className="px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-border bg-card text-card-foreground w-fit">
+          <div className="px-3 py-2 rounded-xl border border-border/60 bg-muted/30 text-card-foreground w-fit">
             <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center">
                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
