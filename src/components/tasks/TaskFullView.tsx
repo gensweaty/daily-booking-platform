@@ -161,37 +161,66 @@ export const TaskFullView = ({
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="w-[92vw] sm:w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 rounded-2xl bg-background border-border/60 text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
-          <DialogHeader className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 -mt-3 sm:-mt-6 lg:-mt-8 px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 lg:pt-8 pb-3 bg-background/95 backdrop-blur-sm border-b border-border/50">
-            <div className="pr-12">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${
+          <DialogHeader className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 -mt-3 sm:-mt-6 lg:-mt-8 px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 lg:pt-8 pb-3 bg-background/95 backdrop-blur-md">
+            <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-4 sm:p-5 pr-14 shadow-sm">
+              <span
+                aria-hidden
+                className={`absolute left-0 top-0 h-full w-[3px] ${
+                  statusKind === 'done' ? 'bg-emerald-500' : statusKind === 'progress' ? 'bg-amber-500' : 'bg-primary'
+                }`}
+              />
+              <span
+                aria-hidden
+                className={`pointer-events-none absolute inset-0 bg-gradient-to-r ${
                   statusKind === 'done'
-                    ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25'
+                    ? 'from-emerald-500/[0.07]'
                     : statusKind === 'progress'
-                      ? 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25'
-                      : 'bg-primary/12 text-primary ring-primary/25'
-                }`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${
-                    statusKind === 'done' ? 'bg-emerald-500' : statusKind === 'progress' ? 'bg-amber-500' : 'bg-primary'
-                  }`} />
-                  {statusKind === 'done' ? t('tasks.done') : statusKind === 'progress' ? t('tasks.inProgress') : t('tasks.todo')}
+                      ? 'from-amber-500/[0.07]'
+                      : 'from-primary/[0.07]'
+                } to-transparent`}
+              />
+              <div className="relative flex items-start gap-3">
+                <span className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/15">
+                  <FileText className="h-4.5 w-4.5 h-[18px] w-[18px] text-primary" />
                 </span>
-                {files && files.length > 0 && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                    <Paperclip className="h-3 w-3" />
-                    {files.length}
-                  </span>
-                )}
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${
+                      statusKind === 'done'
+                        ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25'
+                        : statusKind === 'progress'
+                          ? 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25'
+                          : 'bg-primary/12 text-primary ring-primary/25'
+                    }`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${
+                        statusKind === 'done' ? 'bg-emerald-500' : statusKind === 'progress' ? 'bg-amber-500' : 'bg-primary'
+                      }`} />
+                      {statusKind === 'done' ? t('tasks.done') : statusKind === 'progress' ? t('tasks.inProgress') : t('tasks.todo')}
+                    </span>
+                    {files && files.length > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border/60">
+                        <Paperclip className="h-3 w-3" />
+                        {files.length}
+                      </span>
+                    )}
+                    {task.assigned_to_id && task.assigned_to_name && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/70 pl-0.5 pr-2.5 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border/60">
+                        <TaskAssigneeDisplay task={task} size="sm" />
+                        {task.assigned_to_name}
+                      </span>
+                    )}
+                  </div>
+                  <DialogTitle className="text-left">
+                    <span className="text-lg sm:text-2xl font-semibold tracking-tight leading-snug break-words">{task.title}</span>
+                  </DialogTitle>
+                </div>
               </div>
-              <DialogTitle className="text-left">
-                <span className="text-lg sm:text-2xl font-semibold tracking-tight leading-snug break-words">{task.title}</span>
-              </DialogTitle>
             </div>
           </DialogHeader>
 
-          <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
+          <div className="space-y-3 sm:space-y-4 mt-1">
             {/* Description Section */}
-            <section className="rounded-2xl border border-border/60 bg-card/60 p-3 sm:p-5">
+            <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-3">
                 <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
                   <FileText className="h-3.5 w-3.5 text-primary" />
@@ -200,7 +229,7 @@ export const TaskFullView = ({
               </div>
               {task.description ? (
                 <div 
-                  className="text-[15px] text-foreground leading-relaxed prose-sm max-w-none overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full"
+                  className="text-[15px] text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full [&_h1]:text-lg [&_h1]:mt-2 [&_h1]:mb-1.5 [&_h2]:text-base [&_h2]:mt-2 [&_h2]:mb-1.5 [&_h3]:text-[15px] [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5"
                   dangerouslySetInnerHTML={{ __html: task.description }}
                 />
               ) : (
@@ -210,42 +239,44 @@ export const TaskFullView = ({
               )}
             </section>
 
-            {/* Schedule Section */}
-            {(task.deadline_at || task.reminder_at) && (
-              <section className="rounded-2xl border border-border/60 bg-card/60 p-3 sm:p-5">
+            <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
+              {/* Schedule Section */}
+              {(task.deadline_at || task.reminder_at) && (
+                <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+                      <Calendar className="h-3.5 w-3.5 text-primary" />
+                    </span>
+                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("common.schedule")}</h3>
+                  </div>
+                  <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
+                </section>
+              )}
+
+              {/* Assignment Section */}
+              <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
-                    <Calendar className="h-3.5 w-3.5 text-primary" />
+                    <UserCheck className="h-3.5 w-3.5 text-primary" />
                   </span>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("common.schedule")}</h3>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Assigned To</h3>
                 </div>
-                <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
+                {task.assigned_to_id && task.assigned_to_name ? (
+                  <div className="inline-flex items-center gap-2 rounded-full bg-muted/50 pl-1 pr-3 py-1 text-sm ring-1 ring-border/50">
+                    <TaskAssigneeDisplay task={task} size="sm" />
+                    <span className="text-foreground font-medium">{task.assigned_to_name}</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center rounded-full bg-muted/40 px-3 py-1 text-sm text-muted-foreground ring-1 ring-border/50">
+                    Unassigned
+                  </div>
+                )}
               </section>
-            )}
-
-            {/* Assignment Section */}
-            <section className="rounded-2xl border border-border/60 bg-card/60 p-3 sm:p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
-                  <UserCheck className="h-3.5 w-3.5 text-primary" />
-                </span>
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Assigned To</h3>
-              </div>
-              {task.assigned_to_id && task.assigned_to_name ? (
-                <div className="inline-flex items-center gap-2 rounded-full bg-muted/50 pl-1 pr-3 py-1 text-sm">
-                  <TaskAssigneeDisplay task={task} size="sm" />
-                  <span className="text-foreground font-medium">{task.assigned_to_name}</span>
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground">
-                  Unassigned
-                </div>
-              )}
-            </section>
+            </div>
 
             {/* Attachments Section */}
             {files && files.length > 0 && (
-              <section className="rounded-2xl border border-border/60 bg-card/60 p-3 sm:p-5">
+              <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
                     <Paperclip className="h-3.5 w-3.5 text-primary" />
@@ -271,8 +302,8 @@ export const TaskFullView = ({
           </div>
 
           {/* Created and Last Updated indicators - mobile optimized */}
-          <div className="px-3 py-2 rounded-xl border border-border/60 bg-muted/30 text-card-foreground w-fit">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <div className="inline-flex flex-wrap items-center gap-x-4 gap-y-1 rounded-full border border-border/50 bg-muted/25 px-3 py-1.5 text-muted-foreground">
               <div className="flex items-center">
                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="truncate">
