@@ -153,6 +153,10 @@ export const TaskFullView = ({
   const formattedCreatedDate = formatDate(task.created_at);
   const formattedUpdatedDate = task.updated_at ? formatDate(task.updated_at) : formattedCreatedDate;
 
+  const rawStatus = String(task.status || '');
+  const statusKind: 'done' | 'progress' | 'todo' =
+    rawStatus === 'done' ? 'done' : rawStatus.startsWith('in') ? 'progress' : 'todo';
+
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
