@@ -181,7 +181,7 @@ export const TaskFullView = ({
               />
               <div className="relative flex items-start gap-3">
                 <span className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/15">
-                  <FileText className="h-4.5 w-4.5 h-[18px] w-[18px] text-primary" />
+                  <FileText className="h-[18px] w-[18px] text-primary" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="mb-1.5 flex flex-wrap items-center gap-2">
