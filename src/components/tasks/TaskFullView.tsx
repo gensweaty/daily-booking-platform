@@ -161,16 +161,16 @@ export const TaskFullView = ({
             <div className="pr-12">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${
-                  task.status === 'done'
+                  statusKind === 'done'
                     ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25'
-                    : task.status === 'in-progress'
+                    : statusKind === 'progress'
                       ? 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25'
                       : 'bg-primary/12 text-primary ring-primary/25'
                 }`}>
                   <span className={`h-1.5 w-1.5 rounded-full ${
-                    task.status === 'done' ? 'bg-emerald-500' : task.status === 'in-progress' ? 'bg-amber-500' : 'bg-primary'
+                    statusKind === 'done' ? 'bg-emerald-500' : statusKind === 'progress' ? 'bg-amber-500' : 'bg-primary'
                   }`} />
-                  {task.status === 'done' ? t('tasks.done') : task.status === 'in-progress' ? t('tasks.inProgress') : t('tasks.todo')}
+                  {statusKind === 'done' ? t('tasks.done') : statusKind === 'progress' ? t('tasks.inProgress') : t('tasks.todo')}
                 </span>
                 {files && files.length > 0 && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
