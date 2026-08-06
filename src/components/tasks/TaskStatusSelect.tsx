@@ -53,17 +53,22 @@ export const TaskStatusSelect = ({ status, setStatus }: TaskStatusSelectProps) =
 
   return (
     <div className="space-y-2">
-      <Label 
-        htmlFor="status"
-        className={cn(isGeorgian ? "font-georgian" : "")}
-        style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
-      >
-        <LanguageText>{getStatusLabel()}</LanguageText>
-      </Label>
+      <div className="flex items-center gap-2 mb-3">
+        <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+          {currentOption && <currentOption.icon className={cn("h-3.5 w-3.5", currentOption.color)} />}
+        </span>
+        <Label
+          htmlFor="status"
+          className={cn("text-[11px] font-semibold uppercase tracking-wider text-muted-foreground", isGeorgian ? "font-georgian" : "")}
+          style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
+        >
+          <LanguageText>{getStatusLabel()}</LanguageText>
+        </Label>
+      </div>
       <Select value={status} onValueChange={setStatus}>
         <SelectTrigger 
           id="status"
-          className={cn("bg-background border-input", isGeorgian ? "font-georgian" : "")}
+          className={cn("bg-background/60 border-border/60 rounded-xl h-11 font-medium shadow-sm focus:ring-2 focus:ring-primary/30", isGeorgian ? "font-georgian" : "")}
           style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
         >
           <SelectValue>
