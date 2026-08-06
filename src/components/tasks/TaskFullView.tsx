@@ -220,8 +220,8 @@ export const TaskFullView = ({
 
           <div className="space-y-3 sm:space-y-4 mt-1">
             {/* Description Section */}
-            <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
-              <div className="flex items-center gap-2 mb-3">
+            <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
                 <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
                   <FileText className="h-3.5 w-3.5 text-primary" />
                 </span>
@@ -239,11 +239,11 @@ export const TaskFullView = ({
               )}
             </section>
 
-            <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 items-stretch">
               {/* Schedule Section */}
               {(task.deadline_at || task.reminder_at) && (
-                <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-3">
+                <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5">
+                  <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
                     <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
                       <Calendar className="h-3.5 w-3.5 text-primary" />
                     </span>
@@ -254,8 +254,8 @@ export const TaskFullView = ({
               )}
 
               {/* Assignment Section */}
-              <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
-                <div className="flex items-center gap-2 mb-3">
+              <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5">
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
                   <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
                     <UserCheck className="h-3.5 w-3.5 text-primary" />
                   </span>
@@ -276,8 +276,8 @@ export const TaskFullView = ({
 
             {/* Attachments Section */}
             {files && files.length > 0 && (
-              <section className="rounded-2xl border border-border/60 bg-card/50 p-4 sm:p-5">
-                <div className="flex items-center gap-2 mb-3">
+              <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5">
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
                   <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
                     <Paperclip className="h-3.5 w-3.5 text-primary" />
                   </span>
