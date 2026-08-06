@@ -147,15 +147,17 @@ export const TaskFormFields = ({
   };
 
   const sectionClassName = isMobile
-    ? "rounded-lg border border-border bg-card p-3 overflow-x-hidden min-w-0"
-    : "rounded-xl border border-border bg-card p-4 lg:p-5 min-w-0";
+    ? "rounded-2xl border border-border/60 bg-card/60 p-3.5 overflow-x-hidden min-w-0 transition-colors focus-within:border-primary/40"
+    : "rounded-2xl border border-border/60 bg-card/60 p-4 lg:p-5 min-w-0 transition-colors focus-within:border-primary/40";
 
   const containerClassName = isMobile ? "space-y-3" : "space-y-4 lg:space-y-5";
 
   const SectionLabel = ({ icon: Icon, children }: { icon: any; children: React.ReactNode }) => (
-    <div className="flex items-center gap-2 mb-2.5">
-      <Icon className="h-4 w-4 text-primary" />
-      <span className="text-sm font-semibold text-foreground">{children}</span>
+    <div className="flex items-center gap-2 mb-3">
+      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+        <Icon className="h-3.5 w-3.5 text-primary" />
+      </span>
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</span>
     </div>
   );
 
