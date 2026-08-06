@@ -215,6 +215,7 @@ export const translations: TranslationType = {
     addTask: "Add Task",
     editTask: "Edit Task",
     titlePlaceholder: "Enter task title...",
+    taskTitleLabel: "Task Title",
     descriptionLabel: "Description",
     todo: "To Do",
     inProgress: "In Progress",

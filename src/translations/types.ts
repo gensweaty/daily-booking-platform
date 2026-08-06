@@ -220,6 +220,7 @@ export interface TranslationType {
     addTask: string;
     editTask: string;
     titlePlaceholder: string;
+    taskTitleLabel: string;
     descriptionLabel: string;
     todo: string;
     inProgress: string;

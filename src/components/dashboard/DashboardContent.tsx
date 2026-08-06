@@ -485,7 +485,7 @@ export const DashboardContent = ({
                                   )}
                                 </Button>
                               </DialogTrigger>
-                          <DialogContent data-tutorial="task-dialog" className="max-w-2xl w-[92vw] sm:w-full max-h-[90vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 min-w-0">
+                          <DialogContent data-tutorial="task-dialog" className="w-[92vw] sm:w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 min-w-0">
                             <motion.div
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}

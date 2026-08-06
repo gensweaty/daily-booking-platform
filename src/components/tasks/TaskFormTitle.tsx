@@ -26,7 +26,7 @@ export const TaskFormTitle = ({ title, setTitle }: TaskFormTitleProps) => {
           className={cn("text-[11px] font-semibold uppercase tracking-wider text-muted-foreground", isGeorgian ? "font-georgian" : "")}
           style={isGeorgian ? {fontFamily: "'BPG Glaho WEB Caps', 'DejaVu Sans', 'Arial Unicode MS', sans-serif"} : undefined}
         >
-          <LanguageText>{t("tasks.title")}</LanguageText>
+          <LanguageText>{t("tasks.taskTitleLabel")}</LanguageText>
         </Label>
       </div>
       <Input
