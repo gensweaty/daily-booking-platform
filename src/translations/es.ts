@@ -226,6 +226,7 @@ export const translations: TranslationType = {
     addTask: "Agregar Tarea",
     editTask: "Editar Tarea",
     titlePlaceholder: "Ingrese el título de la tarea...",
+    taskTitleLabel: "Título de la Tarea",
     descriptionLabel: "Descripción",
     todo: "Por Hacer",
     inProgress: "En Progreso",
