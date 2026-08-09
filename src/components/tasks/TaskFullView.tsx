@@ -303,8 +303,8 @@ export const TaskFullView = ({
 
           {/* Created and Last Updated indicators - mobile optimized */}
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <div className="inline-flex flex-wrap items-center gap-x-4 gap-y-1 rounded-full border border-border/50 bg-muted/25 px-3 py-1.5 text-muted-foreground">
-              <div className="flex items-center">
+            <div className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-border/50 bg-muted/25 px-3 py-1.5 text-muted-foreground">
+              <div className="flex items-center min-w-0">
                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="truncate">
                   {t("common.created")} {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}
@@ -317,7 +317,8 @@ export const TaskFullView = ({
                     )}
                 </span>
               </div>
-              <div className="flex items-center">
+              <span aria-hidden className="hidden sm:inline-block h-3 w-px bg-border/70" />
+              <div className="flex items-center min-w-0">
                 <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="truncate">
                   {t("common.lastUpdated")} {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}
