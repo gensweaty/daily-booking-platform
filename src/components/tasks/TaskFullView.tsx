@@ -220,12 +220,12 @@ export const TaskFullView = ({
 
           <div className="space-y-3 sm:space-y-4 mt-1">
             {/* Description Section */}
-            <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5">
+            <section className="group/card relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/40 p-4 sm:p-5 shadow-sm transition-colors duration-200 hover:border-primary/30">
               <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
-                <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
                   <FileText className="h-3.5 w-3.5 text-primary" />
                 </span>
-                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("tasks.descriptionLabel")}</h3>
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t("tasks.descriptionLabel")}</h3>
               </div>
               {task.description ? (
                 <div 
@@ -242,24 +242,24 @@ export const TaskFullView = ({
             <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 items-stretch">
               {/* Schedule Section */}
               {(task.deadline_at || task.reminder_at) && (
-                <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5">
+                <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/40 p-4 sm:p-5 shadow-sm transition-colors duration-200 hover:border-amber-500/30">
                   <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
-                      <Calendar className="h-3.5 w-3.5 text-primary" />
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 ring-1 ring-amber-500/20">
+                      <Calendar className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                     </span>
-                    <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{t("common.schedule")}</h3>
+                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{t("common.schedule")}</h3>
                   </div>
                   <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
                 </section>
               )}
 
               {/* Assignment Section */}
-              <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5">
+              <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/40 p-4 sm:p-5 shadow-sm transition-colors duration-200 hover:border-primary/30">
                 <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
                     <UserCheck className="h-3.5 w-3.5 text-primary" />
                   </span>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Assigned To</h3>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Assigned To</h3>
                 </div>
                 {task.assigned_to_id && task.assigned_to_name ? (
                   <div className="inline-flex items-center gap-2 rounded-full bg-muted/50 pl-1 pr-3 py-1 text-sm ring-1 ring-border/50">
@@ -276,12 +276,12 @@ export const TaskFullView = ({
 
             {/* Attachments Section */}
             {files && files.length > 0 && (
-              <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5">
+              <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-card/40 p-4 sm:p-5 shadow-sm transition-colors duration-200 hover:border-primary/30">
                 <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
                     <Paperclip className="h-3.5 w-3.5 text-primary" />
                   </span>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                     {t("common.attachments")}
                   </h3>
                 </div>
@@ -303,8 +303,8 @@ export const TaskFullView = ({
 
           {/* Created and Last Updated indicators - mobile optimized */}
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            <div className="inline-flex flex-wrap items-center gap-x-4 gap-y-1 rounded-full border border-border/50 bg-muted/25 px-3 py-1.5 text-muted-foreground">
-              <div className="flex items-center">
+            <div className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full border border-border/50 bg-muted/25 px-3 py-1.5 text-muted-foreground">
+              <div className="flex items-center min-w-0">
                 <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="truncate">
                   {t("common.created")} {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}
@@ -317,7 +317,8 @@ export const TaskFullView = ({
                     )}
                 </span>
               </div>
-              <div className="flex items-center">
+              <span aria-hidden className="hidden sm:inline-block h-3 w-px bg-border/70" />
+              <div className="flex items-center min-w-0">
                 <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 <span className="truncate">
                   {t("common.lastUpdated")} {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}
