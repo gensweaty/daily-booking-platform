@@ -51,28 +51,22 @@ export const TaskFullView = ({
   const { user } = useAuth();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
-  const [profileUsername, setProfileUsername] = useState<string>("");
-  
-  useEffect(() => {
-    const fetchProfileUsername = async () => {
-      try {
-        if (!user?.id) return;
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', user.id)
-          .maybeSingle();
-        if (error) {
-          console.error('Error fetching profile username:', error);
-          return;
-        }
-        if (data?.username) setProfileUsername(data.username);
-      } catch (err) {
-        console.error('Exception fetching profile username:', err);
-      }
-    };
-    fetchProfileUsername();
-  }, [user?.id]);
+  const { data: profileUsername = "" } = useQuery({
+    queryKey: ['profileUsername', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.username || "";
+    },
+    enabled: isOpen && !!user?.id,
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+  });
   
   const { data: files, refetch } = useQuery({
     queryKey: ['taskFiles', task.id],
