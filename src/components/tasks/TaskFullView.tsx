@@ -147,17 +147,42 @@ export const TaskFullView = ({
   const formattedCreatedDate = formatDate(task.created_at);
   const formattedUpdatedDate = task.updated_at ? formatDate(task.updated_at) : formattedCreatedDate;
 
-  const rawStatus = String(task.status || '');
+  const rawStatus = String(task.status || '').toLowerCase().replace(/[\s_-]/g, '');
   const statusKind: 'done' | 'progress' | 'todo' =
-    rawStatus === 'done' ? 'done' : rawStatus.startsWith('in') ? 'progress' : 'todo';
+    rawStatus === 'done' ? 'done' : rawStatus.startsWith('in') || rawStatus === 'progress' ? 'progress' : 'todo';
+  const statusTheme = {
+    done: {
+      chip: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25',
+      dot: 'bg-emerald-500',
+      bar: 'from-emerald-500 via-emerald-500/60 to-transparent',
+      wash: 'from-emerald-500/[0.08]',
+      label: t('tasks.done'),
+    },
+    progress: {
+      chip: 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25',
+      dot: 'bg-amber-500',
+      bar: 'from-amber-500 via-amber-500/60 to-transparent',
+      wash: 'from-amber-500/[0.08]',
+      label: t('tasks.inProgress'),
+    },
+    todo: {
+      chip: 'bg-primary/12 text-primary ring-primary/25',
+      dot: 'bg-primary',
+      bar: 'from-primary via-primary/60 to-transparent',
+      wash: 'from-primary/[0.08]',
+      label: t('tasks.todo'),
+    },
+  }[statusKind];
 
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="w-[92vw] sm:w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-0 rounded-2xl bg-background border-border/60 text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
-          <DialogHeader className="sticky top-0 z-30 border-b border-border/50 bg-gradient-to-b from-card to-background/95 px-4 sm:px-7 lg:px-8 pt-5 sm:pt-6 pb-5 backdrop-blur-md">
+          <DialogHeader className="sticky top-0 z-30 border-b border-border/50 bg-background/90 px-4 sm:px-7 lg:px-8 pt-5 sm:pt-6 pb-5 backdrop-blur-md">
+            <span aria-hidden className={`pointer-events-none absolute inset-x-0 top-0 h-full bg-gradient-to-b ${statusTheme.wash} to-transparent`} />
             <div className="relative flex items-start gap-3 pr-12">
-              <span className="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/12 ring-1 ring-primary/20">
+              <span aria-hidden className={`absolute -left-4 sm:-left-7 lg:-left-8 top-0 h-full w-[3px] rounded-full bg-gradient-to-b ${statusTheme.bar}`} />
+              <span className="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/12 ring-1 ring-primary/20 shadow-sm">
                 <FileText className="h-5 w-5 text-primary" />
               </span>
               <div className="min-w-0 flex-1">
@@ -166,17 +191,9 @@ export const TaskFullView = ({
                     {t("tasks.title") || "Task"}
                   </span>
                   <span aria-hidden className="h-1 w-1 rounded-full bg-border" />
-                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${
-                    statusKind === 'done'
-                      ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25'
-                      : statusKind === 'progress'
-                        ? 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25'
-                        : 'bg-primary/12 text-primary ring-primary/25'
-                  }`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${
-                      statusKind === 'done' ? 'bg-emerald-500' : statusKind === 'progress' ? 'bg-amber-500' : 'bg-primary'
-                    }`} />
-                    {statusKind === 'done' ? t('tasks.done') : statusKind === 'progress' ? t('tasks.inProgress') : t('tasks.todo')}
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${statusTheme.chip}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${statusTheme.dot}`} />
+                    {statusTheme.label}
                   </span>
                   {files && files.length > 0 && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border/60">
@@ -272,14 +289,9 @@ export const TaskFullView = ({
                     <span className="inline-flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
                       {t("tasks.status") || "Status"}
                     </span>
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${
-                      statusKind === 'done'
-                        ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25'
-                        : statusKind === 'progress'
-                          ? 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25'
-                          : 'bg-primary/12 text-primary ring-primary/25'
-                    }`}>
-                      {statusKind === 'done' ? t('tasks.done') : statusKind === 'progress' ? t('tasks.inProgress') : t('tasks.todo')}
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${statusTheme.chip}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${statusTheme.dot}`} />
+                      {statusTheme.label}
                     </span>
                   </div>
                   <Separator className="opacity-60" />
