@@ -7,7 +7,7 @@ import { TaskCommentsList } from "./TaskCommentsList";
 import { TaskAssigneeDisplay } from "./TaskAssigneeDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
