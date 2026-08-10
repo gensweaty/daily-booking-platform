@@ -12,7 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "../ui/button";
-import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw, History, UserCheck } from "lucide-react";
+import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw, History } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { Card, CardContent } from "../ui/card";
@@ -203,19 +203,21 @@ export const TaskFullView = ({
             <div className="min-w-0 space-y-4">
               {/* Description Section */}
               <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5 shadow-sm transition-colors duration-200 hover:border-primary/30">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
-                  {t("common.overview") || "Overview"}
-                </p>
-                <h3 className="mt-1 mb-3 text-base font-semibold tracking-tight text-foreground">
-                  {t("tasks.descriptionLabel")}
-                </h3>
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
+                    <FileText className="h-3.5 w-3.5 text-primary" />
+                  </span>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {t("tasks.descriptionLabel")}
+                  </h3>
+                </div>
                 {task.description ? (
                   <div 
-                    className="text-[15px] text-muted-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full [&_h1]:text-lg [&_h1]:mt-2 [&_h1]:mb-1.5 [&_h2]:text-base [&_h2]:mt-2 [&_h2]:mb-1.5 [&_h3]:text-[15px] [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5"
+                    className="text-[15px] leading-[1.7] text-foreground/85 prose prose-sm dark:prose-invert max-w-none overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_h1]:text-lg [&_h1]:mt-2 [&_h1]:mb-1.5 [&_h2]:text-base [&_h2]:mt-2 [&_h2]:mb-1.5 [&_h3]:text-[15px] [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5"
                     dangerouslySetInnerHTML={{ __html: task.description }}
                   />
                 ) : (
-                  <p className="text-[15px] text-muted-foreground italic">
+                  <p className="text-[15px] text-muted-foreground/80 italic">
                     {t("common.noDescription")}
                   </p>
                 )}
@@ -263,13 +265,17 @@ export const TaskFullView = ({
             {/* Right column */}
             <aside className="min-w-0 space-y-4">
               <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5 shadow-sm">
-                <h3 className="pb-3 mb-3 border-b border-border/40 text-base font-semibold tracking-tight">
-                  {t("common.details") || "Task details"}
-                </h3>
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
+                    <FileText className="h-3.5 w-3.5 text-primary" />
+                  </span>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {t("common.details") || "Task details"}
+                  </h3>
+                </div>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-2 text-muted-foreground">
-                      <FileText className="h-3.5 w-3.5" />
+                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
                       {t("tasks.status") || "Status"}
                     </span>
                     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${
@@ -284,9 +290,8 @@ export const TaskFullView = ({
                   </div>
                   <Separator className="opacity-60" />
                   <div className="flex items-center justify-between gap-3">
-                    <span className="inline-flex items-center gap-2 text-muted-foreground">
-                      <UserCheck className="h-3.5 w-3.5" />
-                      Assignee
+                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
+                      {t("tasks.assignee") || "Assignee"}
                     </span>
                     {task.assigned_to_id && task.assigned_to_name ? (
                       <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-muted/50 pl-1 pr-3 py-1 ring-1 ring-border/50">
@@ -303,9 +308,14 @@ export const TaskFullView = ({
               </section>
 
               <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5 shadow-sm">
-                <h3 className="pb-3 mb-3 border-b border-border/40 text-base font-semibold tracking-tight">
-                  {t("common.schedule")}
-                </h3>
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 ring-1 ring-amber-500/20">
+                    <Calendar className="h-3.5 w-3.5 text-amber-500" />
+                  </span>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {t("common.schedule")}
+                  </h3>
+                </div>
                 {(task.deadline_at || task.reminder_at) && (
                   <div className="mb-4">
                     <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
@@ -355,12 +365,6 @@ export const TaskFullView = ({
                 </div>
               </section>
 
-              {statusKind === 'done' && (
-                <div className="flex items-center gap-2 rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400">
-                  <UserCheck className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{t('tasks.done')}</span>
-                </div>
-              )}
             </aside>
           </div>
 
