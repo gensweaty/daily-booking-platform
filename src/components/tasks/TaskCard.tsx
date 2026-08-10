@@ -43,8 +43,10 @@ const TaskCardInner = ({ task, index, onEdit, onView, onDelete, isPublicBoard = 
   });
 
   const statusMeta = (status: string) => {
-    switch (status) {
-      case 'in-progress':
+    const normalized = String(status || '').toLowerCase().replace(/[\s_-]/g, '');
+    switch (normalized) {
+      case 'inprogress':
+      case 'progress':
         return {
           label: t('tasks.inProgress'),
           chip: 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25',
