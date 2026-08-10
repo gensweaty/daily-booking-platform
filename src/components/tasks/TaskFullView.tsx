@@ -274,7 +274,7 @@ export const TaskFullView = ({
             </div>
 
             {/* Right column */}
-            <aside className="min-w-0 space-y-4">
+            <aside className="min-w-0 space-y-4 lg:sticky lg:top-[132px] lg:self-start">
               <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5 shadow-sm">
                 <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
                   <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
