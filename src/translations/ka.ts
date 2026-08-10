@@ -226,6 +226,7 @@ export const translations: TranslationType = {
     addTask: "დავალების დამატება",
     editTask: "დავალების რედაქტირება",
     titlePlaceholder: "შეიყვანეთ დავალების სათაური...",
+    taskTitleLabel: "დავალების სათაური",
     descriptionLabel: "აღწერა",
     todo: "საჭიროა გაკეთება",
     inProgress: "მიმდინარეობს",

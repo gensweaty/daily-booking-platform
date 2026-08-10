@@ -75,21 +75,21 @@ export const TaskDateInfo = ({ deadline, reminderAt, compact = false }: TaskDate
   }
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       {deadline && (
-        <div className="flex items-center gap-2 text-sm">
-          <Clock className={`h-4 w-4 ${getDeadlineColor(deadline)}`} />
-          <span className="font-medium">{getDueLabel()}:</span>
-          <span className={getDeadlineColor(deadline)}>
+        <div className="inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-muted/50 px-3 py-1.5 text-sm ring-1 ring-border/50">
+          <Clock className={`h-3.5 w-3.5 flex-shrink-0 ${getDeadlineColor(deadline)}`} />
+          <span className="font-medium text-foreground">{getDueLabel()}:</span>
+          <span className={`font-medium truncate ${getDeadlineColor(deadline)}`}>
             {formatDateTime(deadline)}
           </span>
         </div>
       )}
       {reminderAt && (
-        <div className="flex items-center gap-2 text-sm">
-          <Bell className="h-4 w-4 text-yellow-500" />
-          <span className="font-medium">{getReminderLabel()}:</span>
-          <span className="text-yellow-500">
+        <div className="inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-muted/50 px-3 py-1.5 text-sm ring-1 ring-border/50">
+          <Bell className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" />
+          <span className="font-medium text-foreground">{getReminderLabel()}:</span>
+          <span className="font-medium truncate text-amber-500">
             {formatDateTime(reminderAt)}
           </span>
         </div>

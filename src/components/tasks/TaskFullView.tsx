@@ -7,12 +7,12 @@ import { TaskCommentsList } from "./TaskCommentsList";
 import { TaskAssigneeDisplay } from "./TaskAssigneeDisplay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "../ui/button";
-import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw, History, UserCheck } from "lucide-react";
+import { AlertCircle, Trash2, Pen, FileText, Calendar, Paperclip, Archive, RefreshCw, History } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { Card, CardContent } from "../ui/card";
@@ -51,28 +51,22 @@ export const TaskFullView = ({
   const { user } = useAuth();
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isArchiveConfirmOpen, setIsArchiveConfirmOpen] = useState(false);
-  const [profileUsername, setProfileUsername] = useState<string>("");
-  
-  useEffect(() => {
-    const fetchProfileUsername = async () => {
-      try {
-        if (!user?.id) return;
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', user.id)
-          .maybeSingle();
-        if (error) {
-          console.error('Error fetching profile username:', error);
-          return;
-        }
-        if (data?.username) setProfileUsername(data.username);
-      } catch (err) {
-        console.error('Exception fetching profile username:', err);
-      }
-    };
-    fetchProfileUsername();
-  }, [user?.id]);
+  const { data: profileUsername = "" } = useQuery({
+    queryKey: ['profileUsername', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.username || "";
+    },
+    enabled: isOpen && !!user?.id,
+    staleTime: 30 * 60_000,
+    gcTime: 60 * 60_000,
+    refetchOnWindowFocus: false,
+  });
   
   const { data: files, refetch } = useQuery({
     queryKey: ['taskFiles', task.id],
@@ -153,156 +147,235 @@ export const TaskFullView = ({
   const formattedCreatedDate = formatDate(task.created_at);
   const formattedUpdatedDate = task.updated_at ? formatDate(task.updated_at) : formattedCreatedDate;
 
+  const rawStatus = String(task.status || '').toLowerCase().replace(/[\s_-]/g, '');
+  const statusKind: 'done' | 'progress' | 'todo' =
+    rawStatus === 'done' ? 'done' : rawStatus.startsWith('in') || rawStatus === 'progress' ? 'progress' : 'todo';
+  const statusTheme = {
+    done: {
+      chip: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25',
+      dot: 'bg-emerald-500',
+      bar: 'from-emerald-500 via-emerald-500/60 to-transparent',
+      wash: 'from-emerald-500/[0.08]',
+      label: t('tasks.done'),
+    },
+    progress: {
+      chip: 'bg-amber-500/12 text-amber-600 dark:text-amber-400 ring-amber-500/25',
+      dot: 'bg-amber-500',
+      bar: 'from-amber-500 via-amber-500/60 to-transparent',
+      wash: 'from-amber-500/[0.08]',
+      label: t('tasks.inProgress'),
+    },
+    todo: {
+      chip: 'bg-primary/12 text-primary ring-primary/25',
+      dot: 'bg-primary',
+      bar: 'from-primary via-primary/60 to-transparent',
+      wash: 'from-primary/[0.08]',
+      label: t('tasks.todo'),
+    },
+  }[statusKind];
+
   return (
     <TooltipProvider>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="w-[92vw] sm:w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-3 sm:p-6 lg:p-8 bg-background border-border text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
-          <DialogHeader className="sticky top-0 z-30 -mx-3 sm:-mx-6 lg:-mx-8 -mt-3 sm:-mt-6 lg:-mt-8 px-3 sm:px-6 lg:px-8 pt-3 sm:pt-6 lg:pt-8 pb-3 bg-background">
-            {/* Highlighted Task Title */}
-            <div className="p-3 sm:p-4 pr-12 rounded-lg border border-border bg-card">
-              <DialogTitle className="flex items-start gap-2 sm:gap-3 text-left">
-                <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-base sm:text-xl font-bold leading-tight break-words">{task.title}</span>
-              </DialogTitle>
+        <DialogContent className="w-[92vw] sm:w-full max-w-2xl sm:max-w-3xl lg:max-w-4xl xl:max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-0 rounded-2xl bg-background border-border/60 text-foreground [word-break:break-word] [overflow-wrap:break-word] min-w-0">
+          <DialogHeader className="sticky top-0 z-30 border-b border-border/50 bg-background/90 px-4 sm:px-7 lg:px-8 pt-5 sm:pt-6 pb-5 backdrop-blur-md">
+            <span aria-hidden className={`pointer-events-none absolute inset-x-0 top-0 h-full bg-gradient-to-b ${statusTheme.wash} to-transparent`} />
+            <div className="relative flex items-start gap-3 pr-12">
+              <span aria-hidden className={`absolute -left-4 sm:-left-7 lg:-left-8 top-0 h-full w-[3px] rounded-full bg-gradient-to-b ${statusTheme.bar}`} />
+              <span className="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-primary/12 ring-1 ring-primary/20 shadow-sm">
+                <FileText className="h-5 w-5 text-primary" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+                    {t("tasks.title") || "Task"}
+                  </span>
+                  <span aria-hidden className="h-1 w-1 rounded-full bg-border" />
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${statusTheme.chip}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${statusTheme.dot}`} />
+                    {statusTheme.label}
+                  </span>
+                  {files && files.length > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-muted-foreground ring-1 ring-border/60">
+                      <Paperclip className="h-3 w-3" />
+                      {files.length}
+                    </span>
+                  )}
+                </div>
+                <DialogTitle className="text-left">
+                  <span className="text-xl sm:text-3xl font-semibold tracking-tight leading-tight break-words">{task.title}</span>
+                </DialogTitle>
+              </div>
             </div>
           </DialogHeader>
 
-          <div className="space-y-2 sm:space-y-4 mt-2 sm:mt-4">
-            {/* Description Section */}
-            <Card className="border-border bg-card">
-              <CardContent className="p-2 sm:p-4">
-                <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  <h3 className="text-sm sm:text-base font-semibold text-foreground">{t("tasks.descriptionLabel")}</h3>
+          <div className="grid gap-4 px-4 sm:px-7 lg:px-8 pt-5 lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)]">
+            {/* Left column */}
+            <div className="min-w-0 space-y-4">
+              {/* Description Section */}
+              <section className="relative overflow-hidden rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5 shadow-sm transition-colors duration-200 hover:border-primary/30">
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
+                    <FileText className="h-3.5 w-3.5 text-primary" />
+                  </span>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {t("tasks.descriptionLabel")}
+                  </h3>
                 </div>
                 {task.description ? (
                   <div 
-                    className="text-base sm:text-lg text-foreground leading-relaxed prose-sm max-w-none bg-muted/40 rounded-md p-3 border border-border overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full"
+                    className="text-[15px] leading-[1.7] text-foreground/85 prose prose-sm dark:prose-invert max-w-none overflow-x-auto overflow-y-auto max-h-[40vh] sm:max-h-[50vh] break-words [word-break:break-word] [overflow-wrap:break-word] min-w-0 w-full [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_h1]:text-lg [&_h1]:mt-2 [&_h1]:mb-1.5 [&_h2]:text-base [&_h2]:mt-2 [&_h2]:mb-1.5 [&_h3]:text-[15px] [&_p]:my-1.5 [&_ul]:my-1.5 [&_ol]:my-1.5 [&_li]:my-0.5"
                     dangerouslySetInnerHTML={{ __html: task.description }}
                   />
                 ) : (
-                  <p className="text-base sm:text-lg text-muted-foreground italic bg-muted/40 rounded-md p-3 border border-border">
+                  <p className="text-[15px] text-muted-foreground/80 italic">
                     {t("common.noDescription")}
                   </p>
                 )}
-              </CardContent>
-            </Card>
+              </section>
 
-            {/* Schedule Section */}
-            {(task.deadline_at || task.reminder_at) && (
-              <Card className="border-border bg-card">
-                <CardContent className="p-2 sm:p-4">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    <h3 className="text-sm sm:text-base font-semibold text-foreground">{t("common.schedule")}</h3>
-                  </div>
-                  <div className="bg-muted/40 rounded-md p-3 border border-border">
-                    <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Assignment Section */}
-            <Card className="border-border bg-card">
-              <CardContent className="p-2 sm:p-4">
-                <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <UserCheck className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                  <h3 className="text-sm sm:text-base font-semibold text-foreground">Assigned To</h3>
-                </div>
-                <div className="bg-muted/40 rounded-md p-3 border border-border">
-                  {task.assigned_to_id && task.assigned_to_name ? (
-                    <div className="flex items-center gap-2 text-sm">
-                      <TaskAssigneeDisplay task={task} size="md" />
-                      <span className="text-foreground">{task.assigned_to_name}</span>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">
-                      Unassigned
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Attachments Section */}
-            {files && files.length > 0 && (
-              <Card className="border-border bg-card">
-                <CardContent className="p-2 sm:p-4">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <Paperclip className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-                    <h3 className="text-sm sm:text-base font-semibold text-foreground">
+              {/* Attachments Section */}
+              {files && files.length > 0 && (
+                <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5 shadow-sm transition-colors duration-200 hover:border-primary/30">
+                  <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
+                      <Paperclip className="h-3.5 w-3.5 text-primary" />
+                    </span>
+                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                       {t("common.attachments")}
                     </h3>
                   </div>
-                  <div className="bg-muted/40 rounded-md p-3 border border-border">
-                    <SimpleFileDisplay 
-                      files={files} 
-                      parentType="task"
-                      allowDelete={!isArchived}
-                      onFileDeleted={handleFileDeleted}
-                      parentId={task.id}
-                      currentUserName={externalUserName || profileUsername || user?.email}
-                      currentUserType={externalUserName ? 'sub_user' : 'admin'}
-                      isSubUser={!!externalUserName}
-                    />
+                  <SimpleFileDisplay 
+                    files={files} 
+                    parentType="task"
+                    allowDelete={!isArchived}
+                    onFileDeleted={handleFileDeleted}
+                    parentId={task.id}
+                    currentUserName={externalUserName || profileUsername || user?.email}
+                    currentUserType={externalUserName ? 'sub_user' : 'admin'}
+                    isSubUser={!!externalUserName}
+                  />
+                </section>
+              )}
+
+              {/* Comments Section */}
+              <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5 shadow-sm">
+                <TaskCommentsList 
+                  taskId={task.id} 
+                  isEditing={!isArchived}
+                  username={profileUsername || (user?.user_metadata?.full_name as string) || user?.email || 'Admin'}
+                  externalUserName={externalUserName}
+                  externalUserEmail={externalUserEmail}
+                  isExternal={!!externalUserName}
+                  userId={user?.id}
+                  taskCreatorName={task.created_by_name}
+                />
+              </section>
+            </div>
+
+            {/* Right column */}
+            <aside className="min-w-0 space-y-4 lg:sticky lg:top-[132px] lg:self-start">
+              <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/15">
+                    <FileText className="h-3.5 w-3.5 text-primary" />
+                  </span>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {t("common.details") || "Task details"}
+                  </h3>
+                </div>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
+                      {t("tasks.status") || "Status"}
+                    </span>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${statusTheme.chip}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${statusTheme.dot}`} />
+                      {statusTheme.label}
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Created and Last Updated indicators - mobile optimized */}
-          <div className="px-2 py-1 sm:px-3 sm:py-2 rounded-md border border-border bg-card text-card-foreground w-fit">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs sm:text-sm text-muted-foreground">
-              <div className="flex items-center">
-                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="truncate">
-                  {t("common.created")} {format(parseISO(task.created_at), 'MM/dd/yy HH:mm')}
-                   {task.created_by_name && (
-                      <span className="ml-1">
-                        {language === 'ka' 
-                          ? `${formatAttribution(task.created_by_name, task.created_by_type, task.created_by_ai)}-ს ${t("common.by")}` 
-                          : `${t("common.by")} ${formatAttribution(task.created_by_name, task.created_by_type, task.created_by_ai)}`}
+                  <Separator className="opacity-60" />
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
+                      {t("tasks.assignee") || "Assignee"}
+                    </span>
+                    {task.assigned_to_id && task.assigned_to_name ? (
+                      <span className="inline-flex min-w-0 items-center gap-2 rounded-full bg-muted/50 pl-1 pr-3 py-1 ring-1 ring-border/50">
+                        <TaskAssigneeDisplay task={task} size="sm" />
+                        <span className="truncate text-foreground font-medium">{task.assigned_to_name}</span>
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-muted/40 px-3 py-1 text-xs text-muted-foreground ring-1 ring-border/50">
+                        Unassigned
                       </span>
                     )}
-                </span>
-              </div>
-              <div className="flex items-center">
-                <History className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                <span className="truncate">
-                  {t("common.lastUpdated")} {format(parseISO(task.updated_at || task.created_at), 'MM/dd/yy HH:mm')}
-                   {task.last_edited_by_name && task.last_edited_at && (
-                      <span className="ml-1">
-                        {language === 'ka' 
-                          ? `${formatAttribution(task.last_edited_by_name, task.last_edited_by_type, task.last_edited_by_ai)}-ს ${t("common.by")}` 
-                          : `${t("common.by")} ${formatAttribution(task.last_edited_by_name, task.last_edited_by_type, task.last_edited_by_ai)}`}
-                      </span>
-                    )}
-                </span>
-              </div>
-            </div>
-          </div>
+                  </div>
+                </div>
+              </section>
 
-          {/* Comments Section */}
-          <div className="mt-2">
-            <Separator className="mb-2" />
-            <div className="px-1">
-              <TaskCommentsList 
-                taskId={task.id} 
-                isEditing={!isArchived}
-                username={profileUsername || (user?.user_metadata?.full_name as string) || user?.email || 'Admin'}
-                externalUserName={externalUserName}
-                externalUserEmail={externalUserEmail}
-                isExternal={!!externalUserName}
-                userId={user?.id}
-                taskCreatorName={task.created_by_name}
-              />
-            </div>
+              <section className="rounded-2xl border border-border/60 bg-card/60 p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3 pb-3 border-b border-border/40">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/10 ring-1 ring-amber-500/20">
+                    <Calendar className="h-3.5 w-3.5 text-amber-500" />
+                  </span>
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    {t("common.schedule")}
+                  </h3>
+                </div>
+                {(task.deadline_at || task.reminder_at) && (
+                  <div className="mb-4">
+                    <TaskDateInfo deadline={task.deadline_at} reminderAt={task.reminder_at} />
+                  </div>
+                )}
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/15">
+                      <Calendar className="h-4 w-4 text-primary" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">{t("common.created")}</p>
+                      <p className="text-sm font-medium text-foreground">{format(parseISO(task.created_at), 'MMM d, yyyy')}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {format(parseISO(task.created_at), 'HH:mm')}
+                        {task.created_by_name && (
+                          <>
+                            {' · '}
+                            {language === 'ka'
+                              ? `${formatAttribution(task.created_by_name, task.created_by_type, task.created_by_ai)}-ს ${t("common.by")}`
+                              : `${t("common.by")} ${formatAttribution(task.created_by_name, task.created_by_type, task.created_by_ai)}`}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-muted/60 ring-1 ring-border/50">
+                      <History className="h-4 w-4 text-muted-foreground" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">{t("common.lastUpdated")}</p>
+                      <p className="text-sm font-medium text-foreground">{format(parseISO(task.updated_at || task.created_at), 'MMM d, yyyy')}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {format(parseISO(task.updated_at || task.created_at), 'HH:mm')}
+                        {task.last_edited_by_name && task.last_edited_at && (
+                          <>
+                            {' · '}
+                            {language === 'ka'
+                              ? `${formatAttribution(task.last_edited_by_name, task.last_edited_by_type, task.last_edited_by_ai)}-ს ${t("common.by")}`
+                              : `${t("common.by")} ${formatAttribution(task.last_edited_by_name, task.last_edited_by_type, task.last_edited_by_ai)}`}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+            </aside>
           </div>
 
           {/* Action Buttons - mobile optimized */}
-          <div className="flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-2 sm:gap-3 pt-4 border-t border-border">
+          <div className="mt-5 flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-2 sm:gap-3 border-t border-border/60 bg-card/40 px-4 sm:px-7 lg:px-8 py-4">
             {isArchived ? (
               // Archived view - only show restore button
               <Tooltip>

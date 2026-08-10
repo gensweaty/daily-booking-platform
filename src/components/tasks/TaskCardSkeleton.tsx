@@ -7,9 +7,12 @@ export const TaskCardSkeleton = () => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="p-4 bg-background dark:bg-gray-800 rounded-xl border-l-4 border-l-gray-300 dark:border-l-gray-600"
+      className="p-4 bg-card rounded-2xl border border-border/70 shadow-sm"
     >
       <div className="space-y-3">
+        {/* Status chip */}
+        <Skeleton className="h-4 w-20 rounded-full" />
+
         {/* Title */}
         <Skeleton className="h-5 w-3/4" />
         
