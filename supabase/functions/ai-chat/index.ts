@@ -579,6 +579,13 @@ const buildSavedContextBlock = (memories: Array<any>) => {
 
 const FOLLOW_UP_RECALL_REGEX = /(what\s+(?:was|is|did)|when\s+did|do\s+you\s+remember|remember\b|recall\b|asked\s+you|same\s+chat|this\s+chat|we\s+(?:discussed|talked)|\b(?:last|latest|previous|earlier|before)\b)/i;
 const DIRECT_ACTION_PREFIX_REGEX = /^(?:please\s+)?(?:(?:can|could|would|will)\s+you\s+|i\s+(?:need|want)(?:\s+you)?\s+to\s+|help\s+me\s+)?(?:create|add|make|schedule|set|move|change|update|edit|modify|delete|remove|complete|finish|mark|send|analy[sz]e|find|search|generate|export|email|upload|import|list|show|get|open)\b/i;
+// Corrections / complaints / denials must NEVER be treated as a request to
+// recall the previous reminder, task, etc. Otherwise a follow-up like
+// "i didn't ask you that" gets answered with "your last reminder was ...".
+const CORRECTION_PROMPT_REGEX = /(\bi\s+(?:did\s*n[o']?t|didn'?t|didnt|didnto|never)\b|\bthat'?s?\s+(?:not|wrong|incorrect)\b|\bnot\s+what\s+i\b|\bwrong\b|\bno,?\s|\bstop\b|\bcancel\s+that\b|\bმე\s+არ\b|\bარ\s+მითხოვ|\bარ\s+მიკითხავს\b|\bя\s+не\s+прос|\bэто\s+не\b|\bno\s+te\s+ped|\bno\s+es\s+eso\b)/i;
+// Real recall questions look like questions ("what was ...", "when did ...",
+// "do you remember ...", or an explicit question mark).
+const RECALL_QUESTION_REGEX = /(^|\s)(what|when|which|who|where|remind\s+me\s+what|do\s+you\s+remember|can\s+you\s+recall|recall)\b|\?\s*$/i;
 
 const MEMORY_FAILURE_PATTERNS = [
   'i cannot access your previous reminders',
