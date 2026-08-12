@@ -579,6 +579,13 @@ const buildSavedContextBlock = (memories: Array<any>) => {
 
 const FOLLOW_UP_RECALL_REGEX = /(what\s+(?:was|is|did)|when\s+did|do\s+you\s+remember|remember\b|recall\b|asked\s+you|same\s+chat|this\s+chat|we\s+(?:discussed|talked)|\b(?:last|latest|previous|earlier|before)\b)/i;
 const DIRECT_ACTION_PREFIX_REGEX = /^(?:please\s+)?(?:(?:can|could|would|will)\s+you\s+|i\s+(?:need|want)(?:\s+you)?\s+to\s+|help\s+me\s+)?(?:create|add|make|schedule|set|move|change|update|edit|modify|delete|remove|complete|finish|mark|send|analy[sz]e|find|search|generate|export|email|upload|import|list|show|get|open)\b/i;
+// Corrections / complaints / denials must NEVER be treated as a request to
+// recall the previous reminder, task, etc. Otherwise a follow-up like
+// "i didn't ask you that" gets answered with "your last reminder was ...".
+const CORRECTION_PROMPT_REGEX = /(\bi\s+(?:did\s*n[o']?t|didn'?t|didnt|didnto|never)\b|\bthat'?s?\s+(?:not|wrong|incorrect)\b|\bnot\s+what\s+i\b|\bwrong\b|\bno,?\s|\bstop\b|\bcancel\s+that\b|\bმე\s+არ\b|\bარ\s+მითხოვ|\bარ\s+მიკითხავს\b|\bя\s+не\s+прос|\bэто\s+не\b|\bno\s+te\s+ped|\bno\s+es\s+eso\b)/i;
+// Real recall questions look like questions ("what was ...", "when did ...",
+// "do you remember ...", or an explicit question mark).
+const RECALL_QUESTION_REGEX = /(^|\s)(what|when|which|who|where|remind\s+me\s+what|do\s+you\s+remember|can\s+you\s+recall|recall)\b|\?\s*$/i;
 
 const MEMORY_FAILURE_PATTERNS = [
   'i cannot access your previous reminders',
@@ -629,6 +636,13 @@ const isExplicitRecallPrompt = (prompt: string) => {
   if (!lowerPrompt) return false;
 
   if (isDirectActionPrompt(lowerPrompt)) return false;
+
+  // A correction/denial ("i didn't ask you that", "that's wrong", "no") is a
+  // NEW turn, not a recall request. Never answer it with old context.
+  if (CORRECTION_PROMPT_REGEX.test(lowerPrompt)) return false;
+
+  // Only genuine recall QUESTIONS may trigger the deterministic memory answer.
+  if (!RECALL_QUESTION_REGEX.test(lowerPrompt)) return false;
 
   if (!FOLLOW_UP_RECALL_REGEX.test(lowerPrompt)) return false;
 
@@ -873,7 +887,7 @@ const shouldPersistGeneralMemory = (prompt: string, response: string) => {
   );
 };
 
-serve(async (req) => {
+const handleAiChatRequest = async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -9243,4 +9257,82 @@ Be direct. Be concise. No extra text.`
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+};
+
+// ============================================================================
+// Telegram mirroring: when the user chats with Smartbookly AI from the
+// dashboard, mirror the exchange into their Telegram chat (if the bot is
+// connected and active) so both surfaces stay fully in sync.
+// Never runs for requests that already came FROM Telegram (telegram-poll
+// delivers those replies itself).
+// ============================================================================
+const mirrorExchangeToTelegram = async (payload: any, replyText: string) => {
+  try {
+    const ownerId = payload?.ownerId;
+    if (!ownerId || !replyText) return;
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: config } = await supabaseAdmin
+      .from('telegram_bot_configs')
+      .select('bot_token, telegram_chat_id, is_active')
+      .eq('user_id', ownerId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!config?.bot_token || !config?.telegram_chat_id) return;
+
+    const send = async (text: string) => {
+      await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: config.telegram_chat_id,
+          text,
+          disable_web_page_preview: true,
+        }),
+      });
+    };
+
+    const who = payload?.senderName ? String(payload.senderName) : 'You';
+    const promptText = String(payload?.prompt || '').trim();
+    if (promptText) await send(`💬 ${who} (dashboard): ${truncateText(promptText, 900)}`);
+    await send(truncateText(String(replyText), 3500));
+  } catch (mirrorError) {
+    // Mirroring must never break the chat response.
+    console.error('⚠️ Telegram mirror failed:', mirrorError);
+  }
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  let payload: any = null;
+  try {
+    payload = await req.clone().json();
+  } catch (_e) {
+    payload = null;
+  }
+
+  const response = await handleAiChatRequest(req);
+
+  try {
+    const fromTelegram = payload?.source === 'telegram' || /\(telegram\)/i.test(payload?.senderName || '');
+    if (payload && !fromTelegram && response.ok) {
+      const cloned = response.clone();
+      const data = await cloned.json().catch(() => null);
+      if (data?.success && data?.content) {
+        await mirrorExchangeToTelegram(payload, data.content);
+      }
+    }
+  } catch (wrapErr) {
+    console.error('⚠️ Telegram mirror wrapper error:', wrapErr);
+  }
+
+  return response;
 });
