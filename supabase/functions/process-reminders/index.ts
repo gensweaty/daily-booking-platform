@@ -30,7 +30,28 @@ async function sendTelegramNotification(supabase: any, userId: string, message: 
       .eq('is_active', true)
       .maybeSingle();
 
-    if (!config?.bot_token || !config?.telegram_chat_id) return;
+    if (!config?.bot_token) return;
+
+    // Fallback: if the chat id was never captured (user never sent /start),
+    // recover it from the most recent inbound Telegram message for this user.
+    let chatId = config.telegram_chat_id;
+    if (!chatId) {
+      const { data: lastMsg } = await supabase
+        .from('telegram_messages')
+        .select('chat_id')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!lastMsg?.chat_id) return;
+      chatId = lastMsg.chat_id;
+
+      await supabase
+        .from('telegram_bot_configs')
+        .update({ telegram_chat_id: chatId, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+    }
 
     // Clean markdown for Telegram (convert ** to *, strip headers)
     const telegramText = message
@@ -42,7 +63,7 @@ async function sendTelegramNotification(supabase: any, userId: string, message: 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: config.telegram_chat_id,
+        chat_id: chatId,
         text: telegramText,
         parse_mode: 'Markdown'
       })
@@ -53,7 +74,7 @@ async function sendTelegramNotification(supabase: any, userId: string, message: 
       await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: config.telegram_chat_id, text: telegramText })
+        body: JSON.stringify({ chat_id: chatId, text: telegramText })
       });
     }
 

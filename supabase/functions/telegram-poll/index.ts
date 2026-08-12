@@ -306,6 +306,17 @@ async function processBotUpdates(
 
     const messageText = message.text || message.caption || '';
     const fileInfo = extractFileInfo(message);
+
+    // Always keep the outbound chat id in sync so reminders/notifications can
+    // reach this user even if they never sent /start.
+    if (config.telegram_chat_id !== chatId) {
+      await supabase
+        .from('telegram_bot_configs')
+        .update({ telegram_chat_id: chatId, updated_at: new Date().toISOString() })
+        .eq('id', config.id);
+      config.telegram_chat_id = chatId;
+    }
+
     const hasText = messageText && messageText.trim().length > 0;
     const hasFile = fileInfo !== null;
 
