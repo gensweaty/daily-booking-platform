@@ -887,7 +887,7 @@ const shouldPersistGeneralMemory = (prompt: string, response: string) => {
   );
 };
 
-serve(async (req) => {
+const handleAiChatRequest = async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
