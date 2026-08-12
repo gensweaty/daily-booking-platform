@@ -637,6 +637,13 @@ const isExplicitRecallPrompt = (prompt: string) => {
 
   if (isDirectActionPrompt(lowerPrompt)) return false;
 
+  // A correction/denial ("i didn't ask you that", "that's wrong", "no") is a
+  // NEW turn, not a recall request. Never answer it with old context.
+  if (CORRECTION_PROMPT_REGEX.test(lowerPrompt)) return false;
+
+  // Only genuine recall QUESTIONS may trigger the deterministic memory answer.
+  if (!RECALL_QUESTION_REGEX.test(lowerPrompt)) return false;
+
   if (!FOLLOW_UP_RECALL_REGEX.test(lowerPrompt)) return false;
 
   const hasRecallTarget =
