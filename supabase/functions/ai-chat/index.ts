@@ -9257,4 +9257,82 @@ Be direct. Be concise. No extra text.`
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
+};
+
+// ============================================================================
+// Telegram mirroring: when the user chats with Smartbookly AI from the
+// dashboard, mirror the exchange into their Telegram chat (if the bot is
+// connected and active) so both surfaces stay fully in sync.
+// Never runs for requests that already came FROM Telegram (telegram-poll
+// delivers those replies itself).
+// ============================================================================
+const mirrorExchangeToTelegram = async (payload: any, replyText: string) => {
+  try {
+    const ownerId = payload?.ownerId;
+    if (!ownerId || !replyText) return;
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: config } = await supabaseAdmin
+      .from('telegram_bot_configs')
+      .select('bot_token, telegram_chat_id, is_active')
+      .eq('user_id', ownerId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!config?.bot_token || !config?.telegram_chat_id) return;
+
+    const send = async (text: string) => {
+      await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: config.telegram_chat_id,
+          text,
+          disable_web_page_preview: true,
+        }),
+      });
+    };
+
+    const who = payload?.senderName ? String(payload.senderName) : 'You';
+    const promptText = String(payload?.prompt || '').trim();
+    if (promptText) await send(`💬 ${who} (dashboard): ${truncateText(promptText, 900)}`);
+    await send(truncateText(String(replyText), 3500));
+  } catch (mirrorError) {
+    // Mirroring must never break the chat response.
+    console.error('⚠️ Telegram mirror failed:', mirrorError);
+  }
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  let payload: any = null;
+  try {
+    payload = await req.clone().json();
+  } catch (_e) {
+    payload = null;
+  }
+
+  const response = await handleAiChatRequest(req);
+
+  try {
+    const fromTelegram = payload?.source === 'telegram' || /\(telegram\)/i.test(payload?.senderName || '');
+    if (payload && !fromTelegram && response.ok) {
+      const cloned = response.clone();
+      const data = await cloned.json().catch(() => null);
+      if (data?.success && data?.content) {
+        await mirrorExchangeToTelegram(payload, data.content);
+      }
+    }
+  } catch (wrapErr) {
+    console.error('⚠️ Telegram mirror wrapper error:', wrapErr);
+  }
+
+  return response;
 });
