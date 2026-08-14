@@ -5283,6 +5283,8 @@ Call the matching tool with the exact details from the user's last message. Do n
       console.log('🔧 Executing tool calls...');
       let screenshotOnly = true;
       let screenshotQueued = false;
+      let screenshotAck = '';
+      let screenshotRequestId: string | null = null;
 
       for (const toolCall of message.tool_calls) {
         let funcName = toolCall.function.name;
@@ -8955,6 +8957,8 @@ Call the matching tool with the exact details from the user's last message. Do n
                   .select('id')
                   .single();
                 if (insErr) throw insErr;
+                screenshotRequestId = row.id;
+                screenshotAck = `📸 Capturing the screenshot of ${normalizedPageHint || 'your current page'}… it will arrive here in a few seconds. (Your Smartbookly dashboard must be open in a browser tab.)`;
                 toolResult = {
                   success: true,
                   request_id: row.id,
