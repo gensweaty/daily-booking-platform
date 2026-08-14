@@ -9012,10 +9012,11 @@ Call the matching tool with the exact details from the user's last message. Do n
         return new Response(
           JSON.stringify({
             success: true,
-            content: '',
+            content: screenshotAck || '📸 Capturing the screenshot… it will arrive here in a few seconds.',
             aiMessage: null,
             toolCalls: message.tool_calls || [],
             screenshot_pending: true,
+            screenshot_request_id: screenshotRequestId,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
