@@ -556,16 +556,61 @@ async function processBotUpdates(
         })
       });
 
-      const aiData = await aiResponse.json();
+      let aiData: any = null;
+      try {
+        aiData = await aiResponse.json();
+      } catch {
+        aiData = null;
+      }
 
-      if (aiData.content) {
+      if (!aiResponse.ok || !aiData) {
+        console.error('❌ ai-chat returned a non-OK response', aiResponse.status, aiData);
+        await sendTelegramMessage(
+          botToken,
+          chatId,
+          '⚠️ I could not process that right now. Please try again in a moment.'
+        );
+      } else if (aiData.content) {
         const telegramText = aiData.content
           .replace(/\*\*/g, '*')
           .replace(/#{1,6}\s/g, '')
           .replace(/```[\s\S]*?```/g, (m: string) => m.replace(/```\w*\n?/g, ''))
           .trim();
 
-        await sendTelegramMessage(botToken, chatId, telegramText);
+        if (telegramText) {
+          await sendTelegramMessage(botToken, chatId, telegramText);
+        } else {
+          await sendTelegramMessage(botToken, chatId, '✅ Done.');
+        }
+      } else if (aiData.error) {
+        await sendTelegramMessage(botToken, chatId, `⚠️ ${String(aiData.error).slice(0, 500)}`);
+      } else {
+        // Never stay silent — always acknowledge the user
+        await sendTelegramMessage(botToken, chatId, '✅ Done.');
+      }
+
+      // Screenshot follow-up: warn if the browser never delivered the capture
+      if (aiData?.screenshot_pending && aiData?.screenshot_request_id) {
+        const reqId = aiData.screenshot_request_id;
+        const deadline = Date.now() + 40000;
+        let delivered = false;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 5000));
+          const { data: shot } = await supabase
+            .from('screenshot_requests')
+            .select('status')
+            .eq('id', reqId)
+            .maybeSingle();
+          if (shot && shot.status !== 'pending') { delivered = true; break; }
+          await sendChatAction(botToken, chatId, 'upload_photo').catch(() => {});
+        }
+        if (!delivered) {
+          await sendTelegramMessage(
+            botToken,
+            chatId,
+            '⚠️ I could not capture the screenshot — please open your Smartbookly dashboard in a browser tab and ask again.'
+          );
+        }
       }
 
       await supabase
