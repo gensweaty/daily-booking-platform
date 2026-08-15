@@ -1463,6 +1463,42 @@ export type Database = {
         }
         Relationships: []
       }
+      render_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          page_hint: string | null
+          popup_target: string | null
+          screenshot_request_id: string | null
+          token_hash: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          page_hint?: string | null
+          popup_target?: string | null
+          screenshot_request_id?: string | null
+          token_hash: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          page_hint?: string | null
+          popup_target?: string | null
+          screenshot_request_id?: string | null
+          token_hash?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       scheduled_emails: {
         Row: {
           business_name: string | null
