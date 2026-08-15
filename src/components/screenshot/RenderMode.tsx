@@ -8,6 +8,24 @@ import { useLocation } from 'react-router-dom';
  */
 const RENDER_STYLE_ID = 'render-mode-style';
 
+const TAB_KEYWORDS: Array<{ tab: string; words: string[] }> = [
+  { tab: 'tasks', words: ['task', 'todo', 'to do', 'board', 'kanban', 'დავალებ', 'ამოცან', 'დაფა', 'задач', 'доск', 'tablero', 'tarea'] },
+  { tab: 'calendar', words: ['calendar', 'agenda', 'schedule', 'booking', 'კალენდ', 'ჯავშნ', 'календ', 'расписан', 'calendario'] },
+  { tab: 'crm', words: ['crm', 'customer', 'client', 'contact', 'კლიენტ', 'მომხმარებ', 'контакт', 'клиент', 'cliente'] },
+  { tab: 'statistics', words: ['statistic', 'stats', 'analytic', 'report', 'სტატისტ', 'ანალიტ', 'статист', 'аналит', 'отчет', 'estadist', 'informe'] },
+  { tab: 'business', words: ['business', 'booking page', 'public page', 'ბიზნეს', 'бизнес', 'negocio'] },
+];
+
+function resolveTab(hint?: string | null): string | null {
+  if (!hint) return null;
+  const h = hint.toLowerCase();
+  if (TAB_KEYWORDS.some(({ tab }) => tab === h)) return h;
+  for (const { tab, words } of TAB_KEYWORDS) {
+    if (words.some((w) => h.includes(w))) return tab;
+  }
+  return null;
+}
+
 export function RenderMode() {
   const location = useLocation();
 
@@ -37,7 +55,7 @@ export function RenderMode() {
       document.head.appendChild(style);
     }
 
-    const hint = params.get('hint');
+    const hint = resolveTab(params.get('hint'));
     const popup = params.get('popup');
     const timers: number[] = [];
 
