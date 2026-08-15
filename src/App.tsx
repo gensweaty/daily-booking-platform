@@ -21,6 +21,8 @@ import { SEOManager } from '@/components/SEOManager';
 import AdminPanel from "@/pages/AdminPanel";
 import { AdminRoute } from "@/components/admin/AdminRoute";
 import AdminPanelDashboard from "@/pages/AdminPanelDashboard";
+import RenderView from "@/pages/RenderView";
+import { RenderMode } from "@/components/screenshot/RenderMode";
 
 // Create a client for React Query with improved retry logic
 const queryClient = new QueryClient({
@@ -253,6 +255,7 @@ const AppContent = () => {
           <RouteAwareThemeProvider>
             <RouteAwareWrapper>
               <SEOManager />
+              <RenderMode />
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/dashboard" element={<Index />} />
@@ -264,6 +267,7 @@ const AppContent = () => {
                 <Route path="/business/:slug" element={<PublicBusinessPage />} />
                 <Route path="/embed/business/:slug" element={<EmbedBookingPage />} />
                 <Route path="/board/:slug" element={<PublicBoard />} />
+                <Route path="/render/:token" element={<RenderView />} />
                 <Route path="/login" element={<Index />} />
                 <Route path="/signup" element={<Index />} />
                 {/* Admin Panel Routes */}
