@@ -8962,7 +8962,7 @@ Call the matching tool with the exact details from the user's last message. Do n
                 // Server-side capture: SmartBookly AI opens its own headless
                 // browser. If the renderer is unavailable it silently falls
                 // back to the browser-tab listener (row stays pending).
-                const serverCapture = fetch(`${supabaseUrl}/functions/v1/capture-screenshot`, {
+                const serverCapture = fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/capture-screenshot`, {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
