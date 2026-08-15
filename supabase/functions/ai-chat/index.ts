@@ -8958,11 +8958,31 @@ Call the matching tool with the exact details from the user's last message. Do n
                   .single();
                 if (insErr) throw insErr;
                 screenshotRequestId = row.id;
-                screenshotAck = `📸 Capturing the screenshot of ${normalizedPageHint || 'your current page'}… it will arrive here in a few seconds. (Your Smartbookly dashboard must be open in a browser tab.)`;
+
+                // Server-side capture: SmartBookly AI opens its own headless
+                // browser. If the renderer is unavailable it silently falls
+                // back to the browser-tab listener (row stays pending).
+                const serverCapture = fetch(`${supabaseUrl}/functions/v1/capture-screenshot`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+                  },
+                  body: JSON.stringify({ request_id: row.id }),
+                }).catch((err) => console.error('    ❌ capture-screenshot invoke failed:', err));
+                try {
+                  // @ts-ignore EdgeRuntime is available in Supabase Edge Functions
+                  if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
+                    // @ts-ignore
+                    EdgeRuntime.waitUntil(serverCapture);
+                  }
+                } catch (_) { /* keep going; fetch is already in flight */ }
+
+                screenshotAck = `📸 Capturing the screenshot of ${normalizedPageHint || 'your current page'}… it will arrive here in a few seconds.`;
                 toolResult = {
                   success: true,
                   request_id: row.id,
-                    message: `📸 Screenshot request sent. If your Smartbookly dashboard is open in a browser tab, the image of ${normalizedPageHint || 'the current page'} will arrive here in a few seconds. If nothing arrives within ~30s, please open the dashboard and ask again.`,
+                    message: `📸 Screenshot of ${normalizedPageHint || 'the current page'} is being captured and will arrive here in a few seconds.`,
                 };
               } catch (error) {
                 console.error('    ❌ Screenshot request error:', error);
