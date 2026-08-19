@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download, CheckSquare, Square } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download, CheckSquare, Square, Mail } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,6 +20,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { CRMFiltersProvider, useCRMFilters } from "@/hooks/useCRMFilters";
 import { CRMFilterButton } from "./CRMFilterButton";
+import { EmailComposerDialog } from "./EmailComposerDialog";
 import {
   Table,
   TableBody,
@@ -152,6 +153,8 @@ const CustomerListContent = ({
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [emailRecipients, setEmailRecipients] = useState<any[]>([]);
   const idsToDeleteRef = useRef<string[]>([]); // Store IDs when opening dialog to prevent re-render issues
   const tableContainerRef = useRef<HTMLDivElement>(null);
   
@@ -260,6 +263,13 @@ const CustomerListContent = ({
     console.log('📋 Stored IDs for deletion:', idsToDeleteRef.current.length);
     setIsBulkDeleteConfirmOpen(true);
   }, [selectedCustomerIds]);
+
+  // Open the personalized email composer for the currently selected customers
+  const openEmailComposer = useCallback(() => {
+    const selected = (displayedData || []).filter((c: any) => selectedCustomerIds.has(c.id));
+    setEmailRecipients(selected);
+    setIsEmailComposerOpen(true);
+  }, [displayedData, selectedCustomerIds]);
 
   // Bulk delete handler - uses stored IDs from ref (not state) to prevent re-render issues
   const handleBulkDelete = useCallback(async () => {
@@ -882,6 +892,17 @@ const CustomerListContent = ({
                               )}
                             </button>
                             {selectedCustomerIds.size > 0 && (
+                              <>
+                              {!isPublicMode && (
+                                <button
+                                  onClick={openEmailComposer}
+                                  className="p-1.5 rounded hover:bg-primary/20 transition-colors text-primary border border-transparent hover:border-primary/30"
+                                  data-selection-control
+                                  title={`${language === 'en' ? 'Email' : language === 'es' ? 'Correo' : 'ელფოსტა'} (${selectedCustomerIds.size})`}
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </button>
+                              )}
                               <button
                                 onClick={openBulkDeleteDialog}
                                 className="p-1.5 rounded hover:bg-destructive/20 transition-colors text-destructive border border-transparent hover:border-destructive/30"
@@ -890,6 +911,7 @@ const CustomerListContent = ({
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
+                              </>
                             )}
                           </div>
                         ) : (
@@ -1208,6 +1230,12 @@ const CustomerListContent = ({
           queryClient.invalidateQueries({ queryKey: ['events'] });
           queryClient.invalidateQueries({ queryKey: ['crm-data'] });
         }}
+      />
+
+      <EmailComposerDialog
+        open={isEmailComposerOpen}
+        onOpenChange={setIsEmailComposerOpen}
+        customers={emailRecipients}
       />
     </div>
   );
