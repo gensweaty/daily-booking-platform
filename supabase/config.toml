@@ -82,3 +82,6 @@ verify_jwt = false
 
 [functions.render-session]
 verify_jwt = false
+
+[functions.send-crm-bulk-email]
+verify_jwt = false
