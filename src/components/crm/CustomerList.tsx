@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download, CheckSquare, Square } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download, CheckSquare, Square, Mail } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -20,6 +20,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { CRMFiltersProvider, useCRMFilters } from "@/hooks/useCRMFilters";
 import { CRMFilterButton } from "./CRMFilterButton";
+import { EmailComposerDialog } from "./EmailComposerDialog";
 import {
   Table,
   TableBody,
