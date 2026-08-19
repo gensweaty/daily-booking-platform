@@ -264,6 +264,13 @@ const CustomerListContent = ({
     setIsBulkDeleteConfirmOpen(true);
   }, [selectedCustomerIds]);
 
+  // Open the personalized email composer for the currently selected customers
+  const openEmailComposer = useCallback(() => {
+    const selected = (displayedData || []).filter((c: any) => selectedCustomerIds.has(c.id));
+    setEmailRecipients(selected);
+    setIsEmailComposerOpen(true);
+  }, [displayedData, selectedCustomerIds]);
+
   // Bulk delete handler - uses stored IDs from ref (not state) to prevent re-render issues
   const handleBulkDelete = useCallback(async () => {
     const effectiveUserId = isPublicMode ? publicBoardUserId : user?.id;
