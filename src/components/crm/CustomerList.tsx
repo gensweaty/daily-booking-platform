@@ -153,6 +153,8 @@ const CustomerListContent = ({
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
+  const [emailRecipients, setEmailRecipients] = useState<any[]>([]);
   const idsToDeleteRef = useRef<string[]>([]); // Store IDs when opening dialog to prevent re-render issues
   const tableContainerRef = useRef<HTMLDivElement>(null);
   
