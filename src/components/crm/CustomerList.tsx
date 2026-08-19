@@ -892,6 +892,17 @@ const CustomerListContent = ({
                               )}
                             </button>
                             {selectedCustomerIds.size > 0 && (
+                              <>
+                              {!isPublicMode && (
+                                <button
+                                  onClick={openEmailComposer}
+                                  className="p-1.5 rounded hover:bg-primary/20 transition-colors text-primary border border-transparent hover:border-primary/30"
+                                  data-selection-control
+                                  title={`${language === 'en' ? 'Email' : language === 'es' ? 'Correo' : 'ელფოსტა'} (${selectedCustomerIds.size})`}
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </button>
+                              )}
                               <button
                                 onClick={openBulkDeleteDialog}
                                 className="p-1.5 rounded hover:bg-destructive/20 transition-colors text-destructive border border-transparent hover:border-destructive/30"
@@ -900,6 +911,7 @@ const CustomerListContent = ({
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
+                              </>
                             )}
                           </div>
                         ) : (
