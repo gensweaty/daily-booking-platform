@@ -1231,6 +1231,12 @@ const CustomerListContent = ({
           queryClient.invalidateQueries({ queryKey: ['crm-data'] });
         }}
       />
+
+      <EmailComposerDialog
+        open={isEmailComposerOpen}
+        onOpenChange={setIsEmailComposerOpen}
+        customers={emailRecipients}
+      />
     </div>
   );
 };
