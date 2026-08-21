@@ -5166,19 +5166,37 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ AI gateway error:', response.status, errorText);
-      
+
+      let gatewayMessage = '';
+      try { gatewayMessage = JSON.parse(errorText)?.message || ''; } catch { /* ignore */ }
+
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
+          JSON.stringify({ error: gatewayMessage || 'Rate limit exceeded. Please try again in a moment.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
+
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: `AI credits are exhausted for this workspace. ${gatewayMessage || ''} Please top up AI credits in Lovable to re-enable SmartBookly AI.`.trim() }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (response.status === 403 || response.status === 401) {
+        return new Response(
+          JSON.stringify({ error: gatewayMessage || 'AI access is blocked for this workspace (key or policy issue).' }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: 'AI service error' }),
+        JSON.stringify({ error: gatewayMessage ? `AI service error: ${gatewayMessage}` : 'AI service error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
 
     const aiResult = await response.json();
     let message = aiResult.choices[0].message;
