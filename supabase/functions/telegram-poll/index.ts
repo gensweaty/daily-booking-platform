@@ -575,7 +575,6 @@ async function processBotUpdates(
         );
       } else if (aiData.content) {
 
-      } else if (aiData.content) {
         const telegramText = aiData.content
           .replace(/\*\*/g, '*')
           .replace(/#{1,6}\s/g, '')
