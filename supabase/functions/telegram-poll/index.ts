@@ -565,11 +565,16 @@ async function processBotUpdates(
 
       if (!aiResponse.ok || !aiData) {
         console.error('❌ ai-chat returned a non-OK response', aiResponse.status, aiData);
+        const reason = aiData?.error ? String(aiData.error).slice(0, 500) : '';
         await sendTelegramMessage(
           botToken,
           chatId,
-          '⚠️ I could not process that right now. Please try again in a moment.'
+          reason
+            ? `⚠️ ${reason}`
+            : '⚠️ I could not process that right now. Please try again in a moment.'
         );
+      } else if (aiData.content) {
+
       } else if (aiData.content) {
         const telegramText = aiData.content
           .replace(/\*\*/g, '*')
