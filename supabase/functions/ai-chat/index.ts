@@ -2106,6 +2106,7 @@ const handleAiChatRequest = async (req: Request) => {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
@@ -2225,6 +2226,7 @@ const handleAiChatRequest = async (req: Request) => {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${lovableApiKey}`,
+        "Lovable-API-Key": lovableApiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -2305,6 +2307,7 @@ const handleAiChatRequest = async (req: Request) => {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${lovableApiKey}`,
+        "Lovable-API-Key": lovableApiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -5147,6 +5150,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -5238,6 +5242,7 @@ Call the matching tool with the exact details from the user's last message. Do n
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -9102,6 +9107,7 @@ Be direct. Be concise. No extra text.`
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -9194,6 +9200,7 @@ Be direct. Be concise. No extra text.`
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
