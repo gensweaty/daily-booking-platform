@@ -42,6 +42,47 @@ const mapModelToGoogle = (model?: string) => {
   return 'gemini-2.5-flash';
 };
 
+// --- OpenRouter free-model chain -------------------------------------------
+// Last-resort providers. Tried one by one; when one is exhausted/rate-limited
+// we move to the next, so the project keeps its own AI capacity.
+const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const OPENROUTER_FREE_MODELS = [
+  'z-ai/glm-4.6:free',
+  'deepseek/deepseek-chat-v3.1:free',
+  'qwen/qwen3-235b-a22b:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'nvidia/nemotron-3-ultra:free',
+  'openrouter/auto',
+];
+
+async function tryOpenRouter(body: any): Promise<Response | null> {
+  const key = Deno.env.get('OPENROUTER_API_KEY');
+  if (!key) return null;
+
+  for (const model of OPENROUTER_FREE_MODELS) {
+    try {
+      const resp = await fetch(OPENROUTER_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://smartbookly.com',
+          'X-Title': 'SmartBookly AI',
+        },
+        body: JSON.stringify({ ...body, model }),
+      });
+      if (resp.ok) {
+        console.log(`✅ OpenRouter fallback served by ${model}`);
+        return resp;
+      }
+      console.warn(`⚠️ OpenRouter ${model} failed:`, resp.status, (await resp.text()).slice(0, 300));
+    } catch (e) {
+      console.error(`❌ OpenRouter ${model} threw:`, e);
+    }
+  }
+  return null;
+}
+
 async function gatewayFetch(url: string, init: RequestInit): Promise<Response> {
   let response: Response;
   try {
@@ -53,12 +94,6 @@ async function gatewayFetch(url: string, init: RequestInit): Promise<Response> {
 
   if (response.ok || ![402, 403, 429].includes(response.status)) return response;
 
-  const geminiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!geminiKey) {
-    console.warn('⚠️ Gateway returned', response.status, 'and no GEMINI_API_KEY fallback configured');
-    return response;
-  }
-
   let body: any;
   try {
     body = JSON.parse(String(init.body ?? '{}'));
@@ -66,26 +101,32 @@ async function gatewayFetch(url: string, init: RequestInit): Promise<Response> {
     return response;
   }
 
-  const fallbackBody = { ...body, model: mapModelToGoogle(body.model) };
-  console.log(`🔁 Gateway ${response.status} → falling back to Google ${fallbackBody.model}`);
-
-  try {
-    const fallbackResponse = await fetch(GOOGLE_OPENAI_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${geminiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(fallbackBody),
-    });
-    if (fallbackResponse.ok) return fallbackResponse;
-    console.error('❌ Google fallback failed:', fallbackResponse.status, await fallbackResponse.text());
-  } catch (e) {
-    console.error('❌ Google fallback threw:', e);
+  const geminiKey = Deno.env.get('GEMINI_API_KEY');
+  if (geminiKey) {
+    const fallbackBody = { ...body, model: mapModelToGoogle(body.model) };
+    console.log(`🔁 Gateway ${response.status} → falling back to Google ${fallbackBody.model}`);
+    try {
+      const fallbackResponse = await fetch(GOOGLE_OPENAI_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${geminiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(fallbackBody),
+      });
+      if (fallbackResponse.ok) return fallbackResponse;
+      console.error('❌ Google fallback failed:', fallbackResponse.status, (await fallbackResponse.text()).slice(0, 300));
+    } catch (e) {
+      console.error('❌ Google fallback threw:', e);
+    }
   }
+
+  const orResponse = await tryOpenRouter(body);
+  if (orResponse) return orResponse;
 
   return response;
 }
+
 
 
 const truncateText = (value: string, max = 600) =>
