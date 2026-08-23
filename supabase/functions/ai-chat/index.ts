@@ -46,14 +46,18 @@ const mapModelToGoogle = (model?: string) => {
 // Last-resort providers. Tried one by one; when one is exhausted/rate-limited
 // we move to the next, so the project keeps its own AI capacity.
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+// All support tool-calling; the first entries also accept images/audio.
 const OPENROUTER_FREE_MODELS = [
-  'z-ai/glm-4.6:free',
-  'deepseek/deepseek-chat-v3.1:free',
-  'qwen/qwen3-235b-a22b:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'nvidia/nemotron-3-ultra:free',
-  'openrouter/auto',
+  'thinkingmachines/inkling:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'google/gemma-4-31b-it:free',
+  'dots-studio/dots-3-note-preview:free',
+  'z-ai/glm-5.2:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-nano-9b-v2:free',
 ];
+
 
 async function tryOpenRouter(body: any): Promise<Response | null> {
   const key = Deno.env.get('OPENROUTER_API_KEY');
