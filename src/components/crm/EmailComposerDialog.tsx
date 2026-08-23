@@ -59,7 +59,7 @@ const ToolBtn = ({
   </Button>
 );
 
-export const EmailComposerDialog = ({ open, onOpenChange, customers }: Props) => {
+export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout = false }: Props) => {
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -247,6 +247,7 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers }: Props) =>
         cc: cc.split(/[,;\s]+/).map((s) => s.trim()).filter(isValidEmail),
         bcc: bcc.split(/[,;\s]+/).map((s) => s.trim()).filter(isValidEmail),
         reply_to: user?.email || undefined,
+        plain_layout: plainLayout,
         attachments: uploaded,
         recipients: recipients.map((r) => ({
           email: r.email,
