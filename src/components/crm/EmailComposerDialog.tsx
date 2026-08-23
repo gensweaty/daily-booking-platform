@@ -37,7 +37,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   customers: any[];
+  /** Minimal, inbox-friendly layout (avoids promo-looking styling) */
+  plainLayout?: boolean;
 }
+
 
 const ToolBtn = ({
   onClick, active, title, children, disabled,
