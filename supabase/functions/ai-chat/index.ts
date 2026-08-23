@@ -26,6 +26,68 @@ const LIGHTWEIGHT_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
 const VISION_FALLBACK_MODEL = 'google/gemini-3.6-flash';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// --- Direct Google fallback -------------------------------------------------
+// When the Lovable AI Gateway is out of credits (402) or blocked (403), retry
+// the SAME OpenAI-compatible request against Google's OpenAI-compatible
+// endpoint using GEMINI_API_KEY, so SmartBookly AI keeps working.
+const GOOGLE_OPENAI_ENDPOINT =
+  'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+
+const mapModelToGoogle = (model?: string) => {
+  const raw = (model || '').replace(/^google\//, '');
+  if (!raw || !raw.startsWith('gemini')) return 'gemini-2.5-flash';
+  // Preview/unreleased ids only exist on the gateway; map to stable public ids.
+  if (/lite/i.test(raw)) return 'gemini-2.5-flash-lite';
+  if (/pro/i.test(raw)) return 'gemini-2.5-pro';
+  return 'gemini-2.5-flash';
+};
+
+async function gatewayFetch(url: string, init: RequestInit): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (e) {
+    console.error('❌ Gateway fetch failed:', e);
+    throw e;
+  }
+
+  if (response.ok || ![402, 403, 429].includes(response.status)) return response;
+
+  const geminiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!geminiKey) {
+    console.warn('⚠️ Gateway returned', response.status, 'and no GEMINI_API_KEY fallback configured');
+    return response;
+  }
+
+  let body: any;
+  try {
+    body = JSON.parse(String(init.body ?? '{}'));
+  } catch {
+    return response;
+  }
+
+  const fallbackBody = { ...body, model: mapModelToGoogle(body.model) };
+  console.log(`🔁 Gateway ${response.status} → falling back to Google ${fallbackBody.model}`);
+
+  try {
+    const fallbackResponse = await fetch(GOOGLE_OPENAI_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${geminiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(fallbackBody),
+    });
+    if (fallbackResponse.ok) return fallbackResponse;
+    console.error('❌ Google fallback failed:', fallbackResponse.status, await fallbackResponse.text());
+  } catch (e) {
+    console.error('❌ Google fallback threw:', e);
+  }
+
+  return response;
+}
+
+
 const truncateText = (value: string, max = 600) =>
   value.length > max ? `${value.slice(0, max)}…` : value;
 
