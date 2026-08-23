@@ -2164,7 +2164,7 @@ const handleAiChatRequest = async (req: Request) => {
             console.log(`🎤 Transcribing audio: ${att.filename} (${Math.round(bytes.length / 1024)}KB, ${audioMime})`);
             
             // Use Gemini to transcribe via Lovable AI gateway
-            const transcribeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            const transcribeResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -2284,7 +2284,7 @@ const handleAiChatRequest = async (req: Request) => {
           return null;
         }
 
-        const inferenceResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const inferenceResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${lovableApiKey}`,
@@ -2365,7 +2365,7 @@ const handleAiChatRequest = async (req: Request) => {
         const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
         if (!lovableApiKey) return null;
 
-        const inferenceResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const inferenceResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${lovableApiKey}`,
@@ -5208,7 +5208,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     console.log('📤 Calling Lovable AI with history...');
     
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -5318,7 +5318,7 @@ If the user is REPLYING to an earlier message, treat that quoted message as the 
 Call the matching tool with the exact details from the user's last message. Do not reply with text — call the tool.`
           }
         ];
-        const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const retryResp = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -9183,7 +9183,7 @@ Example FORBIDDEN format:
 Be direct. Be concise. No extra text.`
       };
       
-      const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const finalResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -9276,7 +9276,7 @@ Be direct. Be concise. No extra text.`
       const hadAttachments = Array.isArray(attachments) && attachments.length > 0;
       console.warn('⚠️ Direct AI response was empty. hadAttachments=', hadAttachments);
       try {
-        const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const retryResp = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
