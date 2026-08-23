@@ -26,6 +26,68 @@ const LIGHTWEIGHT_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
 const VISION_FALLBACK_MODEL = 'google/gemini-3.6-flash';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// --- Direct Google fallback -------------------------------------------------
+// When the Lovable AI Gateway is out of credits (402) or blocked (403), retry
+// the SAME OpenAI-compatible request against Google's OpenAI-compatible
+// endpoint using GEMINI_API_KEY, so SmartBookly AI keeps working.
+const GOOGLE_OPENAI_ENDPOINT =
+  'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+
+const mapModelToGoogle = (model?: string) => {
+  const raw = (model || '').replace(/^google\//, '');
+  if (!raw || !raw.startsWith('gemini')) return 'gemini-2.5-flash';
+  // Preview/unreleased ids only exist on the gateway; map to stable public ids.
+  if (/lite/i.test(raw)) return 'gemini-2.5-flash-lite';
+  if (/pro/i.test(raw)) return 'gemini-2.5-pro';
+  return 'gemini-2.5-flash';
+};
+
+async function gatewayFetch(url: string, init: RequestInit): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (e) {
+    console.error('❌ Gateway fetch failed:', e);
+    throw e;
+  }
+
+  if (response.ok || ![402, 403, 429].includes(response.status)) return response;
+
+  const geminiKey = Deno.env.get('GEMINI_API_KEY');
+  if (!geminiKey) {
+    console.warn('⚠️ Gateway returned', response.status, 'and no GEMINI_API_KEY fallback configured');
+    return response;
+  }
+
+  let body: any;
+  try {
+    body = JSON.parse(String(init.body ?? '{}'));
+  } catch {
+    return response;
+  }
+
+  const fallbackBody = { ...body, model: mapModelToGoogle(body.model) };
+  console.log(`🔁 Gateway ${response.status} → falling back to Google ${fallbackBody.model}`);
+
+  try {
+    const fallbackResponse = await fetch(GOOGLE_OPENAI_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${geminiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(fallbackBody),
+    });
+    if (fallbackResponse.ok) return fallbackResponse;
+    console.error('❌ Google fallback failed:', fallbackResponse.status, await fallbackResponse.text());
+  } catch (e) {
+    console.error('❌ Google fallback threw:', e);
+  }
+
+  return response;
+}
+
+
 const truncateText = (value: string, max = 600) =>
   value.length > max ? `${value.slice(0, max)}…` : value;
 
@@ -2102,7 +2164,7 @@ const handleAiChatRequest = async (req: Request) => {
             console.log(`🎤 Transcribing audio: ${att.filename} (${Math.round(bytes.length / 1024)}KB, ${audioMime})`);
             
             // Use Gemini to transcribe via Lovable AI gateway
-            const transcribeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            const transcribeResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -2222,7 +2284,7 @@ const handleAiChatRequest = async (req: Request) => {
           return null;
         }
 
-        const inferenceResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const inferenceResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${lovableApiKey}`,
@@ -2303,7 +2365,7 @@ const handleAiChatRequest = async (req: Request) => {
         const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
         if (!lovableApiKey) return null;
 
-        const inferenceResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const inferenceResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${lovableApiKey}`,
@@ -5146,7 +5208,7 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     console.log('📤 Calling Lovable AI with history...');
     
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -5256,7 +5318,7 @@ If the user is REPLYING to an earlier message, treat that quoted message as the 
 Call the matching tool with the exact details from the user's last message. Do not reply with text — call the tool.`
           }
         ];
-        const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const retryResp = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -9121,7 +9183,7 @@ Example FORBIDDEN format:
 Be direct. Be concise. No extra text.`
       };
       
-      const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const finalResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -9214,7 +9276,7 @@ Be direct. Be concise. No extra text.`
       const hadAttachments = Array.isArray(attachments) && attachments.length > 0;
       console.warn('⚠️ Direct AI response was empty. hadAttachments=', hadAttachments);
       try {
-        const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const retryResp = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
