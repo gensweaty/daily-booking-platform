@@ -46,14 +46,21 @@ const mapModelToGoogle = (model?: string) => {
 // Last-resort providers. Tried one by one; when one is exhausted/rate-limited
 // we move to the next, so the project keeps its own AI capacity.
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+// All support tool-calling; the first entries also accept images/audio.
+// Verified reachable with this account's key (Aug 2026).
 const OPENROUTER_FREE_MODELS = [
-  'z-ai/glm-4.6:free',
-  'deepseek/deepseek-chat-v3.1:free',
-  'qwen/qwen3-235b-a22b:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'nvidia/nemotron-3-ultra:free',
-  'openrouter/auto',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'dots-studio/dots-3-note-preview:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free',
+  'nvidia/nemotron-nano-9b-v2:free',
+  'cohere/north-mini-code:free',
+  'z-ai/glm-5.2:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
 ];
+
 
 async function tryOpenRouter(body: any): Promise<Response | null> {
   const key = Deno.env.get('OPENROUTER_API_KEY');
@@ -71,15 +78,26 @@ async function tryOpenRouter(body: any): Promise<Response | null> {
         },
         body: JSON.stringify({ ...body, model }),
       });
-      if (resp.ok) {
+
+      const raw = await resp.text();
+      // OpenRouter can return 200 with an error envelope (upstream overloaded).
+      let parsed: any = null;
+      try { parsed = JSON.parse(raw); } catch { /* streamed or non-JSON */ }
+      const hasError = parsed && parsed.error;
+
+      if (resp.ok && !hasError) {
         console.log(`✅ OpenRouter fallback served by ${model}`);
-        return resp;
+        return new Response(raw, {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
-      console.warn(`⚠️ OpenRouter ${model} failed:`, resp.status, (await resp.text()).slice(0, 300));
+      console.warn(`⚠️ OpenRouter ${model} failed:`, resp.status, raw.slice(0, 200));
     } catch (e) {
       console.error(`❌ OpenRouter ${model} threw:`, e);
     }
   }
+
   return null;
 }
 
