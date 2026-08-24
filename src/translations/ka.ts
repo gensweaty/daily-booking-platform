@@ -377,6 +377,7 @@ export const translations: TranslationType = {
     outsideWorkingHours: "გთხოვთ აირჩიოთ დრო სამუშაო საათების ფარგლებში."
   },
   dashboard: {
+    sendEmail: "ელფოსტის გაგზავნა",
     welcome: "კეთილი იყოს თქვენი დაბრუნება",
     productivityHub: "თქვენი პროდუქტიულობის ცენტრი",
     greeting: "გამარჯობა",
