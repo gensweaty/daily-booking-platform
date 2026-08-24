@@ -47,3 +47,23 @@ export const getCustomerEmail = (c: any): string => {
 };
 
 export const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+const stripHtml = (s: string) =>
+  s.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ");
+
+/** Finds which @tokens are used in the text (recognized) and which are unknown. */
+export const detectTags = (input: string) => {
+  const text = stripHtml(input || "");
+  const known = new Set(MERGE_TAGS.map((t) => t.token));
+  const used: string[] = [];
+  const unknown: string[] = [];
+  const matches = text.match(/@[a-zA-Z_]+/g) || [];
+  for (const m of matches) {
+    const token = m.slice(1);
+    if (known.has(token)) {
+      if (!used.includes(token)) used.push(token);
+    } else if (!unknown.includes(token)) unknown.push(token);
+  }
+  return { used, unknown };
+};
+
