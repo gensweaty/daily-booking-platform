@@ -50,8 +50,9 @@ const wrap = (inner: string, linkBlock: string, senderName?: string, senderEmail
   </div>
 </body></html>`;
 
-// Minimal, personal-looking layout: no card, no background, no marketing banner.
-// Plain styling like a normal 1:1 email keeps it out of the Promotions tab.
+// Minimal, personal-looking layout: no card, no background, no marketing banner,
+// no unsubscribe footer and no branding. Plain styling like a normal 1:1 email
+// keeps it out of the Promotions tab.
 const wrapPlain = (inner: string, linkBlock: string, senderName?: string, senderEmail?: string) => `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;">
@@ -61,6 +62,7 @@ const wrapPlain = (inner: string, linkBlock: string, senderName?: string, sender
     ${senderName ? `<p style="margin:20px 0 0;">${escapeHtml(senderName)}${senderEmail ? `<br><a href="mailto:${escapeHtml(senderEmail)}" style="color:#222222;">${escapeHtml(senderEmail)}</a>` : ""}</p>` : ""}
   </div>
 </body></html>`;
+
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
