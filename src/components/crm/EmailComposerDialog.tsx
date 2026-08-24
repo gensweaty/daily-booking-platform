@@ -24,7 +24,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { MERGE_TAGS, renderTemplate, getCustomerEmail, isValidEmail } from "./emailMergeTags";
+import { MERGE_TAGS, renderTemplate, getCustomerEmail, isValidEmail, detectTags } from "./emailMergeTags";
 
 const MAX_TOTAL_BYTES = 100 * 1024 * 1024; // 100MB
 
@@ -59,7 +59,7 @@ const ToolBtn = ({
   </Button>
 );
 
-export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout = false }: Props) => {
+export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout = true }: Props) => {
   const { toast } = useToast();
   const { user } = useAuth();
 
