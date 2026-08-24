@@ -96,6 +96,7 @@ export const DashboardContent = ({
   const [activeTab, setActiveTab] = useState("calendar")
   const [showArchive, setShowArchive] = useState(false)
   const [pendingEventEditId, setPendingEventEditId] = useState<string | null>(null)
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false)
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
