@@ -187,7 +187,7 @@ serve(async (req: Request): Promise<Response> => {
     for (let i = 0; i < recipients.length; i++) {
       const r = recipients[i];
       try {
-        const fullHtml = wrap(r.html, linkBlock, senderName, replyTo);
+        const fullHtml = (plainLayout ? wrapPlain : wrap)(r.html, linkBlock, senderName, replyTo);
         const res = await resend.emails.send({
           from: fromAddress,
           to: [r.email],
