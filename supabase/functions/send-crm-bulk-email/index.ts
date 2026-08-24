@@ -132,7 +132,10 @@ serve(async (req: Request): Promise<Response> => {
       .maybeSingle();
 
     const senderName = business?.business_name || profile?.username || user.email?.split("@")[0] || "SmartBookly";
-    const fromAddress = `${senderName} via SmartBookly <noreply@smartbookly.com>`;
+    // Plain (personal) mode: no "via SmartBookly" marketing suffix in the From name.
+    const fromAddress = plainLayout
+      ? `${senderName} <noreply@smartbookly.com>`
+      : `${senderName} via SmartBookly <noreply@smartbookly.com>`;
 
     // --- Split attachments: inline vs signed links ---
     const inline: { filename: string; content: string; content_type: string }[] = [];
