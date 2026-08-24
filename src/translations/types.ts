@@ -371,6 +371,7 @@ export interface TranslationType {
     outsideWorkingHours: string;
   };
   dashboard: {
+    sendEmail: string;
     welcome: string;
     productivityHub: string;
     greeting: string;

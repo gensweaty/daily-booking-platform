@@ -377,6 +377,7 @@ export const translations: TranslationType = {
     outsideWorkingHours: "Por favor seleccione un horario dentro del horario laboral."
   },
   dashboard: {
+    sendEmail: "Enviar correo",
     welcome: "Bienvenido de nuevo",
     productivityHub: "Tu centro de productividad",
     greeting: "Hola",
