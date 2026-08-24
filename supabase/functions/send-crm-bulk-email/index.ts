@@ -203,11 +203,16 @@ serve(async (req: Request): Promise<Response> => {
           html: fullHtml,
           text: htmlToText(r.html) + (links.length ? `\n\nAttached files:\n${links.map((l) => `${l.filename}: ${l.url}`).join("\n")}` : ""),
           attachments: inline.length ? inline : undefined,
-          headers: {
-            "X-Entity-Ref-ID": `sb-crm-${user.id.slice(0, 8)}-${Date.now()}-${i}`,
-            "List-Unsubscribe": "<mailto:unsubscribe@smartbookly.com>",
-            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-          },
+          headers: plainLayout
+            ? {
+                // Personal 1:1 style: no bulk/list headers (they trigger Promotions).
+                "X-Entity-Ref-ID": `sb-${user.id.slice(0, 8)}-${Date.now()}-${i}`,
+              }
+            : {
+                "X-Entity-Ref-ID": `sb-crm-${user.id.slice(0, 8)}-${Date.now()}-${i}`,
+                "List-Unsubscribe": "<mailto:unsubscribe@smartbookly.com>",
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+              },
         });
         if ((res as any)?.error) {
           results.push({ email: r.email, ok: false, error: (res as any).error.message || "Send failed" });
