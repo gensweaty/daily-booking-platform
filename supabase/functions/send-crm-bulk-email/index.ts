@@ -89,6 +89,7 @@ serve(async (req: Request): Promise<Response> => {
 
     const subject = String(body.subject || "").trim();
     const baseHtml = String(body.html || "");
+    const plainLayout = body.plain_layout === true;
     const cc: string[] = Array.isArray(body.cc) ? body.cc.filter((e: string) => EMAIL_RE.test(e)) : [];
     const bcc: string[] = Array.isArray(body.bcc) ? body.bcc.filter((e: string) => EMAIL_RE.test(e)) : [];
     const replyTo = typeof body.reply_to === "string" && EMAIL_RE.test(body.reply_to) ? body.reply_to : user.email;
