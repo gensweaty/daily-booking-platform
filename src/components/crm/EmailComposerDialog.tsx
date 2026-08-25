@@ -11,6 +11,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered,
   Heading1, Heading2, Quote, Link as LinkIcon, Image as ImageIcon, Code2,
   Undo2, Redo2, Eye, Send, X, Loader2, Paperclip, AtSign, Palette, Minus,
+  Check, AlertTriangle,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -210,6 +211,11 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
       setSourceMode(false);
     }
   };
+
+  const detectedTags = useMemo(
+    () => detectTags(`${subject} ${sourceMode ? sourceDraft : html}`),
+    [subject, sourceMode, sourceDraft, html]
+  );
 
   const previewCustomer = previewIndex != null ? recipients[previewIndex]?.customer : null;
 
@@ -516,7 +522,8 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
               {detectedTags.used.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {detectedTags.used.map((token) => {
-                    const tag = MERGE_TAGS.find((t) => t.token === token)!;
+                    const tag = MERGE_TAGS.find((t) => t.token === token);
+                    if (!tag) return null;
                     const sample = (tag.resolve(previewCustomer || recipients[0]?.customer) || "").trim();
                     return (
                       <span
