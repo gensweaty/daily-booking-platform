@@ -568,6 +568,70 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
               )}
             </div>
 
+            {/* Optional signature */}
+            <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <PenLine className="h-4 w-4 text-primary" /> Signature
+                </span>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {sigEnabled ? "Included" : "Not included"}
+                  <Switch checked={sigEnabled} onCheckedChange={setSigEnabled} aria-label="Include signature" />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                No signature is added automatically. Turn it on to append your own sign-off — text, contacts, a logo or stamp image — fully editable and remembered for next time.
+              </p>
+              {sigEnabled && (
+                <div className="rounded-md border border-border overflow-hidden bg-background">
+                  <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-muted/40 px-1.5 py-1">
+                    <ToolBtn title="Bold" active={sigEditor?.isActive("bold")} onClick={() => sigEditor?.chain().focus().toggleBold().run()}><Bold className="h-4 w-4" /></ToolBtn>
+                    <ToolBtn title="Italic" active={sigEditor?.isActive("italic")} onClick={() => sigEditor?.chain().focus().toggleItalic().run()}><Italic className="h-4 w-4" /></ToolBtn>
+                    <ToolBtn title="Underline" active={sigEditor?.isActive("underline")} onClick={() => sigEditor?.chain().focus().toggleUnderline().run()}><UnderlineIcon className="h-4 w-4" /></ToolBtn>
+                    <span className="mx-1 h-5 w-px bg-border" />
+                    <ToolBtn
+                      title="Link"
+                      active={sigEditor?.isActive("link")}
+                      onClick={() => {
+                        const url = window.prompt("Link URL", sigEditor?.getAttributes("link")?.href || "https://");
+                        if (url === null) return;
+                        if (!url) sigEditor?.chain().focus().unsetLink().run();
+                        else sigEditor?.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+                      }}
+                    >
+                      <LinkIcon className="h-4 w-4" />
+                    </ToolBtn>
+                    <ToolBtn title="Add logo or stamp" onClick={() => sigImageInputRef.current?.click()}><ImageIcon className="h-4 w-4" /></ToolBtn>
+                    <ToolBtn title="Clear signature" onClick={() => sigEditor?.chain().focus().clearContent().run()}><X className="h-4 w-4" /></ToolBtn>
+                  </div>
+                  <div
+                    onPaste={(e) => {
+                      const items = Array.from(e.clipboardData?.items || []);
+                      const imgItem = items.find((it) => it.kind === "file" && it.type.startsWith("image/"));
+                      const f = imgItem?.getAsFile();
+                      if (f) {
+                        e.preventDefault();
+                        insertInlineImage(f, "signature");
+                      }
+                    }}
+                  >
+                    <EditorContent editor={sigEditor} />
+                  </div>
+                </div>
+              )}
+              <input
+                ref={sigImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) insertInlineImage(f, "signature");
+                  e.target.value = "";
+                }}
+              />
+            </div>
+
             {/* Personalization tags: instructions + live detection */}
             <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold">
