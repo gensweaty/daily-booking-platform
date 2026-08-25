@@ -537,7 +537,7 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
                     <div
                       className="prose prose-sm dark:prose-invert max-w-none"
                       dangerouslySetInnerHTML={{
-                        __html: renderTemplate(sourceMode ? sourceDraft : html, previewCustomer, { html: true }),
+                        __html: renderTemplate(withSignature(sourceMode ? sourceDraft : html), previewCustomer, { html: true }),
                       }}
                     />
                   </div>
