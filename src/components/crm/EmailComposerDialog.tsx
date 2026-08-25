@@ -95,6 +95,35 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
+  const sigImageInputRef = useRef<HTMLInputElement>(null);
+
+  // ---- Optional, fully editable signature (off by default) ----
+  const sigStoreKey = user?.id ? `sb_email_signature_${user.id}` : "sb_email_signature";
+  const [sigEnabled, setSigEnabled] = useState(false);
+  const [sigHtml, setSigHtml] = useState("<p></p>");
+
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const raw = localStorage.getItem(sigStoreKey);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (typeof saved?.html === "string") setSigHtml(saved.html);
+        setSigEnabled(saved?.enabled === true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [open, sigStoreKey]);
+
+  useEffect(() => {
+    if (!open) return;
+    try {
+      localStorage.setItem(sigStoreKey, JSON.stringify({ enabled: sigEnabled, html: sigHtml }));
+    } catch {
+      /* ignore */
+    }
+  }, [open, sigEnabled, sigHtml, sigStoreKey]);
 
   useEffect(() => {
     if (open) {
@@ -121,6 +150,33 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
     },
     [open]
   );
+
+  const sigEditor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({ heading: false }),
+        Underline,
+        TextStyle,
+        Color,
+        Image.configure({ HTMLAttributes: { style: "max-width:220px;height:auto;" } }),
+        Link.configure({ openOnClick: false, autolink: true }),
+        Placeholder.configure({ placeholder: "Your name, role, phone, website… add a logo or stamp if you like" }),
+      ],
+      content: sigHtml,
+      editorProps: { attributes: { class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[90px] p-3" } },
+      onUpdate: ({ editor }) => setSigHtml(editor.getHTML()),
+    },
+    [open]
+  );
+
+  // load persisted signature into the editor once it exists
+  useEffect(() => {
+    if (sigEditor && sigHtml && sigEditor.isEmpty) {
+      sigEditor.commands.setContent(sigHtml, false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sigEditor]);
+
 
   const totalBytes = files.reduce((s, f) => s + f.size, 0);
 
