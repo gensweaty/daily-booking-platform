@@ -223,20 +223,22 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
   );
 
   const insertInlineImage = useCallback(
-    async (file: File) => {
+    async (file: File, target: "body" | "signature" = "body") => {
       try {
         const path = await uploadToStorage(file);
         const { data, error } = await supabase.storage
           .from("email-attachments")
           .createSignedUrl(path, 60 * 60 * 24 * 365);
         if (error || !data?.signedUrl) throw error || new Error("Could not create link");
-        editor?.chain().focus().setImage({ src: data.signedUrl, alt: file.name }).run();
+        const target_editor = target === "signature" ? sigEditor : editor;
+        target_editor?.chain().focus().setImage({ src: data.signedUrl, alt: file.name }).run();
       } catch (e: any) {
         toast({ title: "Image upload failed", description: e?.message || "Try again", variant: "destructive" });
       }
     },
-    [editor, uploadToStorage, toast]
+    [editor, sigEditor, uploadToStorage, toast]
   );
+
 
   const addTypedRecipients = () => {
     const parts = toInput.split(/[,;\s]+/).map((p) => p.trim()).filter(Boolean);
