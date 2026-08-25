@@ -11,13 +11,14 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered,
   Heading1, Heading2, Quote, Link as LinkIcon, Image as ImageIcon, Code2,
   Undo2, Redo2, Eye, Send, X, Loader2, Paperclip, AtSign, Palette, Minus,
-  Check, AlertTriangle,
+  Check, AlertTriangle, PenLine,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,6 +27,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { MERGE_TAGS, renderTemplate, getCustomerEmail, isValidEmail, detectTags } from "./emailMergeTags";
+
 
 const MAX_TOTAL_BYTES = 100 * 1024 * 1024; // 100MB
 
