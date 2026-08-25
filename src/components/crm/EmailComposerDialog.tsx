@@ -279,6 +279,16 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
 
   const previewCustomer = previewIndex != null ? recipients[previewIndex]?.customer : null;
 
+  const signatureIsEmpty = !sigHtml || sigHtml.replace(/<[^>]*>/g, "").trim().length === 0 && !/<img/i.test(sigHtml);
+
+  const withSignature = useCallback(
+    (body: string) =>
+      sigEnabled && !signatureIsEmpty
+        ? `${body}<div style="margin-top:20px;">${sigHtml}</div>`
+        : body,
+    [sigEnabled, signatureIsEmpty, sigHtml]
+  );
+
   const handleSend = async () => {
     if (!recipients.length) {
       toast({ title: "Add at least one recipient", variant: "destructive" });
@@ -288,11 +298,13 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
       toast({ title: "Subject is required", variant: "destructive" });
       return;
     }
-    const body = sourceMode ? sourceDraft : editor?.getHTML() || html;
-    if (!body || body.replace(/<[^>]*>/g, "").trim().length === 0) {
+    const rawBody = sourceMode ? sourceDraft : editor?.getHTML() || html;
+    if (!rawBody || rawBody.replace(/<[^>]*>/g, "").trim().length === 0) {
       toast({ title: "Message is empty", variant: "destructive" });
       return;
     }
+    const body = withSignature(rawBody);
+
 
     setSending(true);
     setProgress(2);
