@@ -11,13 +11,14 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered,
   Heading1, Heading2, Quote, Link as LinkIcon, Image as ImageIcon, Code2,
   Undo2, Redo2, Eye, Send, X, Loader2, Paperclip, AtSign, Palette, Minus,
-  Check, AlertTriangle,
+  Check, AlertTriangle, PenLine,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -26,6 +27,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { MERGE_TAGS, renderTemplate, getCustomerEmail, isValidEmail, detectTags } from "./emailMergeTags";
+
 
 const MAX_TOTAL_BYTES = 100 * 1024 * 1024; // 100MB
 
@@ -93,6 +95,35 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
   const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
+  const sigImageInputRef = useRef<HTMLInputElement>(null);
+
+  // ---- Optional, fully editable signature (off by default) ----
+  const sigStoreKey = user?.id ? `sb_email_signature_${user.id}` : "sb_email_signature";
+  const [sigEnabled, setSigEnabled] = useState(false);
+  const [sigHtml, setSigHtml] = useState("<p></p>");
+
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const raw = localStorage.getItem(sigStoreKey);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (typeof saved?.html === "string") setSigHtml(saved.html);
+        setSigEnabled(saved?.enabled === true);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [open, sigStoreKey]);
+
+  useEffect(() => {
+    if (!open) return;
+    try {
+      localStorage.setItem(sigStoreKey, JSON.stringify({ enabled: sigEnabled, html: sigHtml }));
+    } catch {
+      /* ignore */
+    }
+  }, [open, sigEnabled, sigHtml, sigStoreKey]);
 
   useEffect(() => {
     if (open) {
@@ -119,6 +150,33 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
     },
     [open]
   );
+
+  const sigEditor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({ heading: false }),
+        Underline,
+        TextStyle,
+        Color,
+        Image.configure({ HTMLAttributes: { style: "max-width:220px;height:auto;" } }),
+        Link.configure({ openOnClick: false, autolink: true }),
+        Placeholder.configure({ placeholder: "Your name, role, phone, website… add a logo or stamp if you like" }),
+      ],
+      content: sigHtml,
+      editorProps: { attributes: { class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[90px] p-3" } },
+      onUpdate: ({ editor }) => setSigHtml(editor.getHTML()),
+    },
+    [open]
+  );
+
+  // load persisted signature into the editor once it exists
+  useEffect(() => {
+    if (sigEditor && sigHtml && sigEditor.isEmpty) {
+      sigEditor.commands.setContent(sigHtml, false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sigEditor]);
+
 
   const totalBytes = files.reduce((s, f) => s + f.size, 0);
 
@@ -165,20 +223,22 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
   );
 
   const insertInlineImage = useCallback(
-    async (file: File) => {
+    async (file: File, target: "body" | "signature" = "body") => {
       try {
         const path = await uploadToStorage(file);
         const { data, error } = await supabase.storage
           .from("email-attachments")
           .createSignedUrl(path, 60 * 60 * 24 * 365);
         if (error || !data?.signedUrl) throw error || new Error("Could not create link");
-        editor?.chain().focus().setImage({ src: data.signedUrl, alt: file.name }).run();
+        const target_editor = target === "signature" ? sigEditor : editor;
+        target_editor?.chain().focus().setImage({ src: data.signedUrl, alt: file.name }).run();
       } catch (e: any) {
         toast({ title: "Image upload failed", description: e?.message || "Try again", variant: "destructive" });
       }
     },
-    [editor, uploadToStorage, toast]
+    [editor, sigEditor, uploadToStorage, toast]
   );
+
 
   const addTypedRecipients = () => {
     const parts = toInput.split(/[,;\s]+/).map((p) => p.trim()).filter(Boolean);
@@ -219,6 +279,16 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
 
   const previewCustomer = previewIndex != null ? recipients[previewIndex]?.customer : null;
 
+  const signatureIsEmpty = !sigHtml || sigHtml.replace(/<[^>]*>/g, "").trim().length === 0 && !/<img/i.test(sigHtml);
+
+  const withSignature = useCallback(
+    (body: string) =>
+      sigEnabled && !signatureIsEmpty
+        ? `${body}<div style="margin-top:20px;">${sigHtml}</div>`
+        : body,
+    [sigEnabled, signatureIsEmpty, sigHtml]
+  );
+
   const handleSend = async () => {
     if (!recipients.length) {
       toast({ title: "Add at least one recipient", variant: "destructive" });
@@ -228,11 +298,13 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
       toast({ title: "Subject is required", variant: "destructive" });
       return;
     }
-    const body = sourceMode ? sourceDraft : editor?.getHTML() || html;
-    if (!body || body.replace(/<[^>]*>/g, "").trim().length === 0) {
+    const rawBody = sourceMode ? sourceDraft : editor?.getHTML() || html;
+    if (!rawBody || rawBody.replace(/<[^>]*>/g, "").trim().length === 0) {
       toast({ title: "Message is empty", variant: "destructive" });
       return;
     }
+    const body = withSignature(rawBody);
+
 
     setSending(true);
     setProgress(2);
@@ -465,7 +537,7 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
                     <div
                       className="prose prose-sm dark:prose-invert max-w-none"
                       dangerouslySetInnerHTML={{
-                        __html: renderTemplate(sourceMode ? sourceDraft : html, previewCustomer, { html: true }),
+                        __html: renderTemplate(withSignature(sourceMode ? sourceDraft : html), previewCustomer, { html: true }),
                       }}
                     />
                   </div>
@@ -494,6 +566,70 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
                   <EditorContent editor={editor} />
                 </div>
               )}
+            </div>
+
+            {/* Optional signature */}
+            <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <PenLine className="h-4 w-4 text-primary" /> Signature
+                </span>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {sigEnabled ? "Included" : "Not included"}
+                  <Switch checked={sigEnabled} onCheckedChange={setSigEnabled} aria-label="Include signature" />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                No signature is added automatically. Turn it on to append your own sign-off — text, contacts, a logo or stamp image — fully editable and remembered for next time.
+              </p>
+              {sigEnabled && (
+                <div className="rounded-md border border-border overflow-hidden bg-background">
+                  <div className="flex flex-wrap items-center gap-0.5 border-b border-border bg-muted/40 px-1.5 py-1">
+                    <ToolBtn title="Bold" active={sigEditor?.isActive("bold")} onClick={() => sigEditor?.chain().focus().toggleBold().run()}><Bold className="h-4 w-4" /></ToolBtn>
+                    <ToolBtn title="Italic" active={sigEditor?.isActive("italic")} onClick={() => sigEditor?.chain().focus().toggleItalic().run()}><Italic className="h-4 w-4" /></ToolBtn>
+                    <ToolBtn title="Underline" active={sigEditor?.isActive("underline")} onClick={() => sigEditor?.chain().focus().toggleUnderline().run()}><UnderlineIcon className="h-4 w-4" /></ToolBtn>
+                    <span className="mx-1 h-5 w-px bg-border" />
+                    <ToolBtn
+                      title="Link"
+                      active={sigEditor?.isActive("link")}
+                      onClick={() => {
+                        const url = window.prompt("Link URL", sigEditor?.getAttributes("link")?.href || "https://");
+                        if (url === null) return;
+                        if (!url) sigEditor?.chain().focus().unsetLink().run();
+                        else sigEditor?.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+                      }}
+                    >
+                      <LinkIcon className="h-4 w-4" />
+                    </ToolBtn>
+                    <ToolBtn title="Add logo or stamp" onClick={() => sigImageInputRef.current?.click()}><ImageIcon className="h-4 w-4" /></ToolBtn>
+                    <ToolBtn title="Clear signature" onClick={() => sigEditor?.chain().focus().clearContent().run()}><X className="h-4 w-4" /></ToolBtn>
+                  </div>
+                  <div
+                    onPaste={(e) => {
+                      const items = Array.from(e.clipboardData?.items || []);
+                      const imgItem = items.find((it) => it.kind === "file" && it.type.startsWith("image/"));
+                      const f = imgItem?.getAsFile();
+                      if (f) {
+                        e.preventDefault();
+                        insertInlineImage(f, "signature");
+                      }
+                    }}
+                  >
+                    <EditorContent editor={sigEditor} />
+                  </div>
+                </div>
+              )}
+              <input
+                ref={sigImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) insertInlineImage(f, "signature");
+                  e.target.value = "";
+                }}
+              />
             </div>
 
             {/* Personalization tags: instructions + live detection */}
