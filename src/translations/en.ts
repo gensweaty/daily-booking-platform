@@ -23,6 +23,7 @@ export const translations: TranslationType = {
     analytics: "Analytics",
     website: "Website",
     teamChat: "AI & Team Chat",
+    emailCampaigns: "Email Campaigns",
     ai: "AI Assistant",
     ownBookingWebsite: "Your own booking website",
     businessTitle: "For any type of business",
@@ -281,6 +282,15 @@ export const translations: TranslationType = {
     feature3: "Message editing and deletion capabilities",
     feature4: "Cross-platform and cross-team communication",
     feature5: "Voice and visual notifications for all updates",
+  },
+  emailCampaigns: {
+    title: "Email Campaigns",
+    description: "Write and send personalized emails to one client or hundreds at once, straight from your dashboard and CRM — no external mailing tool needed.",
+    feature1: "Send to a single client or bulk-select contacts in your CRM",
+    feature2: "Personalization tags like @full_name resolved per recipient",
+    feature3: "Rich text editor with images, links and HTML formatting",
+    feature4: "Attachments up to 100MB with secure download links",
+    feature5: "Optional custom signature and inbox-friendly delivery",
   },
   cta: {
     title: "Ready to grow your business?",
