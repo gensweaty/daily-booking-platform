@@ -1,9 +1,10 @@
-import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle, Bot } from "lucide-react";
+import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle, Bot, Mail } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
 import tasksScreenshot from "@/assets/tasks-screenshot.webp";
 import analyticsScreenshot from "@/assets/analytics-screenshot.webp";
+import emailCampaignsScreenshot from "@/assets/email-campaigns-screenshot.jpg";
 // Updated to ensure all carousel images have consistent padding
 const calendarViews = [{
   src: "/lovable-uploads/booking-month-view.webp",
@@ -130,6 +131,15 @@ export const FeatureSection = () => {
     translationPrefix: 'teamChat' as const,
     id: "team-chat",
     reverse: false
+  }, {
+    icon: Mail,
+    title: t('emailCampaigns.title'),
+    description: t('emailCampaigns.description'),
+    image: emailCampaignsScreenshot,
+    benefits: [t('emailCampaigns.feature1'), t('emailCampaigns.feature2'), t('emailCampaigns.feature3'), t('emailCampaigns.feature4'), t('emailCampaigns.feature5')],
+    translationPrefix: 'emailCampaigns' as const,
+    id: "email-campaigns",
+    reverse: true
   }];
   return <section className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
