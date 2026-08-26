@@ -28,6 +28,7 @@ export interface TranslationType {
     analytics: string;
     website: string;
     teamChat: string;
+    emailCampaigns: string;
     ai: string;
     ownBookingWebsite: string;
     businessTitle: string;
@@ -279,6 +280,15 @@ export interface TranslationType {
     feature5: string;
   };
   teamChat: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+    feature5: string;
+  };
+  emailCampaigns: {
     title: string;
     description: string;
     feature1: string;

@@ -34,6 +34,7 @@ export const translations: TranslationType = {
     analytics: "Analítica",
     website: "Sitio Web",
     teamChat: "IA & Chat de Equipo",
+    emailCampaigns: "Campañas de Email",
     ai: "Asistente IA",
     ownBookingWebsite: "Su propio sitio web de reservas",
     businessTitle: "Para cualquier tipo de negocio",
@@ -292,6 +293,15 @@ export const translations: TranslationType = {
     feature3: "Capacidades de edición y eliminación de mensajes",
     feature4: "Comunicación multiplataforma y entre equipos",
     feature5: "Notificaciones de voz y visuales para todas las actualizaciones",
+  },
+  emailCampaigns: {
+    title: "Campañas de Email",
+    description: "Escriba y envíe correos personalizados a un cliente o a cientos a la vez, directamente desde su panel y CRM, sin herramientas externas.",
+    feature1: "Envíe a un solo cliente o seleccione contactos en masa en su CRM",
+    feature2: "Etiquetas de personalización como @full_name para cada destinatario",
+    feature3: "Editor de texto enriquecido con imágenes, enlaces y HTML",
+    feature4: "Adjuntos de hasta 100MB con enlaces de descarga seguros",
+    feature5: "Firma personalizada opcional y entrega a la bandeja principal",
   },
   cta: {
     title: "¿Listo para hacer crecer su negocio?",
