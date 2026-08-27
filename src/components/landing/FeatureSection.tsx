@@ -1,10 +1,12 @@
-import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle, Bot, Mail } from "lucide-react";
+import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle, Bot, Mail, Send, Code2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
 import tasksScreenshot from "@/assets/tasks-screenshot.webp";
 import analyticsScreenshot from "@/assets/analytics-screenshot.webp";
 import emailCampaignsScreenshot from "@/assets/email-campaigns-screenshot.jpg";
+import telegramAiScreenshot from "@/assets/telegram-ai-screenshot.jpg";
+import embedBookingScreenshot from "@/assets/embed-booking-screenshot.jpg";
 // Updated to ensure all carousel images have consistent padding
 const calendarViews = [{
   src: "/lovable-uploads/booking-month-view.webp",
@@ -78,13 +80,31 @@ export const FeatureSection = () => {
     id: "ai-assistant",
     reverse: false
   }, {
+    icon: Send,
+    title: t('telegramAi.title'),
+    description: t('telegramAi.description'),
+    image: telegramAiScreenshot,
+    benefits: [t('telegramAi.feature1'), t('telegramAi.feature2'), t('telegramAi.feature3'), t('telegramAi.feature4'), t('telegramAi.feature5'), t('telegramAi.feature6')],
+    translationPrefix: 'telegramAi' as const,
+    id: "telegram-ai",
+    reverse: true
+  }, {
     icon: Globe,
     title: t('website.title'),
     description: t('website.description'),
     carousel: websiteViews, // Changed from image to carousel
-    benefits: [t('website.feature1'), t('website.feature2'), t('website.feature3'), t('website.feature4'), t('website.feature5')],
+    benefits: [t('website.feature1'), t('website.feature2'), t('website.feature3'), t('website.feature4'), t('website.feature5'), t('website.feature6'), t('website.feature7')],
     translationPrefix: 'website' as const,
     id: "booking-website",
+    reverse: false
+  }, {
+    icon: Code2,
+    title: t('embedBooking.title'),
+    description: t('embedBooking.description'),
+    image: embedBookingScreenshot,
+    benefits: [t('embedBooking.feature1'), t('embedBooking.feature2'), t('embedBooking.feature3'), t('embedBooking.feature4'), t('embedBooking.feature5')],
+    translationPrefix: 'embedBooking' as const,
+    id: "embed-booking",
     reverse: true
   }, {
     icon: Calendar,

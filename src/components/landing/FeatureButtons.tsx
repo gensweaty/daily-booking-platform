@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Calendar, ListTodo, Users, BarChart, Globe, MessageCircle, Bot, Mail } from "lucide-react";
+import { Calendar, ListTodo, Users, BarChart, Globe, MessageCircle, Bot, Mail, Send, Code2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
@@ -139,11 +139,37 @@ export const FeatureButtons = () => {
             variant="outline"
             onClick={(e) => {
               createRipple(e);
+              scrollToSection('telegram-ai');
+            }}
+            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
+          >
+            <Send className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
+            <span className="text-sm font-medium">
+              <LanguageText>{t('features.telegramAi')}</LanguageText>
+            </span>
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={(e) => {
+              createRipple(e);
+              scrollToSection('embed-booking');
+            }}
+            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
+          >
+            <Code2 className="w-5 h-5 text-accent shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
+            <span className="text-sm font-medium">
+              <LanguageText>{t('features.embedBooking')}</LanguageText>
+            </span>
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={(e) => {
+              createRipple(e);
               scrollToSection('email-campaigns');
             }}
-            className="h-12 md:col-start-2 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
+            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
           >
-            <Mail className="w-5 h-5 text-accent shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
+            <Mail className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
             <span className="text-sm font-medium">
               <LanguageText>{t('features.emailCampaigns')}</LanguageText>
             </span>
