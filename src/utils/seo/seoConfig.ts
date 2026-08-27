@@ -1,27 +1,27 @@
 
 export const SEO_CONFIG = {
   defaultTitle: "SmartBookly - Smart Business Management Powered by AI",
-  defaultDescription: "All-in-One CRM, Booking, Calendar, Task Management & AI Assistant for modern businesses. Manage everything in one platform with built-in AI support.",
+  defaultDescription: "All-in-one CRM, online bookings, calendar, tasks and email campaigns with an AI assistant you can also use from Telegram. Embed bookings on your own site.",
   siteUrl: "https://smartbookly.com",
   
   // Language-specific configurations
   languages: {
     en: {
-      title: "Smartbookly - All in one SaaS for business productivity",
-      description: "All-in-One CRM, Booking, and Task Management solution for modern businesses. Streamline your workflow with our powerful productivity tool.",
-      keywords: "CRM, Booking System, Task Management, Business Productivity, Calendar Management, Business Software, SaaS, Business Tools, Scheduling Software",
+      title: "Smartbookly — AI CRM, Bookings & Task Management",
+      description: "All-in-one CRM, online bookings, calendar, tasks and email campaigns with an AI assistant you can also use from Telegram. Embed bookings on your own site.",
+      keywords: "CRM, Booking System, Embeddable Booking Widget, Task Management, AI Assistant, Telegram AI Bot, Email Campaigns, Business Productivity, Calendar Management, SaaS, Scheduling Software",
       locale: "en_US"
     },
     es: {
       title: "Smartbookly - Software integral SaaS para productividad empresarial",
-      description: "Solución integral de CRM, Reservas y Gestión de Tareas para empresas modernas. Optimiza tu flujo de trabajo con nuestra herramienta de productividad.",
-      keywords: "CRM, Sistema de Reservas, Gestión de Tareas, Productividad Empresarial, Gestión de Calendario, Software Empresarial, SaaS, Herramientas Empresariales, Software de Programación",
+      description: "CRM, reservas online, calendario, tareas y campañas de email con un asistente de IA que también funciona en Telegram. Integre las reservas en su web.",
+      keywords: "CRM, Sistema de Reservas, Reservas Integradas, Gestión de Tareas, Asistente de IA, Bot de Telegram, Campañas de Email, Productividad Empresarial, SaaS, Software de Programación",
       locale: "es_ES"
     },
     ka: {
       title: "Smartbookly - ყველაფერი ერთ SaaS-ში ბიზნეს პროდუქტიულობისთვის",
-      description: "ყველაფერი ერთ CRM-ში, დაჯავშნა და ამოცანების მართვის გადაწყვეტა თანამედროვე ბიზნესისთვის. გაამარტივე შენი სამუშაო პროცესი ჩვენი ძლიერი პროდუქტიულობის ხელსაწყოთი.",
-      keywords: "CRM, დაჯავშნის სისტემა, ამოცანების მართვა, ბიზნეს პროდუქტიულობა, კალენდრის მართვა, ბიზნეს პროგრამული უზრუნველყოფა, SaaS, ბიზნეს ხელსაწყოები, განრიგის პროგრამული უზრუნველყოფა",
+      description: "CRM, ონლაინ დაჯავშნა, კალენდარი, დავალებები და ელფოსტის კამპანიები AI ასისტენტით, რომელიც Telegram-შიც მუშაობს. ჩაანერგე დაჯავშნა შენს ვებგვერდზე.",
+      keywords: "CRM, დაჯავშნის სისტემა, ჩაშენებული დაჯავშნა, ამოცანების მართვა, AI ასისტენტი, Telegram ბოტი, ელფოსტის კამპანიები, ბიზნეს პროდუქტიულობა, SaaS, განრიგის პროგრამა",
       locale: "ka_GE"
     }
   },

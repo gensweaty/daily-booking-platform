@@ -18,9 +18,16 @@ export const generateOrganizationSchema = () => ({
   "featureList": [
     "CRM Management",
     "Online Booking System",
+    "Embeddable Booking Widget",
+    "Working-Hours Aware Scheduling",
     "Task Management",
     "Calendar Integration",
-    "Business Analytics"
+    "Business Analytics",
+    "AI Business Assistant",
+    "Telegram AI Channel",
+    "Voice and Document Analysis",
+    "Email Campaigns",
+    "Team Chat and Sub-User Permissions"
   ]
 });
 
