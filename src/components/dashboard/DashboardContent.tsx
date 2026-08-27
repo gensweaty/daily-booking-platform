@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell, Archive } from "lucide-react"
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell, Archive, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
 import AddTaskForm from "@/components/AddTaskForm"
@@ -41,6 +41,9 @@ const CRMWithPermissions = lazy(() =>
 )
 const BusinessPage = lazy(() =>
   import("@/components/business/BusinessPage").then((m) => ({ default: m.BusinessPage }))
+)
+const EmailComposerDialog = lazy(() =>
+  import("@/components/crm/EmailComposerDialog").then((m) => ({ default: m.EmailComposerDialog }))
 )
 const ArchivedTasksPage = lazy(() =>
   import("@/components/tasks/ArchivedTasksPage").then((m) => ({ default: m.ArchivedTasksPage }))
@@ -93,6 +96,7 @@ export const DashboardContent = ({
   const [activeTab, setActiveTab] = useState("calendar")
   const [showArchive, setShowArchive] = useState(false)
   const [pendingEventEditId, setPendingEventEditId] = useState<string | null>(null)
+  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false)
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
@@ -222,6 +226,28 @@ export const DashboardContent = ({
       <ScreenshotRequestListener />
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
+        <div className="flex justify-end mb-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEmailComposerOpen(true)}
+            className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10"
+          >
+            <Mail className="w-4 h-4 text-primary" />
+            <LanguageText>{t("dashboard.sendEmail") || "Send Email"}</LanguageText>
+          </Button>
+        </div>
+        {isEmailComposerOpen && (
+          <Suspense fallback={null}>
+            <EmailComposerDialog
+              open={isEmailComposerOpen}
+              onOpenChange={setIsEmailComposerOpen}
+              customers={[]}
+              plainLayout
+            />
+          </Suspense>
+        )}
         <div className="bg-muted/30 border border-border/40 rounded-xl p-1.5 mb-3 shadow-inner">
           <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
             <TabsTrigger 

@@ -19,7 +19,7 @@ interface FeatureCardProps {
     customPadding?: string;
   }[];
   reverse?: boolean;
-  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website' | 'teamChat' | 'aiAssistant';
+  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website' | 'teamChat' | 'aiAssistant' | 'emailCampaigns' | 'telegramAi' | 'embedBooking';
 }
 
 const FeatureCardComponent = ({

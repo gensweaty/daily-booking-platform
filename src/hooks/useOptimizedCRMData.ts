@@ -31,7 +31,9 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
             create_event,
             created_at,
             type,
-            customer_files_new!inner(count)
+            event_notes,
+            event_id,
+            customer_files_new(count)
           `)
           .eq('user_id', userId)
           .is('event_id', null)
@@ -57,7 +59,12 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
             payment_status,
             payment_amount,
             created_at,
-            event_files!inner(count)
+            user_surname,
+            user_number,
+            social_network_link,
+            event_notes,
+            type,
+            event_files(count)
           `)
           .eq('user_id', userId)
           .gte('start_date', startDateStr)
@@ -103,7 +110,9 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
             create_event,
             created_at,
             type,
-            customer_files_new!inner(count)
+            event_notes,
+            event_id,
+            customer_files_new(count)
           `)
           .eq('user_id', userId)
           .eq('type', 'customer')

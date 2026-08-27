@@ -26,6 +26,127 @@ const LIGHTWEIGHT_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
 const VISION_FALLBACK_MODEL = 'google/gemini-3.6-flash';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// --- Direct Google fallback -------------------------------------------------
+// When the Lovable AI Gateway is out of credits (402) or blocked (403), retry
+// the SAME OpenAI-compatible request against Google's OpenAI-compatible
+// endpoint using GEMINI_API_KEY, so SmartBookly AI keeps working.
+const GOOGLE_OPENAI_ENDPOINT =
+  'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+
+const mapModelToGoogle = (model?: string) => {
+  const raw = (model || '').replace(/^google\//, '');
+  if (!raw || !raw.startsWith('gemini')) return 'gemini-2.5-flash';
+  // Preview/unreleased ids only exist on the gateway; map to stable public ids.
+  if (/lite/i.test(raw)) return 'gemini-2.5-flash-lite';
+  if (/pro/i.test(raw)) return 'gemini-2.5-pro';
+  return 'gemini-2.5-flash';
+};
+
+// --- OpenRouter free-model chain -------------------------------------------
+// Last-resort providers. Tried one by one; when one is exhausted/rate-limited
+// we move to the next, so the project keeps its own AI capacity.
+const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+// All support tool-calling; the first entries also accept images/audio.
+// Verified reachable with this account's key (Aug 2026).
+const OPENROUTER_FREE_MODELS = [
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+  'dots-studio/dots-3-note-preview:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'nvidia/nemotron-3-nano-30b-a3b:free',
+  'nvidia/nemotron-nano-9b-v2:free',
+  'cohere/north-mini-code:free',
+  'z-ai/glm-5.2:free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+];
+
+
+async function tryOpenRouter(body: any): Promise<Response | null> {
+  const key = Deno.env.get('OPENROUTER_API_KEY');
+  if (!key) return null;
+
+  for (const model of OPENROUTER_FREE_MODELS) {
+    try {
+      const resp = await fetch(OPENROUTER_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://smartbookly.com',
+          'X-Title': 'SmartBookly AI',
+        },
+        body: JSON.stringify({ ...body, model }),
+      });
+
+      const raw = await resp.text();
+      // OpenRouter can return 200 with an error envelope (upstream overloaded).
+      let parsed: any = null;
+      try { parsed = JSON.parse(raw); } catch { /* streamed or non-JSON */ }
+      const hasError = parsed && parsed.error;
+
+      if (resp.ok && !hasError) {
+        console.log(`✅ OpenRouter fallback served by ${model}`);
+        return new Response(raw, {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      console.warn(`⚠️ OpenRouter ${model} failed:`, resp.status, raw.slice(0, 200));
+    } catch (e) {
+      console.error(`❌ OpenRouter ${model} threw:`, e);
+    }
+  }
+
+  return null;
+}
+
+async function gatewayFetch(url: string, init: RequestInit): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch (e) {
+    console.error('❌ Gateway fetch failed:', e);
+    throw e;
+  }
+
+  if (response.ok || ![402, 403, 429].includes(response.status)) return response;
+
+  let body: any;
+  try {
+    body = JSON.parse(String(init.body ?? '{}'));
+  } catch {
+    return response;
+  }
+
+  const geminiKey = Deno.env.get('GEMINI_API_KEY');
+  if (geminiKey) {
+    const fallbackBody = { ...body, model: mapModelToGoogle(body.model) };
+    console.log(`🔁 Gateway ${response.status} → falling back to Google ${fallbackBody.model}`);
+    try {
+      const fallbackResponse = await fetch(GOOGLE_OPENAI_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${geminiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(fallbackBody),
+      });
+      if (fallbackResponse.ok) return fallbackResponse;
+      console.error('❌ Google fallback failed:', fallbackResponse.status, (await fallbackResponse.text()).slice(0, 300));
+    } catch (e) {
+      console.error('❌ Google fallback threw:', e);
+    }
+  }
+
+  const orResponse = await tryOpenRouter(body);
+  if (orResponse) return orResponse;
+
+  return response;
+}
+
+
+
 const truncateText = (value: string, max = 600) =>
   value.length > max ? `${value.slice(0, max)}…` : value;
 
@@ -2102,10 +2223,11 @@ const handleAiChatRequest = async (req: Request) => {
             console.log(`🎤 Transcribing audio: ${att.filename} (${Math.round(bytes.length / 1024)}KB, ${audioMime})`);
             
             // Use Gemini to transcribe via Lovable AI gateway
-            const transcribeResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            const transcribeResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
@@ -2221,10 +2343,11 @@ const handleAiChatRequest = async (req: Request) => {
           return null;
         }
 
-        const inferenceResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const inferenceResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${lovableApiKey}`,
+        "Lovable-API-Key": lovableApiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -2301,10 +2424,11 @@ const handleAiChatRequest = async (req: Request) => {
         const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
         if (!lovableApiKey) return null;
 
-        const inferenceResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const inferenceResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${lovableApiKey}`,
+        "Lovable-API-Key": lovableApiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -5143,10 +5267,11 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
 
     console.log('📤 Calling Lovable AI with history...');
     
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -5162,19 +5287,37 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ AI gateway error:', response.status, errorText);
-      
+
+      let gatewayMessage = '';
+      try { gatewayMessage = JSON.parse(errorText)?.message || ''; } catch { /* ignore */ }
+
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
+          JSON.stringify({ error: gatewayMessage || 'Rate limit exceeded. Please try again in a moment.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
+
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: `AI credits are exhausted for this workspace. ${gatewayMessage || ''} Please top up AI credits in Lovable to re-enable SmartBookly AI.`.trim() }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (response.status === 403 || response.status === 401) {
+        return new Response(
+          JSON.stringify({ error: gatewayMessage || 'AI access is blocked for this workspace (key or policy issue).' }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: 'AI service error' }),
+        JSON.stringify({ error: gatewayMessage ? `AI service error: ${gatewayMessage}` : 'AI service error' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
 
     const aiResult = await response.json();
     let message = aiResult.choices[0].message;
@@ -5234,10 +5377,11 @@ If the user is REPLYING to an earlier message, treat that quoted message as the 
 Call the matching tool with the exact details from the user's last message. Do not reply with text — call the tool.`
           }
         ];
-        const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const retryResp = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
@@ -9098,10 +9242,11 @@ Example FORBIDDEN format:
 Be direct. Be concise. No extra text.`
       };
       
-      const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const finalResponse = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -9190,10 +9335,11 @@ Be direct. Be concise. No extra text.`
       const hadAttachments = Array.isArray(attachments) && attachments.length > 0;
       console.warn('⚠️ Direct AI response was empty. hadAttachments=', hadAttachments);
       try {
-        const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const retryResp = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Lovable-API-Key": LOVABLE_API_KEY,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
