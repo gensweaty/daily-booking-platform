@@ -101,7 +101,7 @@ const FeatureCardComponent = ({
             />
           ) : (
             <img 
-              src={image} 
+              src={displayImage} 
               alt={t(getTranslationKey('title'))} 
               className={`w-full ${getImageHeight()} ${getObjectFit()} p-2 md:p-4`}
               loading="lazy"
