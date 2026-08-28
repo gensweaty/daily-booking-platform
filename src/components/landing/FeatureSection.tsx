@@ -4,9 +4,9 @@ import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
 import tasksScreenshot from "@/assets/tasks-screenshot.webp";
 import analyticsScreenshot from "@/assets/analytics-screenshot.webp";
-import emailCampaignsScreenshot from "@/assets/email-campaigns-screenshot.jpg";
-import telegramAiScreenshot from "@/assets/telegram-ai-screenshot.jpg";
-import embedBookingScreenshot from "@/assets/embed-booking-screenshot.jpg";
+import emailCampaignsScreenshot from "@/assets/email-campaigns-screenshot.webp";
+import telegramAiScreenshot from "@/assets/telegram-ai-screenshot.webp";
+import embedBookingScreenshot from "@/assets/embed-booking-screenshot.webp";
 // Updated to ensure all carousel images have consistent padding
 const calendarViews = [{
   src: "/lovable-uploads/booking-month-view.webp",
