@@ -30,6 +30,7 @@ const FeatureCardComponent = ({
   description,
   benefits,
   image,
+  imageDark,
   carousel,
   reverse,
   translationPrefix,
@@ -37,6 +38,9 @@ const FeatureCardComponent = ({
   const { t } = useLanguage();
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const displayImage = isDark && imageDark ? imageDark : image;
   
   const getTranslationKey = (key: string): string => {
     return `${translationPrefix}.${key}`;
