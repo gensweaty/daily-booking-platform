@@ -4,6 +4,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { memo } from "react";
+import { useTheme } from "next-themes";
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -11,6 +12,7 @@ interface FeatureCardProps {
   description: string;
   benefits: string[];
   image?: string;
+  imageDark?: string;
   carousel?: {
     src: string;
     alt: string;
@@ -28,6 +30,7 @@ const FeatureCardComponent = ({
   description,
   benefits,
   image,
+  imageDark,
   carousel,
   reverse,
   translationPrefix,
@@ -35,6 +38,9 @@ const FeatureCardComponent = ({
   const { t } = useLanguage();
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const displayImage = isDark && imageDark ? imageDark : image;
   
   const getTranslationKey = (key: string): string => {
     return `${translationPrefix}.${key}`;
@@ -95,7 +101,7 @@ const FeatureCardComponent = ({
             />
           ) : (
             <img 
-              src={image} 
+              src={displayImage} 
               alt={t(getTranslationKey('title'))} 
               className={`w-full ${getImageHeight()} ${getObjectFit()} p-2 md:p-4`}
               loading="lazy"

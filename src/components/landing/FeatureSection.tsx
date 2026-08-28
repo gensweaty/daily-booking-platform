@@ -7,6 +7,11 @@ import analyticsScreenshot from "@/assets/analytics-screenshot.webp";
 import emailCampaignsScreenshot from "@/assets/email-campaigns-screenshot.webp";
 import telegramAiScreenshot from "@/assets/telegram-ai-screenshot.webp";
 import embedBookingScreenshot from "@/assets/embed-booking-screenshot.webp";
+import tasksScreenshotDark from "@/assets/tasks-screenshot-dark.webp";
+import analyticsScreenshotDark from "@/assets/analytics-screenshot-dark.webp";
+import emailCampaignsScreenshotDark from "@/assets/email-campaigns-screenshot-dark.webp";
+import telegramAiScreenshotDark from "@/assets/telegram-ai-screenshot-dark.webp";
+import embedBookingScreenshotDark from "@/assets/embed-booking-screenshot-dark.webp";
 // Updated to ensure all carousel images have consistent padding
 const calendarViews = [{
   src: "/lovable-uploads/booking-month-view.webp",
@@ -84,6 +89,7 @@ export const FeatureSection = () => {
     title: t('telegramAi.title'),
     description: t('telegramAi.description'),
     image: telegramAiScreenshot,
+    imageDark: telegramAiScreenshotDark,
     benefits: [t('telegramAi.feature1'), t('telegramAi.feature2'), t('telegramAi.feature3'), t('telegramAi.feature4'), t('telegramAi.feature5'), t('telegramAi.feature6')],
     translationPrefix: 'telegramAi' as const,
     id: "telegram-ai",
@@ -102,6 +108,7 @@ export const FeatureSection = () => {
     title: t('embedBooking.title'),
     description: t('embedBooking.description'),
     image: embedBookingScreenshot,
+    imageDark: embedBookingScreenshotDark,
     benefits: [t('embedBooking.feature1'), t('embedBooking.feature2'), t('embedBooking.feature3'), t('embedBooking.feature4'), t('embedBooking.feature5')],
     translationPrefix: 'embedBooking' as const,
     id: "embed-booking",
@@ -120,6 +127,7 @@ export const FeatureSection = () => {
     title: t('analytics.title'),
     description: t('analytics.description'),
     image: analyticsScreenshot,
+    imageDark: analyticsScreenshotDark,
     benefits: [t('analytics.feature1'), t('analytics.feature2'), t('analytics.feature3'), t('analytics.feature4'), t('analytics.feature5')],
     translationPrefix: 'analytics' as const,
     id: "analytics",
@@ -138,6 +146,7 @@ export const FeatureSection = () => {
     title: t('tasks.title'),
     description: t('tasks.description'),
     image: tasksScreenshot,
+    imageDark: tasksScreenshotDark,
     benefits: [t('tasks.feature1'), t('tasks.feature2'), t('tasks.feature3'), t('tasks.feature4'), t('tasks.feature5')],
     translationPrefix: 'tasks' as const,
     id: "task-management",
@@ -156,6 +165,7 @@ export const FeatureSection = () => {
     title: t('emailCampaigns.title'),
     description: t('emailCampaigns.description'),
     image: emailCampaignsScreenshot,
+    imageDark: emailCampaignsScreenshotDark,
     benefits: [t('emailCampaigns.feature1'), t('emailCampaigns.feature2'), t('emailCampaigns.feature3'), t('emailCampaigns.feature4'), t('emailCampaigns.feature5')],
     translationPrefix: 'emailCampaigns' as const,
     id: "email-campaigns",
