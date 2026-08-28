@@ -4,6 +4,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { memo } from "react";
+import { useTheme } from "next-themes";
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -11,6 +12,7 @@ interface FeatureCardProps {
   description: string;
   benefits: string[];
   image?: string;
+  imageDark?: string;
   carousel?: {
     src: string;
     alt: string;
