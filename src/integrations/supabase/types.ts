@@ -2552,6 +2552,12 @@ export type Database = {
           is_dm: boolean
         }[]
       }
+      identity_names_for_owner: {
+        Args: { p_owner: string }
+        Returns: {
+          name: string
+        }[]
+      }
       is_active_public_board_owner: {
         Args: { p_user_id: string }
         Returns: boolean
