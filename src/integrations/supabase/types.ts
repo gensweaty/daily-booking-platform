@@ -2552,6 +2552,11 @@ export type Database = {
           is_dm: boolean
         }[]
       }
+      is_active_public_board_owner: {
+        Args: { p_user_id: string }
+        Returns: boolean
+      }
+      is_redeem_code_available: { Args: { p_code: string }; Returns: boolean }
       list_channel_messages_public: {
         Args: {
           p_channel_id: string
