@@ -67,12 +67,8 @@ export const useSignup = () => {
         console.log('Checking redeem code during signup:', trimmedCode);
 
         // Check if code exists and is valid (without marking as used)
-        const { data: codeData, error: codeError } = await supabase
-          .from('redeem_codes')
-          .select('*')
-          .eq('code', trimmedCode)
-          .eq('is_used', false)
-          .maybeSingle();
+        const { data: codeAvailable, error: codeError } = await supabase
+          .rpc('is_redeem_code_available', { p_code: trimmedCode });
 
         if (codeError) {
           console.error('Redeem code check error:', codeError);
@@ -86,7 +82,7 @@ export const useSignup = () => {
           return null;
         }
 
-        if (!codeData) {
+        if (!codeAvailable) {
           toast({
             title: "Invalid Redeem Code",
             description: "The redeem code is invalid or has already been used",
