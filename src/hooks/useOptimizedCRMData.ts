@@ -210,7 +210,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
             }
             processedEvents = processedEvents.map(evt => ({
               ...evt,
-              event_files: filesByEvent.get(evt.id) ?? []
+              event_files: filesByEvent.get(evt.id) ?? [],
+              file_count: (filesByEvent.get(evt.id) ?? []).length
             }));
           }
         }
