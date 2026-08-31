@@ -63,9 +63,9 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
             user_number,
             social_network_link,
             event_notes,
-            type,
-            event_files(count)
+            type
           `)
+
           .eq('user_id', userId)
           .gte('start_date', startDateStr)
           .lte('start_date', endDateStr)
