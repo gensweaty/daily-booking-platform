@@ -7611,9 +7611,22 @@ Call the matching tool with the exact details from the user's last message. Do n
                 if (error) { toolResult = { success: false, error: error.message }; break; }
                 candidates = data || [];
               } else if (latest) {
+                // Safety: only auto-cancel the most recent reminder when the user
+                // actually expressed cancel/undo intent. Short ambiguous corrections
+                // like "not task need reminder" must NOT silently delete a reminder.
+                const cancelIntent = /\b(cancel|delete|remove|undo|stop|deactivate|disable|turn\s*off|scrap|drop)\b|გააუქმ|წაშალ|გაუქმ|отмен|удали|убер|отключ|cancel|elimin|borra|quita|desactiv/i;
+                if (!cancelIntent.test(String(prompt || ''))) {
+                  toolResult = {
+                    success: false,
+                    needs_clarification: true,
+                    error: 'The user did not clearly ask to cancel a reminder. Ask what they want changed instead of cancelling anything.',
+                  };
+                  break;
+                }
                 const { data, error } = await baseQuery.order('created_at', { ascending: false }).limit(1);
                 if (error) { toolResult = { success: false, error: error.message }; break; }
                 candidates = data || [];
+
               } else {
                 toolResult = { success: false, error: 'Provide reminder_id, title_match, or latest=true. Call list_pending_reminders first if unsure.' };
                 break;
