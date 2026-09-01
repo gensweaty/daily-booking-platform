@@ -1180,11 +1180,28 @@ const handleAiChatRequest = async (req: Request) => {
     // 1. Verify channel is AI channel - use admin client for external users, auth client for authenticated users
     // CRITICAL: Use admin client when no auth is present (public board sub-users)
     const channelClient = hasAuth ? supabaseClient : supabaseAdmin;
-    const { data: channel, error: channelError } = await channelClient
+    let { data: channel, error: channelError } = await channelClient
       .from('chat_channels')
       .select('is_ai, owner_id')
       .eq('id', channelId)
       .single();
+
+    // Fallback: server-to-server callers (e.g. Telegram poller) send the anon key
+    // as the bearer token, which RLS does not allow to read private AI channels.
+    // Re-read with the admin client and enforce the ownerId match below.
+    let usedAdminFallback = false;
+    if ((channelError || !channel) && hasAuth) {
+      const adminLookup = await supabaseAdmin
+        .from('chat_channels')
+        .select('is_ai, owner_id')
+        .eq('id', channelId)
+        .single();
+      if (adminLookup.data) {
+        channel = adminLookup.data;
+        channelError = null;
+        usedAdminFallback = true;
+      }
+    }
 
     // Validate the channel belongs to the expected owner (security check for external users)
     if (channelError || !channel?.is_ai) {
@@ -1195,14 +1212,16 @@ const handleAiChatRequest = async (req: Request) => {
       );
     }
 
-    // Extra security for external users: verify the channel's owner matches the ownerId param
-    if (!hasAuth && channel.owner_id !== ownerId) {
-      console.error('❌ Channel owner mismatch for external user:', { channelOwnerId: channel.owner_id, requestedOwnerId: ownerId });
+    // Extra security: whenever the channel was not readable under the caller's own
+    // identity, require the caller to declare the matching owner.
+    if ((!hasAuth || usedAdminFallback) && channel.owner_id !== ownerId) {
+      console.error('❌ Channel owner mismatch:', { channelOwnerId: channel.owner_id, requestedOwnerId: ownerId });
       return new Response(
         JSON.stringify({ error: 'Unauthorized access' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
 
     console.log('✅ Channel validated:', { channelId, isAI: channel.is_ai, hasAuth, ownerId });
 
