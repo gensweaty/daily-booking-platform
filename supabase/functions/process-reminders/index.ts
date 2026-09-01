@@ -72,11 +72,14 @@ async function sendTelegramNotification(supabase: any, userId: string, message: 
         .eq('user_id', userId);
     }
 
-    // Clean markdown for Telegram (convert ** to *, strip headers)
-    const telegramText = message
+    // Clean HTML + markdown for Telegram (convert ** to *, strip headers/tags)
+    const telegramText = toPlainText(message)
       .replace(/\*\*/g, '*')
       .replace(/#{1,6}\s/g, '')
       .trim();
+
+    if (!telegramText) return;
+
 
     const res = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
       method: 'POST',
