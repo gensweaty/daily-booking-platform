@@ -7611,9 +7611,22 @@ Call the matching tool with the exact details from the user's last message. Do n
                 if (error) { toolResult = { success: false, error: error.message }; break; }
                 candidates = data || [];
               } else if (latest) {
+                // Safety: only auto-cancel the most recent reminder when the user
+                // actually expressed cancel/undo intent. Short ambiguous corrections
+                // like "not task need reminder" must NOT silently delete a reminder.
+                const cancelIntent = /\b(cancel|delete|remove|undo|stop|deactivate|disable|turn\s*off|scrap|drop)\b|გააუქმ|წაშალ|გაუქმ|отмен|удали|убер|отключ|cancel|elimin|borra|quita|desactiv/i;
+                if (!cancelIntent.test(String(prompt || ''))) {
+                  toolResult = {
+                    success: false,
+                    needs_clarification: true,
+                    error: 'The user did not clearly ask to cancel a reminder. Ask what they want changed instead of cancelling anything.',
+                  };
+                  break;
+                }
                 const { data, error } = await baseQuery.order('created_at', { ascending: false }).limit(1);
                 if (error) { toolResult = { success: false, error: error.message }; break; }
                 candidates = data || [];
+
               } else {
                 toolResult = { success: false, error: 'Provide reminder_id, title_match, or latest=true. Call list_pending_reminders first if unsure.' };
                 break;
@@ -9281,14 +9294,64 @@ Be direct. Be concise. No extra text.`
         const finalMessage = finalResult.choices[0].message;
         console.log('✅ Final response received');
         
-        // Check if we have actual content
+        // Check if we have actual content — never fail the whole turn because the
+        // model returned an empty message. Retry once, then summarize tool results.
         if (!finalMessage.content || finalMessage.content.trim() === '') {
-          console.error('❌ Final message has no content:', JSON.stringify(finalMessage));
-          return new Response(
-            JSON.stringify({ error: 'AI did not generate a response' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          console.warn('⚠️ Final message empty — retrying once, then falling back to a tool-result summary');
+
+          try {
+            const retry = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Lovable-API-Key": LOVABLE_API_KEY,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: PRIMARY_CHAT_MODEL,
+                messages: [
+                  ...finalMessages,
+                  { role: "user", content: `In ${userLanguage}, write one short plain-text sentence telling the user what happened, based on the tool results above. No JSON, no questions.` },
+                ],
+                temperature: 0.4,
+                max_tokens: 400,
+              }),
+            });
+            if (retry.ok) {
+              const retryJson = await retry.json();
+              const retryText = retryJson?.choices?.[0]?.message?.content;
+              if (retryText && retryText.trim()) finalMessage.content = retryText.trim();
+            }
+          } catch (retryErr) {
+            console.error('❌ Empty-response retry failed:', retryErr);
+          }
+
+          if (!finalMessage.content || finalMessage.content.trim() === '') {
+            const summaries: string[] = [];
+            for (const m of finalMessages) {
+              if (m?.role !== 'tool' || typeof m.content !== 'string') continue;
+              try {
+                const parsed = JSON.parse(m.content);
+                if (parsed?.needs_clarification) {
+                  summaries.push('❓ I need a bit more detail — what exactly would you like me to change?');
+                } else if (parsed?.success === false) {
+                  summaries.push(`⚠️ ${parsed.error || 'That action could not be completed.'}`);
+                } else if (parsed?.message) {
+                  summaries.push(String(parsed.message));
+                } else if (parsed?.cancelled?.title) {
+                  summaries.push(`✅ Reminder cancelled: ${parsed.cancelled.title}`);
+                } else if (parsed?.success) {
+                  summaries.push('✅ Done.');
+                }
+              } catch (_) { /* ignore unparsable tool payloads */ }
+            }
+            finalMessage.content = summaries.length
+              ? Array.from(new Set(summaries)).join('\n')
+              : '✅ Done.';
+            console.log('✅ Using deterministic fallback content for empty AI response');
+          }
         }
+
         
         // Insert AI response into database with select to get the row back
         const { data: aiMsgData, error: insertError } = await supabaseAdmin
