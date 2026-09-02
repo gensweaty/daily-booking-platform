@@ -9483,9 +9483,9 @@ Be direct. Be concise. No extra text.`
 
     // Final fallback so we NEVER insert null content (violates NOT NULL constraint
     // and previously crashed the whole request, leaving the user with no reply).
-    const safeContent = (message.content && String(message.content).trim() !== '')
+    const safeContent = (message.content && String(message.content).trim() !== '' && !looksLikeSystemPromptLeak(message.content))
       ? message.content
-      : "I couldn't generate a response for that. Could you try rephrasing or resending the file?";
+      : LEAK_REPLACEMENT;
 
     // Insert AI response into database with select to get the row back
     const { data: aiMsgData, error: insertError } = await supabaseAdmin
