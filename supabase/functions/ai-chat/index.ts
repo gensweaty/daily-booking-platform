@@ -9469,7 +9469,7 @@ Be direct. Be concise. No extra text.`
         if (retryResp.ok) {
           const retryJson = await retryResp.json();
           const retryContent = retryJson?.choices?.[0]?.message?.content;
-          if (retryContent && String(retryContent).trim() !== '') {
+          if (retryContent && String(retryContent).trim() !== '' && !looksLikeSystemPromptLeak(retryContent)) {
             console.log('✅ Empty-content retry succeeded with', hadAttachments ? VISION_FALLBACK_MODEL : RETRY_CHAT_MODEL);
             message = { ...message, content: retryContent };
           }
