@@ -9320,6 +9320,11 @@ Be direct. Be concise. No extra text.`
         
         // Check if we have actual content — never fail the whole turn because the
         // model returned an empty message. Retry once, then summarize tool results.
+        if (looksLikeSystemPromptLeak(finalMessage.content)) {
+          console.warn('⚠️ Final message looked like a system-prompt leak — discarding');
+          finalMessage.content = '';
+        }
+
         if (!finalMessage.content || finalMessage.content.trim() === '') {
           console.warn('⚠️ Final message empty — retrying once, then falling back to a tool-result summary');
 
