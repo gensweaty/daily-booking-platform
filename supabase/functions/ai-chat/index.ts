@@ -9349,7 +9349,7 @@ Be direct. Be concise. No extra text.`
             if (retry.ok) {
               const retryJson = await retry.json();
               const retryText = retryJson?.choices?.[0]?.message?.content;
-              if (retryText && retryText.trim()) finalMessage.content = retryText.trim();
+              if (retryText && retryText.trim() && !looksLikeSystemPromptLeak(retryText)) finalMessage.content = retryText.trim();
             }
           } catch (retryErr) {
             console.error('❌ Empty-response retry failed:', retryErr);
