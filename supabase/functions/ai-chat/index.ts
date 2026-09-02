@@ -9438,6 +9438,12 @@ Be direct. Be concise. No extra text.`
     // No tool calls or direct response
     console.log('✅ Direct response (no tools)');
 
+    // 🛡️ Discard leaked system instructions before any other handling.
+    if (looksLikeSystemPromptLeak(message?.content)) {
+      console.warn('⚠️ Direct response looked like a system-prompt leak — discarding');
+      message = { ...message, content: '' };
+    }
+
     // 🛡️ EMPTY-CONTENT GUARD (esp. for image/file analysis on the cheap model).
     // Some models occasionally return empty content when analyzing images or
     // complex attachments. Retry ONCE with the smarter vision model so file
