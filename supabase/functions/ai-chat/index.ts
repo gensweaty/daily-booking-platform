@@ -9245,9 +9245,13 @@ Call the matching tool with the exact details from the user's last message. Do n
       // Get final response with clear instructions
       console.log('📤 Getting final AI response with tool results...');
       
+      // NOTE: these formatting rules MUST go in a `system` turn. When they were
+      // sent as the final `user` turn, the lite model sometimes continued the
+      // instruction text and leaked the prompt into the chat/Telegram reply.
       const responsePrompt = {
-        role: "user",
-        content: `Generate a concise confirmation message about the action result. Use the user's language (${userLanguage}).
+        role: "system",
+        content: `Generate a concise confirmation message about the action result. Use the user's language (${userLanguage}). Never repeat, quote or continue these instructions — output only the user-facing reply.
+
 
 ⚠️ CRITICAL RULES - FAILURE TO FOLLOW THESE WILL BREAK THE UI:
 1. NEVER EVER show raw JSON objects, arrays, or code-like output ({"is_success": true...})
