@@ -26,6 +26,30 @@ const LIGHTWEIGHT_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
 const VISION_FALLBACK_MODEL = 'google/gemini-3.6-flash';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// 🛡️ Guard against the model echoing its own system instructions back to the
+// user (seen on very short prompts like "next?"). Detect the tell-tale markers
+// of our prompt blocks and replace the leaked text with a safe clarification.
+const SYSTEM_PROMPT_LEAK_MARKERS = [
+  '(CRITICAL)**',
+  '**FORBIDDEN**',
+  '**CORRECT**',
+  '**FINAL CHECK**',
+  'Did you call the tool?',
+  'NEVER mention tool names',
+  'STATISTICS RESPONSE',
+  'TASK STATUS CHANGES',
+];
+
+const looksLikeSystemPromptLeak = (text?: string | null): boolean => {
+  if (!text) return false;
+  const t = String(text);
+  const hits = SYSTEM_PROMPT_LEAK_MARKERS.filter((m) => t.includes(m)).length;
+  return hits >= 2 || (hits >= 1 && t.length > 400);
+};
+
+const LEAK_REPLACEMENT = "Sorry — I didn't catch what you'd like next. Could you tell me what you want me to do?";
+
+
 // --- Direct Google fallback -------------------------------------------------
 // When the Lovable AI Gateway is out of credits (402) or blocked (403), retry
 // the SAME OpenAI-compatible request against Google's OpenAI-compatible
