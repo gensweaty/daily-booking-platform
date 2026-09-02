@@ -9311,7 +9311,7 @@ Be direct. Be concise. No extra text.`
         },
         body: JSON.stringify({
           model: PRIMARY_CHAT_MODEL,
-          messages: [...finalMessages, responsePrompt],
+          messages: [...finalMessages, responsePrompt, { role: "user", content: "Reply to me now with only the final user-facing message." }],
           temperature: 0.7,
           max_tokens: 2048
         }),
