@@ -38,7 +38,13 @@ const SYSTEM_PROMPT_LEAK_MARKERS = [
   'NEVER mention tool names',
   'STATISTICS RESPONSE',
   'TASK STATUS CHANGES',
+  'NOW, GENERATE THE RESPONSE',
+  'CRITICAL RULES',
+  'RESPONSE FORMAT (choose ONE',
+  'Example FORBIDDEN format',
+  'Be direct. Be concise. No extra text.',
 ];
+
 
 const looksLikeSystemPromptLeak = (text?: string | null): boolean => {
   if (!text) return false;
