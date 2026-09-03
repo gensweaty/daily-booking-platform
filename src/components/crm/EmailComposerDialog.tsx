@@ -160,6 +160,8 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
         Image.configure({ HTMLAttributes: { style: "max-width:100%;height:auto;border-radius:8px;" } }),
         Link.configure({ openOnClick: false, autolink: true }),
         Placeholder.configure({ placeholder: "Write your message… type @ tags like @full_name to personalize" }),
+        MergeTagHighlight,
+
       ],
       content: html,
       editorProps: { attributes: { class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[220px] p-4" } },
