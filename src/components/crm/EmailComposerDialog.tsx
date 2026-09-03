@@ -36,6 +36,21 @@ const COLORS = ["#FF4E32", "#08B531", "#335CF4", "#F59E0B", "#A855F7", "#111827"
 const formatSize = (b: number) =>
   b < 1024 ? `${b} B` : b < 1024 * 1024 ? `${(b / 1024).toFixed(0)} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`;
 
+const KNOWN_TOKENS = new Set(MERGE_TAGS.map((t) => t.token));
+
+/** Renders the subject line with valid merge tags visually highlighted. */
+const renderSubjectParts = (value: string) =>
+  (value || "").split(/(@[a-zA-Z_]+)/g).map((part, i) => {
+    if (!part.startsWith("@")) return <span key={i}>{part}</span>;
+    const token = part.slice(1);
+    return (
+      <span key={i} className={KNOWN_TOKENS.has(token) ? "merge-tag merge-tag--valid" : "merge-tag merge-tag--unknown"}>
+        {part}
+      </span>
+    );
+  });
+
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
