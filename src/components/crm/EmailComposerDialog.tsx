@@ -111,6 +111,8 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
   const sigImageInputRef = useRef<HTMLInputElement>(null);
+  const subjectMirrorRef = useRef<HTMLDivElement>(null);
+
 
   // ---- Optional, fully editable signature (off by default) ----
   const sigStoreKey = user?.id ? `sb_email_signature_${user.id}` : "sb_email_signature";
