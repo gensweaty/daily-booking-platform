@@ -27,6 +27,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { MERGE_TAGS, renderTemplate, getCustomerEmail, isValidEmail, detectTags } from "./emailMergeTags";
+import { MergeTagHighlight } from "./MergeTagHighlight";
+
 
 
 const MAX_TOTAL_BYTES = 100 * 1024 * 1024; // 100MB
