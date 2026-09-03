@@ -430,13 +430,86 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
 
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">Subject</Label>
-              <Input
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="Hello @full_name…"
-                className="text-base md:text-sm"
-              />
+              <div className="relative">
+                <div
+                  ref={subjectMirrorRef}
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre rounded-md px-3 text-base md:text-sm"
+                >
+                  {renderSubjectParts(subject)}
+                </div>
+                <Input
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  onScroll={(e) => {
+                    if (subjectMirrorRef.current) subjectMirrorRef.current.scrollLeft = (e.target as HTMLInputElement).scrollLeft;
+                  }}
+                  placeholder="Hello @full_name…"
+                  className="relative bg-transparent text-base md:text-sm text-transparent caret-foreground placeholder:text-muted-foreground"
+                />
+              </div>
             </div>
+
+            {/* Personalization tags: instructions + live detection */}
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <AtSign className="h-4 w-4 text-primary" /> Personalization tags
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Click a tag to insert it, or type it in the subject or message. Valid tags are highlighted and replaced with each
+                recipient's own data before sending.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {MERGE_TAGS.map((t) => {
+                  const isUsed = detectedTags.used.includes(t.token);
+                  return (
+                    <button
+                      key={t.token}
+                      type="button"
+                      onClick={() => insertTag(t.token)}
+                      title={`Insert ${t.label}`}
+                      className={cn(
+                        "rounded-full border px-2 py-0.5 font-mono text-[11px] transition-colors",
+                        isUsed
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-primary hover:bg-primary/10"
+                      )}
+                    >
+                      @{t.token}
+                    </button>
+                  );
+                })}
+              </div>
+              {detectedTags.used.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 border-t border-primary/15 pt-2">
+                  {detectedTags.used.map((token) => {
+                    const tag = MERGE_TAGS.find((t) => t.token === token);
+                    if (!tag) return null;
+                    const sample = (tag.resolve(previewCustomer || recipients[0]?.customer) || "").trim();
+                    return (
+                      <span
+                        key={token}
+                        className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                        title={`${tag.label} — replaced per recipient`}
+                      >
+                        <Check className="h-3 w-3" />
+                        @{token}
+                        {sample ? <span className="opacity-70">→ {sample}</span> : null}
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No tags used yet — the message will be sent exactly as written.</p>
+              )}
+              {detectedTags.unknown.length > 0 && (
+                <p className="flex items-center gap-1.5 text-xs text-destructive">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Not recognized: {detectedTags.unknown.map((t) => `@${t}`).join(", ")} — these will be sent as plain text.
+                </p>
+              )}
+            </div>
+
 
             {/* Editor */}
             <div className="rounded-lg border border-border overflow-hidden">
