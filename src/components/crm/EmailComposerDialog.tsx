@@ -632,58 +632,8 @@ export const EmailComposerDialog = ({ open, onOpenChange, customers, plainLayout
               />
             </div>
 
-            {/* Personalization tags: instructions + live detection */}
-            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <AtSign className="h-4 w-4 text-primary" /> Personalization tags
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Type a tag anywhere in the subject or message (for example <code className="rounded bg-background px-1">@full_name</code>) and it is replaced
-                with each recipient's own data before sending. Available:{" "}
-                {MERGE_TAGS.map((t, i) => (
-                  <span key={t.token}>
-                    {i > 0 && ", "}
-                    <button
-                      type="button"
-                      onClick={() => insertTag(t.token)}
-                      className="rounded bg-background px-1 font-mono text-[11px] text-primary hover:underline"
-                      title={`Insert ${t.label}`}
-                    >
-                      @{t.token}
-                    </button>
-                  </span>
-                ))}
-                .
-              </p>
-              {detectedTags.used.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {detectedTags.used.map((token) => {
-                    const tag = MERGE_TAGS.find((t) => t.token === token);
-                    if (!tag) return null;
-                    const sample = (tag.resolve(previewCustomer || recipients[0]?.customer) || "").trim();
-                    return (
-                      <span
-                        key={token}
-                        className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs text-primary"
-                        title={`${tag.label} — replaced per recipient`}
-                      >
-                        <Check className="h-3 w-3" />
-                        @{token}
-                        {sample ? <span className="opacity-70">→ {sample}</span> : null}
-                      </span>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">No tags used yet — the message will be sent exactly as written.</p>
-              )}
-              {detectedTags.unknown.length > 0 && (
-                <p className="flex items-center gap-1.5 text-xs text-destructive">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Not recognized: {detectedTags.unknown.map((t) => `@${t}`).join(", ")} — these will be sent as plain text.
-                </p>
-              )}
-            </div>
+
+
 
 
 
