@@ -40,7 +40,11 @@ const FeatureCardComponent = ({
   const isTablet = useMediaQuery("(max-width: 1024px)");
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
-  const displayImage = isDark && imageDark ? imageDark : image;
+  // Use the opposite screenshot theme for deliberate contrast:
+  // light dashboard captures on the dark site, dark captures on the light site.
+  const displayImage = imageDark
+    ? (isDark ? image : imageDark)
+    : image;
   
   const getTranslationKey = (key: string): string => {
     return `${translationPrefix}.${key}`;
