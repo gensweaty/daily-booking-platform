@@ -45,10 +45,20 @@ const SYSTEM_PROMPT_LEAK_MARKERS = [
   'Be direct. Be concise. No extra text.',
 ];
 
+// Markers that are conclusive on their own — a reply consisting of one of these
+// is an instruction echo, never a real answer (e.g. "Do not include any tool results.").
+const STRONG_SYSTEM_PROMPT_LEAK_MARKERS = [
+  'Do not include any tool results',
+  'Do not include tool results',
+  'NEVER mention tool names',
+  'NOW, GENERATE THE RESPONSE',
+];
+
 
 const looksLikeSystemPromptLeak = (text?: string | null): boolean => {
   if (!text) return false;
   const t = String(text);
+  if (STRONG_SYSTEM_PROMPT_LEAK_MARKERS.some((m) => t.includes(m))) return true;
   const hits = SYSTEM_PROMPT_LEAK_MARKERS.filter((m) => t.includes(m)).length;
   return hits >= 2 || (hits >= 1 && t.length > 400);
 };
