@@ -1338,6 +1338,78 @@ const handleAiChatRequest = async (req: Request) => {
       preloadedCalendarContext = '\n\n⚠️ Calendar data temporarily unavailable - use get_schedule tool if user asks about specific dates.\n';
     }
 
+    // 🧠 LIVE WORKSPACE SNAPSHOT — gives the model concrete, current entities so it can
+    // resolve references ("that task", "the client", "my reminder") without guessing.
+    // Fully non-blocking: any failure leaves the snapshot empty and behaviour unchanged.
+    let workspaceSnapshot = '';
+    try {
+      const nowIso = new Date().toISOString();
+      const [tasksRes, customersRes, remindersRes, bookingsRes, bizRes, tgRes] = await Promise.all([
+        dataClient.from('tasks')
+          .select('id, title, status, due_date, updated_at')
+          .eq('user_id', ownerId).is('archived_at', null)
+          .order('updated_at', { ascending: false }).limit(10),
+        dataClient.from('customers')
+          .select('id, title, user_surname, user_number, social_network_link, updated_at')
+          .eq('user_id', ownerId).is('deleted_at', null)
+          .order('updated_at', { ascending: false }).limit(10),
+        dataClient.from('custom_reminders')
+          .select('id, title, remind_at')
+          .eq('user_id', ownerId).is('deleted_at', null).gte('remind_at', nowIso)
+          .order('remind_at', { ascending: true }).limit(10),
+        dataClient.from('booking_requests')
+          .select('id, requester_name, requested_start_date, status')
+          .eq('business_owner_id', ownerId).eq('status', 'pending')
+          .order('created_at', { ascending: false }).limit(5),
+        dataClient.from('business_profiles')
+          .select('business_name, slug, working_hours').eq('user_id', ownerId).maybeSingle(),
+        dataClient.from('telegram_bot_configs')
+          .select('is_active').eq('user_id', ownerId).eq('is_active', true).maybeSingle(),
+      ]);
+
+      const lines: string[] = [];
+      const tasks = tasksRes?.data || [];
+      if (tasks.length) {
+        lines.push(`**Recent tasks (most recently touched first):**`);
+        tasks.forEach((t: any) => lines.push(`• ${t.title} — status: ${t.status}${t.due_date ? `, due ${formatInUserZone(new Date(t.due_date))}` : ''}`));
+      } else lines.push('**Tasks:** none yet.');
+
+      const customers = customersRes?.data || [];
+      if (customers.length) {
+        lines.push(`\n**Recent CRM customers:**`);
+        customers.forEach((c: any) => lines.push(`• ${c.title || c.user_surname || 'Unnamed'}${c.user_number ? ` — ${c.user_number}` : ''}${c.social_network_link ? ` — ${c.social_network_link}` : ''}`));
+      } else lines.push('\n**CRM:** no customers yet.');
+
+      const reminders = remindersRes?.data || [];
+      if (reminders.length) {
+        lines.push(`\n**Upcoming reminders:**`);
+        reminders.forEach((r: any) => lines.push(`• ${r.title} — ${formatInUserZone(new Date(r.remind_at))}`));
+      } else lines.push('\n**Reminders:** none pending.');
+
+      const bookings = bookingsRes?.data || [];
+      if (bookings.length) {
+        lines.push(`\n**Pending booking requests:** ${bookings.length}`);
+        bookings.forEach((b: any) => lines.push(`• ${b.requester_name || 'Unknown'}${b.requested_start_date ? ` — ${formatInUserZone(new Date(b.requested_start_date))}` : ''}`));
+      }
+
+      const biz = (bizRes as any)?.data;
+      if (biz?.business_name) {
+        lines.push(`\n**Business:** ${biz.business_name}${biz.slug ? ` (public page /business/${biz.slug})` : ''}`);
+        if (biz.working_hours) {
+          try { lines.push(`**Working hours:** ${JSON.stringify(biz.working_hours)}`); } catch { /* ignore */ }
+        }
+      }
+      lines.push(`\n**Telegram bot:** ${(tgRes as any)?.data ? 'connected and active' : 'not connected'}`);
+
+      workspaceSnapshot = `\n\n🧠 **LIVE WORKSPACE SNAPSHOT (real data, current as of now — trust it over assumptions):**\n${lines.join('\n')}\n\nUse this snapshot to resolve references like "that task", "the client", "my reminder", "the booking". If the user names something close to an item above, it IS that item — update it, never create a duplicate. If something is not in the snapshot, look it up before claiming it does not exist.\n`;
+      console.log('✅ Workspace snapshot built:', { tasks: tasks.length, customers: customers.length, reminders: reminders.length, bookings: bookings.length });
+    } catch (err) {
+      console.error('⚠️ Failed to build workspace snapshot (non-fatal):', err);
+      workspaceSnapshot = '';
+    }
+
+
+
     // ---- ENHANCED FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
     // Uses confidence-based pattern matching to avoid misunderstandings
     const lower = (prompt || "").toLowerCase();
