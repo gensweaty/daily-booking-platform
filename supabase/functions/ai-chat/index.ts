@@ -7364,12 +7364,30 @@ Call the matching tool with the exact details from the user's last message. Do n
                       const extractedName = match[1].trim();
                       // CRITICAL: Filter out self-referential words even if they match pattern
                       const selfWords = ['me', 'myself', 'my', 'i', 'მე', 'ჩემი', 'yo', 'mí', 'mi', 'я', 'меня', 'мне'];
-                      if (!selfWords.includes(extractedName.toLowerCase())) {
+                      // CRITICAL: never treat time/generic words as a person's name
+                      // ("remind me for that time...", "for tomorrow", "for the meeting").
+                      const nonPersonWords = [
+                        'that', 'this', 'the', 'a', 'an', 'time', 'that time', 'this time', 'the time',
+                        'now', 'today', 'tomorrow', 'yesterday', 'tonight', 'later', 'next', 'next time',
+                        'morning', 'afternoon', 'evening', 'night', 'day', 'week', 'month', 'year',
+                        'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+                        'reminder', 'reminders', 'task', 'event', 'meeting', 'it', 'us', 'everyone', 'all',
+                        'when', 'exactly', 'moment', 'that moment',
+                        'დრო', 'ის დრო', 'ხვალ', 'დღეს', 'ახლა', 'შეხსენება',
+                        'tiempo', 'mañana', 'hoy', 'ahora', 'recordatorio',
+                        'время', 'завтра', 'сегодня', 'сейчас', 'напоминание',
+                      ];
+                      const lower = extractedName.toLowerCase();
+                      const words = lower.split(/\s+/);
+                      const isNonPerson =
+                        nonPersonWords.includes(lower) ||
+                        words.some((w) => nonPersonWords.includes(w));
+                      if (!selfWords.includes(lower) && !isNonPerson) {
                         recipientName = extractedName;
                         console.log(`  ✓ Found clear recipient indicator: "${recipientName}"`);
                         break;
                       } else {
-                        console.log(`  ℹ️ Ignored self-referential word in pattern: "${extractedName}"`);
+                        console.log(`  ℹ️ Ignored non-person / self-referential phrase: "${extractedName}"`);
                       }
                     }
                   }
