@@ -1346,20 +1346,20 @@ const handleAiChatRequest = async (req: Request) => {
       const nowIso = new Date().toISOString();
       const [tasksRes, customersRes, remindersRes, bookingsRes, bizRes, tgRes] = await Promise.all([
         dataClient.from('tasks')
-          .select('id, title, status, due_date, updated_at')
+          .select('id, title, status, deadline_at, reminder_at, created_at')
           .eq('user_id', ownerId).is('archived_at', null)
-          .order('updated_at', { ascending: false }).limit(10),
+          .order('created_at', { ascending: false }).limit(10),
         dataClient.from('customers')
-          .select('id, title, user_surname, user_number, social_network_link, updated_at')
+          .select('id, title, user_surname, user_number, social_network_link, created_at')
           .eq('user_id', ownerId).is('deleted_at', null)
-          .order('updated_at', { ascending: false }).limit(10),
+          .order('created_at', { ascending: false }).limit(10),
         dataClient.from('custom_reminders')
           .select('id, title, remind_at')
           .eq('user_id', ownerId).is('deleted_at', null).gte('remind_at', nowIso)
           .order('remind_at', { ascending: true }).limit(10),
         dataClient.from('booking_requests')
-          .select('id, requester_name, requested_start_date, status')
-          .eq('business_owner_id', ownerId).eq('status', 'pending')
+          .select('id, requester_name, start_date, status')
+          .eq('user_id', ownerId).eq('status', 'pending').is('deleted_at', null)
           .order('created_at', { ascending: false }).limit(5),
         dataClient.from('business_profiles')
           .select('business_name, slug, working_hours').eq('user_id', ownerId).maybeSingle(),
@@ -1371,7 +1371,7 @@ const handleAiChatRequest = async (req: Request) => {
       const tasks = tasksRes?.data || [];
       if (tasks.length) {
         lines.push(`**Recent tasks (most recently touched first):**`);
-        tasks.forEach((t: any) => lines.push(`• ${t.title} — status: ${t.status}${t.due_date ? `, due ${formatInUserZone(new Date(t.due_date))}` : ''}`));
+        tasks.forEach((t: any) => lines.push(`• ${t.title} — status: ${t.status}${t.deadline_at ? `, due ${formatInUserZone(new Date(t.deadline_at))}` : ''}${t.reminder_at ? `, reminder ${formatInUserZone(new Date(t.reminder_at))}` : ''}`));
       } else lines.push('**Tasks:** none yet.');
 
       const customers = customersRes?.data || [];
@@ -1389,7 +1389,7 @@ const handleAiChatRequest = async (req: Request) => {
       const bookings = bookingsRes?.data || [];
       if (bookings.length) {
         lines.push(`\n**Pending booking requests:** ${bookings.length}`);
-        bookings.forEach((b: any) => lines.push(`• ${b.requester_name || 'Unknown'}${b.requested_start_date ? ` — ${formatInUserZone(new Date(b.requested_start_date))}` : ''}`));
+        bookings.forEach((b: any) => lines.push(`• ${b.requester_name || 'Unknown'}${b.start_date ? ` — ${formatInUserZone(new Date(b.start_date))}` : ''}`));
       }
 
       const biz = (bizRes as any)?.data;
