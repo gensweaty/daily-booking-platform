@@ -3633,6 +3633,7 @@ General principles (apply to every tool & feature):
 - Be concise, accurate, and human-like
 
 ${preloadedCalendarContext}
+${workspaceSnapshot}
 
 🚨🚨🚨 CRITICAL PRE-CHECK - READ THIS BEFORE ANYTHING ELSE 🚨🚨🚨
 
