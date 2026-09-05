@@ -15,16 +15,19 @@ import embedBookingScreenshotDark from "@/assets/embed-booking-screenshot-dark.w
 // Updated to ensure all carousel images have consistent padding
 const calendarViews = [{
   src: "/lovable-uploads/booking-month-view.webp",
+  srcDark: "/lovable-uploads/booking-month-view-dark.webp",
   alt: "Booking Calendar - Month View",
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/booking-week-view.webp",
+  srcDark: "/lovable-uploads/booking-week-view-dark.webp",
   alt: "Booking Calendar - Week View",
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/booking-day-view.webp",
+  srcDark: "/lovable-uploads/booking-day-view-dark.webp",
   alt: "Booking Calendar - Day View",
   customStyle: "object-contain",
   customPadding: "p-4"
@@ -33,11 +36,13 @@ const calendarViews = [{
 // Added new website carousel views
 const websiteViews = [{
   src: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828.png",
+  srcDark: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828-dark.webp",
   alt: "Business Website",
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/a9fa8d9c-3592-47b2-b89b-be6a4e04a6a1.png",
+  srcDark: "/lovable-uploads/a9fa8d9c-3592-47b2-b89b-be6a4e04a6a1-dark.webp",
   alt: "Business Page with QR Code",
   customStyle: "object-contain",
   customPadding: "p-4"
@@ -46,11 +51,13 @@ const websiteViews = [{
 // Team Chat carousel views
 const chatViews = [{
   src: "/lovable-uploads/chat-feature-1.webp",
+  srcDark: "/lovable-uploads/chat-feature-1-dark.webp",
   alt: "Team Chat Interface",
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/chat-feature-2.webp",
+  srcDark: "/lovable-uploads/chat-feature-2-dark.webp",
   alt: "Chat Messages and Files",
   customStyle: "object-contain",
   customPadding: "p-4"
@@ -59,11 +66,13 @@ const chatViews = [{
 // AI Assistant carousel views
 const aiViews = [{
   src: "/lovable-uploads/ai-chat-interface-new.webp",
+  srcDark: "/lovable-uploads/ai-chat-interface-new-dark.webp",
   alt: "AI Assistant Interface",
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/ai-chat-conversation-new.webp",
+  srcDark: "/lovable-uploads/ai-chat-conversation-new-dark.webp",
   alt: "AI Chat Conversation",
   customStyle: "object-contain",
   customPadding: "p-4"
@@ -137,6 +146,7 @@ export const FeatureSection = () => {
     title: t('crm.title'),
     description: t('crm.description'),
     image: "/lovable-uploads/84a5ef8b-fbd6-46dd-bb22-9378e67590d9.png",
+    imageDark: "/lovable-uploads/84a5ef8b-fbd6-46dd-bb22-9378e67590d9-dark.webp",
     benefits: [t('crm.feature1'), t('crm.feature2'), t('crm.feature3'), t('crm.feature4'), t('crm.feature5'), t('crm.feature6')],
     translationPrefix: 'crm' as const,
     id: "crm-solution",

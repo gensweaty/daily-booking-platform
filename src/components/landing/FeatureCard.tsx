@@ -15,11 +15,13 @@ interface FeatureCardProps {
   imageDark?: string;
   carousel?: {
     src: string;
+    srcDark?: string;
     alt: string;
     title?: string;
     customStyle?: string;
     customPadding?: string;
   }[];
+
   reverse?: boolean;
   translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website' | 'teamChat' | 'aiAssistant' | 'emailCampaigns' | 'telegramAi' | 'embedBooking';
 }
