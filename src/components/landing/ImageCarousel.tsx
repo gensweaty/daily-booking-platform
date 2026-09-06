@@ -97,6 +97,14 @@ export const ImageCarousel = ({
   const [count, setCount] = useState(0);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
+  const { resolvedTheme } = useTheme();
+  // Deliberate contrast: dark screenshots on the light site, light on the dark site.
+  const isDark = resolvedTheme === "dark";
+  const pickSrc = useCallback(
+    (image: { src: string; srcDark?: string }) =>
+      image.srcDark ? (isDark ? image.src : image.srcDark) : image.src,
+    [isDark]
+  );
 
   // Simplified auto-slide setup
   const setupAutoSlide = useCallback(() => {
