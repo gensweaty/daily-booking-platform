@@ -64,7 +64,7 @@ export const SubUsersSection = ({ boardOwnerId }: SubUsersSectionProps) => {
     try {
       const { data, error } = await supabase
         .from('sub_users')
-        .select('*')
+        .select('id, board_owner_id, fullname, email, created_at, last_login_at, updated_at, avatar_url, tasks_permission, calendar_permission, crm_permission, statistics_permission')
         .eq('board_owner_id', boardOwnerId)
         .order('last_login_at', { ascending: false });
 

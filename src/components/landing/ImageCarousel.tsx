@@ -10,10 +10,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useEffect, useState, memo, useCallback } from "react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useTheme } from "next-themes";
 
 interface ImageCarouselProps {
   images: {
     src: string;
+    srcDark?: string;
     alt: string;
     title?: string;
     customStyle?: string;
@@ -95,6 +97,14 @@ export const ImageCarousel = ({
   const [count, setCount] = useState(0);
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
+  const { resolvedTheme } = useTheme();
+  // Deliberate contrast: dark screenshots on the light site, light on the dark site.
+  const isDark = resolvedTheme === "dark";
+  const pickSrc = useCallback(
+    (image: { src: string; srcDark?: string }) =>
+      image.srcDark ? (isDark ? image.src : image.srcDark) : image.src,
+    [isDark]
+  );
 
   // Simplified auto-slide setup
   const setupAutoSlide = useCallback(() => {
@@ -173,7 +183,7 @@ export const ImageCarousel = ({
                   image.customPadding || 'p-0'
                 )}>
                   <CarouselImage
-                    src={image.src}
+                    src={pickSrc(image)}
                     alt={image.alt}
                     customStyle={image.customStyle}
                     objectFit={objectFit}

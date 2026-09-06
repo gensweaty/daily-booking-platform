@@ -26,6 +26,46 @@ const LIGHTWEIGHT_CHAT_MODEL = 'google/gemini-3.1-flash-lite';
 const VISION_FALLBACK_MODEL = 'google/gemini-3.6-flash';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+// 🛡️ Guard against the model echoing its own system instructions back to the
+// user (seen on very short prompts like "next?"). Detect the tell-tale markers
+// of our prompt blocks and replace the leaked text with a safe clarification.
+const SYSTEM_PROMPT_LEAK_MARKERS = [
+  '(CRITICAL)**',
+  '**FORBIDDEN**',
+  '**CORRECT**',
+  '**FINAL CHECK**',
+  'Did you call the tool?',
+  'NEVER mention tool names',
+  'STATISTICS RESPONSE',
+  'TASK STATUS CHANGES',
+  'NOW, GENERATE THE RESPONSE',
+  'CRITICAL RULES',
+  'RESPONSE FORMAT (choose ONE',
+  'Example FORBIDDEN format',
+  'Be direct. Be concise. No extra text.',
+];
+
+// Markers that are conclusive on their own — a reply consisting of one of these
+// is an instruction echo, never a real answer (e.g. "Do not include any tool results.").
+const STRONG_SYSTEM_PROMPT_LEAK_MARKERS = [
+  'Do not include any tool results',
+  'Do not include tool results',
+  'NEVER mention tool names',
+  'NOW, GENERATE THE RESPONSE',
+];
+
+
+const looksLikeSystemPromptLeak = (text?: string | null): boolean => {
+  if (!text) return false;
+  const t = String(text);
+  if (STRONG_SYSTEM_PROMPT_LEAK_MARKERS.some((m) => t.includes(m))) return true;
+  const hits = SYSTEM_PROMPT_LEAK_MARKERS.filter((m) => t.includes(m)).length;
+  return hits >= 2 || (hits >= 1 && t.length > 400);
+};
+
+const LEAK_REPLACEMENT = "Sorry — I didn't catch what you'd like next. Could you tell me what you want me to do?";
+
+
 // --- Direct Google fallback -------------------------------------------------
 // When the Lovable AI Gateway is out of credits (402) or blocked (403), retry
 // the SAME OpenAI-compatible request against Google's OpenAI-compatible
@@ -1180,11 +1220,28 @@ const handleAiChatRequest = async (req: Request) => {
     // 1. Verify channel is AI channel - use admin client for external users, auth client for authenticated users
     // CRITICAL: Use admin client when no auth is present (public board sub-users)
     const channelClient = hasAuth ? supabaseClient : supabaseAdmin;
-    const { data: channel, error: channelError } = await channelClient
+    let { data: channel, error: channelError } = await channelClient
       .from('chat_channels')
       .select('is_ai, owner_id')
       .eq('id', channelId)
       .single();
+
+    // Fallback: server-to-server callers (e.g. Telegram poller) send the anon key
+    // as the bearer token, which RLS does not allow to read private AI channels.
+    // Re-read with the admin client and enforce the ownerId match below.
+    let usedAdminFallback = false;
+    if ((channelError || !channel) && hasAuth) {
+      const adminLookup = await supabaseAdmin
+        .from('chat_channels')
+        .select('is_ai, owner_id')
+        .eq('id', channelId)
+        .single();
+      if (adminLookup.data) {
+        channel = adminLookup.data;
+        channelError = null;
+        usedAdminFallback = true;
+      }
+    }
 
     // Validate the channel belongs to the expected owner (security check for external users)
     if (channelError || !channel?.is_ai) {
@@ -1195,14 +1252,16 @@ const handleAiChatRequest = async (req: Request) => {
       );
     }
 
-    // Extra security for external users: verify the channel's owner matches the ownerId param
-    if (!hasAuth && channel.owner_id !== ownerId) {
-      console.error('❌ Channel owner mismatch for external user:', { channelOwnerId: channel.owner_id, requestedOwnerId: ownerId });
+    // Extra security: whenever the channel was not readable under the caller's own
+    // identity, require the caller to declare the matching owner.
+    if ((!hasAuth || usedAdminFallback) && channel.owner_id !== ownerId) {
+      console.error('❌ Channel owner mismatch:', { channelOwnerId: channel.owner_id, requestedOwnerId: ownerId });
       return new Response(
         JSON.stringify({ error: 'Unauthorized access' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
 
     console.log('✅ Channel validated:', { channelId, isAI: channel.is_ai, hasAuth, ownerId });
 
@@ -1278,6 +1337,78 @@ const handleAiChatRequest = async (req: Request) => {
       console.error('⚠️ Failed to preload calendar data:', err);
       preloadedCalendarContext = '\n\n⚠️ Calendar data temporarily unavailable - use get_schedule tool if user asks about specific dates.\n';
     }
+
+    // 🧠 LIVE WORKSPACE SNAPSHOT — gives the model concrete, current entities so it can
+    // resolve references ("that task", "the client", "my reminder") without guessing.
+    // Fully non-blocking: any failure leaves the snapshot empty and behaviour unchanged.
+    let workspaceSnapshot = '';
+    try {
+      const nowIso = new Date().toISOString();
+      const [tasksRes, customersRes, remindersRes, bookingsRes, bizRes, tgRes] = await Promise.all([
+        dataClient.from('tasks')
+          .select('id, title, status, deadline_at, reminder_at, created_at')
+          .eq('user_id', ownerId).is('archived_at', null)
+          .order('created_at', { ascending: false }).limit(10),
+        dataClient.from('customers')
+          .select('id, title, user_surname, user_number, social_network_link, created_at')
+          .eq('user_id', ownerId).is('deleted_at', null)
+          .order('created_at', { ascending: false }).limit(10),
+        dataClient.from('custom_reminders')
+          .select('id, title, remind_at')
+          .eq('user_id', ownerId).is('deleted_at', null).gte('remind_at', nowIso)
+          .order('remind_at', { ascending: true }).limit(10),
+        dataClient.from('booking_requests')
+          .select('id, requester_name, start_date, status')
+          .eq('user_id', ownerId).eq('status', 'pending').is('deleted_at', null)
+          .order('created_at', { ascending: false }).limit(5),
+        dataClient.from('business_profiles')
+          .select('business_name, slug, working_hours').eq('user_id', ownerId).maybeSingle(),
+        dataClient.from('telegram_bot_configs')
+          .select('is_active').eq('user_id', ownerId).eq('is_active', true).maybeSingle(),
+      ]);
+
+      const lines: string[] = [];
+      const tasks = tasksRes?.data || [];
+      if (tasks.length) {
+        lines.push(`**Recent tasks (most recently touched first):**`);
+        tasks.forEach((t: any) => lines.push(`• ${t.title} — status: ${t.status}${t.deadline_at ? `, due ${formatInUserZone(new Date(t.deadline_at))}` : ''}${t.reminder_at ? `, reminder ${formatInUserZone(new Date(t.reminder_at))}` : ''}`));
+      } else lines.push('**Tasks:** none yet.');
+
+      const customers = customersRes?.data || [];
+      if (customers.length) {
+        lines.push(`\n**Recent CRM customers:**`);
+        customers.forEach((c: any) => lines.push(`• ${c.title || c.user_surname || 'Unnamed'}${c.user_number ? ` — ${c.user_number}` : ''}${c.social_network_link ? ` — ${c.social_network_link}` : ''}`));
+      } else lines.push('\n**CRM:** no customers yet.');
+
+      const reminders = remindersRes?.data || [];
+      if (reminders.length) {
+        lines.push(`\n**Upcoming reminders:**`);
+        reminders.forEach((r: any) => lines.push(`• ${r.title} — ${formatInUserZone(new Date(r.remind_at))}`));
+      } else lines.push('\n**Reminders:** none pending.');
+
+      const bookings = bookingsRes?.data || [];
+      if (bookings.length) {
+        lines.push(`\n**Pending booking requests:** ${bookings.length}`);
+        bookings.forEach((b: any) => lines.push(`• ${b.requester_name || 'Unknown'}${b.start_date ? ` — ${formatInUserZone(new Date(b.start_date))}` : ''}`));
+      }
+
+      const biz = (bizRes as any)?.data;
+      if (biz?.business_name) {
+        lines.push(`\n**Business:** ${biz.business_name}${biz.slug ? ` (public page /business/${biz.slug})` : ''}`);
+        if (biz.working_hours) {
+          try { lines.push(`**Working hours:** ${JSON.stringify(biz.working_hours)}`); } catch { /* ignore */ }
+        }
+      }
+      lines.push(`\n**Telegram bot:** ${(tgRes as any)?.data ? 'connected and active' : 'not connected'}`);
+
+      workspaceSnapshot = `\n\n🧠 **LIVE WORKSPACE SNAPSHOT (real data, current as of now — trust it over assumptions):**\n${lines.join('\n')}\n\nUse this snapshot to resolve references like "that task", "the client", "my reminder", "the booking". If the user names something close to an item above, it IS that item — update it, never create a duplicate. If something is not in the snapshot, look it up before claiming it does not exist.\n`;
+      console.log('✅ Workspace snapshot built:', { tasks: tasks.length, customers: customers.length, reminders: reminders.length, bookings: bookings.length });
+    } catch (err) {
+      console.error('⚠️ Failed to build workspace snapshot (non-fatal):', err);
+      workspaceSnapshot = '';
+    }
+
+
 
     // ---- ENHANCED FAST-PATH FOR EXCEL EXPORTS (runs before LLM) ----
     // Uses confidence-based pattern matching to avoid misunderstandings
@@ -3502,6 +3633,7 @@ General principles (apply to every tool & feature):
 - Be concise, accurate, and human-like
 
 ${preloadedCalendarContext}
+${workspaceSnapshot}
 
 🚨🚨🚨 CRITICAL PRE-CHECK - READ THIS BEFORE ANYTHING ELSE 🚨🚨🚨
 
@@ -3516,8 +3648,9 @@ You are the assistant of the SmartBookly platform. Every action request maps to 
 - "event" / "booking" / "calendar" / "appointment" / "meeting" / "schedule for [date/time]" → create_or_update_event (CALENDAR). NEVER create as task or reminder.
 - "customer" / "client" / "contact" / "lead" / "CRM entry" → create_or_update_customer (CRM). Use bulk_import_customers ONLY when user EXPLICITLY says "import", "import from excel", "add these clients from file", "bulk add", or similar.
 - "reminder" / "remind me" / "alert me" / "notify me at" → create_custom_reminder. NOTHING ELSE triggers this tool.
-- "note" / "write down" / "save thought" → create_note.
-- "send message" / "DM" / "chat to" → chat tool. "send email" → email tool.
+- "note" / "write down" / "save thought" → there is NO separate notes tool. Save it into the description/notes field of the related task (create_or_update_task) or customer (create_or_update_customer). If nothing is related, ask which one it belongs to. NEVER claim you saved a standalone note.
+- "send email" / "email them" → send_direct_email. "summarize this chat/channel" → summarize_channel. "screenshot" / "show me the page" → request_screenshot. "excel" / "export report" → generate_excel_report. "connect telegram" → setup_telegram_bot.
+
 
 **ATTACHMENT HANDLING — DO NOT MISROUTE:**
 An uploaded file (Excel, image, PDF, audio) is just CONTEXT. The user's verb decides the action.
@@ -3556,6 +3689,29 @@ EXAMPLES (memorize):
 ❌ NEVER: User says "create task" + Excel attached → you call bulk_import_customers. THIS IS WRONG.
 ❌ NEVER: User says "hello" → you call create_custom_reminder. THIS IS WRONG.
 ❌ NEVER: Claim "event created" when the tool returned an error or you never called it.
+
+🧩 **COMPOUND ORDERS (multiple things in one message) — HANDLE ALL OF THEM:**
+Users often pack several orders into one sentence. Split the message into separate orders and execute EVERY one, in the order stated, with a separate tool call each.
+- "create 2 tasks X and Y, set reminders for both, move X to in progress" → create_or_update_task(X) → create_or_update_task(Y) → create_custom_reminder(X) → create_custom_reminder(Y) → create_or_update_task(X, status=inprogress).
+- Never stop after the first order. Never merge two entities into one record.
+- Report the outcome of EACH order: "✅ Task X created ✅ Task Y created ✅ Reminders set ✅ X moved to In progress". If one part failed, say exactly which part failed and why — never a blanket success.
+
+🔁 **UPDATE vs CREATE (never duplicate):**
+Before creating anything, check the LIVE WORKSPACE SNAPSHOT above and, if unsure, call the matching get_* tool. If an item with the same or clearly similar name already exists, UPDATE it instead of creating a second one, and keep every field the user did not mention exactly as it was. Only create new when nothing matches.
+
+🗣️ **VOCABULARY THE USER ACTUALLY USES (map it, don't ask):**
+- Status: "start it" / "working on it" / "in progress" / "ვაკეთებ" → inprogress. "done" / "finished" / "completed" / "დასრულდა" → done. "not started" / "back to list" → todo.
+- Payment: "he paid" / "paid fully" → fully_paid. "paid half" / "deposit" / "prepaid 50" → partly_paid (+ amount). "not paid yet" → not_paid.
+- Time: "tomorrow" = next calendar day in the user's timezone; bare time without a date = today if still in the future, otherwise tomorrow; "next week" = same weekday +7 days; a duration-less event defaults to 1 hour.
+- Money: keep the currency the user typed; never invent one.
+
+❓ **WHEN AN ORDER IS INCOMPLETE:**
+Ask ONE short question naming exactly what is missing ("What time should the meeting start?") — do not guess a critical value (date/time of an event, recipient of an email, who a reminder is for) and do not refuse. If everything essential is present, act immediately without asking for confirmation.
+
+🧠 **REFERENCES TO EARLIER THINGS:**
+"that one", "the same client", "it", "that task", "the second one" refer to the most recent matching item in this conversation or in the snapshot above. Resolve them silently against real data before acting. If two candidates are equally likely, ask which one — never pick at random.
+
+
 
 BEFORE processing ANY message, you MUST determine if it's a GREETING/QUESTION or an ACTION REQUEST:
 
@@ -7305,12 +7461,30 @@ Call the matching tool with the exact details from the user's last message. Do n
                       const extractedName = match[1].trim();
                       // CRITICAL: Filter out self-referential words even if they match pattern
                       const selfWords = ['me', 'myself', 'my', 'i', 'მე', 'ჩემი', 'yo', 'mí', 'mi', 'я', 'меня', 'мне'];
-                      if (!selfWords.includes(extractedName.toLowerCase())) {
+                      // CRITICAL: never treat time/generic words as a person's name
+                      // ("remind me for that time...", "for tomorrow", "for the meeting").
+                      const nonPersonWords = [
+                        'that', 'this', 'the', 'a', 'an', 'time', 'that time', 'this time', 'the time',
+                        'now', 'today', 'tomorrow', 'yesterday', 'tonight', 'later', 'next', 'next time',
+                        'morning', 'afternoon', 'evening', 'night', 'day', 'week', 'month', 'year',
+                        'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+                        'reminder', 'reminders', 'task', 'event', 'meeting', 'it', 'us', 'everyone', 'all',
+                        'when', 'exactly', 'moment', 'that moment',
+                        'დრო', 'ის დრო', 'ხვალ', 'დღეს', 'ახლა', 'შეხსენება',
+                        'tiempo', 'mañana', 'hoy', 'ahora', 'recordatorio',
+                        'время', 'завтра', 'сегодня', 'сейчас', 'напоминание',
+                      ];
+                      const lower = extractedName.toLowerCase();
+                      const words = lower.split(/\s+/);
+                      const isNonPerson =
+                        nonPersonWords.includes(lower) ||
+                        words.some((w) => nonPersonWords.includes(w));
+                      if (!selfWords.includes(lower) && !isNonPerson) {
                         recipientName = extractedName;
                         console.log(`  ✓ Found clear recipient indicator: "${recipientName}"`);
                         break;
                       } else {
-                        console.log(`  ℹ️ Ignored self-referential word in pattern: "${extractedName}"`);
+                        console.log(`  ℹ️ Ignored non-person / self-referential phrase: "${extractedName}"`);
                       }
                     }
                   }
@@ -7592,9 +7766,22 @@ Call the matching tool with the exact details from the user's last message. Do n
                 if (error) { toolResult = { success: false, error: error.message }; break; }
                 candidates = data || [];
               } else if (latest) {
+                // Safety: only auto-cancel the most recent reminder when the user
+                // actually expressed cancel/undo intent. Short ambiguous corrections
+                // like "not task need reminder" must NOT silently delete a reminder.
+                const cancelIntent = /\b(cancel|delete|remove|undo|stop|deactivate|disable|turn\s*off|scrap|drop)\b|გააუქმ|წაშალ|გაუქმ|отмен|удали|убер|отключ|cancel|elimin|borra|quita|desactiv/i;
+                if (!cancelIntent.test(String(prompt || ''))) {
+                  toolResult = {
+                    success: false,
+                    needs_clarification: true,
+                    error: 'The user did not clearly ask to cancel a reminder. Ask what they want changed instead of cancelling anything.',
+                  };
+                  break;
+                }
                 const { data, error } = await baseQuery.order('created_at', { ascending: false }).limit(1);
                 if (error) { toolResult = { success: false, error: error.message }; break; }
                 candidates = data || [];
+
               } else {
                 toolResult = { success: false, error: 'Provide reminder_id, title_match, or latest=true. Call list_pending_reminders first if unsure.' };
                 break;
@@ -9189,9 +9376,13 @@ Call the matching tool with the exact details from the user's last message. Do n
       // Get final response with clear instructions
       console.log('📤 Getting final AI response with tool results...');
       
+      // NOTE: these formatting rules MUST go in a `system` turn. When they were
+      // sent as the final `user` turn, the lite model sometimes continued the
+      // instruction text and leaked the prompt into the chat/Telegram reply.
       const responsePrompt = {
-        role: "user",
-        content: `Generate a concise confirmation message about the action result. Use the user's language (${userLanguage}).
+        role: "system",
+        content: `Generate a concise confirmation message about the action result. Use the user's language (${userLanguage}). Never repeat, quote or continue these instructions — output only the user-facing reply.
+
 
 ⚠️ CRITICAL RULES - FAILURE TO FOLLOW THESE WILL BREAK THE UI:
 1. NEVER EVER show raw JSON objects, arrays, or code-like output ({"is_success": true...})
@@ -9251,7 +9442,7 @@ Be direct. Be concise. No extra text.`
         },
         body: JSON.stringify({
           model: PRIMARY_CHAT_MODEL,
-          messages: [...finalMessages, responsePrompt],
+          messages: [...finalMessages, responsePrompt, { role: "user", content: "Reply to me now with only the final user-facing message." }],
           temperature: 0.7,
           max_tokens: 2048
         }),
@@ -9262,14 +9453,69 @@ Be direct. Be concise. No extra text.`
         const finalMessage = finalResult.choices[0].message;
         console.log('✅ Final response received');
         
-        // Check if we have actual content
-        if (!finalMessage.content || finalMessage.content.trim() === '') {
-          console.error('❌ Final message has no content:', JSON.stringify(finalMessage));
-          return new Response(
-            JSON.stringify({ error: 'AI did not generate a response' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+        // Check if we have actual content — never fail the whole turn because the
+        // model returned an empty message. Retry once, then summarize tool results.
+        if (looksLikeSystemPromptLeak(finalMessage.content)) {
+          console.warn('⚠️ Final message looked like a system-prompt leak — discarding');
+          finalMessage.content = '';
         }
+
+        if (!finalMessage.content || finalMessage.content.trim() === '') {
+          console.warn('⚠️ Final message empty — retrying once, then falling back to a tool-result summary');
+
+          try {
+            const retry = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Lovable-API-Key": LOVABLE_API_KEY,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: PRIMARY_CHAT_MODEL,
+                messages: [
+                  ...finalMessages,
+                  { role: "user", content: `In ${userLanguage}, write one short plain-text sentence telling the user what happened, based on the tool results above. No JSON, no questions.` },
+                ],
+                temperature: 0.4,
+                max_tokens: 400,
+              }),
+            });
+            if (retry.ok) {
+              const retryJson = await retry.json();
+              const retryText = retryJson?.choices?.[0]?.message?.content;
+              if (retryText && retryText.trim() && !looksLikeSystemPromptLeak(retryText)) finalMessage.content = retryText.trim();
+            }
+          } catch (retryErr) {
+            console.error('❌ Empty-response retry failed:', retryErr);
+          }
+
+          if (!finalMessage.content || finalMessage.content.trim() === '') {
+            const summaries: string[] = [];
+            for (const m of finalMessages) {
+              if (m?.role !== 'tool' || typeof m.content !== 'string') continue;
+              try {
+                const parsed = JSON.parse(m.content);
+                if (parsed?.needs_clarification) {
+                  summaries.push('❓ I need a bit more detail — what exactly would you like me to change?');
+                } else if (parsed?.success === false) {
+                  summaries.push(`⚠️ ${parsed.error || 'That action could not be completed.'}`);
+                } else if (parsed?.message) {
+                  summaries.push(String(parsed.message));
+                } else if (parsed?.cancelled?.title) {
+                  summaries.push(`✅ Reminder cancelled: ${parsed.cancelled.title}`);
+                } else if (parsed?.success) {
+                  summaries.push('✅ Done.');
+                }
+              } catch (_) { /* ignore unparsable tool payloads */ }
+            }
+            finalMessage.content = summaries.length
+              ? Array.from(new Set(summaries)).join('\n')
+              : '✅ Done.';
+            console.log('✅ Using deterministic fallback content for empty AI response');
+          }
+        }
+
         
         // Insert AI response into database with select to get the row back
         const { data: aiMsgData, error: insertError } = await supabaseAdmin
@@ -9327,6 +9573,12 @@ Be direct. Be concise. No extra text.`
     // No tool calls or direct response
     console.log('✅ Direct response (no tools)');
 
+    // 🛡️ Discard leaked system instructions before any other handling.
+    if (looksLikeSystemPromptLeak(message?.content)) {
+      console.warn('⚠️ Direct response looked like a system-prompt leak — discarding');
+      message = { ...message, content: '' };
+    }
+
     // 🛡️ EMPTY-CONTENT GUARD (esp. for image/file analysis on the cheap model).
     // Some models occasionally return empty content when analyzing images or
     // complex attachments. Retry ONCE with the smarter vision model so file
@@ -9352,7 +9604,7 @@ Be direct. Be concise. No extra text.`
         if (retryResp.ok) {
           const retryJson = await retryResp.json();
           const retryContent = retryJson?.choices?.[0]?.message?.content;
-          if (retryContent && String(retryContent).trim() !== '') {
+          if (retryContent && String(retryContent).trim() !== '' && !looksLikeSystemPromptLeak(retryContent)) {
             console.log('✅ Empty-content retry succeeded with', hadAttachments ? VISION_FALLBACK_MODEL : RETRY_CHAT_MODEL);
             message = { ...message, content: retryContent };
           }
@@ -9366,9 +9618,9 @@ Be direct. Be concise. No extra text.`
 
     // Final fallback so we NEVER insert null content (violates NOT NULL constraint
     // and previously crashed the whole request, leaving the user with no reply).
-    const safeContent = (message.content && String(message.content).trim() !== '')
+    const safeContent = (message.content && String(message.content).trim() !== '' && !looksLikeSystemPromptLeak(message.content))
       ? message.content
-      : "I couldn't generate a response for that. Could you try rephrasing or resending the file?";
+      : LEAK_REPLACEMENT;
 
     // Insert AI response into database with select to get the row back
     const { data: aiMsgData, error: insertError } = await supabaseAdmin

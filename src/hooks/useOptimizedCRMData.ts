@@ -63,9 +63,9 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
             user_number,
             social_network_link,
             event_notes,
-            type,
-            event_files(count)
+            type
           `)
+
           .eq('user_id', userId)
           .gte('start_date', startDateStr)
           .lte('start_date', endDateStr)
@@ -180,18 +180,18 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
       const fetchOptimizedEvents = async (eventsData: any[]) => {
         let processedEvents = eventsData || [];
         
-        // Map file counts and initialize file list for each event
+        // Initialize file list for each event
         processedEvents = processedEvents.map(evt => {
-          const filesCount = evt.event_files;
-          evt.file_count = filesCount?.count ?? (Array.isArray(filesCount) ? filesCount[0]?.count : 0);
+          evt.file_count = 0;
           evt.event_files = [];  // will fill if attachments exist
           // Normalize payment status
           evt.payment_status = normalizePaymentStatus(evt.payment_status);
           return evt;
         });
 
-        // Fetch files for events that have attachments
-        const eventsWithFiles = processedEvents.filter(e => (e.file_count ?? 0) > 0).map(e => e.id);
+        // Fetch files for all events in this page (no FK embed: event_files.event_id
+        // may reference booking requests too, so PostgREST cannot join it)
+        const eventsWithFiles = processedEvents.map(e => e.id);
         if (eventsWithFiles.length) {
           const { data: fileRecords, error: filesErr } = await supabase
             .from('event_files')
@@ -210,7 +210,8 @@ export const useOptimizedCRMData = (userId: string | undefined, dateRange: { sta
             }
             processedEvents = processedEvents.map(evt => ({
               ...evt,
-              event_files: filesByEvent.get(evt.id) ?? []
+              event_files: filesByEvent.get(evt.id) ?? [],
+              file_count: (filesByEvent.get(evt.id) ?? []).length
             }));
           }
         }

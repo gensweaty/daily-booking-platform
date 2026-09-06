@@ -11,42 +11,49 @@ import { cn } from "@/lib/utils";
 
 const productImages = [{
   src: "/lovable-uploads/hero-tasks-view.webp",
+  srcDark: "/lovable-uploads/hero-tasks-view-dark.webp",
   alt: "Smartbookly Tasks Management Dashboard - Organize and track tasks efficiently",
   loading: "eager" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-statistics-view.webp",
+  srcDark: "/lovable-uploads/hero-statistics-view-dark.webp",
   alt: "Smartbookly Statistics Dashboard - Business analytics and insights",
   loading: "lazy" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-calendar-month.webp",
+  srcDark: "/lovable-uploads/hero-calendar-month-dark.webp",
   alt: "Smartbookly Calendar Month View - Schedule and manage appointments",
   loading: "lazy" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-calendar-week.webp",
+  srcDark: "/lovable-uploads/hero-calendar-week-dark.webp",
   alt: "Smartbookly Calendar Week View - Weekly schedule overview",
   loading: "lazy" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-calendar-day.webp",
+  srcDark: "/lovable-uploads/hero-calendar-day-dark.webp",
   alt: "Smartbookly Calendar Day View - Daily appointment management",
   loading: "lazy" as const,
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-business-page.webp",
+  srcDark: "/lovable-uploads/hero-business-page-dark.webp",
   alt: "Smartbookly Business Page - Professional online presence",
   loading: "lazy" as const,
   customStyle: "object-cover",
   customPadding: "p-4"
 }, {
   src: "/lovable-uploads/hero-crm-view.webp",
+  srcDark: "/lovable-uploads/hero-crm-view-dark.webp",
   alt: "Smartbookly CRM Dashboard - Customer relationship management",
   loading: "lazy" as const,
   customStyle: "object-contain",
