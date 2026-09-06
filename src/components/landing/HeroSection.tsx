@@ -9,7 +9,7 @@ export const HeroSection = memo(() => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { theme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.png");
+  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.webp");
 
   useEffect(() => {
     setMounted(true);
@@ -30,8 +30,8 @@ export const HeroSection = memo(() => {
     
     const mobile = window.innerWidth < 768;
     const newLogoSrc = isDarkTheme 
-      ? (mobile ? "/logo-dark-compact.png" : "/logo-dark.png")
-      : (mobile ? "/logo-light-compact.png" : "/logo-light.png");
+      ? (mobile ? "/logo-dark-compact.webp" : "/logo-dark.webp")
+      : (mobile ? "/logo-light-compact.webp" : "/logo-light.webp");
     
     setCurrentLogo(newLogoSrc);
   };

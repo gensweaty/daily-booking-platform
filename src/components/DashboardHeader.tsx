@@ -409,8 +409,8 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
           <div className="relative">
             <img 
               src={effectiveTheme === 'dark' 
-                ? (isMobile ? "/logo-dark-compact.png" : "/logo-dark.png")
-                : (isMobile ? "/logo-light-compact.png" : "/logo-light.png")
+                ? (isMobile ? "/logo-dark-compact.webp" : "/logo-dark.webp")
+                : (isMobile ? "/logo-light-compact.webp" : "/logo-light.webp")
               }
               alt="SmartBookly Logo" 
               className="h-10 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"

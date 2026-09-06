@@ -17,7 +17,7 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { MessageAttachments } from './MessageAttachments';
 import { supabase } from '@/integrations/supabase/client';
-import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
+import aiRobotAvatar from '@/assets/ai-robot-avatar.webp';
 import { AnimatedChatEye } from './AnimatedChatEye';
 
 type ChatMessage = {

@@ -12,7 +12,7 @@ import { getEffectivePublicEmail } from '@/utils/chatEmail';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
-import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
+import aiRobotAvatar from '@/assets/ai-robot-avatar.webp';
 import { AnimatedChatEye } from './AnimatedChatEye';
 
 type Message = {

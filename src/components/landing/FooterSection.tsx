@@ -10,7 +10,7 @@ const FooterSection = () => {
   const { theme, resolvedTheme } = useTheme();
   const { t, language } = useLanguage();
   const [mounted, setMounted] = useState(false);
-  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.png");
+  const [currentLogo, setCurrentLogo] = useState<string>("/logo-light.webp");
 
   useEffect(() => {
     setMounted(true);
@@ -25,8 +25,8 @@ const FooterSection = () => {
     
     const mobile = window.innerWidth < 768;
     const newLogoSrc = isDarkTheme 
-      ? (mobile ? "/logo-dark-compact.png" : "/logo-dark.png")
-      : (mobile ? "/logo-light-compact.png" : "/logo-light.png");
+      ? (mobile ? "/logo-dark-compact.webp" : "/logo-dark.webp")
+      : (mobile ? "/logo-light-compact.webp" : "/logo-light.webp");
     
     setCurrentLogo(newLogoSrc);
   };

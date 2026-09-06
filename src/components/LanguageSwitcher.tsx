@@ -15,15 +15,15 @@ export const LanguageSwitcher = () => {
   const languages = {
     en: {
       label: "English (EN)",
-      flag: "/lovable-uploads/73eec4c3-e701-4219-bb57-349d6cdac1a0.png"
+      flag: "/lovable-uploads/73eec4c3-e701-4219-bb57-349d6cdac1a0.webp"
     },
     es: {
       label: "Español (ES)",
-      flag: "/lovable-uploads/bdc6065f-d812-4ae9-98d9-81472f814981.png"
+      flag: "/lovable-uploads/bdc6065f-d812-4ae9-98d9-81472f814981.webp"
     },
     ka: {
       label: "ქართული (KA)",
-      flag: "/lovable-uploads/112e2c85-5a54-4606-9d67-afe677501f2c.png"
+      flag: "/lovable-uploads/112e2c85-5a54-4606-9d67-afe677501f2c.webp"
     }
   };
 
