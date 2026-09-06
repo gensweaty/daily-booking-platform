@@ -704,8 +704,8 @@ const handleRegister = async () => {
                 <div className="relative">
                   <img 
                     src={theme === 'dark' 
-                      ? "/logo-dark.png"
-                      : "/logo-light.png"
+                      ? "/logo-dark.webp"
+                      : "/logo-light.webp"
                     }
                     alt="SmartBookly Logo" 
                     className="h-10 md:h-10 w-auto max-w-[180px] object-contain"
@@ -878,8 +878,8 @@ const handleRegister = async () => {
                 <div className="relative">
                   <img 
                     src={theme === 'dark' 
-                      ? "/logo-dark.png"
-                      : "/logo-light.png"
+                      ? "/logo-dark.webp"
+                      : "/logo-light.webp"
                     }
                     alt="SmartBookly Logo" 
                     className="h-10 md:h-10 w-auto max-w-[180px] object-contain"

@@ -106,8 +106,8 @@ export const ForgotPassword = () => {
               <div className="relative">
                 <img 
                   src={theme === 'dark' 
-                    ? "/logo-dark.png"
-                    : "/logo-light.png"
+                    ? "/logo-dark.webp"
+                    : "/logo-light.webp"
                   }
                   alt="SmartBookly Logo" 
                   className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain"

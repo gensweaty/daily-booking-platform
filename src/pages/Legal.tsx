@@ -24,7 +24,7 @@ const Legal = () => {
             </Button>
             <Link to="/" className="flex items-center gap-2">
               <div className="relative">
-                <img src={theme === 'dark' ? "/logo-dark.png" : "/logo-light.png"} alt="SmartBookly Logo" className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain" />
+                <img src={theme === 'dark' ? "/logo-dark.webp" : "/logo-light.webp"} alt="SmartBookly Logo" className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[220px] object-contain" />
                 <AnimatedRobotEye size={11} top="44%" left="11%" />
               </div>
             </Link>

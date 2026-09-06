@@ -35,13 +35,13 @@ const calendarViews = [{
 
 // Added new website carousel views
 const websiteViews = [{
-  src: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828.png",
+  src: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828.webp",
   srcDark: "/lovable-uploads/70d5dbd5-33c5-4a79-8e5d-f70268175828-dark.webp",
   alt: "Business Website",
   customStyle: "object-contain",
   customPadding: "p-4"
 }, {
-  src: "/lovable-uploads/a9fa8d9c-3592-47b2-b89b-be6a4e04a6a1.png",
+  src: "/lovable-uploads/a9fa8d9c-3592-47b2-b89b-be6a4e04a6a1.webp",
   srcDark: "/lovable-uploads/a9fa8d9c-3592-47b2-b89b-be6a4e04a6a1-dark.webp",
   alt: "Business Page with QR Code",
   customStyle: "object-contain",
@@ -145,7 +145,7 @@ export const FeatureSection = () => {
     icon: Users,
     title: t('crm.title'),
     description: t('crm.description'),
-    image: "/lovable-uploads/84a5ef8b-fbd6-46dd-bb22-9378e67590d9.png",
+    image: "/lovable-uploads/84a5ef8b-fbd6-46dd-bb22-9378e67590d9.webp",
     imageDark: "/lovable-uploads/84a5ef8b-fbd6-46dd-bb22-9378e67590d9-dark.webp",
     benefits: [t('crm.feature1'), t('crm.feature2'), t('crm.feature3'), t('crm.feature4'), t('crm.feature5'), t('crm.feature6')],
     translationPrefix: 'crm' as const,

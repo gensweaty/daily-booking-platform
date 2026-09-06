@@ -19,7 +19,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ParticipantDropdown } from './ParticipantDropdown';
 import { useChannelParticipants } from '@/hooks/useChannelParticipants';
 import { useAIChannel } from '@/hooks/useAIChannel';
-import aiRobotAvatar from '@/assets/ai-robot-avatar.png';
+import aiRobotAvatar from '@/assets/ai-robot-avatar.webp';
 import { AnimatedChatEye } from './AnimatedChatEye';
 import { PublicBoardSettings } from '@/components/tasks/PublicBoardSettings';
 import { TelegramConnectDialog } from './TelegramConnectDialog';
