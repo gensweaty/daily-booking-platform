@@ -10,10 +10,12 @@ import {
 import { cn } from "@/lib/utils";
 import { useEffect, useState, memo, useCallback } from "react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useTheme } from "next-themes";
 
 interface ImageCarouselProps {
   images: {
     src: string;
+    srcDark?: string;
     alt: string;
     title?: string;
     customStyle?: string;
