@@ -183,7 +183,7 @@ export const ImageCarousel = ({
                   image.customPadding || 'p-0'
                 )}>
                   <CarouselImage
-                    src={image.src}
+                    src={pickSrc(image)}
                     alt={image.alt}
                     customStyle={image.customStyle}
                     objectFit={objectFit}
