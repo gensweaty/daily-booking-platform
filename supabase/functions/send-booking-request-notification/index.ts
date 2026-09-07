@@ -524,6 +524,40 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // ── Telegram push with Approve / Reject buttons (if the owner connected a bot)
+    try {
+      const sbUrl = Deno.env.get("SUPABASE_URL")!;
+      const sbServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const admin = createClient(sbUrl, sbServiceKey);
+
+      let bookingRow: any = null;
+      if (requestData.bookingId) {
+        bookingRow = await getBookingById(admin, requestData.bookingId);
+      }
+      if (!bookingRow && requestData.businessId) {
+        const { data } = await admin
+          .from("booking_requests")
+          .select("*")
+          .eq("business_id", requestData.businessId)
+          .eq("status", "pending")
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        bookingRow = data;
+      }
+
+      if (bookingRow) {
+        const ownerId = await resolveBookingOwnerId(admin, bookingRow);
+        if (ownerId) {
+          const sent = await sendBookingCardToTelegram(admin, ownerId, bookingRow);
+          console.log(`📨 Telegram booking card sent: ${sent}`);
+        }
+      }
+    } catch (tgErr) {
+      console.error("⚠️ Telegram booking notification failed:", tgErr);
+    }
+
     // Initialize resend
     console.log("🔄 Initializing Resend client");
     const resend = new Resend(resendApiKey);
