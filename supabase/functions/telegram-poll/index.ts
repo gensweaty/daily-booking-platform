@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.47.2';
+import { performBookingAction, getBookingById } from '../_shared/bookingActions.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -261,7 +262,7 @@ async function processBotUpdates(
     body: JSON.stringify({
       offset,
       timeout,
-      allowed_updates: ['message']
+      allowed_updates: ['message', 'callback_query']
     })
   });
 
@@ -290,6 +291,24 @@ async function processBotUpdates(
       // Await so the request actually leaves before we move on to heavy work.
       await sendChatAction(botToken, cid, 'typing').catch(() => {});
     }
+  }
+
+  // ── Inline button taps (Approve / Reject / Delete on booking cards) ──
+  for (const update of updates) {
+    if (!update.callback_query) continue;
+    try {
+      await handleBookingCallback(supabase, config, update, supabaseUrl);
+    } catch (cbErr) {
+      console.error('❌ callback_query handling failed:', cbErr);
+    }
+    await supabase.from('telegram_messages').upsert({
+      update_id: update.update_id,
+      chat_id: update.callback_query.message?.chat?.id ?? config.telegram_chat_id ?? 0,
+      user_id: userId,
+      text: `[button] ${update.callback_query.data || ''}`,
+      raw_update: update,
+      processed: true
+    }, { onConflict: 'update_id' });
   }
 
   for (const update of updates) {
@@ -715,5 +734,65 @@ async function sendTelegramMessage(botToken: string, chatId: number, text: strin
     } catch (err) {
       console.error('❌ sendTelegramMessage error:', err);
     }
+  }
+}
+
+// ── Handle Approve / Reject / Delete taps on a booking card ────────────
+async function handleBookingCallback(
+  supabase: ReturnType<typeof createClient>,
+  config: any,
+  update: any,
+  supabaseUrl: string
+) {
+  const cb = update.callback_query;
+  const data: string = cb.data || '';
+  const chatId = cb.message?.chat?.id ?? config.telegram_chat_id;
+  const botToken = config.bot_token;
+
+  const answer = async (text: string) => {
+    await fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callback_query_id: cb.id, text: text.slice(0, 190) }),
+    }).catch(() => {});
+  };
+
+  const match = /^bk:(approve|reject|delete):(.+)$/.exec(data);
+  if (!match) {
+    await answer('Unknown action');
+    return;
+  }
+
+  const action = match[1] as 'approve' | 'reject' | 'delete';
+  const bookingId = match[2];
+
+  await answer(action === 'approve' ? 'Approving…' : action === 'reject' ? 'Rejecting…' : 'Deleting…');
+
+  const result = await performBookingAction(supabase, {
+    bookingId,
+    action,
+    supabaseUrl,
+    serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    expectedOwnerId: config.user_id,
+  });
+
+  const icon = result.ok ? (action === 'approve' ? '✅' : action === 'reject' ? '❌' : '🗑') : '⚠️';
+  const originalText = cb.message?.text || '';
+  const newText = `${originalText}\n\n${icon} ${result.message}`;
+
+  // Replace the buttons with the outcome so the card cannot be double-tapped.
+  if (cb.message?.message_id) {
+    await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: cb.message.message_id,
+        text: newText.slice(0, 4096),
+        reply_markup: result.ok ? { inline_keyboard: [] } : cb.message.reply_markup,
+      }),
+    }).catch(() => {});
+  } else {
+    await sendTelegramMessage(botToken, chatId, `${icon} ${result.message}`);
   }
 }
