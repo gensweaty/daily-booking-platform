@@ -355,6 +355,7 @@ export const BookingRequestForm = ({
         
         // Prepare notification data
         const notificationData = {
+          bookingId: bookingId,
           businessId: businessId,
           businessEmail: businessData?.businessEmail,
           requesterName: fullName,
