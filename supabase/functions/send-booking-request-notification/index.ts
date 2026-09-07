@@ -1,6 +1,12 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.3.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
+import {
+  getBookingById,
+  resolveBookingOwnerId,
+  sendBookingCardToTelegram,
+} from "../_shared/bookingActions.ts";
 
 // CORS headers to allow cross-origin requests
 const corsHeaders = {
@@ -9,6 +15,7 @@ const corsHeaders = {
 };
 
 interface BookingNotificationRequest {
+  bookingId?: string;
   businessId: string;
   requesterName: string;
   startDate: string;
