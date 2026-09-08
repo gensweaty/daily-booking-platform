@@ -6,6 +6,7 @@ import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 import { extractText as extractPdfText } from "https://esm.sh/unpdf@0.12.1";
 // PizZip for DOCX text extraction (DOCX files are ZIP archives with XML)
 import PizZip from "https://esm.sh/pizzip@3.1.7";
+import { performBookingAction } from "../_shared/bookingActions.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
