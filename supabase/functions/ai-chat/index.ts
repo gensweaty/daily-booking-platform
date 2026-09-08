@@ -5957,6 +5957,66 @@ Call the matching tool with the exact details from the user's last message. Do n
               break;
             }
 
+            case 'manage_booking_request': {
+              const action = String(args.action || '').toLowerCase() as 'approve' | 'reject' | 'delete';
+              if (!['approve', 'reject', 'delete'].includes(action)) {
+                toolResult = { ok: false, error: 'invalid_action', message: 'I can only approve, reject or delete a booking request.' };
+                break;
+              }
+
+              // Resolve the booking, scoped to this owner's business
+              let bookingId: string | null = args.booking_id && UUID_REGEX.test(String(args.booking_id))
+                ? String(args.booking_id)
+                : null;
+
+              const { data: bizRows } = await supabaseAdmin
+                .from('business_profiles')
+                .select('id')
+                .eq('user_id', ownerId);
+              const bizIds = (bizRows || []).map((b: any) => b.id);
+
+              if (!bookingId) {
+                let q = supabaseAdmin
+                  .from('booking_requests')
+                  .select('id, requester_name, title, start_date, status')
+                  .is('deleted_at', null)
+                  .order('created_at', { ascending: false })
+                  .limit(50);
+                if (bizIds.length) q = q.in('business_id', bizIds);
+                const { data: candidates } = await q;
+                let list = candidates || [];
+                const needle = String(args.requester_name || '').trim().toLowerCase();
+                if (needle) {
+                  list = list.filter((b: any) =>
+                    String(b.requester_name || '').toLowerCase().includes(needle) ||
+                    String(b.title || '').toLowerCase().includes(needle));
+                } else {
+                  list = list.filter((b: any) => b.status === 'pending');
+                }
+                if (list.length === 0) {
+                  toolResult = { ok: false, error: 'not_found', message: needle ? `I couldn't find a booking request from "${args.requester_name}".` : 'There are no pending booking requests right now.' };
+                  break;
+                }
+                if (list.length > 1 && needle) {
+                  toolResult = { ok: false, error: 'ambiguous', message: 'More than one booking request matches that name — ask which one.', matches: list.slice(0, 5) };
+                  break;
+                }
+                bookingId = list[0].id;
+              }
+
+              const result = await performBookingAction(supabaseAdmin, {
+                bookingId: bookingId!,
+                action,
+                ownerNote: args.comment || '',
+                supabaseUrl: Deno.env.get('SUPABASE_URL') ?? '',
+                serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+                expectedOwnerId: ownerId,
+              });
+              toolResult = result;
+              console.log(`    ✓ manage_booking_request ${action}:`, JSON.stringify(result));
+              break;
+            }
+
             case 'get_all_tasks': {
               console.log('    🔍 GET_ALL_TASKS: Fetching FRESH task data from database...');
               const filters = {
