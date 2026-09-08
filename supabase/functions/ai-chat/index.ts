@@ -2746,6 +2746,23 @@ const handleAiChatRequest = async (req: Request) => {
       {
         type: "function",
         function: {
+          name: "manage_booking_request",
+          description: `Approve, reject or delete a booking request exactly as the owner would from the dashboard. Approving puts it on the calendar + CRM, copies attachments and emails the customer. USE THIS whenever the user says things like "approve it", "approve the one from Anna", "reject that booking", "delete the request", "დაადასტურე", "уаапрув", "acepta la reserva". If you don't already know which booking they mean, call get_pending_bookings FIRST and match by requester name/time. Never claim a booking was approved/rejected without calling this tool and getting ok:true.`,
+          parameters: {
+            type: "object",
+            properties: {
+              booking_id: { type: "string", description: "The booking request id (UUID) from get_pending_bookings." },
+              requester_name: { type: "string", description: "Optional: the customer's name, used to find the booking when no id is known." },
+              action: { type: "string", enum: ["approve", "reject", "delete"], description: "What to do with the request." },
+              comment: { type: "string", description: "Optional note to include in the approval email to the customer." }
+            },
+            required: ["action"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "get_all_tasks",
           description: `🚨 CRITICAL FIRST STEP - CALL THIS BEFORE ANY TASK CONVERSATION! 🚨
 
