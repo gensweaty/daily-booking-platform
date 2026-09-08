@@ -6,6 +6,7 @@ import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 import { extractText as extractPdfText } from "https://esm.sh/unpdf@0.12.1";
 // PizZip for DOCX text extraction (DOCX files are ZIP archives with XML)
 import PizZip from "https://esm.sh/pizzip@3.1.7";
+import { performBookingAction } from "../_shared/bookingActions.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -2740,6 +2741,23 @@ const handleAiChatRequest = async (req: Request) => {
           name: "get_pending_bookings",
           description: "Get pending booking requests that need approval",
           parameters: { type: "object", properties: {} }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "manage_booking_request",
+          description: `Approve, reject or delete a booking request exactly as the owner would from the dashboard. Approving puts it on the calendar + CRM, copies attachments and emails the customer. USE THIS whenever the user says things like "approve it", "approve the one from Anna", "reject that booking", "delete the request", "დაადასტურე", "уаапрув", "acepta la reserva". If you don't already know which booking they mean, call get_pending_bookings FIRST and match by requester name/time. Never claim a booking was approved/rejected without calling this tool and getting ok:true.`,
+          parameters: {
+            type: "object",
+            properties: {
+              booking_id: { type: "string", description: "The booking request id (UUID) from get_pending_bookings." },
+              requester_name: { type: "string", description: "Optional: the customer's name, used to find the booking when no id is known." },
+              action: { type: "string", enum: ["approve", "reject", "delete"], description: "What to do with the request." },
+              comment: { type: "string", description: "Optional note to include in the approval email to the customer." }
+            },
+            required: ["action"]
+          }
         }
       },
       {
@@ -5936,6 +5954,66 @@ Call the matching tool with the exact details from the user's last message. Do n
                 .order('created_at', { ascending: false });
               toolResult = { count: bookings?.length || 0, bookings: bookings || [] };
               console.log(`    ✓ Found ${toolResult.count} pending bookings`);
+              break;
+            }
+
+            case 'manage_booking_request': {
+              const action = String(args.action || '').toLowerCase() as 'approve' | 'reject' | 'delete';
+              if (!['approve', 'reject', 'delete'].includes(action)) {
+                toolResult = { ok: false, error: 'invalid_action', message: 'I can only approve, reject or delete a booking request.' };
+                break;
+              }
+
+              // Resolve the booking, scoped to this owner's business
+              let bookingId: string | null = args.booking_id && UUID_REGEX.test(String(args.booking_id))
+                ? String(args.booking_id)
+                : null;
+
+              const { data: bizRows } = await supabaseAdmin
+                .from('business_profiles')
+                .select('id')
+                .eq('user_id', ownerId);
+              const bizIds = (bizRows || []).map((b: any) => b.id);
+
+              if (!bookingId) {
+                let q = supabaseAdmin
+                  .from('booking_requests')
+                  .select('id, requester_name, title, start_date, status')
+                  .is('deleted_at', null)
+                  .order('created_at', { ascending: false })
+                  .limit(50);
+                if (bizIds.length) q = q.in('business_id', bizIds);
+                const { data: candidates } = await q;
+                let list = candidates || [];
+                const needle = String(args.requester_name || '').trim().toLowerCase();
+                if (needle) {
+                  list = list.filter((b: any) =>
+                    String(b.requester_name || '').toLowerCase().includes(needle) ||
+                    String(b.title || '').toLowerCase().includes(needle));
+                } else {
+                  list = list.filter((b: any) => b.status === 'pending');
+                }
+                if (list.length === 0) {
+                  toolResult = { ok: false, error: 'not_found', message: needle ? `I couldn't find a booking request from "${args.requester_name}".` : 'There are no pending booking requests right now.' };
+                  break;
+                }
+                if (list.length > 1 && needle) {
+                  toolResult = { ok: false, error: 'ambiguous', message: 'More than one booking request matches that name — ask which one.', matches: list.slice(0, 5) };
+                  break;
+                }
+                bookingId = list[0].id;
+              }
+
+              const result = await performBookingAction(supabaseAdmin, {
+                bookingId: bookingId!,
+                action,
+                ownerNote: args.comment || '',
+                supabaseUrl: Deno.env.get('SUPABASE_URL') ?? '',
+                serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+                expectedOwnerId: ownerId,
+              });
+              toolResult = result;
+              console.log(`    ✓ manage_booking_request ${action}:`, JSON.stringify(result));
               break;
             }
 
