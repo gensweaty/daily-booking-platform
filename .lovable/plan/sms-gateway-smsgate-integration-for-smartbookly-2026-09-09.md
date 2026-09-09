@@ -58,7 +58,9 @@ Swapping SMSGate for another provider later means adding one file next to `smsga
 - **Rescheduled / cancelled** — when an event's time changes or it is soft-deleted, queued-but-unsent reminder SMS for that event are cancelled, and a reschedule/cancellation SMS is queued if enabled. Recurring events are matched by their existing instance identity; the recurrence logic itself is untouched.
 - **CRM** — recipient numbers come from the phone fields already on customers, events and booking requests.
 
-Frontend touches are limited to the new Integrations UI and a small `useSmsGateway` hook; no SMS code enters EventDialog, CRM or booking components.
+Frontend touches are limited to the new Integrations UI and a small `useSmsGateway` hook; no SMS code enters EventDialog, CRM or booking components.  
+  
+it should work globally, when sending from certain language for example georgian when adding booking or sending manually should be in number field choose country prefix, auto should be set +995 on that language on english american one and on spanish spanish one, but could be changed as well or sent to otherr coutnries as well.
 
 ## Limits of version 1
 
