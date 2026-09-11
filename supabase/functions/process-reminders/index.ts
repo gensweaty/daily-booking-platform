@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
+import { sendSms, renderTemplate } from "../_shared/sms/service.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -226,6 +227,36 @@ const handler = async (req: Request): Promise<Response> => {
               result.eventReminders++;
               // Also send via Telegram
               await sendTelegramNotification(supabase, event.user_id, `📅 Event Reminder\n\n${event.title}${event.user_surname ? ' - ' + event.user_surname : ''}\nStarts: ${new Date(event.start_date).toLocaleString()}`);
+
+              // Also send via SMS when the SMS gateway is connected and enabled.
+              // Never let SMS problems affect reminder processing.
+              try {
+                if (event.user_number) {
+                  const smsBody = await renderTemplate(
+                    supabase,
+                    event.user_id,
+                    'reminder',
+                    event.language || 'en',
+                    {
+                      name: event.user_surname || event.title || '',
+                      title: event.title || '',
+                      date: new Date(event.start_date).toLocaleString(),
+                      business: '',
+                    },
+                  );
+                  await sendSms(supabase, {
+                    ownerId: event.user_id,
+                    to: event.user_number,
+                    body: smsBody,
+                    purpose: 'reminder',
+                    language: event.language || 'en',
+                    eventId: event.id,
+                    dedupeKey: `reminder:${event.id}:${event.reminder_at}`,
+                  });
+                }
+              } catch (smsErr) {
+                console.error('⚠️ SMS reminder error (ignored):', smsErr);
+              }
             }
           } catch (error) {
             console.error(`❌ Exception processing event ${event.id}:`, error);
