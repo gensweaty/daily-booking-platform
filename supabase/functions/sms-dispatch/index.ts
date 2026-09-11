@@ -60,6 +60,26 @@ serve(async (req) => {
       if (!cfg.sms_enabled && msg.purpose !== "test") continue;
       if (isQuietHours(cfg) && msg.purpose !== "test") continue;
 
+      // Never send an obsolete appointment reminder: if the event was deleted
+      // or moved after the message was queued, cancel it instead.
+      if (msg.purpose === "reminder" && msg.event_id) {
+        const { data: ev } = await admin
+          .from("events")
+          .select("id, deleted_at, start_date")
+          .eq("id", msg.event_id)
+          .maybeSingle();
+        const moved = ev?.start_date && msg.dedupe_key &&
+          new Date(ev.start_date).getTime() < Date.now() - 60_000 &&
+          new Date(msg.created_at).getTime() < new Date(ev.start_date).getTime() - 24 * 3600_000;
+        if (!ev || ev.deleted_at || moved) {
+          await admin.from("sms_messages")
+            .update({ status: "cancelled", updated_at: new Date().toISOString() })
+            .eq("id", msg.id);
+          continue;
+        }
+      }
+
+
       const res = await dispatchMessage(admin, cfg, msg);
       if (res.ok) summary.sent++;
       else if (res.status === "queued") summary.retried++;

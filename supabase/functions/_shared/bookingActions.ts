@@ -3,6 +3,8 @@
 // same outcome happens whether the owner clicks in the dashboard, taps a
 // Telegram button, or asks the AI agent.
 
+import { sendSms, renderTemplate } from "./sms/service.ts";
+
 type Admin = any;
 
 export type BookingAction = "approve" | "reject" | "delete";
@@ -282,6 +284,35 @@ export async function performBookingAction(
 
   await copyBookingFilesToEvent(admin, booking, bookingId, ownerId);
   await sendApprovalEmail(admin, booking, ownerId, ownerNote, supabaseUrl, serviceKey);
+
+  // SMS confirmation — a side effect only; never affects the booking outcome.
+  try {
+    if (booking.requester_phone) {
+      const { data: biz } = await admin
+        .from("business_profiles")
+        .select("business_name")
+        .eq("id", booking.business_id)
+        .maybeSingle();
+      const smsBody = await renderTemplate(admin, ownerId, "booking_confirmed", booking.language || "en", {
+        name: requesterName,
+        title: booking.title || "",
+        business: biz?.business_name || "SmartBookly",
+        date: new Date(booking.start_date).toLocaleString(),
+      });
+      await sendSms(admin, {
+        ownerId,
+        to: booking.requester_phone,
+        body: smsBody,
+        purpose: "booking_confirmed",
+        language: booking.language || "en",
+        eventId: bookingId,
+        bookingRequestId: bookingId,
+        dedupeKey: `booking_confirmed:${bookingId}`,
+      });
+    }
+  } catch (e) {
+    console.error("booking confirmation SMS error (ignored):", e);
+  }
 
   return {
     ok: true,
