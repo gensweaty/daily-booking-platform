@@ -85,3 +85,12 @@ verify_jwt = false
 
 [functions.send-crm-bulk-email]
 verify_jwt = false
+
+[functions.sms-admin]
+verify_jwt = false
+
+[functions.sms-webhook]
+verify_jwt = false
+
+[functions.sms-dispatch]
+verify_jwt = false
