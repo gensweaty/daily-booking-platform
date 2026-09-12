@@ -20,6 +20,7 @@ import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { BusinessPageSkeleton, BusinessEmptyState } from "./BusinessPageSkeleton";
 import { EmbedCodeCard } from "./EmbedCodeCard";
 import { SmsGatewaySettings } from "./SmsGatewaySettings";
+import { OpenCallSmsGatewayCard } from "./OpenCallSmsGatewayCard";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -302,6 +303,8 @@ export const BusinessPage = () => {
           <BusinessProfileForm />
 
           <SmsGatewaySettings />
+
+          <OpenCallSmsGatewayCard />
         </TabsContent>
 
         <TabsContent value="bookings" className={`space-y-6 ${publicUrl ? 'sm:-mt-12 -mt-6' : 'mt-0'}`}>
