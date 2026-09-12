@@ -17,11 +17,17 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
+// Always answer 200 so the browser SDK can read the real message instead of
+// showing a generic "Edge Function returned a non-2xx status code".
+const json = (body: unknown, status = 200) => {
+  if (status >= 400) {
+    console.error("sms-admin failure:", status, JSON.stringify(body));
+  }
+  return new Response(JSON.stringify({ ...(body as object), http_status: status }), {
+    status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+};
 
 /** Never leak credentials to the browser. */
 function publicConfig(cfg: SmsConfig | null) {

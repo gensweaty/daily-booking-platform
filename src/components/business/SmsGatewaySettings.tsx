@@ -136,8 +136,29 @@ export const SmsGatewaySettings = () => {
           {!connected ? (
             <>
               <ol className="text-sm text-muted-foreground list-decimal pl-5 space-y-1">
-                <li>Install “SMS Gateway for Android” on a phone and allow SMS permissions.</li>
-                <li>Turn on Cloud Server and set the gateway Online.</li>
+                <li>
+                  Download the app on your Android phone:{" "}
+                  <a
+                    href="https://github.com/capcom6/android-sms-gateway/releases/latest"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2"
+                  >
+                    SMS Gateway for Android (APK)
+                  </a>{" "}
+                  — or get it on{" "}
+                  <a
+                    href="https://play.google.com/store/apps/details?id=me.capcom.smsgateway"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2"
+                  >
+                    Google Play
+                  </a>
+                  .
+                </li>
+                <li>Open the app, allow SMS permissions.</li>
+                <li>Turn on <strong>Cloud Server</strong> and set the gateway Online.</li>
                 <li>Copy the username and password the app shows and paste them below.</li>
               </ol>
               <div className="grid gap-3 sm:grid-cols-2">
