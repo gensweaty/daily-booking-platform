@@ -2,7 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
-import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell, Archive, Mail } from "lucide-react"
+import { PlusCircle, ListTodo, Calendar as CalendarIcon, BarChart, Users, Briefcase, Bell, Archive, Mail, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TaskList } from "@/components/TaskList"
 import AddTaskForm from "@/components/AddTaskForm"
@@ -100,6 +100,7 @@ export const DashboardContent = ({
   const [showArchive, setShowArchive] = useState(false)
   const [pendingEventEditId, setPendingEventEditId] = useState<string | null>(null)
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false)
+  const [isSmsComposerOpen, setIsSmsComposerOpen] = useState(false)
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
