@@ -32,12 +32,10 @@ export const OpenCallSmsGatewayCard = () => {
     setResult(null);
     try {
       const d = await checkGateway();
-      const device = d?.device_name || d?.device || d?.name || "device";
-      const online = d?.online ?? d?.is_online;
-      const battery = d?.battery ?? d?.battery_level;
+      const dev = d?.device ?? {};
       setResult({
         ok: true,
-        text: `${device}${online != null ? ` · ${online ? "online" : "offline"}` : ""}${battery != null ? ` · battery ${battery}%` : ""}`,
+        text: `${dev.name || "device"}${dev.online != null ? ` · ${dev.online ? "online" : "offline"}` : ""}${dev.battery != null ? ` · battery ${dev.battery}%` : ""}`,
       });
     } catch (e) {
       setResult({ ok: false, text: (e as Error).message });
