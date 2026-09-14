@@ -45,6 +45,9 @@ const BusinessPage = lazy(() =>
 const EmailComposerDialog = lazy(() =>
   import("@/components/crm/EmailComposerDialog").then((m) => ({ default: m.EmailComposerDialog }))
 )
+const SmsComposerDialog = lazy(() =>
+  import("@/components/crm/SmsComposerDialog").then((m) => ({ default: m.SmsComposerDialog }))
+)
 const ArchivedTasksPage = lazy(() =>
   import("@/components/tasks/ArchivedTasksPage").then((m) => ({ default: m.ArchivedTasksPage }))
 )
@@ -226,7 +229,17 @@ export const DashboardContent = ({
       <ScreenshotRequestListener />
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-        <div className="flex justify-end mb-2">
+        <div className="flex justify-end gap-2 mb-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsSmsComposerOpen(true)}
+            className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10"
+          >
+            <MessageSquare className="w-4 h-4 text-primary" />
+            <LanguageText>{t("dashboard.sendSms") || "Send SMS"}</LanguageText>
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -238,6 +251,15 @@ export const DashboardContent = ({
             <LanguageText>{t("dashboard.sendEmail") || "Send Email"}</LanguageText>
           </Button>
         </div>
+        {isSmsComposerOpen && (
+          <Suspense fallback={null}>
+            <SmsComposerDialog
+              open={isSmsComposerOpen}
+              onOpenChange={setIsSmsComposerOpen}
+              customers={[]}
+            />
+          </Suspense>
+        )}
         {isEmailComposerOpen && (
           <Suspense fallback={null}>
             <EmailComposerDialog
