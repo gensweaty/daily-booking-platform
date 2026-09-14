@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download, CheckSquare, Square, Mail } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Copy, FileSpreadsheet, AlertCircle, User, UserCog, Info, Upload, Download, CheckSquare, Square, Mail, MessageSquare } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CustomerDialog } from "./CustomerDialog";
 import { useToast } from "@/components/ui/use-toast";
@@ -21,6 +21,7 @@ import { useSubUserPermissions } from "@/hooks/useSubUserPermissions";
 import { CRMFiltersProvider, useCRMFilters } from "@/hooks/useCRMFilters";
 import { CRMFilterButton } from "./CRMFilterButton";
 import { EmailComposerDialog } from "./EmailComposerDialog";
+import { SmsComposerDialog } from "./SmsComposerDialog";
 import {
   Table,
   TableBody,
@@ -155,6 +156,8 @@ const CustomerListContent = ({
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false);
   const [emailRecipients, setEmailRecipients] = useState<any[]>([]);
+  const [isSmsComposerOpen, setIsSmsComposerOpen] = useState(false);
+  const [smsRecipients, setSmsRecipients] = useState<any[]>([]);
   const idsToDeleteRef = useRef<string[]>([]); // Store IDs when opening dialog to prevent re-render issues
   const tableContainerRef = useRef<HTMLDivElement>(null);
   
@@ -269,6 +272,13 @@ const CustomerListContent = ({
     const selected = (displayedData || []).filter((c: any) => selectedCustomerIds.has(c.id));
     setEmailRecipients(selected);
     setIsEmailComposerOpen(true);
+  }, [displayedData, selectedCustomerIds]);
+
+  // Open the personalized SMS composer for the currently selected customers
+  const openSmsComposer = useCallback(() => {
+    const selected = (displayedData || []).filter((c: any) => selectedCustomerIds.has(c.id));
+    setSmsRecipients(selected);
+    setIsSmsComposerOpen(true);
   }, [displayedData, selectedCustomerIds]);
 
   // Bulk delete handler - uses stored IDs from ref (not state) to prevent re-render issues
