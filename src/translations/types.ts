@@ -405,6 +405,7 @@ export interface TranslationType {
   };
   dashboard: {
     sendEmail: string;
+    sendSms: string;
     welcome: string;
     productivityHub: string;
     greeting: string;

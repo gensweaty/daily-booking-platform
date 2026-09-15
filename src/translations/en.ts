@@ -400,6 +400,7 @@ export const translations: TranslationType = {
   },
   dashboard: {
     sendEmail: "Send Email",
+    sendSms: "Send SMS",
     welcome: "Welcome back",
     productivityHub: "Your productivity hub",
     greeting: "Hello",
