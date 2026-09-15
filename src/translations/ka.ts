@@ -411,6 +411,7 @@ export const translations: TranslationType = {
   },
   dashboard: {
     sendEmail: "ელფოსტის გაგზავნა",
+    sendSms: "SMS-ის გაგზავნა",
     welcome: "კეთილი იყოს თქვენი დაბრუნება",
     productivityHub: "თქვენი პროდუქტიულობის ცენტრი",
     greeting: "გამარჯობა",

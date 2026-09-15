@@ -411,6 +411,7 @@ export const translations: TranslationType = {
   },
   dashboard: {
     sendEmail: "Enviar correo",
+    sendSms: "Enviar SMS",
     welcome: "Bienvenido de nuevo",
     productivityHub: "Tu centro de productividad",
     greeting: "Hola",
