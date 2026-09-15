@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Smartphone, Loader2 } from "lucide-react";
+import { Smartphone, Loader2, Check } from "lucide-react";
 import { saveGatewayCreds, getGatewayCreds, checkGateway } from "@/lib/smsGateway";
 
 export const OpenCallSmsGatewayCard = () => {
@@ -98,6 +98,9 @@ export const OpenCallSmsGatewayCard = () => {
             {result.text}
           </p>
         )}
+        <p className="text-sm text-green-600 flex items-center gap-1.5">
+          <Check className="h-4 w-4" /> Bulk: up to 500 SMS per request
+        </p>
       </CardContent>
     </Card>
   );
