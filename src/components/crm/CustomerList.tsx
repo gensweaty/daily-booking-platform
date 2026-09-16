@@ -913,6 +913,16 @@ const CustomerListContent = ({
                                   <Mail className="h-4 w-4" />
                                 </button>
                               )}
+                              {!isPublicMode && (
+                                <button
+                                  onClick={openSmsComposer}
+                                  className="p-1.5 rounded hover:bg-primary/20 transition-colors text-primary border border-transparent hover:border-primary/30"
+                                  data-selection-control
+                                  title={`${language === 'en' ? 'SMS' : language === 'es' ? 'SMS' : 'SMS'} (${selectedCustomerIds.size})`}
+                                >
+                                  <MessageSquare className="h-4 w-4" />
+                                </button>
+                              )}
                               <button
                                 onClick={openBulkDeleteDialog}
                                 className="p-1.5 rounded hover:bg-destructive/20 transition-colors text-destructive border border-transparent hover:border-destructive/30"
