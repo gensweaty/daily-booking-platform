@@ -137,6 +137,7 @@ export const BookingRequestsList = ({
     try {
       await onApprove?.(id, ownerNotes[id]?.trim() || undefined);
       setOwnerNotes(prev => ({ ...prev, [id]: '' }));
+      fireAutoSms(requestToApprove, "booking_approved");
     } finally {
       setProcessingId(null);
     }
@@ -146,6 +147,7 @@ export const BookingRequestsList = ({
     setProcessingId(id);
     try {
       await onReject?.(id);
+      fireAutoSms(requests.find(req => req.id === id), "booking_rejected");
     } finally {
       setProcessingId(null);
     }
