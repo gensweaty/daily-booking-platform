@@ -46,6 +46,32 @@ export const BookingRequestsList = ({
   const isGeorgian = language === 'ka';
   const isMobile = useMediaQuery('(max-width: 640px)');
   const currencySymbol = getCurrencySymbol(language);
+  const { businessProfile } = useBusinessProfile();
+
+  // Automatic SMS to the customer (never blocks the booking flow)
+  const fireAutoSms = (request: BookingRequest | undefined, event: "booking_approved" | "booking_rejected") => {
+    if (!request) return;
+    try {
+      const start = new Date(request.start_date);
+      const lang = (["en", "es", "ka"].includes(language) ? language : "en") as "en" | "es" | "ka";
+      void sendAutoSms(
+        event,
+        request.requester_phone || request.user_number,
+        {
+          name: request.requester_name,
+          surname: request.user_surname,
+          business: businessProfile?.business_name || "",
+          date: start.toLocaleDateString(),
+          time: start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          price: request.payment_amount != null ? String(request.payment_amount) : "",
+          notes: request.event_notes || "",
+        },
+        lang
+      );
+    } catch (e) {
+      console.warn("[sms-auto] booking sms skipped", e);
+    }
+  };
 
   // Fetch files for all requests
   useEffect(() => {
