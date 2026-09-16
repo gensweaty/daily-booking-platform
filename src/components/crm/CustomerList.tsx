@@ -1257,6 +1257,12 @@ const CustomerListContent = ({
         onOpenChange={setIsEmailComposerOpen}
         customers={emailRecipients}
       />
+
+      <SmsComposerDialog
+        open={isSmsComposerOpen}
+        onOpenChange={setIsSmsComposerOpen}
+        customers={smsRecipients}
+      />
     </div>
   );
 };
