@@ -16,6 +16,8 @@ export async function gatewayCall(fn: string, body: Record<string, unknown>) {
 export const saveGatewayCreds = (username: string, password: string) =>
   localStorage.setItem("opencall_gw", JSON.stringify({ username, password }));
 
+export const removeGatewayCreds = () => localStorage.removeItem("opencall_gw");
+
 export const getGatewayCreds = (): { username: string; password: string } | null => {
   try {
     return JSON.parse(localStorage.getItem("opencall_gw") || "null");

@@ -254,7 +254,7 @@ export const BusinessPage = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-6 bg-background/80 border rounded-lg p-1 shadow-sm">
+        <TabsList className="mb-6 flex flex-wrap h-auto bg-background/80 border rounded-lg p-1 shadow-sm">
           <TabsTrigger 
             value="profile" 
             data-tutorial="business-profile-tab"
