@@ -20,11 +20,12 @@ import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { BusinessPageSkeleton, BusinessEmptyState } from "./BusinessPageSkeleton";
 import { EmbedCodeCard } from "./EmbedCodeCard";
 import SmsSettingsSection from "./SmsSettingsSection";
+import { MessageCircle } from "lucide-react";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
   const { t, language } = useLanguage();
-  const [activeTab, setActiveTab] = useState<"profile" | "bookings">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "bookings" | "sms">("profile");
   const { bookingRequests, pendingRequests, approvedRequests, rejectedRequests, approveRequest, rejectRequest, deleteBookingRequest, refetch } = useBookingRequests();
   const pendingCount = pendingRequests?.length || 0;
   const isGeorgian = language === 'ka';
@@ -49,8 +50,8 @@ export const BusinessPage = () => {
   useEffect(() => {
     const handleSwitchBusinessTab = (e: CustomEvent<{ tab: string }>) => {
       const tab = e.detail?.tab;
-      if (tab === 'profile' || tab === 'bookings') {
-        setActiveTab(tab);
+      if (tab === 'profile' || tab === 'bookings' || tab === 'sms') {
+        setActiveTab(tab as "profile" | "bookings" | "sms");
       }
     };
     window.addEventListener('switch-business-tab', handleSwitchBusinessTab as EventListener);
@@ -101,7 +102,7 @@ export const BusinessPage = () => {
     : null;
 
   const handleTabChange = (value: string) => {
-    if (value === "profile" || value === "bookings") {
+    if (value === "profile" || value === "bookings" || value === "sms") {
       setActiveTab(value);
     }
   };
@@ -279,6 +280,19 @@ export const BusinessPage = () => {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger
+            value="sms"
+            className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+          >
+            <span className="flex items-center gap-1.5">
+              <MessageCircle className="h-4 w-4" />
+              {isGeorgian ? (
+                <GeorgianAuthText>SMS პარამეტრები</GeorgianAuthText>
+              ) : (
+                <span>{language === 'es' ? 'Ajustes de SMS' : 'SMS Settings'}</span>
+              )}
+            </span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -300,7 +314,9 @@ export const BusinessPage = () => {
           )}
 
           <BusinessProfileForm />
+        </TabsContent>
 
+        <TabsContent value="sms" className="space-y-6">
           <SmsSettingsSection />
         </TabsContent>
 
