@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { MessageSquare, Smartphone, Send, ExternalLink, Zap, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { OpenCallSmsGatewayCard } from "./OpenCallSmsGatewayCard";
-import { SmsGatewaySettings } from "./SmsGatewaySettings";
+
 import { SmsComposerDialog } from "@/components/crm/SmsComposerDialog";
 import {
   DEFAULT_TEMPLATES,
@@ -390,8 +390,8 @@ export const SmsSettingsSection = () => {
         </CardContent>
       </Card>
 
-      {/* Advanced: Android SMS gateway (SMSGate) */}
-      <SmsGatewaySettings />
+
+
 
       {bulkOpen && (
         <SmsComposerDialog open={bulkOpen} onOpenChange={setBulkOpen} customers={[]} />
