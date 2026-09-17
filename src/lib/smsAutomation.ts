@@ -136,3 +136,17 @@ export const sendAutoSms = async (
     return false;
   }
 };
+
+/** Sends an owner-facing alert to the phone number saved in SMS settings. */
+export const sendAutoSmsToOwner = async (
+  event: SmsAutoEvent,
+  vars: Record<string, string | undefined>,
+  lang: Lang = "en"
+): Promise<boolean> => {
+  try {
+    const settings = getSmsAutoSettings(lang);
+    return await sendAutoSms(event, settings.ownerPhone, vars, lang);
+  } catch {
+    return false;
+  }
+};
