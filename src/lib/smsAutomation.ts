@@ -77,6 +77,7 @@ export const defaultSmsAutoSettings = (lang: Lang = "en"): SmsAutoSettings => ({
   events: {
     booking_approved: true,
     booking_rejected: false,
+    booking_request_ack: false,
     booking_received: false,
     event_reminder: false,
   },
