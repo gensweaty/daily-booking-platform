@@ -5,8 +5,19 @@ import { sendSms, getGatewayCreds } from "@/lib/smsGateway";
 export type SmsAutoEvent =
   | "booking_approved"
   | "booking_rejected"
+  | "booking_request_ack"
   | "booking_received"
   | "event_reminder";
+
+/** Who each message goes to: the customer, or the business owner. */
+export const SMS_EVENT_AUDIENCE: Record<SmsAutoEvent, "customer" | "owner"> = {
+  booking_approved: "customer",
+  booking_rejected: "customer",
+  booking_request_ack: "customer",
+  event_reminder: "customer",
+  booking_received: "owner",
+};
+
 
 export interface SmsAutoSettings {
   enabled: boolean;
@@ -25,6 +36,8 @@ export const DEFAULT_TEMPLATES: Record<Lang, Record<SmsAutoEvent, string>> = {
       "Hi @name, your booking at @business on @date at @time is confirmed. See you soon!",
     booking_rejected:
       "Hi @name, unfortunately your booking request at @business for @date at @time could not be accepted. Please contact us for another time.",
+    booking_request_ack:
+      "Hi @name, we received your booking request at @business for @date at @time. We will confirm it shortly.",
     booking_received:
       "New booking request: @name — @date at @time. Open SmartBookly to approve or reject.",
     event_reminder:
@@ -35,6 +48,8 @@ export const DEFAULT_TEMPLATES: Record<Lang, Record<SmsAutoEvent, string>> = {
       "Hola @name, tu reserva en @business el @date a las @time está confirmada. ¡Nos vemos!",
     booking_rejected:
       "Hola @name, lamentablemente tu solicitud de reserva en @business para el @date a las @time no pudo aceptarse. Contáctanos para otro horario.",
+    booking_request_ack:
+      "Hola @name, recibimos tu solicitud de reserva en @business para el @date a las @time. La confirmaremos en breve.",
     booking_received:
       "Nueva solicitud de reserva: @name — @date a las @time. Abre SmartBookly para aprobar o rechazar.",
     event_reminder:
@@ -45,6 +60,8 @@ export const DEFAULT_TEMPLATES: Record<Lang, Record<SmsAutoEvent, string>> = {
       "გამარჯობა @name, თქვენი ჯავშანი @business-ში @date @time დადასტურებულია. მალე შევხვდებით!",
     booking_rejected:
       "გამარჯობა @name, სამწუხაროდ თქვენი ჯავშნის მოთხოვნა @business-ში @date @time ვერ დადასტურდა. გთხოვთ დაგვიკავშირდეთ სხვა დროისთვის.",
+    booking_request_ack:
+      "გამარჯობა @name, მივიღეთ თქვენი ჯავშნის მოთხოვნა @business-ში @date @time. მალე დაგიდასტურებთ.",
     booking_received:
       "ახალი ჯავშნის მოთხოვნა: @name — @date @time. გახსენით SmartBookly დასადასტურებლად.",
     event_reminder:
@@ -60,6 +77,7 @@ export const defaultSmsAutoSettings = (lang: Lang = "en"): SmsAutoSettings => ({
   events: {
     booking_approved: true,
     booking_rejected: false,
+    booking_request_ack: false,
     booking_received: false,
     event_reminder: false,
   },
@@ -115,6 +133,20 @@ export const sendAutoSms = async (
     return true;
   } catch (e) {
     console.warn("[sms-auto] send failed", e);
+    return false;
+  }
+};
+
+/** Sends an owner-facing alert to the phone number saved in SMS settings. */
+export const sendAutoSmsToOwner = async (
+  event: SmsAutoEvent,
+  vars: Record<string, string | undefined>,
+  lang: Lang = "en"
+): Promise<boolean> => {
+  try {
+    const settings = getSmsAutoSettings(lang);
+    return await sendAutoSms(event, settings.ownerPhone, vars, lang);
+  } catch {
     return false;
   }
 };
