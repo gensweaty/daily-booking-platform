@@ -7,14 +7,26 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { MessageSquare, Smartphone, Send, ExternalLink, Zap, Loader2 } from "lucide-react";
+import {
+  MessageSquare,
+  Smartphone,
+  Send,
+  ExternalLink,
+  Zap,
+  Loader2,
+  Users,
+  UserCog,
+  ChevronDown,
+  Save,
+  RotateCcw,
+} from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { OpenCallSmsGatewayCard } from "./OpenCallSmsGatewayCard";
-
 import { SmsComposerDialog } from "@/components/crm/SmsComposerDialog";
 import {
   DEFAULT_TEMPLATES,
   SMS_AUTO_TOKENS,
+  SMS_EVENT_AUDIENCE,
   SmsAutoEvent,
   SmsAutoSettings,
   getSmsAutoSettings,
@@ -41,9 +53,16 @@ const COPY: Record<Lang, any> = {
     autoTitle: "Automatic SMS notifications",
     autoDesc: "Turn on the messages you want SmartBookly to send by itself. Each one works just like the email version.",
     master: "Enable automatic SMS",
+    masterHint: "Nothing is sent while this is off.",
     ownerPhone: "Your phone number (for alerts sent to you)",
+    customerGroup: "Messages to your customers",
+    customerGroupDesc: "Whenever an email goes to a customer, the same message is texted too — if their phone number is saved.",
+    ownerGroup: "Messages to you",
+    ownerGroupDesc: "Alerts sent to your own phone number above.",
+    edit: "Edit message",
     tokensHint: "Click a tag to add it. Every customer gets their own details instead of the tag.",
     preview: "Preview",
+    reset: "Reset to default",
     save: "Save settings",
     saved: "Settings saved",
     bulkTitle: "Send bulk SMS",
@@ -55,11 +74,14 @@ const COPY: Record<Lang, any> = {
     testBtn: "Send test",
     testSent: "Test SMS sent",
     notConnected: "Connect your gateway first (username and password above).",
+    on: "On",
+    off: "Off",
     events: {
       booking_approved: "Booking approved — confirmation to the customer",
       booking_rejected: "Booking declined — message to the customer",
+      booking_request_ack: "Booking request received — confirmation to the customer",
+      event_reminder: "Appointment reminder — sent to the customer before the appointment",
       booking_received: "New booking request — alert to your own phone",
-      event_reminder: "Appointment reminder — sent before the appointment",
     },
   },
   es: {
@@ -75,9 +97,16 @@ const COPY: Record<Lang, any> = {
     autoTitle: "Notificaciones SMS automáticas",
     autoDesc: "Activa los mensajes que quieres que SmartBookly envíe solo. Cada uno funciona igual que la versión por correo.",
     master: "Activar SMS automáticos",
+    masterHint: "No se envía nada mientras esto esté desactivado.",
     ownerPhone: "Tu número de teléfono (para los avisos que recibes tú)",
+    customerGroup: "Mensajes para tus clientes",
+    customerGroupDesc: "Cada vez que un correo va a un cliente, también se le envía el mismo mensaje por SMS, si tiene teléfono guardado.",
+    ownerGroup: "Mensajes para ti",
+    ownerGroupDesc: "Avisos enviados a tu propio número indicado arriba.",
+    edit: "Editar mensaje",
     tokensHint: "Haz clic en una etiqueta para añadirla. Cada cliente recibe sus propios datos en lugar de la etiqueta.",
     preview: "Vista previa",
+    reset: "Restablecer",
     save: "Guardar ajustes",
     saved: "Ajustes guardados",
     bulkTitle: "Enviar SMS masivos",
@@ -89,11 +118,14 @@ const COPY: Record<Lang, any> = {
     testBtn: "Enviar prueba",
     testSent: "SMS de prueba enviado",
     notConnected: "Conecta primero tu pasarela (usuario y contraseña arriba).",
+    on: "Activado",
+    off: "Desactivado",
     events: {
       booking_approved: "Reserva aprobada — confirmación al cliente",
       booking_rejected: "Reserva rechazada — mensaje al cliente",
+      booking_request_ack: "Solicitud de reserva recibida — confirmación al cliente",
+      event_reminder: "Recordatorio de cita — enviado al cliente antes de la cita",
       booking_received: "Nueva solicitud de reserva — aviso a tu teléfono",
-      event_reminder: "Recordatorio de cita — enviado antes de la cita",
     },
   },
   ka: {
@@ -109,9 +141,16 @@ const COPY: Record<Lang, any> = {
     autoTitle: "ავტომატური SMS შეტყობინებები",
     autoDesc: "ჩართეთ შეტყობინებები, რომლებსაც SmartBookly თავად გააგზავნის. თითოეული ისევე მუშაობს, როგორც ელფოსტის ვერსია.",
     master: "ავტომატური SMS-ის ჩართვა",
+    masterHint: "სანამ ეს გამორთულია, არაფერი იგზავნება.",
     ownerPhone: "თქვენი ტელეფონის ნომერი (თქვენთვის განკუთვნილი შეტყობინებებისთვის)",
+    customerGroup: "შეტყობინებები თქვენს კლიენტებს",
+    customerGroupDesc: "როცა კლიენტს ელფოსტა ეგზავნება, იგივე შეტყობინება SMS-ითაც გაიგზავნება — თუ ნომერი შენახულია.",
+    ownerGroup: "შეტყობინებები თქვენთვის",
+    ownerGroupDesc: "იგზავნება ზემოთ მითითებულ თქვენს ნომერზე.",
+    edit: "შეტყობინების რედაქტირება",
     tokensHint: "დააჭირეთ ტეგს ჩასამატებლად. თითოეული კლიენტი მიიღებს საკუთარ მონაცემებს ტეგის ნაცვლად.",
     preview: "გადახედვა",
+    reset: "დაბრუნება საწყისზე",
     save: "პარამეტრების შენახვა",
     saved: "პარამეტრები შენახულია",
     bulkTitle: "მასობრივი SMS-ის გაგზავნა",
@@ -123,21 +162,26 @@ const COPY: Record<Lang, any> = {
     testBtn: "ტესტის გაგზავნა",
     testSent: "სატესტო SMS გაიგზავნა",
     notConnected: "ჯერ დააკავშირეთ გეითვეი (მომხმარებელი და პაროლი ზემოთ).",
+    on: "ჩართული",
+    off: "გამორთული",
     events: {
       booking_approved: "ჯავშანი დადასტურდა — დადასტურება კლიენტს",
       booking_rejected: "ჯავშანი უარყოფილია — შეტყობინება კლიენტს",
+      booking_request_ack: "ჯავშნის მოთხოვნა მიღებულია — დადასტურება კლიენტს",
+      event_reminder: "ვიზიტის შეხსენება — იგზავნება კლიენტს ვიზიტამდე",
       booking_received: "ახალი ჯავშნის მოთხოვნა — შეტყობინება თქვენს ტელეფონზე",
-      event_reminder: "ვიზიტის შეხსენება — იგზავნება ვიზიტამდე",
     },
   },
 };
 
-const EVENT_ORDER: SmsAutoEvent[] = [
+const CUSTOMER_EVENTS: SmsAutoEvent[] = [
   "booking_approved",
   "booking_rejected",
-  "booking_received",
+  "booking_request_ack",
   "event_reminder",
 ];
+const OWNER_EVENTS: SmsAutoEvent[] = ["booking_received"];
+const ALL_EVENTS: SmsAutoEvent[] = [...CUSTOMER_EVENTS, ...OWNER_EVENTS];
 
 const SAMPLE = {
   name: "Anna",
@@ -155,6 +199,7 @@ export const SmsSettingsSection = () => {
   const { toast } = useToast();
 
   const [settings, setSettings] = useState<SmsAutoSettings>(() => getSmsAutoSettings(lang));
+  const [openEditor, setOpenEditor] = useState<SmsAutoEvent | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const [testText, setTestText] = useState("");
@@ -190,7 +235,7 @@ export const SmsSettingsSection = () => {
   const previews = useMemo(
     () =>
       Object.fromEntries(
-        EVENT_ORDER.map((e) => [e, renderSmsTemplate(settings.templates[e] || "", SAMPLE)])
+        ALL_EVENTS.map((e) => [e, renderSmsTemplate(settings.templates[e] || "", SAMPLE)])
       ) as Record<SmsAutoEvent, string>,
     [settings.templates]
   );
@@ -201,25 +246,122 @@ export const SmsSettingsSection = () => {
       templates: { ...s.templates, [event]: `${s.templates[event] || ""}@${token}` },
     }));
 
+  const renderEventRow = (event: SmsAutoEvent) => {
+    const on = !!settings.events[event];
+    const expanded = openEditor === event;
+    return (
+      <div
+        key={event}
+        className={`rounded-xl border transition-colors ${
+          on ? "border-primary/40 bg-primary/5" : "border-border bg-card"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3 p-3.5">
+          <div className="min-w-0 space-y-1">
+            <Label htmlFor={`sms-${event}`} className="text-sm font-medium leading-snug">
+              {copy.events[event]}
+            </Label>
+            <div className="flex items-center gap-2">
+              <Badge variant={on ? "green" : "secondary"} className="h-5 px-2 text-[11px]">
+                {on ? copy.on : copy.off}
+              </Badge>
+              {on && (
+                <button
+                  type="button"
+                  onClick={() => setOpenEditor(expanded ? null : event)}
+                  className="inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                >
+                  {copy.edit}
+                  <ChevronDown
+                    className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`}
+                  />
+                </button>
+              )}
+            </div>
+          </div>
+          <Switch
+            id={`sms-${event}`}
+            checked={on}
+            disabled={!settings.enabled}
+            onCheckedChange={(v) => {
+              update({ events: { ...settings.events, [event]: v } });
+              setOpenEditor(v ? event : null);
+            }}
+          />
+        </div>
+
+        {on && expanded && (
+          <div className="space-y-2.5 border-t border-border/60 p-3.5">
+            <Textarea
+              value={settings.templates[event] || ""}
+              onChange={(e) =>
+                update({ templates: { ...settings.templates, [event]: e.target.value } })
+              }
+              rows={3}
+              className="resize-none bg-background text-base md:text-sm"
+            />
+            <div className="flex flex-wrap items-center gap-1.5">
+              {SMS_AUTO_TOKENS.map((token) => (
+                <button
+                  key={token}
+                  type="button"
+                  onClick={() => insertToken(event, token)}
+                  className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 font-mono text-[11px] text-primary transition-colors hover:bg-primary/20"
+                >
+                  @{token}
+                </button>
+              ))}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 gap-1 px-2 text-xs text-muted-foreground"
+                onClick={() =>
+                  update({
+                    templates: { ...settings.templates, [event]: DEFAULT_TEMPLATES[lang][event] },
+                  })
+                }
+              >
+                <RotateCcw className="h-3 w-3" /> {copy.reset}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">{copy.tokensHint}</p>
+            <div className="rounded-lg border border-border/60 bg-muted/40 p-2.5 text-xs leading-relaxed">
+              <Badge variant="secondary" className="mr-2 h-5 px-2 text-[11px]">
+                {copy.preview}
+              </Badge>
+              {previews[event]}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Getting started */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" /> {copy.title}
-          </CardTitle>
-          <CardDescription>{copy.subtitle}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="font-medium text-sm">{copy.howTitle}</p>
-          <ol className="space-y-2 text-sm text-muted-foreground">
+      <Card className="overflow-hidden border-primary/20">
+        <div className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
+                <MessageSquare className="h-5 w-5" />
+              </span>
+              {copy.title}
+            </CardTitle>
+            <CardDescription>{copy.subtitle}</CardDescription>
+          </CardHeader>
+        </div>
+        <CardContent className="space-y-3 pt-5">
+          <p className="text-sm font-medium">{copy.howTitle}</p>
+          <ol className="space-y-2.5 text-sm text-muted-foreground">
             {copy.steps.map((s: string, i: number) => (
-              <li key={i} className="flex gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+              <li key={i} className="flex gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
                   {i + 1}
                 </span>
-                <span>{s}</span>
+                <span className="leading-relaxed">{s}</span>
               </li>
             ))}
           </ol>
@@ -238,15 +380,21 @@ export const SmsSettingsSection = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5" /> {copy.autoTitle}
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
+              <Zap className="h-5 w-5" />
+            </span>
+            {copy.autoTitle}
           </CardTitle>
           <CardDescription>{copy.autoDesc}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <Label htmlFor="sms-auto-master" className="font-medium">
-              {copy.master}
-            </Label>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-3.5">
+            <div className="space-y-0.5">
+              <Label htmlFor="sms-auto-master" className="font-medium">
+                {copy.master}
+              </Label>
+              <p className="text-xs text-muted-foreground">{copy.masterHint}</p>
+            </div>
             <Switch
               id="sms-auto-master"
               checked={settings.enabled}
@@ -254,117 +402,75 @@ export const SmsSettingsSection = () => {
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="sms-owner-phone">{copy.ownerPhone}</Label>
-            <Input
-              id="sms-owner-phone"
-              value={settings.ownerPhone}
-              placeholder="+995555123456"
-              onChange={(e) => update({ ownerPhone: e.target.value })}
-            />
-          </div>
+          {/* Customer messages */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">{copy.customerGroup}</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">{copy.customerGroupDesc}</p>
+            <div className="space-y-2.5">{CUSTOMER_EVENTS.map(renderEventRow)}</div>
+          </section>
 
-          <div className="space-y-4">
-            {EVENT_ORDER.map((event) => (
-              <div key={event} className="rounded-lg border p-3 space-y-2">
-                <div className="flex items-start justify-between gap-3">
-                  <Label htmlFor={`sms-${event}`} className="text-sm font-medium">
-                    {copy.events[event]}
-                  </Label>
-                  <Switch
-                    id={`sms-${event}`}
-                    checked={!!settings.events[event]}
-                    disabled={!settings.enabled}
-                    onCheckedChange={(v) =>
-                      update({ events: { ...settings.events, [event]: v } })
-                    }
-                  />
-                </div>
-                {settings.events[event] && (
-                  <>
-                    <Textarea
-                      value={settings.templates[event] || ""}
-                      onChange={(e) =>
-                        update({ templates: { ...settings.templates, [event]: e.target.value } })
-                      }
-                      rows={3}
-                      className="text-base md:text-sm"
-                    />
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {SMS_AUTO_TOKENS.map((token) => (
-                        <button
-                          key={token}
-                          type="button"
-                          onClick={() => insertToken(event, token)}
-                          className="rounded-full border border-border bg-background px-2 py-0.5 font-mono text-[11px] text-primary hover:bg-primary/10"
-                        >
-                          @{token}
-                        </button>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 px-2 text-xs"
-                        onClick={() =>
-                          update({
-                            templates: {
-                              ...settings.templates,
-                              [event]: DEFAULT_TEMPLATES[lang][event],
-                            },
-                          })
-                        }
-                      >
-                        ↺
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{copy.tokensHint}</p>
-                    <div className="rounded-md bg-muted/50 p-2 text-xs">
-                      <Badge variant="secondary" className="mr-2">
-                        {copy.preview}
-                      </Badge>
-                      {previews[event]}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
+          {/* Owner messages */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <UserCog className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">{copy.ownerGroup}</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">{copy.ownerGroupDesc}</p>
+            <div className="space-y-1.5">
+              <Label htmlFor="sms-owner-phone" className="text-sm">
+                {copy.ownerPhone}
+              </Label>
+              <Input
+                id="sms-owner-phone"
+                value={settings.ownerPhone}
+                placeholder="+995555123456"
+                className="text-base md:text-sm"
+                onChange={(e) => update({ ownerPhone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2.5">{OWNER_EVENTS.map(renderEventRow)}</div>
+          </section>
 
-          <Button onClick={onSave}>{copy.save}</Button>
-        </CardContent>
-      </Card>
-
-      {/* Bulk SMS */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5" /> {copy.bulkTitle}
-          </CardTitle>
-          <CardDescription>{copy.bulkDesc}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button onClick={() => setBulkOpen(true)} className="gap-2">
-            <MessageSquare className="h-4 w-4" /> {copy.bulkBtn}
+          <Button onClick={onSave} className="w-full gap-2 sm:w-auto">
+            <Save className="h-4 w-4" /> {copy.save}
           </Button>
         </CardContent>
       </Card>
 
-      {/* Test SMS */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5" /> {copy.testTitle}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Bulk SMS */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Send className="h-5 w-5 text-primary" /> {copy.bulkTitle}
+            </CardTitle>
+            <CardDescription>{copy.bulkDesc}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => setBulkOpen(true)} className="gap-2">
+              <MessageSquare className="h-4 w-4" /> {copy.bulkBtn}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Test SMS */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Smartphone className="h-5 w-5 text-primary" /> {copy.testTitle}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="sms-test-phone">{copy.testPhone}</Label>
               <Input
                 id="sms-test-phone"
                 value={testPhone}
                 placeholder="+995555123456"
+                className="text-base md:text-sm"
                 onChange={(e) => setTestPhone(e.target.value)}
               />
             </div>
@@ -374,24 +480,22 @@ export const SmsSettingsSection = () => {
                 id="sms-test-text"
                 value={testText}
                 placeholder="SmartBookly test SMS"
+                className="text-base md:text-sm"
                 onChange={(e) => setTestText(e.target.value)}
               />
             </div>
-          </div>
-          <Button
-            variant="outline"
-            onClick={onSendTest}
-            disabled={testing || testPhone.replace(/\D/g, "").length < 6}
-            className="gap-2"
-          >
-            {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {copy.testBtn}
-          </Button>
-        </CardContent>
-      </Card>
-
-
-
+            <Button
+              variant="outline"
+              onClick={onSendTest}
+              disabled={testing || testPhone.replace(/\D/g, "").length < 6}
+              className="gap-2"
+            >
+              {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {copy.testBtn}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       {bulkOpen && (
         <SmsComposerDialog open={bulkOpen} onOpenChange={setBulkOpen} customers={[]} />
