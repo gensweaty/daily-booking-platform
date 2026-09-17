@@ -5,8 +5,19 @@ import { sendSms, getGatewayCreds } from "@/lib/smsGateway";
 export type SmsAutoEvent =
   | "booking_approved"
   | "booking_rejected"
+  | "booking_request_ack"
   | "booking_received"
   | "event_reminder";
+
+/** Who each message goes to: the customer, or the business owner. */
+export const SMS_EVENT_AUDIENCE: Record<SmsAutoEvent, "customer" | "owner"> = {
+  booking_approved: "customer",
+  booking_rejected: "customer",
+  booking_request_ack: "customer",
+  event_reminder: "customer",
+  booking_received: "owner",
+};
+
 
 export interface SmsAutoSettings {
   enabled: boolean;
