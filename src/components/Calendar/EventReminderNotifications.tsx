@@ -6,11 +6,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Bell } from "lucide-react";
 import { platformNotificationManager } from "@/utils/platformNotificationManager";
+import { sendAutoSms } from "@/lib/smsAutomation";
+import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 
 export const EventReminderNotifications = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { businessProfile } = useBusinessProfile();
   const queryClient = useQueryClient();
   const [processedReminders, setProcessedReminders] = useState<Set<string>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
