@@ -3,6 +3,8 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useQuery } from '@tanstack/react-query';
+import { sendAutoSms, sendAutoSmsToOwner } from '@/lib/smsAutomation';
+import { useBusinessProfile } from '@/hooks/useBusinessProfile';
 
 interface BookingRequest {
   id: string;
@@ -11,6 +13,10 @@ interface BookingRequest {
   start_date: string;
   created_at: string;
   status: string;
+  requester_phone?: string | null;
+  user_number?: string | null;
+  payment_amount?: number | null;
+  user_surname?: string | null;
 }
 
 /**
