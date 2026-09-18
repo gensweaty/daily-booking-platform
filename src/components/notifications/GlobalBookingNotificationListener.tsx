@@ -50,6 +50,30 @@ export const GlobalBookingNotificationListener = () => {
   });
 
   const businessProfileId = businessProfile?.id;
+  const { businessProfile: fullBusinessProfile } = useBusinessProfile();
+  const businessName = fullBusinessProfile?.business_name || '';
+
+  // Automatic SMS: acknowledge the customer and alert the owner (owner's dashboard
+  // is the only place with the gateway credentials). Never blocks notifications.
+  const fireBookingSms = async (r: BookingRequest) => {
+    try {
+      const start = r.start_date ? new Date(r.start_date) : null;
+      const vars = {
+        name: r.requester_name || '',
+        surname: r.user_surname || '',
+        business: businessName,
+        date: start ? start.toLocaleDateString() : '',
+        time: start ? start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+        price: r.payment_amount != null ? String(r.payment_amount) : '',
+        notes: r.title || '',
+      };
+      const lang = (language === 'ka' || language === 'es' ? language : 'en') as 'en' | 'es' | 'ka';
+      await sendAutoSms('booking_request_ack', r.requester_phone || r.user_number, vars, lang);
+      await sendAutoSmsToOwner('booking_received', vars, lang);
+    } catch (e) {
+      console.warn('[GlobalBookingNotificationListener] auto SMS failed', e);
+    }
+  };
 
   // Shared dispatcher so realtime and polling produce identical notifications
   const notifyRef = useRef<(r: BookingRequest) => Promise<void>>();
@@ -79,6 +103,8 @@ export const GlobalBookingNotificationListener = () => {
         targetAudience: 'internal',
       }
     }));
+
+    void fireBookingSms(newRequest);
   };
 
   // Safety-net polling: if realtime drops or the socket never connects,
@@ -98,7 +124,7 @@ export const GlobalBookingNotificationListener = () => {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from('booking_requests')
-        .select('id, requester_name, title, start_date, created_at, status')
+        .select('id, requester_name, title, start_date, created_at, status, requester_phone, user_number, user_surname, payment_amount')
         .eq('business_id', businessProfileId)
         .eq('status', 'pending')
         .is('deleted_at', null)
