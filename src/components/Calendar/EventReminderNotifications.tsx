@@ -257,6 +257,28 @@ export const EventReminderNotifications = () => {
               reminder_sent_at: event.reminder_sent_at,
             });
           }
+
+          // Automatic SMS reminder to the customer (only if enabled in SMS settings)
+          try {
+            const start = event.start_date ? new Date(event.start_date) : null;
+            const lang = (language === 'ka' || language === 'es' ? language : 'en') as 'en' | 'es' | 'ka';
+            await sendAutoSms(
+              'event_reminder',
+              event.requester_phone || event.user_number,
+              {
+                name: event.requester_name || event.title || '',
+                surname: event.user_surname || '',
+                business: businessProfile?.business_name || '',
+                date: start ? start.toLocaleDateString() : '',
+                time: start ? start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                price: event.payment_amount != null ? String(event.payment_amount) : '',
+                notes: event.event_notes || '',
+              },
+              lang
+            );
+          } catch (smsError) {
+            console.warn('📱 Event reminder SMS failed:', smsError);
+          }
           
           console.log('📊 Dashboard notification: ✅ Sent');
           console.log('🔔 System notification:', result.success ? '✅ Sent' : '❌ Failed');
