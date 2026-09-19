@@ -1,72 +1,185 @@
-// Minimal OpenCall SMS Gateway client — direct browser calls, no backend.
-const API = "https://ijrfqjxdajgoaysazxle.supabase.co/rest/v1/rpc";
-const KEY = "sb_publishable_Af8dsVLpjtO6Mpe3zpmI9Q_odky49Fh";
+// SMS-Gate compatible gateway client (SMS Gateway for Android).
+// Credentials are stored locally and persist until the user disconnects.
 
-export async function gatewayCall(fn: string, body: Record<string, unknown>) {
-  const res = await fetch(`${API}/${fn}`, {
-    method: "POST",
-    headers: { apikey: KEY, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || "gateway error");
-  return data;
-}
+export const DEFAULT_SERVER_URL =
+  "https://ijrfqjxdajgoaysazxle.supabase.co/functions/v1/smmsgate";
 
-export const saveGatewayCreds = (username: string, password: string) =>
-  localStorage.setItem("opencall_gw", JSON.stringify({ username, password }));
+const CREDS_KEY = "opencall_gw";
+const TOKEN_KEY = "opencall_gw_token";
 
-export const removeGatewayCreds = () => localStorage.removeItem("opencall_gw");
+export type GatewayCreds = {
+  serverUrl: string;
+  username: string;
+  password: string;
+};
 
-export const getGatewayCreds = (): { username: string; password: string } | null => {
+export const saveGatewayCreds = (
+  username: string,
+  password: string,
+  serverUrl: string = DEFAULT_SERVER_URL
+) => {
+  localStorage.setItem(
+    CREDS_KEY,
+    JSON.stringify({
+      serverUrl: (serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, ""),
+      username,
+      password,
+    })
+  );
+  localStorage.removeItem(TOKEN_KEY);
+};
+
+export const removeGatewayCreds = () => {
+  localStorage.removeItem(CREDS_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+};
+
+export const getGatewayCreds = (): GatewayCreds | null => {
   try {
-    return JSON.parse(localStorage.getItem("opencall_gw") || "null");
+    const raw = JSON.parse(localStorage.getItem(CREDS_KEY) || "null");
+    if (!raw || !raw.username) return null;
+    return {
+      serverUrl: (raw.serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, ""),
+      username: raw.username,
+      password: raw.password || "",
+    };
   } catch {
     return null;
   }
 };
 
-export async function sendSms(to: string, body: string) {
-  const creds = getGatewayCreds();
-  if (!creds) throw new Error("SMS gateway not configured");
-  return gatewayCall("gateway_api_send_sms", {
-    p_username: creds.username,
-    p_password: creds.password,
-    p_to: to,
-    p_body: body.slice(0, 1600),
-  });
-}
-
-export const checkGateway = () => {
+const requireCreds = (): GatewayCreds => {
   const c = getGatewayCreds();
   if (!c) throw new Error("SMS gateway not configured");
-  return gatewayCall("gateway_api_status", {
-    p_username: c.username,
-    p_password: c.password,
-  });
+  return c;
 };
 
-export async function sendBulkSms(messages: { to: string; body: string }[]) {
-  const creds = getGatewayCreds();
-  if (!creds) throw new Error("Gateway not configured");
-  if (messages.length === 0) return { queued: 0, messages: [] };
-  if (messages.length > 500) {
-    const results = [];
-    for (let i = 0; i < messages.length; i += 500) {
-      results.push(await sendBulkSms(messages.slice(i, i + 500)));
-    }
-    return { queued: messages.length, messages: results.flatMap((r) => r.messages) };
+const basicHeader = (c: GatewayCreds) =>
+  `Basic ${btoa(`${c.username}:${c.password}`)}`;
+
+type CachedToken = { token: string; expiresAt: string; username: string };
+
+const readToken = (username: string): string | null => {
+  try {
+    const t: CachedToken | null = JSON.parse(localStorage.getItem(TOKEN_KEY) || "null");
+    if (!t?.token || t.username !== username) return null;
+    if (t.expiresAt && new Date(t.expiresAt).getTime() - 30_000 < Date.now()) return null;
+    return t.token;
+  } catch {
+    return null;
   }
-  const res = await fetch(`${API}/gateway_api_send_bulk`, {
+};
+
+async function readError(res: Response) {
+  const text = await res.text().catch(() => "");
+  if (res.status === 401) return new Error("invalid gateway credentials");
+  let message = text;
+  try {
+    const json = JSON.parse(text);
+    message = json.message || json.error || text;
+  } catch {
+    /* plain text body */
+  }
+  return new Error(message || `Gateway error (${res.status})`);
+}
+
+/** POST /3rdparty/v1/auth/token — returns access token info. */
+export async function getAuthToken(creds?: GatewayCreds) {
+  const c = creds ?? requireCreds();
+  const res = await fetch(`${c.serverUrl}/3rdparty/v1/auth/token`, {
     method: "POST",
-    headers: { apikey: KEY, "Content-Type": "application/json" },
+    headers: { Authorization: basicHeader(c), "Content-Type": "application/json" },
+  });
+  if (!res.ok) throw await readError(res);
+  const data = await res.json().catch(() => ({}));
+  if (data?.access_token) {
+    localStorage.setItem(
+      TOKEN_KEY,
+      JSON.stringify({
+        token: data.access_token,
+        expiresAt: data.expires_at || "",
+        username: c.username,
+      } satisfies CachedToken)
+    );
+  }
+  return data as { access_token?: string; token_type?: string; expires_at?: string };
+}
+
+async function authHeader(c: GatewayCreds): Promise<string> {
+  const cached = readToken(c.username);
+  if (cached) return `Bearer ${cached}`;
+  try {
+    const t = await getAuthToken(c);
+    if (t?.access_token) return `Bearer ${t.access_token}`;
+  } catch (e) {
+    if ((e as Error).message === "invalid gateway credentials") throw e;
+  }
+  return basicHeader(c);
+}
+
+export type SentMessage = { id?: string; status?: string; createdAt?: string };
+
+/** POST /3rdparty/v1/messages */
+async function postMessage(
+  c: GatewayCreds,
+  phoneNumbers: string[],
+  text: string,
+  retry = true
+): Promise<SentMessage> {
+  const res = await fetch(`${c.serverUrl}/3rdparty/v1/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: await authHeader(c),
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
-      p_username: creds.username,
-      p_password: creds.password,
-      p_messages: messages.map((m) => ({ to: m.to, body: m.body })),
+      textMessage: { text: text.slice(0, 1600) },
+      phoneNumbers,
     }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Bulk send failed");
-  return data;
+  if (res.status === 401 && retry) {
+    localStorage.removeItem(TOKEN_KEY);
+    return postMessage(c, phoneNumbers, text, false);
+  }
+  if (!res.ok) throw await readError(res);
+  return (await res.json().catch(() => ({}))) as SentMessage;
+}
+
+export async function sendSms(to: string, body: string) {
+  const c = requireCreds();
+  return postMessage(c, [to], body);
+}
+
+/** Sends many messages; identical texts are grouped into one request (max 500 numbers). */
+export async function sendBulkSms(messages: { to: string; body: string }[]) {
+  const c = requireCreds();
+  if (messages.length === 0) return { queued: 0, messages: [] as { smsId?: string; to: string }[] };
+
+  const groups = new Map<string, string[]>();
+  for (const m of messages) {
+    const list = groups.get(m.body) || [];
+    list.push(m.to);
+    groups.set(m.body, list);
+  }
+
+  const sent: { smsId?: string; to: string }[] = [];
+  for (const [body, numbers] of groups) {
+    for (let i = 0; i < numbers.length; i += 500) {
+      const chunk = numbers.slice(i, i + 500);
+      const res = await postMessage(c, chunk, body);
+      chunk.forEach((to) => sent.push({ smsId: res?.id, to }));
+    }
+  }
+  return { queued: sent.length, messages: sent };
+}
+
+/** Test the connection through the auth token endpoint. */
+export async function checkGateway(creds?: GatewayCreds) {
+  const c = creds ?? requireCreds();
+  const t = await getAuthToken(c);
+  return {
+    ok: true,
+    tokenType: t?.token_type || "Basic",
+    expiresAt: t?.expires_at,
+  };
 }
