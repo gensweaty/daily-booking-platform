@@ -1,4 +1,4 @@
-import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle, Bot, Mail, Send, Code2 } from "lucide-react";
+import { Calendar, ChartBar, ListTodo, Users, Globe, MessageCircle, Bot, Mail, Send, Code2, MessageSquare } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { ClientLogos } from "./ClientLogos";
 import { FeatureButtons } from "./FeatureButtons";
@@ -7,6 +7,7 @@ import analyticsScreenshot from "@/assets/analytics-screenshot.webp";
 import emailCampaignsScreenshot from "@/assets/email-campaigns-screenshot.webp";
 import telegramAiScreenshot from "@/assets/telegram-ai-screenshot.webp";
 import embedBookingScreenshot from "@/assets/embed-booking-screenshot.webp";
+import smsNotificationsScreenshot from "@/assets/sms-notifications-screenshot.webp";
 import tasksScreenshotDark from "@/assets/tasks-screenshot-dark.webp";
 import analyticsScreenshotDark from "@/assets/analytics-screenshot-dark.webp";
 import emailCampaignsScreenshotDark from "@/assets/email-campaigns-screenshot-dark.webp";
@@ -180,6 +181,16 @@ export const FeatureSection = () => {
     translationPrefix: 'emailCampaigns' as const,
     id: "email-campaigns",
     reverse: true
+  }, {
+    icon: MessageSquare,
+    title: t('smsNotifications.title'),
+    description: t('smsNotifications.description'),
+    image: smsNotificationsScreenshot,
+    imageDark: smsNotificationsScreenshot,
+    benefits: [t('smsNotifications.feature1'), t('smsNotifications.feature2'), t('smsNotifications.feature3'), t('smsNotifications.feature4'), t('smsNotifications.feature5'), t('smsNotifications.feature6')],
+    translationPrefix: 'smsNotifications' as const,
+    id: "sms-notifications",
+    reverse: false
   }];
   return <section className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
