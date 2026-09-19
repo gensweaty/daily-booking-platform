@@ -23,7 +23,7 @@ interface FeatureCardProps {
   }[];
 
   reverse?: boolean;
-  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website' | 'teamChat' | 'aiAssistant' | 'emailCampaigns' | 'telegramAi' | 'embedBooking';
+  translationPrefix: 'booking' | 'analytics' | 'crm' | 'tasks' | 'website' | 'teamChat' | 'aiAssistant' | 'emailCampaigns' | 'telegramAi' | 'embedBooking' | 'smsNotifications';
 }
 
 const FeatureCardComponent = ({
