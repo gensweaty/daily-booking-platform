@@ -11,6 +11,7 @@ import {
   getGatewayCreds,
   removeGatewayCreds,
   checkGateway,
+  DEFAULT_SERVER_URL,
 } from "@/lib/smsGateway";
 
 type Lang = "en" | "es" | "ka";
@@ -18,51 +19,57 @@ type Lang = "en" | "es" | "ka";
 const COPY: Record<Lang, Record<string, string>> = {
   en: {
     title: "Phone connection",
-    desc: "Create your username & password in the OpenCall app → SMS Gateway tab.",
-    link: "OpenCall app",
+    desc: "Install the SMS Gateway app on your Android phone, then enter the server address, username and password it shows.",
+    link: "SMS Gateway app",
+    server: "Server URL",
     username: "Username",
     password: "Password",
     save: "Save",
     update: "Update",
     saved: "Saved ✓",
     test: "Test connection",
-    remove: "Remove",
+    remove: "Disconnect",
     connected: "Saved on this device",
     notSaved: "Not saved yet",
-    bulk: "Bulk: up to 500 SMS per request",
-    hint: "Your username and password stay saved until you change or remove them.",
+    bulk: "Bulk: up to 500 numbers per request",
+    hint: "Your details stay saved until you change them or disconnect.",
+    ok: "Connection successful",
   },
   es: {
     title: "Conexión del teléfono",
-    desc: "Crea tu usuario y contraseña en la app OpenCall → pestaña SMS Gateway.",
-    link: "Aplicación OpenCall",
+    desc: "Instala la app SMS Gateway en tu teléfono Android e introduce la dirección del servidor, el usuario y la contraseña que muestra.",
+    link: "Aplicación SMS Gateway",
+    server: "URL del servidor",
     username: "Usuario",
     password: "Contraseña",
     save: "Guardar",
     update: "Actualizar",
     saved: "Guardado ✓",
     test: "Probar conexión",
-    remove: "Eliminar",
+    remove: "Desconectar",
     connected: "Guardado en este dispositivo",
     notSaved: "Aún no guardado",
-    bulk: "Masivo: hasta 500 SMS por solicitud",
-    hint: "Tu usuario y contraseña quedan guardados hasta que los cambies o los elimines.",
+    bulk: "Masivo: hasta 500 números por solicitud",
+    hint: "Tus datos quedan guardados hasta que los cambies o te desconectes.",
+    ok: "Conexión correcta",
   },
   ka: {
     title: "ტელეფონის კავშირი",
-    desc: "შექმენით მომხმარებელი და პაროლი OpenCall აპში → SMS Gateway ჩანართი.",
-    link: "OpenCall აპლიკაცია",
+    desc: "დააინსტალირეთ SMS Gateway აპი Android ტელეფონზე და შეიყვანეთ სერვერის მისამართი, მომხმარებელი და პაროლი.",
+    link: "SMS Gateway აპლიკაცია",
+    server: "სერვერის URL",
     username: "მომხმარებელი",
     password: "პაროლი",
     save: "შენახვა",
     update: "განახლება",
     saved: "შენახულია ✓",
     test: "კავშირის შემოწმება",
-    remove: "წაშლა",
+    remove: "გათიშვა",
     connected: "შენახულია ამ მოწყობილობაზე",
     notSaved: "ჯერ არ არის შენახული",
-    bulk: "მასობრივი: 500-მდე SMS ერთ მოთხოვნაზე",
-    hint: "მომხმარებელი და პაროლი შენახული რჩება სანამ არ შეცვლით ან წაშლით.",
+    bulk: "მასობრივი: 500-მდე ნომერი ერთ მოთხოვნაზე",
+    hint: "მონაცემები შენახული რჩება სანამ არ შეცვლით ან გათიშავთ.",
+    ok: "კავშირი წარმატებულია",
   },
 };
 
@@ -71,6 +78,7 @@ export const OpenCallSmsGatewayCard = () => {
   const lang: Lang = (["en", "es", "ka"].includes(language) ? language : "en") as Lang;
   const copy = COPY[lang];
 
+  const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [stored, setStored] = useState(false);
@@ -81,6 +89,7 @@ export const OpenCallSmsGatewayCard = () => {
   useEffect(() => {
     const c = getGatewayCreds();
     if (c?.username) {
+      setServerUrl(c.serverUrl || DEFAULT_SERVER_URL);
       setUsername(c.username);
       setPassword(c.password || "");
       setStored(true);
@@ -88,9 +97,10 @@ export const OpenCallSmsGatewayCard = () => {
   }, []);
 
   const onSave = () => {
-    saveGatewayCreds(username.trim(), password.trim());
+    saveGatewayCreds(username.trim(), password.trim(), serverUrl.trim() || DEFAULT_SERVER_URL);
     setStored(true);
     setSaved(true);
+    setResult(null);
     setTimeout(() => setSaved(false), 2000);
   };
 
@@ -99,6 +109,7 @@ export const OpenCallSmsGatewayCard = () => {
     setStored(false);
     setUsername("");
     setPassword("");
+    setServerUrl(DEFAULT_SERVER_URL);
     setResult(null);
   };
 
@@ -106,11 +117,14 @@ export const OpenCallSmsGatewayCard = () => {
     setTesting(true);
     setResult(null);
     try {
-      const d = await checkGateway();
-      const dev = (d as any)?.device ?? {};
+      const r = await checkGateway({
+        serverUrl: (serverUrl.trim() || DEFAULT_SERVER_URL).replace(/\/+$/, ""),
+        username: username.trim(),
+        password: password.trim(),
+      });
       setResult({
         ok: true,
-        text: `${dev.name || "device"}${dev.online != null ? ` · ${dev.online ? "online" : "offline"}` : ""}${dev.battery != null ? ` · battery ${dev.battery}%` : ""}`,
+        text: `${copy.ok}${r.expiresAt ? ` · ${new Date(r.expiresAt).toLocaleString()}` : ""}`,
       });
     } catch (e) {
       setResult({ ok: false, text: (e as Error).message });
@@ -141,6 +155,16 @@ export const OpenCallSmsGatewayCard = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="oc-server">{copy.server}</Label>
+          <Input
+            id="oc-server"
+            value={serverUrl}
+            autoComplete="off"
+            className="text-base md:text-sm"
+            onChange={(e) => setServerUrl(e.target.value)}
+          />
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="oc-username">{copy.username}</Label>
@@ -168,7 +192,11 @@ export const OpenCallSmsGatewayCard = () => {
           <Button onClick={onSave} disabled={!username.trim() || !password.trim()}>
             {saved ? copy.saved : stored ? copy.update : copy.save}
           </Button>
-          <Button variant="outline" onClick={onTest} disabled={testing || !username.trim()}>
+          <Button
+            variant="outline"
+            onClick={onTest}
+            disabled={testing || !username.trim() || !password.trim()}
+          >
             {testing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
             {copy.test}
           </Button>
