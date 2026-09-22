@@ -118,10 +118,16 @@ function networkError(url: string, e: unknown) {
 /** POST /3rdparty/v1/auth/token — returns access token info. */
 export async function getAuthToken(creds?: GatewayCreds) {
   const c = creds ?? requireCreds();
-  const res = await fetch(`${c.serverUrl}/3rdparty/v1/auth/token`, {
-    method: "POST",
-    headers: { Authorization: basicHeader(c), "Content-Type": "application/json" },
-  });
+  const url = `${c.serverUrl}/3rdparty/v1/auth/token`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: basicHeader(c), "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    throw networkError(url, e);
+  }
   if (!res.ok) throw await readError(res);
   const data = await res.json().catch(() => ({}));
   if (data?.access_token) {
