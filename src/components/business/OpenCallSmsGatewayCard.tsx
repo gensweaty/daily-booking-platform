@@ -178,14 +178,25 @@ export const OpenCallSmsGatewayCard = () => {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="oc-password">{copy.password}</Label>
-            <Input
-              id="oc-password"
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              className="text-base md:text-sm"
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                id="oc-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                value={password}
+                className="text-base md:text-sm pr-10"
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? copy.hidePassword : copy.showPassword}
+                title={showPassword ? copy.hidePassword : copy.showPassword}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
