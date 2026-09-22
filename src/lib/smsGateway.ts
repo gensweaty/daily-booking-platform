@@ -150,7 +150,7 @@ async function authHeader(c: GatewayCreds): Promise<string> {
     const t = await getAuthToken(c);
     if (t?.access_token) return `Bearer ${t.access_token}`;
   } catch (e) {
-    if ((e as Error).message === "invalid gateway credentials") throw e;
+    if (/invalid gateway credentials/i.test((e as Error).message)) throw e;
   }
   return basicHeader(c);
 }
