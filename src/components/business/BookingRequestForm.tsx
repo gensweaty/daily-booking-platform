@@ -278,7 +278,15 @@ export const BookingRequestForm = ({
       }
 
       // Create booking data object
+      // NOTE: public visitors cannot read booking_requests back (RLS is owner-only),
+      // so we generate the id client-side and never use .select() after the insert.
+      const newBookingId =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
       const bookingData = {
+        id: newBookingId,
         business_id: businessId,
         requester_name: fullName,
         requester_email: socialNetworkLink,
