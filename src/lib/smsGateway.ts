@@ -72,7 +72,6 @@ const readToken = (username: string): string | null => {
 
 async function readError(res: Response) {
   const text = await res.text().catch(() => "");
-  if (res.status === 401) return new Error("invalid gateway credentials");
   let message = text;
   try {
     const json = JSON.parse(text);
@@ -80,16 +79,55 @@ async function readError(res: Response) {
   } catch {
     /* plain text body */
   }
-  return new Error(message || `Gateway error (${res.status})`);
+  if (res.status === 401 || res.status === 403) {
+    return new Error(
+      `Invalid gateway credentials — the username or password was rejected by the server (${res.status}).` +
+        (message ? ` Server said: ${message}` : "")
+    );
+  }
+  if (res.status === 404) {
+    return new Error(
+      `Server address not found (404). Check the Server URL — it must point at your gateway, without /3rdparty at the end.` +
+        (message ? ` Server said: ${message}` : "")
+    );
+  }
+  if (res.status === 429) {
+    return new Error("Too many requests to the gateway (429). Wait a minute and try again.");
+  }
+  if (res.status >= 500) {
+    return new Error(
+      `The gateway server returned an error (${res.status}). The phone app may be offline or not configured.` +
+        (message ? ` Server said: ${message}` : "")
+    );
+  }
+  return new Error(message ? `Gateway error (${res.status}): ${message}` : `Gateway error (${res.status})`);
+}
+
+/** Network-level failures give an unhelpful "Failed to fetch" — explain them. */
+function networkError(url: string, e: unknown) {
+  const msg = (e as Error)?.message || String(e);
+  if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+    return new Error(
+      `Could not reach the server at ${url}. Possible reasons: the Server URL is wrong or unreachable, ` +
+        `the phone/gateway is offline, there is no internet connection, or the server does not allow requests from this website (CORS).`
+    );
+  }
+  return e instanceof Error ? e : new Error(msg);
 }
 
 /** POST /3rdparty/v1/auth/token — returns access token info. */
 export async function getAuthToken(creds?: GatewayCreds) {
   const c = creds ?? requireCreds();
-  const res = await fetch(`${c.serverUrl}/3rdparty/v1/auth/token`, {
-    method: "POST",
-    headers: { Authorization: basicHeader(c), "Content-Type": "application/json" },
-  });
+  const url = `${c.serverUrl}/3rdparty/v1/auth/token`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: basicHeader(c), "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    throw networkError(url, e);
+  }
   if (!res.ok) throw await readError(res);
   const data = await res.json().catch(() => ({}));
   if (data?.access_token) {
@@ -112,7 +150,7 @@ async function authHeader(c: GatewayCreds): Promise<string> {
     const t = await getAuthToken(c);
     if (t?.access_token) return `Bearer ${t.access_token}`;
   } catch (e) {
-    if ((e as Error).message === "invalid gateway credentials") throw e;
+    if (/invalid gateway credentials/i.test((e as Error).message)) throw e;
   }
   return basicHeader(c);
 }
@@ -126,17 +164,23 @@ async function postMessage(
   text: string,
   retry = true
 ): Promise<SentMessage> {
-  const res = await fetch(`${c.serverUrl}/3rdparty/v1/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: await authHeader(c),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      textMessage: { text: text.slice(0, 1600) },
-      phoneNumbers,
-    }),
-  });
+  const url = `${c.serverUrl}/3rdparty/v1/messages`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: await authHeader(c),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        textMessage: { text: text.slice(0, 1600) },
+        phoneNumbers,
+      }),
+    });
+  } catch (e) {
+    throw networkError(url, e);
+  }
   if (res.status === 401 && retry) {
     localStorage.removeItem(TOKEN_KEY);
     return postMessage(c, phoneNumbers, text, false);

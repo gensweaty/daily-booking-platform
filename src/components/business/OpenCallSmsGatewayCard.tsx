@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Smartphone, Loader2, Check, Trash2 } from "lucide-react";
+import { Smartphone, Loader2, Check, Trash2, Eye, EyeOff } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   saveGatewayCreds,
@@ -34,6 +34,8 @@ const COPY: Record<Lang, Record<string, string>> = {
     bulk: "Bulk: up to 500 numbers per request",
     hint: "Your details stay saved until you change them or disconnect.",
     ok: "Connection successful",
+    showPassword: "Show password",
+    hidePassword: "Hide password",
   },
   es: {
     title: "Conexión del teléfono",
@@ -52,6 +54,8 @@ const COPY: Record<Lang, Record<string, string>> = {
     bulk: "Masivo: hasta 500 números por solicitud",
     hint: "Tus datos quedan guardados hasta que los cambies o te desconectes.",
     ok: "Conexión correcta",
+    showPassword: "Mostrar contraseña",
+    hidePassword: "Ocultar contraseña",
   },
   ka: {
     title: "ტელეფონის კავშირი",
@@ -70,6 +74,8 @@ const COPY: Record<Lang, Record<string, string>> = {
     bulk: "მასობრივი: 500-მდე ნომერი ერთ მოთხოვნაზე",
     hint: "მონაცემები შენახული რჩება სანამ არ შეცვლით ან გათიშავთ.",
     ok: "კავშირი წარმატებულია",
+    showPassword: "პაროლის ჩვენება",
+    hidePassword: "პაროლის დამალვა",
   },
 };
 
@@ -81,6 +87,7 @@ export const OpenCallSmsGatewayCard = () => {
   const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [stored, setStored] = useState(false);
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -178,14 +185,25 @@ export const OpenCallSmsGatewayCard = () => {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="oc-password">{copy.password}</Label>
-            <Input
-              id="oc-password"
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              className="text-base md:text-sm"
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="relative">
+              <Input
+                id="oc-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                value={password}
+                className="text-base md:text-sm pr-10"
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? copy.hidePassword : copy.showPassword}
+                title={showPassword ? copy.hidePassword : copy.showPassword}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

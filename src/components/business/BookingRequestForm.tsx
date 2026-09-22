@@ -278,7 +278,15 @@ export const BookingRequestForm = ({
       }
 
       // Create booking data object
+      // NOTE: public visitors cannot read booking_requests back (RLS is owner-only),
+      // so we generate the id client-side and never use .select() after the insert.
+      const newBookingId =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
       const bookingData = {
+        id: newBookingId,
         business_id: businessId,
         requester_name: fullName,
         requester_email: socialNetworkLink,
@@ -295,19 +303,17 @@ export const BookingRequestForm = ({
 
       console.log('Submitting booking request:', bookingData);
 
-      // Step 1: Create booking request in database
-      const { data: bookingResponse, error: bookingError } = await supabase
+      // Step 1: Create booking request in database (no read-back: RLS blocks it for guests)
+      const { error: bookingError } = await supabase
         .from('booking_requests')
-        .insert(bookingData)
-        .select()
-        .single();
+        .insert(bookingData);
 
       if (bookingError) {
         console.error('Error submitting booking request:', bookingError);
         throw bookingError;
       }
 
-      const bookingId = bookingResponse.id;
+      const bookingId = newBookingId;
       console.log('Booking request created with ID:', bookingId);
 
       // Step 2: Handle file upload if present
