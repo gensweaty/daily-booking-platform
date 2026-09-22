@@ -72,7 +72,6 @@ const readToken = (username: string): string | null => {
 
 async function readError(res: Response) {
   const text = await res.text().catch(() => "");
-  if (res.status === 401) return new Error("invalid gateway credentials");
   let message = text;
   try {
     const json = JSON.parse(text);
@@ -80,7 +79,40 @@ async function readError(res: Response) {
   } catch {
     /* plain text body */
   }
-  return new Error(message || `Gateway error (${res.status})`);
+  if (res.status === 401 || res.status === 403) {
+    return new Error(
+      `Invalid gateway credentials — the username or password was rejected by the server (${res.status}).` +
+        (message ? ` Server said: ${message}` : "")
+    );
+  }
+  if (res.status === 404) {
+    return new Error(
+      `Server address not found (404). Check the Server URL — it must point at your gateway, without /3rdparty at the end.` +
+        (message ? ` Server said: ${message}` : "")
+    );
+  }
+  if (res.status === 429) {
+    return new Error("Too many requests to the gateway (429). Wait a minute and try again.");
+  }
+  if (res.status >= 500) {
+    return new Error(
+      `The gateway server returned an error (${res.status}). The phone app may be offline or not configured.` +
+        (message ? ` Server said: ${message}` : "")
+    );
+  }
+  return new Error(message ? `Gateway error (${res.status}): ${message}` : `Gateway error (${res.status})`);
+}
+
+/** Network-level failures give an unhelpful "Failed to fetch" — explain them. */
+function networkError(url: string, e: unknown) {
+  const msg = (e as Error)?.message || String(e);
+  if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+    return new Error(
+      `Could not reach the server at ${url}. Possible reasons: the Server URL is wrong or unreachable, ` +
+        `the phone/gateway is offline, there is no internet connection, or the server does not allow requests from this website (CORS).`
+    );
+  }
+  return e instanceof Error ? e : new Error(msg);
 }
 
 /** POST /3rdparty/v1/auth/token — returns access token info. */
