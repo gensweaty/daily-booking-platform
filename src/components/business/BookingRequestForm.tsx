@@ -303,19 +303,17 @@ export const BookingRequestForm = ({
 
       console.log('Submitting booking request:', bookingData);
 
-      // Step 1: Create booking request in database
-      const { data: bookingResponse, error: bookingError } = await supabase
+      // Step 1: Create booking request in database (no read-back: RLS blocks it for guests)
+      const { error: bookingError } = await supabase
         .from('booking_requests')
-        .insert(bookingData)
-        .select()
-        .single();
+        .insert(bookingData);
 
       if (bookingError) {
         console.error('Error submitting booking request:', bookingError);
         throw bookingError;
       }
 
-      const bookingId = bookingResponse.id;
+      const bookingId = newBookingId;
       console.log('Booking request created with ID:', bookingId);
 
       // Step 2: Handle file upload if present
