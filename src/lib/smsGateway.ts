@@ -164,17 +164,23 @@ async function postMessage(
   text: string,
   retry = true
 ): Promise<SentMessage> {
-  const res = await fetch(`${c.serverUrl}/3rdparty/v1/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: await authHeader(c),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      textMessage: { text: text.slice(0, 1600) },
-      phoneNumbers,
-    }),
-  });
+  const url = `${c.serverUrl}/3rdparty/v1/messages`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: await authHeader(c),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        textMessage: { text: text.slice(0, 1600) },
+        phoneNumbers,
+      }),
+    });
+  } catch (e) {
+    throw networkError(url, e);
+  }
   if (res.status === 401 && retry) {
     localStorage.removeItem(TOKEN_KEY);
     return postMessage(c, phoneNumbers, text, false);
