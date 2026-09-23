@@ -126,7 +126,7 @@ export const GlobalBookingNotificationListener = () => {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from('booking_requests')
-        .select('id, requester_name, title, start_date, created_at, status, requester_phone, user_number, user_surname, payment_amount')
+        .select('id, requester_name, title, start_date, created_at, status, requester_phone, requester_email, user_number, user_surname, payment_amount')
         .eq('business_id', businessProfileId)
         .eq('status', 'pending')
         .is('deleted_at', null)

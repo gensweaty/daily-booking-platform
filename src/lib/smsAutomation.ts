@@ -69,7 +69,7 @@ export const DEFAULT_TEMPLATES: Record<Lang, Record<SmsAutoEvent, string>> = {
   },
 };
 
-export const SMS_AUTO_TOKENS = ["name", "business", "date", "time", "price", "notes"] as const;
+export const SMS_AUTO_TOKENS = ["name", "business", "date", "time", "price", "notes", "email", "phone"] as const;
 
 export const defaultSmsAutoSettings = (lang: Lang = "en"): SmsAutoSettings => ({
   enabled: false,
