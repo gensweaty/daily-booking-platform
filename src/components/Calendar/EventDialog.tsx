@@ -702,7 +702,9 @@ export const EventDialog = ({
             eventData.id,
             language || 'en',
             recipient.eventNotes,
-            ownerEmail
+            ownerEmail,
+            eventData.user_number || '',
+            eventData.title || eventData.user_surname || ''
           );
 
           if (emailResult?.success) {
