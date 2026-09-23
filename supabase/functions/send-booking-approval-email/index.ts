@@ -23,6 +23,8 @@ interface BookingApprovalEmailRequest {
   eventNotes?: string; // Added event notes field
   ownerEmail?: string; // Business owner email for copy
   ownerNote?: string; // Optional message written by the business owner at approval time
+  customerPhone?: string; // Customer phone number, shown in the owner copy
+  eventTitle?: string; // Event / customer title, shown in the owner copy
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -412,7 +414,9 @@ const handler = async (req: Request): Promise<Response> => {
       language,
       eventNotes,
       ownerEmail,
-      ownerNote
+      ownerNote,
+      customerPhone,
+      eventTitle
     } = parsedBody;
 
     console.log("Request body:", {
