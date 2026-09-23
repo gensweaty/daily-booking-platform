@@ -615,6 +615,29 @@ export const EventDialog = ({
         return;
       }
 
+      // Automatic SMS with the same information as the confirmation email.
+      // Never blocks the event flow.
+      try {
+        const start = eventData.start_date ? new Date(eventData.start_date) : null;
+        const smsLang = (["en", "es", "ka"].includes(language || "") ? language : "en") as "en" | "es" | "ka";
+        const smsVars = {
+          name: eventData.title || eventData.user_surname || "",
+          surname: eventData.user_surname || "",
+          business: businessData.business_name || "",
+          date: start ? start.toLocaleDateString() : "",
+          time: start ? start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+          price: eventData.payment_amount != null ? String(eventData.payment_amount) : "",
+          notes: eventData.event_notes || "",
+          email: eventData.social_network_link || "",
+          phone: eventData.user_number || "",
+        };
+        void sendAutoSms("booking_approved", eventData.user_number, smsVars, smsLang);
+        void sendAutoSmsToOwner("booking_received", smsVars, smsLang);
+      } catch (smsError) {
+        console.warn("[sms-auto] event sms skipped", smsError);
+      }
+
+
       const recipients: Array<{
         email: string;
         name: string;
