@@ -66,6 +66,8 @@ export const GlobalBookingNotificationListener = () => {
         time: start ? start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
         price: r.payment_amount != null ? String(r.payment_amount) : '',
         notes: r.title || '',
+        email: (r as any).requester_email || '',
+        phone: r.requester_phone || r.user_number || '',
       };
       const lang = (language === 'ka' || language === 'es' ? language : 'en') as 'en' | 'es' | 'ka';
       await sendAutoSms('booking_request_ack', r.requester_phone || r.user_number, vars, lang);
@@ -124,7 +126,7 @@ export const GlobalBookingNotificationListener = () => {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from('booking_requests')
-        .select('id, requester_name, title, start_date, created_at, status, requester_phone, user_number, user_surname, payment_amount')
+        .select('id, requester_name, title, start_date, created_at, status, requester_phone, requester_email, user_number, user_surname, payment_amount')
         .eq('business_id', businessProfileId)
         .eq('status', 'pending')
         .is('deleted_at', null)
