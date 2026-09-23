@@ -108,7 +108,10 @@ export const saveSmsAutoSettings = (settings: SmsAutoSettings) => {
 export const renderSmsTemplate = (template: string, vars: Record<string, string | undefined>) =>
   (template || "").replace(/@([a-zA-Z_]+)/g, (match, token: string) => {
     const value = vars[token];
-    return value != null && value !== "" ? String(value) : match;
+    if (value != null && value !== "") return String(value);
+    // Contact details are optional — never leave a raw tag in the text
+    if (token === "email" || token === "phone" || token === "notes") return "-";
+    return match;
   });
 
 /**
