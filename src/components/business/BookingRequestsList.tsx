@@ -54,20 +54,21 @@ export const BookingRequestsList = ({
     try {
       const start = new Date(request.start_date);
       const lang = (["en", "es", "ka"].includes(language) ? language : "en") as "en" | "es" | "ka";
-      void sendAutoSms(
-        event,
-        request.requester_phone || request.user_number,
-        {
-          name: request.requester_name,
-          surname: request.user_surname,
-          business: businessProfile?.business_name || "",
-          date: start.toLocaleDateString(),
-          time: start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          price: request.payment_amount != null ? String(request.payment_amount) : "",
-          notes: request.event_notes || "",
-        },
-        lang
-      );
+      const vars = {
+        name: request.requester_name,
+        surname: request.user_surname,
+        business: businessProfile?.business_name || "",
+        date: start.toLocaleDateString(),
+        time: start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        price: request.payment_amount != null ? String(request.payment_amount) : "",
+        notes: request.event_notes || "",
+        email: request.requester_email || "",
+        phone: request.requester_phone || request.user_number || "",
+      };
+      void sendAutoSms(event, request.requester_phone || request.user_number, vars, lang);
+      if (event === "booking_approved") {
+        void sendAutoSmsToOwner("booking_received", vars, lang);
+      }
     } catch (e) {
       console.warn("[sms-auto] booking sms skipped", e);
     }

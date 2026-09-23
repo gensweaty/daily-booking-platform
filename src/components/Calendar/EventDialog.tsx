@@ -10,6 +10,7 @@ import { RecurringEditDialog } from "./RecurringEditDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { sendEventCreationEmail } from "@/lib/api";
+import { sendAutoSms, sendAutoSmsToOwner } from "@/lib/smsAutomation";
 import { isVirtualInstance, getParentEventId, getInstanceDate } from "@/lib/recurringEvents";
 import { deleteCalendarEvent, clearCalendarCache } from "@/services/calendarService";
 import { Clock, RefreshCcw, History, Trash2 } from "lucide-react";
