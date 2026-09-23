@@ -611,11 +611,38 @@ const handler = async (req: Request): Promise<Response> => {
       if (ownerEmail && ownerEmail !== recipientEmail) {
         try {
           console.log(`📧 Sending copy to business owner: ${ownerEmail}`);
+          const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const lang = language || 'en';
+          const L = {
+            heading: lang === 'ka' ? 'მომხმარებლის დეტალები' : lang === 'es' ? 'Detalles del cliente' : 'Customer details',
+            name: lang === 'ka' ? 'სახელი' : lang === 'es' ? 'Nombre' : 'Name',
+            email: lang === 'ka' ? 'ელ. ფოსტა' : lang === 'es' ? 'Correo' : 'Email',
+            phone: lang === 'ka' ? 'ტელეფონი' : lang === 'es' ? 'Teléfono' : 'Phone',
+            event: lang === 'ka' ? 'ღონისძიება' : lang === 'es' ? 'Evento' : 'Event',
+            when: lang === 'ka' ? 'დრო' : lang === 'es' ? 'Cuándo' : 'When',
+          };
+          const rows = [
+            [L.name, fullName],
+            [L.event, eventTitle || fullName],
+            [L.email, recipientEmail],
+            [L.phone, customerPhone || ''],
+            [L.when, `${formattedStartDate} - ${formattedEndDate}`],
+          ]
+            .filter(([, v]) => v && String(v).trim() !== '')
+            .map(([k, v]) => `<p style="margin:6px 0;"><strong>${k}:</strong> ${esc(String(v))}</p>`)
+            .join('');
+          const ownerDetailsHtml = `
+              <div style="margin:20px auto; max-width:600px; padding:16px; border:1px solid #e3e8f0; border-left:4px solid #335CF4; border-radius:8px; background:#f7f9ff; font-family: Arial, sans-serif; color:#1f2937;">
+                <h3 style="margin:0 0 10px 0; font-size:16px;">${L.heading}</h3>
+                ${rows}
+                ${paymentInfo}
+                ${eventNotesInfo}
+              </div>`;
           await resend.emails.send({
             from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
             to: [ownerEmail],
-            subject: emailData.subject,
-            html: finalContent,
+            subject: `${emailData.subject} — ${eventTitle || fullName}`,
+            html: finalContent + ownerDetailsHtml,
           });
           console.log(`✅ Owner copy sent to ${ownerEmail}`);
         } catch (ownerEmailError) {
