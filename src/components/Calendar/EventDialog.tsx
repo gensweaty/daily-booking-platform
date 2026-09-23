@@ -666,7 +666,10 @@ export const EventDialog = ({
               businessData.contact_address || '',
               eventData.id,
               language || 'en',
-              eventData.event_notes || ''
+              eventData.event_notes || '',
+              undefined,
+              eventData.user_number || '',
+              eventData.title || eventData.user_surname || ''
             );
             console.log('📧 Owner-only event creation email sent to:', ownerEmail);
           } catch (e) {
