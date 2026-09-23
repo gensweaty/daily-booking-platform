@@ -21,7 +21,7 @@ import { FileDisplay } from "@/components/shared/FileDisplay";
 import type { FileRecord } from "@/types/files";
 import { getCurrencySymbol } from "@/lib/currency";
 import { supabase } from "@/lib/supabase";
-import { sendAutoSms } from "@/lib/smsAutomation";
+import { sendAutoSms, sendAutoSmsToOwner } from "@/lib/smsAutomation";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 
 interface BookingRequestsListProps {

@@ -66,6 +66,8 @@ export const GlobalBookingNotificationListener = () => {
         time: start ? start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
         price: r.payment_amount != null ? String(r.payment_amount) : '',
         notes: r.title || '',
+        email: (r as any).requester_email || '',
+        phone: r.requester_phone || r.user_number || '',
       };
       const lang = (language === 'ka' || language === 'es' ? language : 'en') as 'en' | 'es' | 'ka';
       await sendAutoSms('booking_request_ack', r.requester_phone || r.user_number, vars, lang);
