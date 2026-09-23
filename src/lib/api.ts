@@ -310,7 +310,9 @@ export const sendEventCreationEmail = async (
   eventId: string,
   language: string = 'en',
   eventNotes: string = '',
-  ownerEmail?: string
+  ownerEmail?: string,
+  customerPhone?: string,
+  eventTitle?: string
 ) => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
@@ -327,6 +329,8 @@ export const sendEventCreationEmail = async (
         language,
         eventNotes,
         ownerEmail,
+        customerPhone,
+        eventTitle,
         source: 'event-creation'
       }
     });
