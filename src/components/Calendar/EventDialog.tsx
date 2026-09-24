@@ -693,7 +693,8 @@ export const EventDialog = ({
               eventData.event_notes || '',
               undefined,
               eventData.user_number || '',
-              eventData.title || eventData.user_surname || ''
+              eventData.title || eventData.user_surname || '',
+              true
             );
             console.log('📧 Owner-only event creation email sent to:', ownerEmail);
           } catch (e) {
