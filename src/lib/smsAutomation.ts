@@ -39,7 +39,7 @@ export const DEFAULT_TEMPLATES: Record<Lang, Record<SmsAutoEvent, string>> = {
     booking_request_ack:
       "Hi @name, we received your booking request at @business for @date at @time. We will confirm it shortly.",
     booking_received:
-      "Booking: @name — @date at @time. Email: @email. Phone: @phone. Notes: @notes. Open SmartBookly for details.",
+      "New booking for your business: @name — @date at @time. Email: @email. Phone: @phone. Notes: @notes. Open SmartBookly to review the details.",
     event_reminder:
       "Reminder: @name, you have an appointment at @business on @date at @time.",
   },
@@ -51,7 +51,7 @@ export const DEFAULT_TEMPLATES: Record<Lang, Record<SmsAutoEvent, string>> = {
     booking_request_ack:
       "Hola @name, recibimos tu solicitud de reserva en @business para el @date a las @time. La confirmaremos en breve.",
     booking_received:
-      "Reserva: @name — @date a las @time. Correo: @email. Teléfono: @phone. Notas: @notes. Abre SmartBookly para más detalles.",
+      "Nueva reserva para tu negocio: @name — @date a las @time. Correo: @email. Teléfono: @phone. Notas: @notes. Abre SmartBookly para revisar los detalles.",
     event_reminder:
       "Recordatorio: @name, tienes una cita en @business el @date a las @time.",
   },
@@ -63,7 +63,7 @@ export const DEFAULT_TEMPLATES: Record<Lang, Record<SmsAutoEvent, string>> = {
     booking_request_ack:
       "გამარჯობა @name, მივიღეთ თქვენი ჯავშნის მოთხოვნა @business-ში @date @time. მალე დაგიდასტურებთ.",
     booking_received:
-      "ჯავშანი: @name — @date @time. ელფოსტა: @email. ტელეფონი: @phone. შენიშვნა: @notes. დეტალებისთვის გახსენით SmartBookly.",
+      "თქვენი ბიზნესისთვის ახალი ჯავშანია: @name — @date @time. ელფოსტა: @email. ტელეფონი: @phone. შენიშვნა: @notes. დეტალების სანახავად გახსენით SmartBookly.",
     event_reminder:
       "შეხსენება: @name, თქვენ გაქვთ ვიზიტი @business-ში @date @time.",
   },

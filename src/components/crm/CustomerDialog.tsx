@@ -391,7 +391,12 @@ export const CustomerDialog = ({
               businessData.contact_address || '',
               eventData.id,
               language || 'en',
-              eventData.event_notes || ''
+              eventData.event_notes || '',
+              undefined,
+              undefined,
+              eventData.user_number || '',
+              eventData.title || eventData.user_surname || '',
+              true
             );
           } catch (e) {
             console.warn('Failed to send owner copy:', e);
