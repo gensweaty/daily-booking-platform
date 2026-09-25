@@ -341,8 +341,8 @@ export const SmsSettingsSection = () => {
   return (
     <div className="space-y-6">
       {/* Getting started */}
-      <Card className="overflow-hidden border-primary/20">
-        <div className="bg-gradient-to-r from-primary/15 via-primary/5 to-transparent">
+      <Card className="overflow-hidden border-primary/20 shadow-sm">
+        <div className="bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -353,11 +353,11 @@ export const SmsSettingsSection = () => {
             <CardDescription>{copy.subtitle}</CardDescription>
           </CardHeader>
         </div>
-        <CardContent className="space-y-3 pt-5">
+        <CardContent className="space-y-4 pt-5">
           <p className="text-sm font-medium">{copy.howTitle}</p>
-          <ol className="space-y-2.5 text-sm text-muted-foreground">
+          <ol className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
             {copy.steps.map((s: string, i: number) => (
-              <li key={i} className="flex gap-2.5">
+              <li key={i} className="flex gap-2.5 rounded-lg border bg-background p-3">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
                   {i + 1}
                 </span>
@@ -377,7 +377,7 @@ export const SmsSettingsSection = () => {
       <OpenCallSmsGatewayCard />
 
       {/* Automatic notifications */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-primary">
@@ -402,8 +402,9 @@ export const SmsSettingsSection = () => {
             />
           </div>
 
-          {/* Customer messages */}
-          <section className="space-y-3">
+          <div className="grid items-start gap-6 xl:grid-cols-2">
+           {/* Customer messages */}
+           <section className="space-y-3 rounded-lg border bg-muted/10 p-4">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold">{copy.customerGroup}</h3>
@@ -413,7 +414,7 @@ export const SmsSettingsSection = () => {
           </section>
 
           {/* Owner messages */}
-          <section className="space-y-3">
+           <section className="space-y-3 rounded-lg border bg-muted/10 p-4">
             <div className="flex items-center gap-2">
               <UserCog className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold">{copy.ownerGroup}</h3>
@@ -433,6 +434,7 @@ export const SmsSettingsSection = () => {
             </div>
             <div className="space-y-2.5">{OWNER_EVENTS.map(renderEventRow)}</div>
           </section>
+          </div>
 
           <Button onClick={onSave} className="w-full gap-2 sm:w-auto">
             <Save className="h-4 w-4" /> {copy.save}
@@ -442,7 +444,7 @@ export const SmsSettingsSection = () => {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Bulk SMS */}
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Send className="h-5 w-5 text-primary" /> {copy.bulkTitle}
@@ -457,7 +459,7 @@ export const SmsSettingsSection = () => {
         </Card>
 
         {/* Test SMS */}
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Smartphone className="h-5 w-5 text-primary" /> {copy.testTitle}
