@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { BookingRequestsList } from "./BookingRequestsList";
 import { useBookingRequests } from "@/hooks/useBookingRequests";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, ExternalLink, QrCode, Share, Bell } from "lucide-react";
+import { Building2, CalendarCheck2, ExternalLink, QrCode, Share, Bell, MessageCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { GeorgianAuthText } from "@/components/shared/GeorgianAuthText";
@@ -20,7 +20,6 @@ import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { BusinessPageSkeleton, BusinessEmptyState } from "./BusinessPageSkeleton";
 import { EmbedCodeCard } from "./EmbedCodeCard";
 import SmsSettingsSection from "./SmsSettingsSection";
-import { MessageCircle } from "lucide-react";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -142,7 +141,21 @@ export const BusinessPage = () => {
     if (!publicUrl) return null;
     
     return (
-      <div className="flex flex-col gap-4">
+      <div className="space-y-4">
+        <div className="rounded-lg border bg-card p-4 shadow-sm">
+          <div className="mb-3 flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+              <ExternalLink className="h-4 w-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">
+                {isGeorgian ? "საჯარო გვერდი" : language === "es" ? "Página pública" : "Public page"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isGeorgian ? "გაუზიარეთ კლიენტებს ჯავშნის ბმული" : language === "es" ? "Comparte tu enlace de reservas" : "Share your booking link with customers"}
+              </p>
+            </div>
+          </div>
         <Button 
           variant="info"
           onClick={() => window.open(publicUrl, '_blank')}
@@ -151,15 +164,20 @@ export const BusinessPage = () => {
           <LanguageText>{t("business.viewPublicPage")}</LanguageText>
           <ExternalLink className="h-4 w-4" />
         </Button>
+        </div>
         
-        <div className="flex flex-col items-center justify-center p-2 bg-white rounded-lg border">
-          <div className="text-sm text-gray-500 mb-2">
+        <div className="flex flex-col items-center justify-center rounded-lg border bg-card p-4 shadow-sm">
+          <div className="mb-3 flex w-full items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-secondary/10 text-secondary">
+              <QrCode className="h-4 w-4" />
+            </span>
+            <div className="text-sm font-semibold">
             <LanguageText>{t("business.scanQrCode")}</LanguageText>
           </div>
           
           <div 
             onClick={() => setQrDialogOpen(true)}
-            className="cursor-pointer transition-all hover:opacity-90"
+            className="cursor-pointer rounded-md bg-white p-3 transition-opacity hover:opacity-90"
           >
             <QRCode 
               value={publicUrl}
@@ -175,7 +193,7 @@ export const BusinessPage = () => {
           <Button
             onClick={handleShare}
             variant="secondary" 
-            className="mt-2 w-full flex items-center justify-center gap-2"
+            className="mt-3 w-full flex items-center justify-center gap-2"
           >
             <Share className="h-4 w-4" />
             {isGeorgian ? (
@@ -226,6 +244,18 @@ export const BusinessPage = () => {
     );
   };
 
+  const tabCopy = {
+    profile: isGeorgian ? "ბიზნეს პროფილი" : t("business.businessProfile"),
+    bookings: t("business.bookingRequests"),
+    sms: isGeorgian ? "SMS პარამეტრები" : language === "es" ? "Ajustes de SMS" : "SMS Settings",
+  };
+
+  const pageDescription = isGeorgian
+    ? "მართეთ თქვენი საჯარო გვერდი, ჯავშნები და SMS შეტყობინებები"
+    : language === "es"
+      ? "Gestiona tu página pública, reservas y mensajes SMS"
+      : "Manage your public page, bookings and SMS messages";
+
   const renderSectionHeading = (key: string) => {
     if (isGeorgian) {
       if (key === "business.pendingRequests") return <GeorgianAuthText>მოთხოვნები მოლოდინში</GeorgianAuthText>;
@@ -237,40 +267,36 @@ export const BusinessPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
       <BookingNotificationManager 
         businessProfileId={businessProfile?.id || null}
         onNewRequest={handleNewBookingRequest}
       />
       
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">
-          {isGeorgian ? (
-            <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText>
-          ) : (
-            <LanguageText>{t("business.myBusiness")}</LanguageText>
-          )}
-        </h1>
-      </div>
-
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="mb-6 flex flex-wrap h-auto bg-background/80 border rounded-lg p-1 shadow-sm">
+        <div className="border-b bg-muted/20 px-4 py-5 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold">
+                {isGeorgian ? <GeorgianAuthText>ჩემი ბიზნესი</GeorgianAuthText> : <LanguageText>{t("business.myBusiness")}</LanguageText>}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">{pageDescription}</p>
+            </div>
+            <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-lg border bg-background p-1 shadow-sm xl:w-auto xl:min-w-[560px]">
           <TabsTrigger 
             value="profile" 
             data-tutorial="business-profile-tab"
-            className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+            className="min-h-11 gap-2 px-2 text-xs transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"
           >
-            {isGeorgian ? (
-              <GeorgianAuthText>ბიზნეს პროფილი</GeorgianAuthText>
-            ) : (
-              <LanguageText>{t("business.businessProfile")}</LanguageText>
-            )}
+            <Building2 className="hidden h-4 w-4 sm:block" />
+            <span className="min-w-0 whitespace-normal text-center leading-tight">{tabCopy.profile}</span>
           </TabsTrigger>
           <TabsTrigger 
             value="bookings" 
-            className="relative data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+            className="relative min-h-11 gap-2 px-2 text-xs transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"
           >
-            <LanguageText>{t("business.bookingRequests")}</LanguageText>
+            <CalendarCheck2 className="hidden h-4 w-4 sm:block" />
+            <span className="min-w-0 whitespace-normal text-center leading-tight">{tabCopy.bookings}</span>
             {pendingCount > 0 && (
               <Badge 
                 variant="orange" 
@@ -282,46 +308,36 @@ export const BusinessPage = () => {
           </TabsTrigger>
           <TabsTrigger
             value="sms"
-            className="data-[state=active]:bg-[#9b87f5] data-[state=active]:text-white transition-all duration-200"
+            className="min-h-11 gap-2 px-2 text-xs transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"
           >
-            <span className="flex items-center gap-1.5">
-              <MessageCircle className="h-4 w-4" />
-              {isGeorgian ? (
-                <GeorgianAuthText>SMS პარამეტრები</GeorgianAuthText>
-              ) : (
-                <span>{language === 'es' ? 'Ajustes de SMS' : 'SMS Settings'}</span>
-              )}
-            </span>
+            <MessageCircle className="hidden h-4 w-4 sm:block" />
+            <span className="min-w-0 whitespace-normal text-center leading-tight">{tabCopy.sms}</span>
           </TabsTrigger>
         </TabsList>
+          </div>
+        </div>
 
-        <TabsContent value="profile" className="space-y-6">
-          {publicUrl && businessProfile?.slug && (
-            <div className="flex flex-col lg:flex-row gap-6 items-start">
-              <EmbedCodeCard slug={businessProfile.slug} isGeorgian={isGeorgian} />
-              {!isMobile && (
-                <div className="w-full lg:w-[220px] shrink-0">
-                  {renderViewPublicPageButton()}
-                </div>
-              )}
-            </div>
-          )}
-
-          {isMobile && publicUrl && (
-            <div className="w-full mb-6">
-              {renderViewPublicPageButton()}
-            </div>
-          )}
-
-          <BusinessProfileForm />
+        <TabsContent value="profile" className="m-0">
+          <div className="grid items-start lg:grid-cols-[minmax(0,1fr)_280px]">
+            <main className="min-w-0 space-y-6 p-4 sm:p-6 lg:p-8">
+              {publicUrl && businessProfile?.slug && <EmbedCodeCard slug={businessProfile.slug} isGeorgian={isGeorgian} />}
+              <BusinessProfileForm />
+            </main>
+            {publicUrl && <aside className="border-t bg-muted/10 p-4 sm:p-6 lg:sticky lg:top-4 lg:border-l lg:border-t-0">{renderViewPublicPageButton()}</aside>}
+          </div>
         </TabsContent>
 
-        <TabsContent value="sms" className="space-y-6">
-          <SmsSettingsSection />
+        <TabsContent value="sms" className="m-0">
+          <div className="grid items-start lg:grid-cols-[minmax(0,1fr)_280px]">
+            <main className="min-w-0 p-4 sm:p-6 lg:p-8"><SmsSettingsSection /></main>
+            {publicUrl && <aside className="border-t bg-muted/10 p-4 sm:p-6 lg:sticky lg:top-4 lg:border-l lg:border-t-0">{renderViewPublicPageButton()}</aside>}
+          </div>
         </TabsContent>
 
-        <TabsContent value="bookings" className={`space-y-6 ${publicUrl ? 'sm:-mt-12 -mt-6' : 'mt-0'}`}>
-          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2 gap-4">
+        <TabsContent value="bookings" className="m-0">
+          <div className="grid items-start lg:grid-cols-[minmax(0,1fr)_280px]">
+          <main className="min-w-0 space-y-7 p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold">
                 <LanguageText>{t("business.bookingRequests")}</LanguageText>
@@ -337,20 +353,9 @@ export const BusinessPage = () => {
               )}
             </div>
             
-            {isMobile && publicUrl && (
-              <div className="w-full mt-3 mb-2">
-                {renderViewPublicPageButton()}
-              </div>
-            )}
-            
-            {!isMobile && publicUrl && (
-              <div className="min-w-[180px]">
-                {renderViewPublicPageButton()}
-              </div>
-            )}
           </div>
 
-          <div className="space-y-4 -mt-1">
+          <div className="space-y-7">
             <div>
               <h2 className="text-xl font-semibold mb-2 flex items-center gap-2">
                 {renderSectionHeading("business.pendingRequests")} 
@@ -385,6 +390,9 @@ export const BusinessPage = () => {
                 onDelete={deleteBookingRequest}
               />
             </div>
+          </div>
+          </main>
+          {publicUrl && <aside className="border-t bg-muted/10 p-4 sm:p-6 lg:sticky lg:top-4 lg:border-l lg:border-t-0">{renderViewPublicPageButton()}</aside>}
           </div>
         </TabsContent>
       </Tabs>
