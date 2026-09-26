@@ -172,7 +172,8 @@ export const BusinessPage = () => {
               <QrCode className="h-4 w-4" />
             </span>
             <div className="text-sm font-semibold">
-            <LanguageText>{t("business.scanQrCode")}</LanguageText>
+              <LanguageText>{t("business.scanQrCode")}</LanguageText>
+            </div>
           </div>
           
           <div 
