@@ -324,14 +324,14 @@ export const BusinessPage = () => {
               {publicUrl && businessProfile?.slug && <EmbedCodeCard slug={businessProfile.slug} isGeorgian={isGeorgian} />}
               <BusinessProfileForm />
             </main>
-            {publicUrl && <aside className="border-t bg-muted/10 p-4 sm:p-6 lg:sticky lg:top-4 lg:border-l lg:border-t-0">{renderViewPublicPageButton()}</aside>}
+            {publicUrl && <aside className="order-first border-b bg-muted/10 p-4 sm:p-6 lg:order-none lg:sticky lg:top-4 lg:border-b-0 lg:border-l">{renderViewPublicPageButton()}</aside>}
           </div>
         </TabsContent>
 
         <TabsContent value="sms" className="m-0">
           <div className="grid items-start lg:grid-cols-[minmax(0,1fr)_280px]">
             <main className="min-w-0 p-4 sm:p-6 lg:p-8"><SmsSettingsSection /></main>
-            {publicUrl && <aside className="border-t bg-muted/10 p-4 sm:p-6 lg:sticky lg:top-4 lg:border-l lg:border-t-0">{renderViewPublicPageButton()}</aside>}
+            {publicUrl && <aside className="order-first border-b bg-muted/10 p-4 sm:p-6 lg:order-none lg:sticky lg:top-4 lg:border-b-0 lg:border-l">{renderViewPublicPageButton()}</aside>}
           </div>
         </TabsContent>
 
@@ -393,7 +393,7 @@ export const BusinessPage = () => {
             </div>
           </div>
           </main>
-          {publicUrl && <aside className="border-t bg-muted/10 p-4 sm:p-6 lg:sticky lg:top-4 lg:border-l lg:border-t-0">{renderViewPublicPageButton()}</aside>}
+          {publicUrl && <aside className="order-first border-b bg-muted/10 p-4 sm:p-6 lg:order-none lg:sticky lg:top-4 lg:border-b-0 lg:border-l">{renderViewPublicPageButton()}</aside>}
           </div>
         </TabsContent>
       </Tabs>
