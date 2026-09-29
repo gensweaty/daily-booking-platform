@@ -94,3 +94,6 @@ verify_jwt = false
 
 [functions.sms-dispatch]
 verify_jwt = false
+
+[functions.resend-webhook]
+verify_jwt = false

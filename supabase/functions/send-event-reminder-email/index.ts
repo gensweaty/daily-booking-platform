@@ -1,3 +1,4 @@
+import { logEmail } from "../_shared/emailLog.ts";
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
@@ -493,6 +494,7 @@ const handler = async (req: Request): Promise<Response> => {
           html: emailBody
         });
 
+        await logEmail({ ownerId: actualOwnerId, to: emailAddress, subject, purpose: 'event_reminder', result: emailResult as any });
         if (emailResult.error) {
           console.error(`❌ Failed to send email for event ${event.id} to ${emailAddress}:`, emailResult.error);
           emailsFailed++;

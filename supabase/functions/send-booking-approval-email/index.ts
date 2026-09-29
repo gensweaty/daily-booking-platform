@@ -1,3 +1,4 @@
+import { logEmail, ownerFromRequest } from "../_shared/emailLog.ts";
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.3.0";
@@ -697,6 +698,9 @@ const handler = async (req: Request): Promise<Response> => {
         html: primaryEmailData.content,
       });
 
+      const logOwner = await ownerFromRequest(req);
+      await logEmail({ ownerId: logOwner, to: recipientEmail, subject: primaryEmailData.subject, purpose: source === "event-creation" ? "event_created" : "booking_approved", result: emailResult as any });
+
       if (emailResult.error) {
         console.error("Error from Resend API:", emailResult.error);
         throw new Error(emailResult.error.message || "Unknown Resend API error");
@@ -711,12 +715,13 @@ const handler = async (req: Request): Promise<Response> => {
       if (ownerEmail && ownerEmail !== recipientEmail) {
         try {
           console.log(`📧 Sending copy to business owner: ${ownerEmail}`);
-          await resend.emails.send({
+          const ownerRes = await resend.emails.send({
             from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
             to: [ownerEmail],
             subject: ownerEmailData.subject,
             html: ownerEmailData.content,
           });
+          await logEmail({ ownerId: logOwner, to: ownerEmail, subject: ownerEmailData.subject, purpose: "owner_copy", result: ownerRes as any });
           console.log(`✅ Owner copy sent to ${ownerEmail}`);
         } catch (ownerEmailError) {
           console.error(`⚠️ Failed to send owner copy:`, ownerEmailError);
