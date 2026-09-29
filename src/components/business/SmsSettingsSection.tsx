@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { OpenCallSmsGatewayCard } from "./OpenCallSmsGatewayCard";
+import { SmsDeliveryStatusPanel } from "./SmsDeliveryStatusPanel";
 import { SmsComposerDialog } from "@/components/crm/SmsComposerDialog";
 import {
   DEFAULT_TEMPLATES,
@@ -498,6 +499,9 @@ export const SmsSettingsSection = () => {
           </CardContent>
         </Card>
       </div>
+
+      <SmsDeliveryStatusPanel />
+
 
       {bulkOpen && (
         <SmsComposerDialog open={bulkOpen} onOpenChange={setBulkOpen} customers={[]} />
