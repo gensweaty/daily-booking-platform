@@ -185,8 +185,83 @@ async function postMessage(
     localStorage.removeItem(TOKEN_KEY);
     return postMessage(c, phoneNumbers, text, false);
   }
-  if (!res.ok) throw await readError(res);
-  return (await res.json().catch(() => ({}))) as SentMessage;
+  if (!res.ok) {
+    const err = await readError(res);
+    logSms(phoneNumbers, text, { status: "failed", error: err.message });
+    throw err;
+  }
+  const out = (await res.json().catch(() => ({}))) as SentMessage;
+  logSms(phoneNumbers, text, { id: out?.id, status: (out?.status || "queued").toLowerCase() });
+  return out;
+}
+
+// ---------- Local delivery log ----------
+const LOG_KEY = "opencall_sms_log";
+export type SmsLogEntry = {
+  key: string;
+  id?: string;
+  to: string;
+  text: string;
+  status: string;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const getSmsLog = (): SmsLogEntry[] => {
+  try {
+    return JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+const writeSmsLog = (l: SmsLogEntry[]) => {
+  localStorage.setItem(LOG_KEY, JSON.stringify(l.slice(0, 300)));
+  window.dispatchEvent(new Event("sms-log-updated"));
+};
+export const clearSmsLog = () => writeSmsLog([]);
+
+function logSms(numbers: string[], text: string, r: { id?: string; status: string; error?: string }) {
+  const now = new Date().toISOString();
+  const entries = numbers.map((to, i) => ({
+    key: `${r.id || "x"}-${i}-${Date.now()}`,
+    id: r.id,
+    to,
+    text,
+    status: r.status,
+    error: r.error,
+    createdAt: now,
+    updatedAt: now,
+  }));
+  writeSmsLog([...entries, ...getSmsLog()]);
+}
+
+/** GET /3rdparty/v1/messages/{id} — refresh statuses of pending messages. */
+export async function refreshSmsStatuses() {
+  const c = requireCreds();
+  const log = getSmsLog();
+  const pending = [...new Set(log.filter((e) => e.id && !["delivered", "failed"].includes(e.status)).map((e) => e.id!))];
+  for (const id of pending) {
+    const url = `${c.serverUrl}/3rdparty/v1/messages/${encodeURIComponent(id)}`;
+    try {
+      const res = await fetch(url, { headers: { Authorization: await authHeader(c) } });
+      if (!res.ok) continue;
+      const d = await res.json().catch(() => ({}));
+      const state = String(d.state || d.status || "").toLowerCase();
+      const recips: { phoneNumber?: string; state?: string; error?: string }[] = d.recipients || [];
+      for (const e of log) {
+        if (e.id !== id) continue;
+        const r = recips.find((x) => x.phoneNumber === e.to);
+        const s = String(r?.state || state || e.status).toLowerCase();
+        e.status = s;
+        e.error = r?.error || d.error || e.error;
+        e.updatedAt = new Date().toISOString();
+      }
+    } catch {
+      /* ignore single failures */
+    }
+  }
+  writeSmsLog(log);
 }
 
 export async function sendSms(to: string, body: string) {
