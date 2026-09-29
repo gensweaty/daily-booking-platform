@@ -1,3 +1,4 @@
+import { logEmail } from "../_shared/emailLog.ts";
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.3.0";
@@ -531,6 +532,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    let logOwnerId: string | null = null;
     // ── Telegram push with Approve / Reject buttons (if the owner connected a bot)
     try {
       const sbUrl = Deno.env.get("SUPABASE_URL")!;
@@ -556,6 +558,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (bookingRow) {
         const ownerId = await resolveBookingOwnerId(admin, bookingRow);
+        logOwnerId = ownerId || null;
         if (ownerId) {
           const sent = await sendBookingCardToTelegram(admin, ownerId, bookingRow);
           console.log(`📨 Telegram booking card sent: ${sent}`);
@@ -626,6 +629,7 @@ const handler = async (req: Request): Promise<Response> => {
         replyTo: "no-reply@smartbookly.com",
       });
       
+      await logEmail({ ownerId: logOwnerId, to: businessEmail, subject: emailSubject, purpose: "booking_request", result: emailResult as any });
       console.log("✅ Email sent successfully with ID:", emailResult.data?.id);
       
       return new Response(
