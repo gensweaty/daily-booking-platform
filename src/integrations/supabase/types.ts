@@ -888,6 +888,45 @@ export type Database = {
           },
         ]
       }
+      email_logs: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string | null
+          purpose: string | null
+          reason: string | null
+          recipient: string
+          resend_id: string | null
+          status: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          purpose?: string | null
+          reason?: string | null
+          recipient: string
+          resend_id?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          purpose?: string | null
+          reason?: string | null
+          recipient?: string
+          resend_id?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_files: {
         Row: {
           content_type: string | null
