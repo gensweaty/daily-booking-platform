@@ -1,3 +1,4 @@
+import { logEmail, ownerFromRequest } from "../_shared/emailLog.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.3.0";
 
@@ -191,6 +192,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
+    await logEmail({ ownerId: await ownerFromRequest(req), to: emailRequest.recipient_email, subject: emailRequest.subject || subject, purpose: 'direct_email', result: emailResult as any });
     console.log('✅ Direct email sent:', emailResult);
 
     // Check if Resend returned an error (even with 200 status)
