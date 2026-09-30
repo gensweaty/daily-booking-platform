@@ -23,6 +23,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { OpenCallSmsGatewayCard } from "./OpenCallSmsGatewayCard";
 import { SmsDeliveryStatusPanel } from "./SmsDeliveryStatusPanel";
+import { EmailDeliveryStatusPanel } from "./EmailDeliveryStatusPanel";
 import { SmsComposerDialog } from "@/components/crm/SmsComposerDialog";
 import {
   DEFAULT_TEMPLATES,
@@ -501,6 +502,7 @@ export const SmsSettingsSection = () => {
       </div>
 
       <SmsDeliveryStatusPanel />
+      <EmailDeliveryStatusPanel />
 
 
       {bulkOpen && (
