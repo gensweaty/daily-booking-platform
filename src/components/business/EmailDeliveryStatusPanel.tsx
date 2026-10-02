@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,13 +22,19 @@ type EmailLogRow = {
   created_at: string;
 };
 
+// opened/clicked prove delivery; spam/bounced are failures; delayed/pending stay pending.
 const group = (s: string) =>
-  s === "delivered" || s === "sent" ? "delivered" : s === "failed" || s === "bounced" ? "failed" : "pending";
+  s === "delivered" || s === "sent" || s === "opened" || s === "clicked"
+    ? "delivered"
+    : s === "failed" || s === "bounced" || s === "spam"
+    ? "failed"
+    : "pending";
 
 export const EmailDeliveryStatusPanel = () => {
   const { language } = useLanguage();
   const c = COPY[(language as keyof typeof COPY)] || COPY.en;
   const [rows, setRows] = useState<EmailLogRow[]>([]);
+  const rowsRef = useRef<EmailLogRow[]>([]);
   const [filter, setFilter] = useState<"all" | "pending" | "delivered" | "failed">("all");
   const [busy, setBusy] = useState(false);
 
@@ -40,7 +46,10 @@ export const EmailDeliveryStatusPanel = () => {
         .select("id, recipient, subject, purpose, status, reason, created_at")
         .order("created_at", { ascending: false })
         .limit(100);
-      if (!error && data) setRows(data as EmailLogRow[]);
+      if (!error && data) {
+        rowsRef.current = data as EmailLogRow[];
+        setRows(data as EmailLogRow[]);
+      }
     } finally {
       setBusy(false);
     }
@@ -49,10 +58,10 @@ export const EmailDeliveryStatusPanel = () => {
   useEffect(() => {
     refresh();
     const t = setInterval(() => {
-      if (rows.some((r) => group(r.status) === "pending")) refresh();
+      if (rowsRef.current.some((r) => group(r.status) === "pending")) refresh();
     }, 30000);
     return () => clearInterval(t);
-  }, [refresh, rows]);
+  }, [refresh]);
 
   const clear = async () => {
     setBusy(true);
