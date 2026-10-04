@@ -48,6 +48,9 @@ const EmailComposerDialog = lazy(() =>
 const SmsComposerDialog = lazy(() =>
   import("@/components/crm/SmsComposerDialog").then((m) => ({ default: m.SmsComposerDialog }))
 )
+const MessagesPage = lazy(() =>
+  import("@/components/messages/MessagesPage").then((m) => ({ default: m.MessagesPage }))
+)
 const ArchivedTasksPage = lazy(() =>
   import("@/components/tasks/ArchivedTasksPage").then((m) => ({ default: m.ArchivedTasksPage }))
 )
@@ -99,8 +102,11 @@ export const DashboardContent = ({
   const [activeTab, setActiveTab] = useState("calendar")
   const [showArchive, setShowArchive] = useState(false)
   const [pendingEventEditId, setPendingEventEditId] = useState<string | null>(null)
-  const [isEmailComposerOpen, setIsEmailComposerOpen] = useState(false)
-  const [isSmsComposerOpen, setIsSmsComposerOpen] = useState(false)
+  const [composeRequest, setComposeRequest] = useState<{ kind: "email" | "sms"; at: number } | null>(null)
+  const openComposer = (kind: "email" | "sms") => {
+    setActiveTab("messages")
+    setComposeRequest({ kind, at: Date.now() })
+  }
   const pendingCount = pendingRequests?.length || 0
   const isGeorgian = language === 'ka'
 
@@ -235,7 +241,7 @@ export const DashboardContent = ({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setIsSmsComposerOpen(true)}
+            onClick={() => openComposer("sms")}
             className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10"
           >
             <MessageSquare className="w-4 h-4 text-primary" />
@@ -245,34 +251,15 @@ export const DashboardContent = ({
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setIsEmailComposerOpen(true)}
+            onClick={() => openComposer("email")}
             className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10"
           >
             <Mail className="w-4 h-4 text-primary" />
             <LanguageText>{t("dashboard.sendEmail") || "Send Email"}</LanguageText>
           </Button>
         </div>
-        {isSmsComposerOpen && (
-          <Suspense fallback={null}>
-            <SmsComposerDialog
-              open={isSmsComposerOpen}
-              onOpenChange={setIsSmsComposerOpen}
-              customers={[]}
-            />
-          </Suspense>
-        )}
-        {isEmailComposerOpen && (
-          <Suspense fallback={null}>
-            <EmailComposerDialog
-              open={isEmailComposerOpen}
-              onOpenChange={setIsEmailComposerOpen}
-              customers={[]}
-              plainLayout
-            />
-          </Suspense>
-        )}
         <div className="bg-muted/30 border border-border/40 rounded-xl p-1.5 mb-3 shadow-inner">
-          <TabsList className="grid w-full grid-cols-5 bg-transparent p-0 gap-1 h-auto">
+          <TabsList className="grid w-full grid-cols-6 bg-transparent p-0 gap-1 h-auto">
             <TabsTrigger 
               value="calendar" 
               data-dashboard-tab-trigger="calendar"
@@ -384,6 +371,16 @@ export const DashboardContent = ({
                   </Badge>
                 </motion.div>
               )}
+            </TabsTrigger>
+            <TabsTrigger 
+              value="messages" 
+              data-dashboard-tab-trigger="messages"
+              className="flex items-center justify-center gap-2 text-sm sm:text-base text-foreground transition-all duration-300 hover:scale-[1.03] active:scale-95 bg-background/60 border border-border/60 shadow-sm rounded-md px-3 py-2 hover:bg-muted hover:border-primary/40 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary data-[state=active]:shadow-[0_4px_14px_rgba(51,92,244,0.35)] data-[state=active]:scale-[1.02]"
+            >
+              <Mail className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                <LanguageText>{language === "ka" ? "შეტყობინებები" : language === "es" ? "Mensajes" : "Messages"}</LanguageText>
+              </span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -622,6 +619,15 @@ export const DashboardContent = ({
                 </CardContent>
               </Card>
             </motion.div>
+          </TabsContent>
+          <TabsContent key="messages" value="messages" data-dashboard-tab-panel="messages">
+            <Card className="min-h-[calc(100vh-12rem)]">
+              <CardContent className="pt-6">
+                <Suspense fallback={<TabLoader />}>
+                  <MessagesPage composeRequest={composeRequest} />
+                </Suspense>
+              </CardContent>
+            </Card>
           </TabsContent>
         </AnimatePresence>
       </Tabs>
