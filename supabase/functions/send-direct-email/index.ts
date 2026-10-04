@@ -165,7 +165,9 @@ const handler = async (req: Request): Promise<Response> => {
     const fromAddress = `${displayName} <noreply@smartbookly.com>`;
     
     // Use Reply-To header for actual sender's email (allows recipient to reply directly)
-    const replyToAddress = emailRequest.sender_email || undefined;
+    const inboundDomain = (Deno.env.get("INBOUND_EMAIL_DOMAIN") || "").trim().replace(/^@/, "");
+    const inboundOwner = inboundDomain ? await ownerFromRequest(req) : null;
+    const replyToAddress = inboundOwner ? `r-${inboundOwner}@${inboundDomain}` : (emailRequest.sender_email || undefined);
     console.log('📧 Sending email with from address:', fromAddress);
     console.log('📧 Recipient:', emailRequest.recipient_email);
     console.log('📧 Using RESEND_API_KEY:', RESEND_API_KEY ? 'Present (length: ' + RESEND_API_KEY.length + ')' : 'MISSING');
