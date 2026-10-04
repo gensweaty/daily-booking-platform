@@ -97,3 +97,6 @@ verify_jwt = false
 
 [functions.resend-webhook]
 verify_jwt = false
+
+[functions.sms-inbound]
+verify_jwt = false

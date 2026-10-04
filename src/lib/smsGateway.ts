@@ -302,3 +302,21 @@ export async function checkGateway(creds?: GatewayCreds) {
     expiresAt: t?.expires_at,
   };
 }
+
+/** Ask the phone gateway to forward incoming SMS (sms:received) to SmartBookly. */
+export async function registerInboundWebhook(webhookUrl: string) {
+  const c = requireCreds();
+  const url = `${c.serverUrl}/3rdparty/v1/webhooks`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: await authHeader(c), "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "smartbookly-inbound", url: webhookUrl, event: "sms:received" }),
+    });
+  } catch (e) {
+    throw networkError(url, e);
+  }
+  if (!res.ok) throw await readError(res);
+  return true;
+}
