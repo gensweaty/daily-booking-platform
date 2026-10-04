@@ -1228,6 +1228,51 @@ export type Database = {
           },
         ]
       }
+      inbound_messages: {
+        Row: {
+          body: string | null
+          channel: string
+          created_at: string
+          html: string | null
+          id: string
+          is_read: boolean
+          owner_id: string
+          provider_id: string | null
+          received_at: string
+          recipient: string | null
+          sender: string
+          subject: string | null
+        }
+        Insert: {
+          body?: string | null
+          channel: string
+          created_at?: string
+          html?: string | null
+          id?: string
+          is_read?: boolean
+          owner_id: string
+          provider_id?: string | null
+          received_at?: string
+          recipient?: string | null
+          sender: string
+          subject?: string | null
+        }
+        Update: {
+          body?: string | null
+          channel?: string
+          created_at?: string
+          html?: string | null
+          id?: string
+          is_read?: boolean
+          owner_id?: string
+          provider_id?: string | null
+          received_at?: string
+          recipient?: string | null
+          sender?: string
+          subject?: string | null
+        }
+        Relationships: []
+      }
       note_files: {
         Row: {
           content_type: string | null
