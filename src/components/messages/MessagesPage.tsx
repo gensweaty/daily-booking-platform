@@ -1,19 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, MessageSquare, RefreshCw, Reply } from "lucide-react";
+import { Mail, MessageSquare, RefreshCw, Reply, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { EmailComposerDialog } from "@/components/crm/EmailComposerDialog";
 import { SmsComposerDialog } from "@/components/crm/SmsComposerDialog";
 import { getSmsLog, getGatewayCreds, registerInboundWebhook } from "@/lib/smsGateway";
+import { EmailDeliveryStatusPanel } from "@/components/business/EmailDeliveryStatusPanel";
+const SmsSettingsSection = lazy(() => import("@/components/business/SmsSettingsSection"));
 
 const COPY = {
-  en: { email: "Email", sms: "SMS", newEmail: "New email", newSms: "New SMS", refresh: "Refresh", empty: "Nothing here yet.", reply: "Reply", enableSms: "Turn on SMS replies", smsOn: "SMS replies turned on", delivered: "Delivered", failed: "Failed", pending: "Pending", replyTag: "Reply" },
-  es: { email: "Correo", sms: "SMS", newEmail: "Nuevo correo", newSms: "Nuevo SMS", refresh: "Actualizar", empty: "Aún no hay nada.", reply: "Responder", enableSms: "Activar respuestas SMS", smsOn: "Respuestas SMS activadas", delivered: "Entregado", failed: "Fallido", pending: "Pendiente", replyTag: "Respuesta" },
-  ka: { email: "ელფოსტა", sms: "SMS", newEmail: "ახალი წერილი", newSms: "ახალი SMS", refresh: "განახლება", empty: "ჯერ ცარიელია.", reply: "პასუხი", enableSms: "SMS პასუხების ჩართვა", smsOn: "SMS პასუხები ჩართულია", delivered: "მიწოდებულია", failed: "ვერ გაიგზავნა", pending: "მოლოდინში", replyTag: "პასუხი" },
+  en: { email: "Email", sms: "SMS", newEmail: "New email", newSms: "New SMS", refresh: "Refresh", empty: "Nothing here yet.", reply: "Reply", enableSms: "Turn on SMS replies", smsOn: "SMS replies turned on", delivered: "Delivered", failed: "Failed", pending: "Pending", replyTag: "Reply", inbox: "Messages", settings: "Settings" },
+  es: { email: "Correo", sms: "SMS", newEmail: "Nuevo correo", newSms: "Nuevo SMS", refresh: "Actualizar", empty: "Aún no hay nada.", reply: "Responder", enableSms: "Activar respuestas SMS", smsOn: "Respuestas SMS activadas", delivered: "Entregado", failed: "Fallido", pending: "Pendiente", replyTag: "Respuesta", inbox: "Mensajes", settings: "Ajustes" },
+  ka: { email: "ელფოსტა", sms: "SMS", newEmail: "ახალი წერილი", newSms: "ახალი SMS", refresh: "განახლება", empty: "ჯერ ცარიელია.", reply: "პასუხი", enableSms: "SMS პასუხების ჩართვა", smsOn: "SMS პასუხები ჩართულია", delivered: "მიწოდებულია", failed: "ვერ გაიგზავნა", pending: "მოლოდინში", replyTag: "პასუხი", inbox: "შეტყობინებები", settings: "პარამეტრები" },
 };
 
 const group = (s: string) =>
@@ -26,6 +28,7 @@ export const MessagesPage = ({ composeRequest }: { composeRequest: { kind: "emai
   const { toast } = useToast();
   const c = COPY[language as keyof typeof COPY] || COPY.en;
   const [tab, setTab] = useState<"email" | "sms">("email");
+  const [view, setView] = useState<"inbox" | "settings">("inbox");
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [prefill, setPrefill] = useState<any[]>([]);
@@ -105,6 +108,19 @@ export const MessagesPage = ({ composeRequest }: { composeRequest: { kind: "emai
       </div>
     );
 
+  const Section = ({ list, settings }: { list: React.ReactNode; settings: React.ReactNode }) => (
+    <div className="space-y-4">
+      <div className="inline-flex rounded-lg border bg-muted/30 p-1">
+        {(["inbox", "settings"] as const).map((v) => (
+          <Button key={v} size="sm" variant={view === v ? "default" : "ghost"} onClick={() => setView(v)} className="gap-1.5">
+            {v === "inbox" ? <Mail className="h-4 w-4" /> : <Settings className="h-4 w-4" />}{v === "inbox" ? c.inbox : c.settings}
+          </Button>
+        ))}
+      </div>
+      {view === "inbox" ? list : <Suspense fallback={<p className="py-6 text-center text-sm text-muted-foreground">…</p>}>{settings}</Suspense>}
+    </div>
+  );
+
   return (
     <div className="space-y-4">
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
@@ -121,8 +137,8 @@ export const MessagesPage = ({ composeRequest }: { composeRequest: { kind: "emai
             </Button>
           </div>
         </div>
-        <TabsContent value="email" className="mt-4"><List items={emails} /></TabsContent>
-        <TabsContent value="sms" className="mt-4"><List items={smsItems} /></TabsContent>
+        <TabsContent value="email" className="mt-4"><Section list={<List items={emails} />} settings={<EmailDeliveryStatusPanel />} /></TabsContent>
+        <TabsContent value="sms" className="mt-4"><Section list={<List items={smsItems} />} settings={<SmsSettingsSection />} /></TabsContent>
       </Tabs>
       {emailOpen && <EmailComposerDialog open={emailOpen} onOpenChange={(v) => { setEmailOpen(v); if (!v) load(); }} customers={prefill} plainLayout />}
       {smsOpen && <SmsComposerDialog open={smsOpen} onOpenChange={(v) => { setSmsOpen(v); if (!v) load(); }} customers={prefill} />}
