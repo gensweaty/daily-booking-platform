@@ -19,7 +19,6 @@ import { BookingNotificationManager } from "./BookingNotificationManager";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { BusinessPageSkeleton, BusinessEmptyState } from "./BusinessPageSkeleton";
 import { EmbedCodeCard } from "./EmbedCodeCard";
-import SmsSettingsSection from "./SmsSettingsSection";
 
 export const BusinessPage = () => {
   const { user } = useAuth();
@@ -283,7 +282,7 @@ export const BusinessPage = () => {
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">{pageDescription}</p>
             </div>
-            <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-lg border bg-background p-1 shadow-sm xl:w-auto xl:min-w-[560px]">
+            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-lg border bg-background p-1 shadow-sm xl:w-auto xl:min-w-[400px]">
           <TabsTrigger 
             value="profile" 
             data-tutorial="business-profile-tab"
@@ -307,13 +306,6 @@ export const BusinessPage = () => {
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger
-            value="sms"
-            className="min-h-11 gap-2 px-2 text-xs transition-all duration-200 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground sm:px-4 sm:text-sm"
-          >
-            <MessageCircle className="hidden h-4 w-4 sm:block" />
-            <span className="min-w-0 whitespace-normal text-center leading-tight">{tabCopy.sms}</span>
-          </TabsTrigger>
         </TabsList>
           </div>
         </div>
@@ -328,12 +320,6 @@ export const BusinessPage = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="sms" className="m-0">
-          <div className="grid items-start lg:grid-cols-[minmax(0,1fr)_280px]">
-            <main className="min-w-0 p-4 sm:p-6 lg:p-8"><SmsSettingsSection /></main>
-            {publicUrl && <aside className="order-first border-b bg-muted/10 p-4 sm:p-6 lg:order-none lg:sticky lg:top-4 lg:border-b-0 lg:border-l">{renderViewPublicPageButton()}</aside>}
-          </div>
-        </TabsContent>
 
         <TabsContent value="bookings" className="m-0">
           <div className="grid items-start lg:grid-cols-[minmax(0,1fr)_280px]">

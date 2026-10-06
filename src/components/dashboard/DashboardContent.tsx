@@ -236,28 +236,6 @@ export const DashboardContent = ({
       <ScreenshotRequestListener />
       
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full max-w-[95%] xl:max-w-[92%] 2xl:max-w-[90%] mx-auto">
-        <div className="flex justify-end gap-2 mb-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => openComposer("sms")}
-            className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10"
-          >
-            <MessageSquare className="w-4 h-4 text-primary" />
-            <LanguageText>{t("dashboard.sendSms") || "Send SMS"}</LanguageText>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => openComposer("email")}
-            className="gap-2 border-primary/40 hover:border-primary hover:bg-primary/10"
-          >
-            <Mail className="w-4 h-4 text-primary" />
-            <LanguageText>{t("dashboard.sendEmail") || "Send Email"}</LanguageText>
-          </Button>
-        </div>
         <div className="bg-muted/30 border border-border/40 rounded-xl p-1.5 mb-3 shadow-inner">
           <TabsList className="grid w-full grid-cols-6 bg-transparent p-0 gap-1 h-auto">
             <TabsTrigger 
