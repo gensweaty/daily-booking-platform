@@ -502,7 +502,6 @@ export const SmsSettingsSection = () => {
       </div>
 
       <SmsDeliveryStatusPanel />
-      <EmailDeliveryStatusPanel />
 
 
       {bulkOpen && (
