@@ -20,7 +20,6 @@ import { toast } from "sonner";
 import { SEOManager } from '@/components/SEOManager';
 import AdminPanel from "@/pages/AdminPanel";
 import { AdminRoute } from "@/components/admin/AdminRoute";
-import SmsShotPage from "@/pages/SmsShot";
 import AdminPanelDashboard from "@/pages/AdminPanelDashboard";
 import RenderView from "@/pages/RenderView";
 import { RenderMode } from "@/components/screenshot/RenderMode";
@@ -258,7 +257,6 @@ const AppContent = () => {
               <SEOManager />
               <RenderMode />
               <Routes>
-                <Route path="/__sms-shot" element={<SmsShotPage />} />
                 <Route path="/" element={<Landing />} />
                 <Route path="/dashboard" element={<Index />} />
                 <Route path="/dashboard/*" element={<Index />} />
