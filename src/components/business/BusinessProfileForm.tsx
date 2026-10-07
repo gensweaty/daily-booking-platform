@@ -15,6 +15,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 import { WorkingHoursSelector } from "./WorkingHoursSelector";
 import { WorkingHoursConfig, DEFAULT_WORKING_HOURS } from "@/types/workingHours";
+import { Building2, Contact, Image, Save } from "lucide-react";
 
 // Custom function to validate website input
 const websiteValidator = (value: string) => {
@@ -197,9 +198,21 @@ export const BusinessProfileForm = () => {
     return <LanguageText>{t(translationKey)}</LanguageText>;
   };
 
+  const sectionCopy = isGeorgian
+    ? { details: "ბიზნესის დეტალები", media: "ბრენდის ფოტოები", contact: "საკონტაქტო ინფორმაცია" }
+    : language === "es"
+      ? { details: "Datos del negocio", media: "Imágenes de marca", contact: "Información de contacto" }
+      : { details: "Business details", media: "Brand images", contact: "Contact information" };
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <section className="space-y-5 rounded-lg border bg-card p-4 shadow-sm sm:p-6">
+          <div className="flex items-center gap-3 border-b pb-4">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary"><Building2 className="h-4 w-4" /></span>
+            <h2 className="font-semibold">{sectionCopy.details}</h2>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
         {/* Business Name */}
         <FormField
           control={form.control}
@@ -238,6 +251,7 @@ export const BusinessProfileForm = () => {
           )}
         />
 
+          </div>
         {/* Description */}
         <FormField
           control={form.control}
@@ -255,6 +269,14 @@ export const BusinessProfileForm = () => {
           )}
         />
 
+        </section>
+
+        <section className="space-y-5 rounded-lg border bg-card p-4 shadow-sm sm:p-6">
+          <div className="flex items-center gap-3 border-b pb-4">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary"><Image className="h-4 w-4" /></span>
+            <h2 className="font-semibold">{sectionCopy.media}</h2>
+          </div>
+          <div className="grid gap-6 xl:grid-cols-2">
         {/* Cover Photo */}
         <FormField
           control={form.control}
@@ -318,6 +340,15 @@ export const BusinessProfileForm = () => {
           )}
         />
 
+          </div>
+        </section>
+
+        <section className="space-y-5 rounded-lg border bg-card p-4 shadow-sm sm:p-6">
+          <div className="flex items-center gap-3 border-b pb-4">
+            <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10 text-primary"><Contact className="h-4 w-4" /></span>
+            <h2 className="font-semibold">{sectionCopy.contact}</h2>
+          </div>
+          <div className="grid gap-5 md:grid-cols-2">
         {/* Phone */}
         <FormField
           control={form.control}
@@ -389,19 +420,27 @@ export const BusinessProfileForm = () => {
           )}
         />
 
+          </div>
+        </section>
+
         {/* Working Hours */}
+        <section className="rounded-lg border bg-card p-4 shadow-sm sm:p-6">
         <WorkingHoursSelector 
           value={workingHours}
           onChange={handleWorkingHoursChange}
         />
+        </section>
 
-        <Button type="submit" className="w-full md:w-auto" disabled={isLoading || isUploading} data-tutorial="business-save-btn">
+        <div className="flex justify-end border-t pt-5">
+        <Button type="submit" className="w-full gap-2 md:w-auto" disabled={isLoading || isUploading} data-tutorial="business-save-btn">
+          <Save className="h-4 w-4" />
           {isLoading ? (
             t("common.loading")
           ) : (
             <LanguageText>{t("business.updateProfile")}</LanguageText>
           )}
         </Button>
+        </div>
       </form>
     </Form>
   );

@@ -1,3 +1,4 @@
+import { logEmail, ownerFromRequest } from "../_shared/emailLog.ts";
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.3.0";
@@ -23,6 +24,9 @@ interface BookingApprovalEmailRequest {
   eventNotes?: string; // Added event notes field
   ownerEmail?: string; // Business owner email for copy
   ownerNote?: string; // Optional message written by the business owner at approval time
+  customerPhone?: string; // Customer phone number, shown in the owner copy
+  eventTitle?: string; // Event / customer title, shown in the owner copy
+  ownerNotification?: boolean; // Render the primary recipient as an owner notification
 }
 
 // For deduplication: Store a map of recently sent emails with expiring entries
@@ -344,6 +348,90 @@ function getEmailContent(
   return { subject, content };
 }
 
+function getOwnerEmailContent(
+  source: string,
+  language: string,
+  businessName: string,
+  fullName: string,
+  eventTitle: string,
+  recipientEmail: string,
+  customerPhone: string,
+  formattedStartDate: string,
+  formattedEndDate: string,
+  paymentInfo: string,
+  eventNotesInfo: string,
+): { subject: string; content: string } {
+  const lang = (language || 'en').toLowerCase();
+  const isNewEvent = (source || '').toLowerCase() === 'event-creation';
+  const displayBusinessName = businessName && businessName !== 'null' && businessName !== 'undefined'
+    ? businessName
+    : 'SmartBookly';
+  const copy = lang === 'ka'
+    ? {
+        subject: isNewEvent ? 'ახალი ჯავშანი დაემატა' : 'ჯავშანი დადასტურდა',
+        heading: isNewEvent ? 'ახალი ჯავშანი დაემატა' : 'ჯავშანი დადასტურდა',
+        intro: isNewEvent
+          ? 'თქვენს კალენდარში ახალი ჯავშანი დაემატა. მომხმარებლის ინფორმაცია მოცემულია ქვემოთ.'
+          : 'ჯავშანი წარმატებით დადასტურდა. მომხმარებლის ინფორმაცია მოცემულია ქვემოთ.',
+        details: 'ჯავშნისა და მომხმარებლის დეტალები',
+        name: 'მომხმარებელი', event: 'ღონისძიება', email: 'ელ. ფოსტა', phone: 'ტელეფონი', when: 'თარიღი და დრო',
+        closing: 'ჯავშნის მართვა შეგიძლიათ SmartBookly-ის საინფორმაციო დაფიდან.',
+      }
+    : lang === 'es'
+      ? {
+          subject: isNewEvent ? 'Nueva reserva añadida' : 'Reserva aprobada',
+          heading: isNewEvent ? 'Nueva reserva añadida' : 'Reserva aprobada',
+          intro: isNewEvent
+            ? 'Se ha añadido una nueva reserva a su calendario. Los datos del cliente aparecen a continuación.'
+            : 'La reserva se ha aprobado correctamente. Los datos del cliente aparecen a continuación.',
+          details: 'Datos de la reserva y del cliente',
+          name: 'Cliente', event: 'Evento', email: 'Correo', phone: 'Teléfono', when: 'Fecha y hora',
+          closing: 'Puede gestionar esta reserva desde su panel de SmartBookly.',
+        }
+      : {
+          subject: isNewEvent ? 'New booking added' : 'Booking approved',
+          heading: isNewEvent ? 'New booking added' : 'Booking approved',
+          intro: isNewEvent
+            ? 'A new booking has been added to your calendar. The customer details are below.'
+            : 'The booking has been approved successfully. The customer details are below.',
+          details: 'Booking and customer details',
+          name: 'Customer', event: 'Event', email: 'Email', phone: 'Phone', when: 'Date and time',
+          closing: 'You can manage this booking from your SmartBookly dashboard.',
+        };
+  const esc = (value: string) => String(value || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const rows = [
+    [copy.name, fullName],
+    [copy.event, eventTitle || fullName],
+    [copy.email, recipientEmail],
+    [copy.phone, customerPhone],
+    [copy.when, `${formattedStartDate} - ${formattedEndDate}`],
+  ]
+    .filter(([, value]) => value && String(value).trim() !== '')
+    .map(([label, value]) => `<p style="margin:8px 0;"><strong>${label}:</strong> ${esc(String(value))}</p>`)
+    .join('');
+
+  return {
+    subject: `${copy.subject} — ${eventTitle || fullName}`,
+    content: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #e3e8f0;border-radius:8px;overflow:hidden;color:#1f2937;">
+        <div style="background:#335CF4;color:#ffffff;padding:24px 28px;">
+          <h1 style="margin:0;font-size:24px;">${copy.heading}</h1>
+          <p style="margin:8px 0 0;opacity:.9;">${esc(displayBusinessName)}</p>
+        </div>
+        <div style="padding:28px;background:#ffffff;">
+          <p style="font-size:16px;line-height:1.6;margin:0 0 20px;">${copy.intro}</p>
+          <div style="padding:16px;border:1px solid #e3e8f0;border-left:4px solid #335CF4;border-radius:8px;background:#f7f9ff;">
+            <h2 style="margin:0 0 12px;font-size:17px;">${copy.details}</h2>
+            ${rows}
+            ${paymentInfo}
+            ${eventNotesInfo}
+          </div>
+          <p style="font-size:14px;line-height:1.6;margin:20px 0 0;color:#4b5563;">${copy.closing}</p>
+        </div>
+      </div>`,
+  };
+}
+
 // Format payment status for different languages
 function formatPaymentStatus(status: string, language?: string): string {
   // Normalize language to lowercase and handle undefined
@@ -412,7 +500,10 @@ const handler = async (req: Request): Promise<Response> => {
       language,
       eventNotes,
       ownerEmail,
-      ownerNote
+      ownerNote,
+      customerPhone,
+      eventTitle,
+      ownerNotification
     } = parsedBody;
 
     console.log("Request body:", {
@@ -562,6 +653,19 @@ const handler = async (req: Request): Promise<Response> => {
         addressInfo,
         eventNotesInfo
       );
+      const ownerEmailData = getOwnerEmailContent(
+        source || 'booking-approval',
+        language || 'en',
+        businessName || 'SmartBookly',
+        fullName,
+        eventTitle || fullName,
+        recipientEmail,
+        customerPhone || '',
+        formattedStartDate,
+        formattedEndDate,
+        paymentInfo,
+        eventNotesInfo,
+      );
       
       // Use Resend API to send the email
       const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -583,15 +687,19 @@ const handler = async (req: Request): Promise<Response> => {
                 <a href="${gcalUrl}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4285f4 0%, #34a853 100%); color: #ffffff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">${gcalLabel}</a>
               </div>`;
       const finalContent = emailData.content.replace(/<hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">/, gcalButtonHtml + '<hr style="border: none; border-top: 1px solid #eee; margin: 25px 0;">');
+      const primaryEmailData = ownerNotification ? ownerEmailData : { subject: emailData.subject, content: finalContent };
       
       console.log("Sending email with subject:", emailData.subject);
       
       const emailResult = await resend.emails.send({
         from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
         to: [recipientEmail],
-        subject: emailData.subject,
-        html: finalContent,
+        subject: primaryEmailData.subject,
+        html: primaryEmailData.content,
       });
+
+      const logOwner = await ownerFromRequest(req);
+      await logEmail({ ownerId: logOwner, to: recipientEmail, subject: primaryEmailData.subject, purpose: source === "event-creation" ? "event_created" : "booking_approved", result: emailResult as any });
 
       if (emailResult.error) {
         console.error("Error from Resend API:", emailResult.error);
@@ -607,12 +715,13 @@ const handler = async (req: Request): Promise<Response> => {
       if (ownerEmail && ownerEmail !== recipientEmail) {
         try {
           console.log(`📧 Sending copy to business owner: ${ownerEmail}`);
-          await resend.emails.send({
+          const ownerRes = await resend.emails.send({
             from: `${businessName || 'SmartBookly'} <info@smartbookly.com>`,
             to: [ownerEmail],
-            subject: emailData.subject,
-            html: finalContent,
+            subject: ownerEmailData.subject,
+            html: ownerEmailData.content,
           });
+          await logEmail({ ownerId: logOwner, to: ownerEmail, subject: ownerEmailData.subject, purpose: "owner_copy", result: ownerRes as any });
           console.log(`✅ Owner copy sent to ${ownerEmail}`);
         } catch (ownerEmailError) {
           console.error(`⚠️ Failed to send owner copy:`, ownerEmailError);

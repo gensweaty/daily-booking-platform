@@ -1,3 +1,4 @@
+import { logEmail, ownerFromRequest } from "../_shared/emailLog.ts";
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@4.3.0";
 
@@ -164,7 +165,9 @@ const handler = async (req: Request): Promise<Response> => {
     const fromAddress = `${displayName} <noreply@smartbookly.com>`;
     
     // Use Reply-To header for actual sender's email (allows recipient to reply directly)
-    const replyToAddress = emailRequest.sender_email || undefined;
+    const inboundDomain = (Deno.env.get("INBOUND_EMAIL_DOMAIN") || "").trim().replace(/^@/, "");
+    const inboundOwner = inboundDomain ? await ownerFromRequest(req) : null;
+    const replyToAddress = inboundOwner ? `r-${inboundOwner}@${inboundDomain}` : (emailRequest.sender_email || undefined);
     console.log('📧 Sending email with from address:', fromAddress);
     console.log('📧 Recipient:', emailRequest.recipient_email);
     console.log('📧 Using RESEND_API_KEY:', RESEND_API_KEY ? 'Present (length: ' + RESEND_API_KEY.length + ')' : 'MISSING');
@@ -191,6 +194,7 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
+    await logEmail({ ownerId: await ownerFromRequest(req), to: emailRequest.recipient_email, subject: emailRequest.subject || subject, purpose: 'direct_email', result: emailResult as any });
     console.log('✅ Direct email sent:', emailResult);
 
     // Check if Resend returned an error (even with 200 status)

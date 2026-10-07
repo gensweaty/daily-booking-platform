@@ -1,0 +1,1 @@
+REVOKE ALL ON public.inbound_messages FROM anon;

@@ -293,7 +293,9 @@ export const useBookingRequests = (businessId?: string) => {
             bookingToApprove.language || 'en',
             bookingToApprove.description || '',
             user?.email || undefined,
-            ownerNote || undefined
+            ownerNote || undefined,
+            bookingToApprove.requester_phone || bookingToApprove.user_number || undefined,
+            bookingToApprove.title || fullName
           );
           
           console.log("[useBookingRequests] Approval email sent successfully (including owner copy)");

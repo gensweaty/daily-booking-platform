@@ -4,28 +4,26 @@ import { CursorFollower } from "@/components/landing/CursorFollower";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { lazy, Suspense, memo, useEffect, useState, useMemo } from "react";
+import { lazyWithRetry } from "@/utils/lazyWithRetry";
 import "@/components/landing/animations.css";
 
-// Simplified lazy loading with proper default exports
-const LazyFeatureSection = lazy(() => 
-  import("@/components/landing/FeatureSection").then(module => {
-    console.log('[DEBUG] FeatureSection loaded:', module);
-    return { default: module.FeatureSection || module.default };
-  })
+// Lazy sections with automatic recovery from stale chunks after a deploy
+const LazyFeatureSection = lazyWithRetry(() =>
+  import("@/components/landing/FeatureSection").then(module => ({
+    default: module.FeatureSection || module.default,
+  }))
 );
 
-const LazyPricingSection = lazy(() => 
-  import("@/components/landing/PricingSection").then(module => {
-    console.log('[DEBUG] PricingSection loaded:', module);
-    return { default: module.PricingSection || module.default };
-  })
+const LazyPricingSection = lazyWithRetry(() =>
+  import("@/components/landing/PricingSection").then(module => ({
+    default: module.PricingSection || module.default,
+  }))
 );
 
-const LazyFooterSection = lazy(() => 
-  import("@/components/landing/FooterSection").then(module => {
-    console.log('[DEBUG] FooterSection loaded:', module);
-    return { default: module.default };
-  })
+const LazyFooterSection = lazyWithRetry(() =>
+  import("@/components/landing/FooterSection").then(module => ({
+    default: module.default,
+  }))
 );
 
 // Optimized loading placeholder with reduced DOM complexity

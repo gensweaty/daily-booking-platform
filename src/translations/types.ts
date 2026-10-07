@@ -29,6 +29,7 @@ export interface TranslationType {
     website: string;
     teamChat: string;
     emailCampaigns: string;
+    smsNotifications: string;
     telegramAi: string;
     embedBooking: string;
     ai: string;
@@ -301,6 +302,16 @@ export interface TranslationType {
     feature4: string;
     feature5: string;
   };
+  smsNotifications: {
+    title: string;
+    description: string;
+    feature1: string;
+    feature2: string;
+    feature3: string;
+    feature4: string;
+    feature5: string;
+    feature6: string;
+  };
   telegramAi: {
     title: string;
     description: string;
@@ -405,6 +416,7 @@ export interface TranslationType {
   };
   dashboard: {
     sendEmail: string;
+    sendSms: string;
     welcome: string;
     productivityHub: string;
     greeting: string;

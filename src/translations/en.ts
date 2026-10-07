@@ -24,6 +24,7 @@ export const translations: TranslationType = {
     website: "Website",
     teamChat: "AI & Team Chat",
     emailCampaigns: "Email Campaigns",
+    smsNotifications: "Automatic SMS",
     telegramAi: "Telegram AI",
     embedBooking: "Embed Booking",
     ai: "AI Assistant",
@@ -296,6 +297,16 @@ export const translations: TranslationType = {
     feature4: "Attachments up to 100MB with secure download links",
     feature5: "Optional custom signature and inbox-friendly delivery",
   },
+  smsNotifications: {
+    title: "Automatic SMS Notifications",
+    description: "Text messages get read in minutes, and SmartBookly sends them for you. Connect your own Android phone and SIM, and every booking confirmation, decline, request receipt and appointment reminder can go out as an SMS automatically — no per-message fees from us.",
+    feature1: "Automatic texts for approved, declined and received bookings",
+    feature2: "Appointment reminders sent to your customer before they arrive",
+    feature3: "An instant alert to your own phone for every new request",
+    feature4: "Editable message templates with @name, @business, @date and @time tags",
+    feature5: "Bulk SMS to your CRM contacts — up to 500 messages per send",
+    feature6: "Sent from your own number and SIM, so replies come straight to you",
+  },
   telegramAi: {
     title: "Telegram & Multi-Channel AI Assistant",
     description: "Your SmartBookly assistant is not locked in the dashboard. Message it on Telegram to create events, tasks, reminders and customers, send voice notes or documents for instant analysis, and get every reminder where you actually are.",
@@ -400,6 +411,7 @@ export const translations: TranslationType = {
   },
   dashboard: {
     sendEmail: "Send Email",
+    sendSms: "Send SMS",
     welcome: "Welcome back",
     productivityHub: "Your productivity hub",
     greeting: "Hello",

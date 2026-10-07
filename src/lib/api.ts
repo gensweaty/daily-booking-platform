@@ -310,7 +310,10 @@ export const sendEventCreationEmail = async (
   eventId: string,
   language: string = 'en',
   eventNotes: string = '',
-  ownerEmail?: string
+  ownerEmail?: string,
+  customerPhone?: string,
+  eventTitle?: string,
+  ownerNotification: boolean = false
 ) => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
@@ -327,6 +330,9 @@ export const sendEventCreationEmail = async (
         language,
         eventNotes,
         ownerEmail,
+        customerPhone,
+        eventTitle,
+        ownerNotification,
         source: 'event-creation'
       }
     });
@@ -352,7 +358,10 @@ export const sendBookingConfirmationEmail = async (
   language: string = 'en',
   eventNotes: string = '',
   ownerEmail?: string,
-  ownerNote?: string
+  ownerNote?: string,
+  customerPhone?: string,
+  eventTitle?: string,
+  ownerNotification: boolean = false
 ) => {
   try {
     const { data, error } = await supabase.functions.invoke('send-booking-approval-email', {
@@ -369,7 +378,10 @@ export const sendBookingConfirmationEmail = async (
         language,
         eventNotes,
         ownerEmail,
-        ownerNote
+        ownerNote,
+        customerPhone,
+        eventTitle,
+        ownerNotification
       }
     });
 

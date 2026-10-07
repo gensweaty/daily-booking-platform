@@ -6,6 +6,7 @@ import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 import { extractText as extractPdfText } from "https://esm.sh/unpdf@0.12.1";
 // PizZip for DOCX text extraction (DOCX files are ZIP archives with XML)
 import PizZip from "https://esm.sh/pizzip@3.1.7";
+import { performBookingAction } from "../_shared/bookingActions.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -2745,6 +2746,23 @@ const handleAiChatRequest = async (req: Request) => {
       {
         type: "function",
         function: {
+          name: "manage_booking_request",
+          description: `Approve, reject or delete a booking request exactly as the owner would from the dashboard. Approving puts it on the calendar + CRM, copies attachments and emails the customer. USE THIS whenever the user says things like "approve it", "approve the one from Anna", "reject that booking", "delete the request", "დაადასტურე", "уаапрув", "acepta la reserva". If you don't already know which booking they mean, call get_pending_bookings FIRST and match by requester name/time. Never claim a booking was approved/rejected without calling this tool and getting ok:true.`,
+          parameters: {
+            type: "object",
+            properties: {
+              booking_id: { type: "string", description: "The booking request id (UUID) from get_pending_bookings." },
+              requester_name: { type: "string", description: "Optional: the customer's name, used to find the booking when no id is known." },
+              action: { type: "string", enum: ["approve", "reject", "delete"], description: "What to do with the request." },
+              comment: { type: "string", description: "Optional note to include in the approval email to the customer." }
+            },
+            required: ["action"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
           name: "get_all_tasks",
           description: `🚨 CRITICAL FIRST STEP - CALL THIS BEFORE ANY TASK CONVERSATION! 🚨
 
@@ -3710,6 +3728,42 @@ Ask ONE short question naming exactly what is missing ("What time should the mee
 
 🧠 **REFERENCES TO EARLIER THINGS:**
 "that one", "the same client", "it", "that task", "the second one" refer to the most recent matching item in this conversation or in the snapshot above. Resolve them silently against real data before acting. If two candidates are equally likely, ask which one — never pick at random.
+
+💬 **CASUAL / INDIRECT PHRASING IS STILL AN ORDER (act, don't lecture):**
+Real users rarely say "create task". Treat these as clear action requests and route them to the right tool:
+- "I need to call Nino tomorrow at 4" → event or task (a specific clock time with another person = event; a to-do with no time = task).
+- "put Anna in the client list", "save her number", "new client Anna 555..." → CRM customer.
+- "book Nika for Friday 6pm, he paid 50" → event with payment_status=partly_paid/fully_paid + amount.
+- "wedding job is finished", "we're done with the photoshoot" → update that task/event status to done.
+- "move the meeting to 7", "make it 2 hours", "change her number to ..." → UPDATE the existing record, keeping every other field untouched.
+- "who do I have tomorrow?", "what's left today?", "how much did I earn this month?" → read tools, then answer in plain language. Never invent numbers.
+Same rules in Georgian, Russian and Spanish — translate intent, not words. Never answer an action request with only advice about how the user could do it themselves in the dashboard.
+
+🧭 **PICK THE RIGHT ENTITY (most common mistake):**
+- Something happening at a time, with a customer → EVENT (calendar).
+- Something the user must do, no fixed clock slot → TASK.
+- A person's details to keep → CUSTOMER (CRM).
+- A ping at a moment in time → REMINDER (only with remind/reminder/alert/notify wording).
+When a message mixes them ("book Anna Friday 6pm and remind me an hour before"), create both, in order.
+
+🔎 **BEFORE REPORTING, RE-READ THE TOOL RESULTS:**
+Your final sentence must describe exactly what the tool results say — the real names, dates and amounts returned, not what you intended. If a tool was not called, you did nothing: say what you need instead. If part failed, name that part. Never summarize an action you only planned.
+
+🏗️ **SMARTBOOKLY OPERATIONS PLAYBOOK (product-specific execution rules):**
+
+1. BOOKING REQUESTS ARE NOT EVENTS. A "booking request" is something a customer submitted from the public/embedded booking page and is waiting for a decision. "approve it", "accept Anna's request", "reject that", "delete the request", "yes approve" → manage_booking_request. Creating a calendar entry the owner thought up themselves → create_or_update_event. Approving a request already puts it on the calendar and in CRM — never also call create_or_update_event afterwards, that would duplicate it.
+2. NAME MATCHING IS FUZZY BUT SAFE. Users type partial, misspelled or lowercase names ("nino", "the wedding one", "annas booking"). Match case-insensitively against the live snapshot / get_* results, including partial and first-name-only matches. One clear match → act. Several plausible matches → list them briefly and ask which. Zero matches → say plainly you could not find it and offer to create it, instead of silently creating a near-duplicate.
+3. CALENDAR + CRM ARE LINKED. An event created for a named person may also exist as a CRM customer. When the user asks to change a person's phone, email or payment, decide from their words which record they mean; if they say "everywhere" or "both", update both and report both.
+4. PAYMENTS. Amount without status → infer status (full amount = fully_paid, "deposit"/"half"/"prepaid" = partly_paid). Status without amount → set the status only; never invent a number. "he paid the rest" → fully_paid keeping the existing amount unless a new total is given.
+5. TIME & CONFLICTS. Always work in the user's local timezone (${effectiveTZ || 'UTC+4'}). Before scheduling, glance at the snapshot: if the new slot overlaps an existing event, still ask the user once ("You already have X then — book anyway?") unless they said "anyway"/"I know". Never silently move or overwrite an existing event's time.
+6. TASKS BELONG TO PEOPLE. If the user names a teammate/sub-user ("give this to Nino", "assign to Mari"), pass the assignment; if that person is not in the workspace list, say so instead of guessing.
+7. REMINDERS ARE SEPARATE OBJECTS. A reminder attached to an event/task is created in addition to it, never instead of it. "remind me an hour before" needs the event's start time — compute it, don't ask. Reminders must be in the future; if the computed time already passed, say so and propose the next sensible time.
+8. EMAILS. send_direct_email needs a real recipient address — take it from the CRM record when the user names a person; if that record has no email, say which one is missing rather than sending to a guessed address. Never send an email the user only discussed hypothetically; act when they say send/write/email them.
+9. FILES. Attachments always land on the entity the verb named. "what does this say?"/"summarize this" about a file → read and answer, no record is created. Never create a record just because a file was uploaded.
+10. READ-ONLY QUESTIONS NEVER MUTATE. "do I have...", "how many...", "show me...", "what's my income" → get_* / statistics tools only. Never create, update or delete while answering a question.
+11. DESTRUCTIVE ACTIONS NEED CERTAINTY. Delete/cancel only what the user unmistakably identified. If the target is ambiguous, ask first. After deleting, state exactly what was removed.
+12. SAME BEHAVIOUR EVERYWHERE. Website chat, Telegram and public boards are the same assistant with the same powers; never tell the user to "go to the dashboard" to do something you can do yourself.
+
 
 
 
@@ -5936,6 +5990,66 @@ Call the matching tool with the exact details from the user's last message. Do n
                 .order('created_at', { ascending: false });
               toolResult = { count: bookings?.length || 0, bookings: bookings || [] };
               console.log(`    ✓ Found ${toolResult.count} pending bookings`);
+              break;
+            }
+
+            case 'manage_booking_request': {
+              const action = String(args.action || '').toLowerCase() as 'approve' | 'reject' | 'delete';
+              if (!['approve', 'reject', 'delete'].includes(action)) {
+                toolResult = { ok: false, error: 'invalid_action', message: 'I can only approve, reject or delete a booking request.' };
+                break;
+              }
+
+              // Resolve the booking, scoped to this owner's business
+              let bookingId: string | null = args.booking_id && UUID_REGEX.test(String(args.booking_id))
+                ? String(args.booking_id)
+                : null;
+
+              const { data: bizRows } = await supabaseAdmin
+                .from('business_profiles')
+                .select('id')
+                .eq('user_id', ownerId);
+              const bizIds = (bizRows || []).map((b: any) => b.id);
+
+              if (!bookingId) {
+                let q = supabaseAdmin
+                  .from('booking_requests')
+                  .select('id, requester_name, title, start_date, status')
+                  .is('deleted_at', null)
+                  .order('created_at', { ascending: false })
+                  .limit(50);
+                if (bizIds.length) q = q.in('business_id', bizIds);
+                const { data: candidates } = await q;
+                let list = candidates || [];
+                const needle = String(args.requester_name || '').trim().toLowerCase();
+                if (needle) {
+                  list = list.filter((b: any) =>
+                    String(b.requester_name || '').toLowerCase().includes(needle) ||
+                    String(b.title || '').toLowerCase().includes(needle));
+                } else {
+                  list = list.filter((b: any) => b.status === 'pending');
+                }
+                if (list.length === 0) {
+                  toolResult = { ok: false, error: 'not_found', message: needle ? `I couldn't find a booking request from "${args.requester_name}".` : 'There are no pending booking requests right now.' };
+                  break;
+                }
+                if (list.length > 1 && needle) {
+                  toolResult = { ok: false, error: 'ambiguous', message: 'More than one booking request matches that name — ask which one.', matches: list.slice(0, 5) };
+                  break;
+                }
+                bookingId = list[0].id;
+              }
+
+              const result = await performBookingAction(supabaseAdmin, {
+                bookingId: bookingId!,
+                action,
+                ownerNote: args.comment || '',
+                supabaseUrl: Deno.env.get('SUPABASE_URL') ?? '',
+                serviceKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+                expectedOwnerId: ownerId,
+              });
+              toolResult = result;
+              console.log(`    ✓ manage_booking_request ${action}:`, JSON.stringify(result));
               break;
             }
 

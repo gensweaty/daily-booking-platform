@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Calendar, ListTodo, Users, BarChart, Globe, MessageCircle, Bot, Mail, Send, Code2 } from "lucide-react";
+import { Calendar, ListTodo, Users, BarChart, Globe, MessageCircle, Bot, Mail, Send, Code2, MessageSquare } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
@@ -161,7 +161,7 @@ export const FeatureButtons = () => {
               <LanguageText>{t('features.embedBooking')}</LanguageText>
             </span>
           </Button>
-          <Button 
+          <Button
             variant="outline"
             onClick={(e) => {
               createRipple(e);
@@ -172,6 +172,19 @@ export const FeatureButtons = () => {
             <Mail className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
             <span className="text-sm font-medium">
               <LanguageText>{t('features.emailCampaigns')}</LanguageText>
+            </span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={(e) => {
+              createRipple(e);
+              scrollToSection('sms-notifications');
+            }}
+            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
+          >
+            <MessageSquare className="w-5 h-5 text-accent shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
+            <span className="text-sm font-medium">
+              <LanguageText>{t('features.smsNotifications')}</LanguageText>
             </span>
           </Button>
         </div>

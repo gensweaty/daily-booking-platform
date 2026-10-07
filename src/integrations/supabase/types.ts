@@ -888,6 +888,45 @@ export type Database = {
           },
         ]
       }
+      email_logs: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string | null
+          purpose: string | null
+          reason: string | null
+          recipient: string
+          resend_id: string | null
+          status: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          purpose?: string | null
+          reason?: string | null
+          recipient: string
+          resend_id?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string | null
+          purpose?: string | null
+          reason?: string | null
+          recipient?: string
+          resend_id?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       event_files: {
         Row: {
           content_type: string | null
@@ -1188,6 +1227,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      inbound_messages: {
+        Row: {
+          body: string | null
+          channel: string
+          created_at: string
+          html: string | null
+          id: string
+          is_read: boolean
+          owner_id: string
+          provider_id: string | null
+          received_at: string
+          recipient: string | null
+          sender: string
+          subject: string | null
+        }
+        Insert: {
+          body?: string | null
+          channel: string
+          created_at?: string
+          html?: string | null
+          id?: string
+          is_read?: boolean
+          owner_id: string
+          provider_id?: string | null
+          received_at?: string
+          recipient?: string | null
+          sender: string
+          subject?: string | null
+        }
+        Update: {
+          body?: string | null
+          channel?: string
+          created_at?: string
+          html?: string | null
+          id?: string
+          is_read?: boolean
+          owner_id?: string
+          provider_id?: string | null
+          received_at?: string
+          recipient?: string | null
+          sender?: string
+          subject?: string | null
+        }
+        Relationships: []
       }
       note_files: {
         Row: {
@@ -1598,6 +1682,255 @@ export type Database = {
           status?: string
           user_id?: string
           via_telegram?: boolean
+        }
+        Relationships: []
+      }
+      sms_devices: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          external_id: string
+          id: string
+          is_online: boolean
+          last_seen_at: string | null
+          name: string | null
+          sim_cards: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          external_id: string
+          id?: string
+          is_online?: boolean
+          last_seen_at?: string | null
+          name?: string | null
+          sim_cards?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          external_id?: string
+          id?: string
+          is_online?: boolean
+          last_seen_at?: string | null
+          name?: string | null
+          sim_cards?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sms_messages: {
+        Row: {
+          attempts: number
+          body: string
+          booking_request_id: string | null
+          created_at: string
+          customer_id: string | null
+          dedupe_key: string | null
+          delivered_at: string | null
+          device_external_id: string | null
+          error: string | null
+          event_id: string | null
+          expires_at: string | null
+          failed_at: string | null
+          id: string
+          language: string
+          next_attempt_at: string
+          provider: string
+          provider_message_id: string | null
+          purpose: string
+          recipient: string
+          scheduled_at: string | null
+          sent_at: string | null
+          sim_number: number | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          booking_request_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          dedupe_key?: string | null
+          delivered_at?: string | null
+          device_external_id?: string | null
+          error?: string | null
+          event_id?: string | null
+          expires_at?: string | null
+          failed_at?: string | null
+          id?: string
+          language?: string
+          next_attempt_at?: string
+          provider?: string
+          provider_message_id?: string | null
+          purpose?: string
+          recipient: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sim_number?: number | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          booking_request_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          dedupe_key?: string | null
+          delivered_at?: string | null
+          device_external_id?: string | null
+          error?: string | null
+          event_id?: string | null
+          expires_at?: string | null
+          failed_at?: string | null
+          id?: string
+          language?: string
+          next_attempt_at?: string
+          provider?: string
+          provider_message_id?: string | null
+          purpose?: string
+          recipient?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          sim_number?: number | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sms_provider_configs: {
+        Row: {
+          access_token: string | null
+          base_url: string
+          created_at: string
+          default_country_code: string
+          id: string
+          is_connected: boolean
+          last_error: string | null
+          last_verified_at: string | null
+          message_ttl_seconds: number
+          password: string | null
+          preferred_device_id: string | null
+          preferred_sim_number: number | null
+          provider: string
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          rate_limit_per_minute: number | null
+          refresh_token: string | null
+          routing_mode: string
+          send_on_booking_confirmed: boolean
+          send_on_cancelled: boolean
+          send_on_reminder: boolean
+          send_on_rescheduled: boolean
+          sms_enabled: boolean
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+          username: string | null
+          webhook_id: string | null
+          webhook_secret: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          base_url?: string
+          created_at?: string
+          default_country_code?: string
+          id?: string
+          is_connected?: boolean
+          last_error?: string | null
+          last_verified_at?: string | null
+          message_ttl_seconds?: number
+          password?: string | null
+          preferred_device_id?: string | null
+          preferred_sim_number?: number | null
+          provider?: string
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          rate_limit_per_minute?: number | null
+          refresh_token?: string | null
+          routing_mode?: string
+          send_on_booking_confirmed?: boolean
+          send_on_cancelled?: boolean
+          send_on_reminder?: boolean
+          send_on_rescheduled?: boolean
+          sms_enabled?: boolean
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+          username?: string | null
+          webhook_id?: string | null
+          webhook_secret?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          base_url?: string
+          created_at?: string
+          default_country_code?: string
+          id?: string
+          is_connected?: boolean
+          last_error?: string | null
+          last_verified_at?: string | null
+          message_ttl_seconds?: number
+          password?: string | null
+          preferred_device_id?: string | null
+          preferred_sim_number?: number | null
+          provider?: string
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          rate_limit_per_minute?: number | null
+          refresh_token?: string | null
+          routing_mode?: string
+          send_on_booking_confirmed?: boolean
+          send_on_cancelled?: boolean
+          send_on_reminder?: boolean
+          send_on_rescheduled?: boolean
+          sms_enabled?: boolean
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+          webhook_id?: string | null
+          webhook_secret?: string | null
+        }
+        Relationships: []
+      }
+      sms_templates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          language: string
+          purpose: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          language?: string
+          purpose: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          language?: string
+          purpose?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

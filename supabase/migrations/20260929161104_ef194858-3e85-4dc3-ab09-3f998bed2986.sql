@@ -1,0 +1,1 @@
+REVOKE ALL ON public.email_logs FROM anon;

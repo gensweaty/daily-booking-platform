@@ -38,7 +38,6 @@ const FooterSection = () => {
     const handleThemeChange = (e: Event) => {
       const customEvent = e as CustomEvent;
       const newTheme = customEvent.detail?.theme;
-      console.log("[FooterSection] Theme changed detected:", newTheme);
       updateLogoForTheme();
     };
 

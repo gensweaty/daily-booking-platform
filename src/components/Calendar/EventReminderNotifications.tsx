@@ -6,11 +6,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Bell } from "lucide-react";
 import { platformNotificationManager } from "@/utils/platformNotificationManager";
+import { sendAutoSms } from "@/lib/smsAutomation";
+import { useBusinessProfile } from "@/hooks/useBusinessProfile";
 
 export const EventReminderNotifications = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { businessProfile } = useBusinessProfile();
   const queryClient = useQueryClient();
   const [processedReminders, setProcessedReminders] = useState<Set<string>>(new Set());
   const [isProcessing, setIsProcessing] = useState(false);
@@ -253,6 +256,28 @@ export const EventReminderNotifications = () => {
               email_reminder_enabled: event.email_reminder_enabled,
               reminder_sent_at: event.reminder_sent_at,
             });
+          }
+
+          // Automatic SMS reminder to the customer (only if enabled in SMS settings)
+          try {
+            const start = event.start_date ? new Date(event.start_date) : null;
+            const lang = (language === 'ka' || language === 'es' ? language : 'en') as 'en' | 'es' | 'ka';
+            await sendAutoSms(
+              'event_reminder',
+              event.requester_phone || event.user_number,
+              {
+                name: event.requester_name || event.title || '',
+                surname: event.user_surname || '',
+                business: businessProfile?.business_name || '',
+                date: start ? start.toLocaleDateString() : '',
+                time: start ? start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                price: event.payment_amount != null ? String(event.payment_amount) : '',
+                notes: event.event_notes || '',
+              },
+              lang
+            );
+          } catch (smsError) {
+            console.warn('📱 Event reminder SMS failed:', smsError);
           }
           
           console.log('📊 Dashboard notification: ✅ Sent');
