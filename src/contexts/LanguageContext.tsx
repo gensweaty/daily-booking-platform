@@ -7,10 +7,8 @@ import { getCurrencySymbol } from '@/lib/currency'; // Import the centralized cu
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider = ({ children }: { children: React.ReactNode }) => {
-  console.log('[DEBUG] LanguageProvider rendering');
   
   const [language, setLanguage] = useState<Language>(() => {
-    console.log('[DEBUG] LanguageProvider initializing state');
     
     try {
       // Try to get language from URL first
@@ -18,19 +16,16 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       const urlLang = urlParams.get('lang');
       if (urlLang && ['en', 'es', 'ka'].includes(urlLang)) {
         localStorage.setItem('language', urlLang as Language);
-        console.log('[DEBUG] Language set from URL:', urlLang);
         return urlLang as Language;
       }
       
       // Then try localStorage
       const saved = localStorage.getItem('language');
       if (saved && ['en', 'es', 'ka'].includes(saved)) {
-        console.log('[DEBUG] Language set from localStorage:', saved);
         return saved as Language;
       }
       
       // Default to 'en'
-      console.log('[DEBUG] Language set to default: en');
       return 'en';
     } catch (error) {
       console.error('[DEBUG] Error initializing language:', error);
@@ -39,7 +34,6 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
   });
 
   useEffect(() => {
-    console.log('[DEBUG] LanguageProvider useEffect triggered, language:', language);
     
     try {
       localStorage.setItem('language', language);
@@ -53,7 +47,6 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
       document.documentElement.setAttribute('lang', language);
       
       // Add logging for debugging purposes
-      console.log(`Language context updated to: ${language}`);
     } catch (error) {
       console.error('[DEBUG] Error in LanguageProvider useEffect:', error);
     }
@@ -100,7 +93,6 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     t
   }), [language, t]);
 
-  console.log('[DEBUG] LanguageProvider providing context:', contextValue);
 
   return (
     <LanguageContext.Provider value={contextValue}>
@@ -111,7 +103,6 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
 
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
-  console.log('[DEBUG] useLanguage called, context:', context);
   
   // If context is undefined, it means we're outside the provider
   // This should not happen, but we provide a fallback to prevent crashes

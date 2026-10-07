@@ -8,6 +8,7 @@ import emailCampaignsScreenshot from "@/assets/email-campaigns-screenshot.webp";
 import telegramAiScreenshot from "@/assets/telegram-ai-screenshot.webp";
 import embedBookingScreenshot from "@/assets/embed-booking-screenshot.webp";
 import smsNotificationsScreenshot from "@/assets/sms-notifications-screenshot.webp";
+import smsNotificationsScreenshotDark from "@/assets/sms-notifications-screenshot-dark.webp";
 import tasksScreenshotDark from "@/assets/tasks-screenshot-dark.webp";
 import analyticsScreenshotDark from "@/assets/analytics-screenshot-dark.webp";
 import emailCampaignsScreenshotDark from "@/assets/email-campaigns-screenshot-dark.webp";
@@ -186,7 +187,7 @@ export const FeatureSection = () => {
     title: t('smsNotifications.title'),
     description: t('smsNotifications.description'),
     image: smsNotificationsScreenshot,
-    imageDark: smsNotificationsScreenshot,
+    imageDark: smsNotificationsScreenshotDark,
     benefits: [t('smsNotifications.feature1'), t('smsNotifications.feature2'), t('smsNotifications.feature3'), t('smsNotifications.feature4'), t('smsNotifications.feature5'), t('smsNotifications.feature6')],
     translationPrefix: 'smsNotifications' as const,
     id: "sms-notifications",
