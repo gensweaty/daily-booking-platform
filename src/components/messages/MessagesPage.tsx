@@ -138,8 +138,8 @@ export const MessagesPage = ({ composeRequest }: { composeRequest: { kind: "emai
             </Button>
           </div>
         </div>
-        <TabsContent value="email" className="mt-4"><Section list={<List items={emails} />} settings={<EmailDeliveryStatusPanel />} /></TabsContent>
-        <TabsContent value="sms" className="mt-4"><Section list={<List items={smsItems} />} settings={<SmsSettingsSection />} /></TabsContent>
+        <TabsContent value="email" className="mt-4"><Section view={view} setView={setView} c={c} list={<List items={emails} c={c} onReply={replyTo} />} settings={<EmailDeliveryStatusPanel />} /></TabsContent>
+        <TabsContent value="sms" className="mt-4"><Section view={view} setView={setView} c={c} list={<List items={smsItems} c={c} onReply={replyTo} />} settings={<SmsSettingsSection />} /></TabsContent>
       </Tabs>
       {emailOpen && <EmailComposerDialog open={emailOpen} onOpenChange={(v) => { setEmailOpen(v); if (!v) load(); }} customers={prefill} plainLayout />}
       {smsOpen && <SmsComposerDialog open={smsOpen} onOpenChange={(v) => { setSmsOpen(v); if (!v) load(); }} customers={prefill} />}
