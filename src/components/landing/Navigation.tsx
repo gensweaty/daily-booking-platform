@@ -143,27 +143,27 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
       <LanguageSwitcher />
       <ThemeToggle />
       
-      <div className="hidden md:flex items-center space-x-3 lg:space-x-4" role="navigation">
-        <Link to="/login">
-          <Button variant="outline" className="hover:scale-105 transition-all text-sm md:text-base ripple-container">
-            {language === 'ka' ? "შესვლა" : t('nav.signin')}
-          </Button>
-        </Link>
-        <Link to="/signup">
-          <Button variant="purple" className="text-sm md:text-base ripple-container will-animate gpu-layer">
-            {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
-          </Button>
-        </Link>
-        <Button 
+      <div className="hidden md:flex items-center space-x-2 lg:space-x-3" role="navigation">
+        <Button
           onClick={handlePricingClick}
-          variant="outline" 
-          className="hover:scale-105 transition-all text-sm md:text-base"
+          variant="ghost"
+          className="rounded-full text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           {t('nav.pricing')}
         </Button>
         <Link to="/contact">
-          <Button variant="outline" className="hover:scale-105 transition-all text-sm md:text-base">
+          <Button variant="ghost" className="rounded-full text-sm text-muted-foreground hover:text-foreground transition-colors">
             {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
+          </Button>
+        </Link>
+        <Link to="/login">
+          <Button variant="outline" className="rounded-full text-sm transition-all hover:-translate-y-0.5">
+            {language === 'ka' ? "შესვლა" : t('nav.signin')}
+          </Button>
+        </Link>
+        <Link to="/signup">
+          <Button variant="purple" className="rounded-full text-sm shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/35 will-animate gpu-layer">
+            {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
           </Button>
         </Link>
       </div>
@@ -177,7 +177,7 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
   );
 
   return (
-    <nav className="relative glass-morphism rounded-2xl px-4 py-3 mb-6 z-50" aria-label="Main navigation">
+    <nav className="sticky top-3 mx-auto max-w-5xl glass-morphism rounded-full border border-border/50 bg-background/80 backdrop-blur-md shadow-sm px-4 md:px-6 py-2.5 mb-6 z-50 transition-shadow duration-300 hover:shadow-md" aria-label="Main navigation">
       <div className="flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2 hover:scale-105 transition-transform" aria-label="SmartBookly Home">
           <div className="relative">
