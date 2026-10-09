@@ -63,7 +63,9 @@ export const HeroSection = memo(() => {
 
   return (
       <header className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
+      <div className="absolute inset-0 bg-gradient-to-b from-primary/[0.06] via-background to-background" />
+      <div className="pointer-events-none absolute -top-40 left-1/2 h-[480px] w-[900px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" aria-hidden="true" />
+
       
       <nav className="container mx-auto px-4 py-4 md:py-6 lg:py-8 relative">
         <Navigation 
