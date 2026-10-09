@@ -177,7 +177,7 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
   );
 
   return (
-    <nav className="relative glass-morphism rounded-2xl px-4 py-3 mb-6 z-50" aria-label="Main navigation">
+    <nav className="sticky top-3 mx-auto max-w-5xl glass-morphism rounded-full border border-border/50 bg-background/80 backdrop-blur-md shadow-sm px-4 md:px-6 py-2.5 mb-6 z-50 transition-shadow duration-300 hover:shadow-md" aria-label="Main navigation">
       <div className="flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2 hover:scale-105 transition-transform" aria-label="SmartBookly Home">
           <div className="relative">
