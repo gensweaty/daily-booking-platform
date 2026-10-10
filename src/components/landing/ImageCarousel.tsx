@@ -29,6 +29,7 @@ interface ImageCarouselProps {
   imageHeight?: string;
   arrowsInside?: boolean; // New prop: true = arrows inside image, false = arrows outside
   isHeroSlider?: boolean; // New prop: for main hero slider specific styling
+  isFeatureGrid?: boolean;
 }
 
 // Simplified image component with better loading handling
@@ -37,24 +38,27 @@ const CarouselImage = memo(({
   alt, 
   customStyle, 
   objectFit,
-  loading = 'lazy'
+  loading = 'lazy',
+  fitContainer = false
 }: { 
   src: string; 
   alt: string; 
   customStyle?: string;
   objectFit?: string;
   loading?: 'lazy' | 'eager';
+  fitContainer?: boolean;
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   
   return (
-    <div className="relative overflow-hidden">
+    <div className={cn("relative overflow-hidden", fitContainer && "h-full w-full")}>
       {!hasError ? (
         <img
           src={src}
           alt={alt}
           loading={loading}
+          decoding="async"
           className={cn(
             "w-full h-full transition-opacity duration-300",
             customStyle || objectFit,
@@ -90,7 +94,8 @@ export const ImageCarousel = ({
   objectFit = "object-contain",
   imageHeight = "h-[400px]",
   arrowsInside = false,
-  isHeroSlider = false
+  isHeroSlider = false,
+  isFeatureGrid = false
 }: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
@@ -175,19 +180,21 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="pl-0">
               <div className={cn(
-                "rounded-xl overflow-hidden transition-shadow duration-200 hover:shadow-lg",
-                responsiveHeight
+                isFeatureGrid ? "aspect-[16/10] overflow-hidden rounded-md" : "rounded-xl overflow-hidden transition-shadow duration-200 hover:shadow-lg",
+                !isFeatureGrid && responsiveHeight
               )}>
                 <div className={cn(
-                  "relative h-full w-full flex items-center justify-center bg-gradient-to-br from-white/90 to-white/70",
-                  image.customPadding || 'p-0'
+                  "relative h-full w-full flex items-center justify-center",
+                  isFeatureGrid ? "bg-muted/40" : "bg-gradient-to-br from-white/90 to-white/70",
+                  isFeatureGrid ? "p-0" : image.customPadding || 'p-0'
                 )}>
                   <CarouselImage
                     src={pickSrc(image)}
                     alt={image.alt}
                     customStyle={image.customStyle}
                     objectFit={objectFit}
-                    loading={index === 0 ? 'eager' : 'lazy'}
+                    loading={isFeatureGrid ? 'lazy' : index === 0 ? 'eager' : 'lazy'}
+                    fitContainer={isFeatureGrid}
                   />
                   {showTitles && image.title && (
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4 text-center">
@@ -209,8 +216,8 @@ export const ImageCarousel = ({
                 "transition-opacity duration-200",
                 "absolute -translate-y-1/2 top-1/2",
                 getArrowLeftPosition(),
-                "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
-                "border border-gray-200 dark:border-gray-700 shadow-lg",
+                isFeatureGrid ? "bg-background/95 text-foreground hover:bg-muted border-border" : "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg",
+                "border",
                 "w-10 h-10 rounded-full z-10"
               )}
             />
@@ -220,8 +227,8 @@ export const ImageCarousel = ({
                 "transition-opacity duration-200",
                 "absolute -translate-y-1/2 top-1/2",
                 getArrowRightPosition(),
-                "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
-                "border border-gray-200 dark:border-gray-700 shadow-lg",
+                isFeatureGrid ? "bg-background/95 text-foreground hover:bg-muted border-border" : "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg",
+                "border",
                 "w-10 h-10 rounded-full z-10"
               )}
             />
