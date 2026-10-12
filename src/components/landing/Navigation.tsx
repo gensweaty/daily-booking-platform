@@ -157,13 +157,13 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
           </Button>
         </Link>
         <Link to="/login">
-          <Button variant="outline" className="rounded-full text-sm transition-all hover:-translate-y-0.5">
+          <Button variant="outline" className="rounded-md text-sm transition-colors duration-200">
             {language === 'ka' ? "შესვლა" : t('nav.signin')}
           </Button>
         </Link>
         <Link to="/signup">
-          <Button variant="purple" className="rounded-full text-sm shadow-lg shadow-primary/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/35 will-animate gpu-layer">
-            {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
+          <Button variant="default" className="rounded-md text-sm transition-colors duration-200">
+            {language === 'ka' ? "რეგისტრაცია" : t('auth.signUpButton')}
           </Button>
         </Link>
       </div>
@@ -177,9 +177,9 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
   );
 
   return (
-    <nav className="sticky top-3 mx-auto max-w-5xl glass-morphism rounded-full border border-border/50 bg-background/80 backdrop-blur-md shadow-sm px-4 md:px-6 py-2.5 mb-6 z-50 transition-shadow duration-300 hover:shadow-md" aria-label="Main navigation">
+    <nav className="relative mx-auto border-b border-border bg-background py-3 mb-6 z-50" aria-label="Main navigation">
       <div className="flex justify-between items-center">
-        <Link to="/" className="flex items-center gap-2 hover:scale-105 transition-transform" aria-label="SmartBookly Home">
+        <Link to="/" className="flex items-center gap-2" aria-label="SmartBookly Home">
           <div className="relative">
             <img 
               src={currentLogo}

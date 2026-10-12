@@ -193,7 +193,7 @@ export const FeatureSection = () => {
     id: "sms-notifications",
     reverse: false
   }];
-  return <section className="py-16 sm:py-20 bg-muted/30">
+  return <section className="border-t border-border py-12 sm:py-16 bg-background">
       <div className="container mx-auto px-4">
         <FeatureButtons />
         <ClientLogos />
