@@ -1,5 +1,4 @@
 
-import { motion } from "framer-motion";
 import { 
   PartyPopper, 
   Stethoscope, 
@@ -19,70 +18,61 @@ export const ClientLogos = () => {
       name: t('business.events'),
       icon: PartyPopper,
       description: t('business.eventsDesc'),
-      bgColor: "bg-purple-100",
-      iconColor: "text-purple-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.health'),
       icon: Stethoscope,
       description: t('business.healthDesc'),
-      bgColor: "bg-blue-100",
-      iconColor: "text-blue-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.sports'),
       icon: Dumbbell,
       description: t('business.sportsDesc'),
-      bgColor: "bg-green-100",
-      iconColor: "text-green-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.beauty'),
       icon: Flower2,
       description: t('business.beautyDesc'),
-      bgColor: "bg-pink-100",
-      iconColor: "text-pink-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.personal'),
       icon: Users,
       description: t('business.personalDesc'),
-      bgColor: "bg-orange-100",
-      iconColor: "text-orange-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.education'),
       icon: GraduationCap,
       description: t('business.educationDesc'),
-      bgColor: "bg-teal-100",
-      iconColor: "text-teal-500"
+      iconColor: "text-primary"
     },
   ];
 
   return (
-    <div className="mb-16">
-      <h3 className="text-center text-2xl font-semibold mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+    <div className="mb-16 border-y border-border py-10 sm:py-12">
+      <h3 className="text-center text-2xl font-semibold mb-8 text-foreground">
         <LanguageText withFont={true}>{t('features.businessTitle')}</LanguageText>
       </h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-8">
         {logos.map((company, index) => (
-          <motion.div
+          <div
             key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="flex flex-col items-center space-y-3 p-4 rounded-lg hover:bg-background/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:-translate-y-1 group"
+            className="flex flex-col items-center space-y-3"
           >
-            <div className={`p-4 rounded-full ${company.bgColor} group-hover:scale-110 transition-transform duration-300`}>
-              <company.icon className={`w-8 h-8 ${company.iconColor}`} />
+            <div className={"flex h-10 w-10 items-center justify-center"}>
+              <company.icon className={`w-7 h-7 ${company.iconColor}`} />
             </div>
             <span className="text-base font-medium text-center leading-tight">
               <LanguageText withFont={true}>{company.name}</LanguageText>
             </span>
-            <span className="text-sm text-muted-foreground text-center hidden lg:block leading-snug">
+            <span className="text-sm text-muted-foreground text-center  leading-snug">
               <LanguageText withFont={true}>{company.description}</LanguageText>
             </span>
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>

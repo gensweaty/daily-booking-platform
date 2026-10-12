@@ -14,181 +14,33 @@ export const FeatureButtons = () => {
     }
   };
 
-  const createRipple = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const button = e.currentTarget;
-    const rect = button.getBoundingClientRect();
-    const ripple = document.createElement('span');
-    ripple.classList.add('ripple-effect');
-    ripple.style.left = `${e.clientX - rect.left}px`;
-    ripple.style.top = `${e.clientY - rect.top}px`;
-    button.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 600);
-  };
-
+  const links = [
+    { id: "ai-assistant", key: "aiAssistant.title", icon: Bot },
+    { id: "booking-website", key: "features.ownBookingWebsite", icon: Globe },
+    { id: "smart-booking", key: "features.smartAppointment", icon: Calendar },
+    { id: "analytics", key: "features.automatedAnalytics", icon: BarChart },
+    { id: "crm-solution", key: "features.modernCRM", icon: Users },
+    { id: "task-management", key: "features.kanbanManagement", icon: ListTodo },
+    { id: "team-chat", key: "features.teamChat", icon: MessageCircle },
+    { id: "telegram-ai", key: "features.telegramAi", icon: Send },
+    { id: "embed-booking", key: "features.embedBooking", icon: Code2 },
+    { id: "email-campaigns", key: "features.emailCampaigns", icon: Mail },
+    { id: "sms-notifications", key: "features.smsNotifications", icon: MessageSquare },
+  ];
   return (
-    <div className="mb-16">
-      <div className="text-center mb-8">
-        <h2 className="text-2xl font-semibold enhanced-gradient-text drop-shadow-lg">
-          <LanguageText>{t('features.title')}</LanguageText>
-        </h2>
-      </div>
-      <div className="max-w-4xl mx-auto">
-        {/* Featured AI Button */}
-        <div className="mb-6">
-          <Button 
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('ai-assistant');
-            }}
-            className="w-full h-14 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-6 ripple-container group animate-fade-in border-primary/30"
-          >
-            <Bot className="w-6 h-6 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-base font-semibold">
-              <LanguageText>{t('aiAssistant.title')}</LanguageText>
-            </span>
+    <div className="mb-12 sm:mb-16">
+      <h2 className="mb-6 text-2xl font-semibold text-foreground sm:text-3xl">
+        <LanguageText>{t('features.title')}</LanguageText>
+      </h2>
+      <nav aria-label={t('features.title')} className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+        {links.map(({ id, key, icon: Icon }) => (
+          <Button key={id} variant="ghost" onClick={() => scrollToSection(id)}
+            className="h-auto min-h-12 justify-start gap-3 rounded-none border-b border-border px-0 py-3 text-left text-sm font-medium whitespace-normal hover:bg-primary/5 hover:text-primary">
+            <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+            <LanguageText>{t(key)}</LanguageText>
           </Button>
-        </div>
-        {/* First row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Button 
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('booking-website');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <Globe className="w-5 h-5 text-accent shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.ownBookingWebsite')}</LanguageText>
-            </span>
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('smart-booking');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <Calendar className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.smartAppointment')}</LanguageText>
-            </span>
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('analytics');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <BarChart className="w-5 h-5 text-accent shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.automatedAnalytics')}</LanguageText>
-            </span>
-          </Button>
-        </div>
-        {/* Second row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          <Button 
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('crm-solution');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <Users className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.modernCRM')}</LanguageText>
-            </span>
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('task-management');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <ListTodo className="w-5 h-5 text-accent shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.kanbanManagement')}</LanguageText>
-            </span>
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('team-chat');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <MessageCircle className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.teamChat')}</LanguageText>
-            </span>
-          </Button>
-        </div>
-        {/* Third row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          <Button 
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('telegram-ai');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <Send className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.telegramAi')}</LanguageText>
-            </span>
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('embed-booking');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <Code2 className="w-5 h-5 text-accent shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.embedBooking')}</LanguageText>
-            </span>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('email-campaigns');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <Mail className="w-5 h-5 text-primary shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.emailCampaigns')}</LanguageText>
-            </span>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={(e) => {
-              createRipple(e);
-              scrollToSection('sms-notifications');
-            }}
-            className="h-12 flex items-center justify-center gap-3 glass-morphism hover:bg-primary/10 hover:text-primary transition-all hover:scale-105 px-4 ripple-container stagger-child group animate-fade-in"
-          >
-            <MessageSquare className="w-5 h-5 text-accent shrink-0 group-hover:animate-pulse transition-all group-hover:scale-110" />
-            <span className="text-sm font-medium">
-              <LanguageText>{t('features.smsNotifications')}</LanguageText>
-            </span>
-          </Button>
-        </div>
-      </div>
+        ))}
+      </nav>
     </div>
   );
 };

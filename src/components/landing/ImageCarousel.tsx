@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 
 import {
   Carousel,
@@ -180,12 +181,12 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="pl-0">
               <div className={cn(
-                isFeatureGrid ? "aspect-[16/10] overflow-hidden rounded-md" : "rounded-xl overflow-hidden transition-shadow duration-200 hover:shadow-lg",
+                isFeatureGrid ? "aspect-[16/10] overflow-hidden rounded-md" : "rounded-md overflow-hidden",
                 !isFeatureGrid && responsiveHeight
               )}>
                 <div className={cn(
                   "relative h-full w-full flex items-center justify-center",
-                  isFeatureGrid ? "bg-muted/40" : "bg-gradient-to-br from-white/90 to-white/70",
+                  "bg-card",
                   isFeatureGrid ? "p-0" : image.customPadding || 'p-0'
                 )}>
                   <CarouselImage
@@ -216,7 +217,7 @@ export const ImageCarousel = ({
                 "transition-opacity duration-200",
                 "absolute -translate-y-1/2 top-1/2",
                 getArrowLeftPosition(),
-                isFeatureGrid ? "bg-background/95 text-foreground hover:bg-muted border-border" : "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg",
+                "bg-background/95 text-foreground hover:bg-muted border-border",
                 "border",
                 "w-10 h-10 rounded-full z-10"
               )}
@@ -227,7 +228,7 @@ export const ImageCarousel = ({
                 "transition-opacity duration-200",
                 "absolute -translate-y-1/2 top-1/2",
                 getArrowRightPosition(),
-                isFeatureGrid ? "bg-background/95 text-foreground hover:bg-muted border-border" : "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-lg",
+                "bg-background/95 text-foreground hover:bg-muted border-border",
                 "border",
                 "w-10 h-10 rounded-full z-10"
               )}
@@ -240,13 +241,13 @@ export const ImageCarousel = ({
       {count > 1 && (
         <div className="flex justify-center space-x-1 mt-4">
           {Array.from({ length: count }, (_, index) => (
-            <button
+            <Button variant="ghost"
               key={index}
               className={cn(
-                "w-2 h-2 rounded-full transition-all duration-200",
+                "h-2 min-w-0 rounded-full p-0 transition-colors duration-200",
                 current === index + 1
                   ? "bg-primary w-6"
-                  : "bg-primary/30 hover:bg-primary/60"
+                  : "w-2 bg-primary/30 hover:bg-primary/60"
               )}
               onClick={() => api?.scrollTo(index)}
               aria-label={`Go to slide ${index + 1}`}

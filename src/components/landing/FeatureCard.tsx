@@ -59,7 +59,7 @@ const FeatureCardComponent = ({
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-transform duration-200 motion-safe:group-hover/feature:scale-105">
             <Icon className="h-6 w-6" aria-hidden="true" />
           </div>
-          <h3 className="min-w-0 pt-1 text-2xl font-bold leading-snug text-primary sm:text-3xl">
+          <h3 className="min-w-0 pt-1 text-2xl font-bold leading-snug text-foreground sm:text-3xl">
             <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>

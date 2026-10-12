@@ -1,6 +1,5 @@
 
 import { HeroSection } from "@/components/landing/HeroSection";
-import { CursorFollower } from "@/components/landing/CursorFollower";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { lazy, Suspense, memo, useEffect, useState, useMemo } from "react";
@@ -34,70 +33,6 @@ const SectionSkeleton = memo(({ className }: { className?: string }) => (
 ));
 
 SectionSkeleton.displayName = 'SectionSkeleton';
-
-// Memoized cursor follower
-const MemoizedCursorFollower = memo(CursorFollower);
-
-// Highly optimized background with intersection observer
-const OptimizedBackground = memo(() => {
-  const [shouldRender, setShouldRender] = useState(false);
-  
-  useEffect(() => {
-    // Use intersection observer to only render when needed
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setShouldRender(true);
-            observer.disconnect(); // Only render once
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    // Observe the root element
-    observer.observe(document.documentElement);
-
-    // Fallback timer for slower devices
-    const timer = setTimeout(() => {
-      setShouldRender(true);
-    }, 2000);
-    
-    return () => {
-      observer.disconnect();
-      clearTimeout(timer);
-    };
-  }, []);
-
-  // Memoize expensive gradient calculations
-  const gradientStyles = useMemo(() => ({
-    background: 'linear-gradient(135deg, hsl(var(--primary)/0.01) 0%, hsl(var(--background)) 50%, hsl(var(--accent)/0.01) 100%)'
-  }), []);
-
-  if (!shouldRender) return null;
-
-  return (
-    <div className="fixed inset-0 pointer-events-none gpu-layer opacity-60">
-      <div className="absolute inset-0" style={gradientStyles} />
-      
-      {/* Only show complex animations on high-performance devices */}
-      <div className="hidden xl:block">
-        <div className="floating-shape floating-shape-1 will-animate" />
-        <div className="floating-shape floating-shape-2 will-animate" />
-        <div className="floating-shape floating-shape-3 will-animate" />
-      </div>
-      
-      {/* Minimal mesh overlay */}
-      <div className="hidden lg:block opacity-20">
-        <div className="absolute top-0 right-0 w-1/4 h-1/4 bg-gradient-radial from-primary/1 to-transparent will-animate" />
-        <div className="absolute bottom-0 left-0 w-1/3 h-1/3 bg-gradient-radial from-accent/1 to-transparent will-animate" />
-      </div>
-    </div>
-  );
-});
-
-OptimizedBackground.displayName = 'OptimizedBackground';
 
 export const Landing = memo(() => {
   console.log('[DEBUG] Landing component rendering');
@@ -147,10 +82,10 @@ export const Landing = memo(() => {
   
   return (
     <div className={containerClasses}>
-      <OptimizedBackground />
+
 
       <div className="relative z-10">
-        <MemoizedCursorFollower />
+
         <HeroSection />
         
         {/* Optimized suspense boundaries with better error boundaries */}
