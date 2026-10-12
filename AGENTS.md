@@ -1,3 +1,3 @@
 # Architecture rules
 
-- Keep the public feature grid in FeatureSection and its repeated cards in FeatureCard; use an opt-in ImageCarousel grid mode so landing hero screenshots retain their existing layout.
+- Keep the alternating public product showcase in FeatureSection and its repeated rows in FeatureCard; use the opt-in ImageCarousel contained-image mode to avoid affecting hero screenshots.
