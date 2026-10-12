@@ -1,2 +1,2 @@
 # Current tasks
-- [x] Phase 2: regroup the 11 landing features into a varied bento grid; preserve translations, screenshots, carousel controls, and anchor links; verify the public page.
+- [ ] Restore the alternating product feature sections with subtle polish; preserve all 11 features, translations, screenshots, controls, and anchor links; verify both themes and narrow screens.

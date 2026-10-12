@@ -193,14 +193,13 @@ export const FeatureSection = () => {
     id: "sms-notifications",
     reverse: false
   }];
-  const gridSpans = ["lg:col-span-7", "lg:col-span-5", "lg:col-span-6", "lg:col-span-6", "lg:col-span-7", "lg:col-span-5", "lg:col-span-4", "lg:col-span-4", "lg:col-span-4", "lg:col-span-6", "lg:col-span-6"];
   return <section className="py-16 sm:py-20 bg-muted/30">
       <div className="container mx-auto px-4">
         <FeatureButtons />
         <ClientLogos />
-        <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-12 lg:gap-6">
-          {features.map((feature, index) => <div key={feature.id} id={feature.id} className={`min-w-0 scroll-mt-28 ${gridSpans[index]}`}>
-              <FeatureCard {...feature} wide={[0, 2, 3, 4, 9, 10].includes(index)} />
+        <div className="space-y-16 sm:space-y-20 lg:space-y-24">
+          {features.map((feature) => <div key={feature.id} id={feature.id} className="min-w-0 scroll-mt-28">
+              <FeatureCard {...feature} />
             </div>)}
         </div>
       </div>
