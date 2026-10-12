@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Check, Star } from "lucide-react";
+import { Check } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useAuth } from "@/contexts/AuthContext";
@@ -112,52 +111,40 @@ export const PricingSection = () => {
   };
 
   return (
-    <section id="pricing" className="py-16 bg-gradient-to-br from-slate-900 via-primary/20 to-slate-800 text-white relative overflow-hidden">
-      {/* Simplified Background - removed heavy animations */}
-      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-blue-600/5" />
-      <div 
-        className="absolute top-0 left-0 w-full h-full opacity-10"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Ccircle cx='30' cy='30' r='4'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-        }}
-      />
-      
-      {/* Simplified decorative elements - static instead of animated */}
-      <div className="absolute top-10 left-10 w-16 h-16 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full blur-xl" />
-      <div className="absolute bottom-20 right-20 w-12 h-12 bg-gradient-to-br from-accent/10 to-primary/10 rounded-full blur-xl" />
-      
+    <section id="pricing" className="border-t border-border py-16 sm:py-20 bg-muted/30 text-foreground relative">
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white drop-shadow-lg">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
             <LanguageText>{t('cta.title')}</LanguageText>
           </h2>
-          <p className="text-lg text-gray-200 mb-6 max-w-2xl mx-auto drop-shadow-sm">
+          <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
             <LanguageText>{t('cta.subtitle')}</LanguageText>
           </p>
           
           {/* Free Trial Badge on its own line */}
           <div className="mb-4">
-            <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-4 py-2 rounded-full text-base font-semibold inline-block glass-morphism">
+            <div className="bg-secondary/10 text-secondary px-4 py-2 rounded-full text-base font-semibold inline-block">
               <LanguageText>{t('subscription.freeTrial')}</LanguageText>
             </div>
           </div>
           
           {/* Pricing Toggle on separate line */}
-          <div className="flex items-center justify-center gap-3 mb-8 glass-morphism rounded-full p-2 inline-flex">
-            <span className={`text-base font-medium transition-all duration-300 px-3 py-1 rounded-full ${!isYearly ? 'text-white bg-white/10' : 'text-gray-300'}`}>
+          <div className="inline-flex flex-wrap items-baseline gap-2 mb-8 rounded-lg border border-border bg-background p-2">
+            <span className={`text-base font-medium transition-all duration-300 px-3 py-1 rounded-full ${!isYearly ? 'text-foreground bg-muted' : 'text-muted-foreground'}`}>
               <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
             </span>
             <div className="relative">
               <Switch
+                aria-label={t("subscription.annualPlan")}
                 checked={isYearly}
                 onCheckedChange={setIsYearly}
-                className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-primary data-[state=checked]:to-accent data-[state=unchecked]:bg-gray-600 border-2 border-gray-400 transition-all duration-300"
+                className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted-foreground"
               />
             </div>
-            <span className={`text-base font-medium transition-all duration-300 px-3 py-1 rounded-full flex items-center gap-2 ${isYearly ? 'text-white bg-white/10' : 'text-gray-300'}`}>
+            <span className={`text-base font-medium transition-all duration-300 px-3 py-1 rounded-full flex items-start gap-2 ${isYearly ? 'text-foreground bg-muted' : 'text-muted-foreground'}`}>
               <LanguageText>{t('subscription.annualPlan')}</LanguageText>
               {isYearly && (
-                <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-black px-2 py-1 rounded-full text-xs font-bold">
+                <span className="bg-secondary/10 text-secondary px-2 py-1 rounded-full text-xs font-bold">
                   {getCheaperText()}
                 </span>
               )}
@@ -168,100 +155,94 @@ export const PricingSection = () => {
         {/* Optimized Pricing Cards - removed heavy animations */}
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Monthly Plan */}
-          <div className={`relative bg-slate-800/80 backdrop-blur-sm border border-slate-600 text-white transition-all duration-300 hover:scale-[1.02] hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 ${!isYearly ? 'ring-2 ring-primary shadow-primary/25' : ''}`}>
-            {/* Static decorative elements */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent/40 rounded-full blur-sm" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-primary/40 rounded-full blur-sm" />
+          <div className={`relative flex flex-col bg-card border border-border text-card-foreground transition-colors duration-200 rounded-lg p-6 sm:p-8 ${!isYearly ? 'ring-2 ring-primary' : ''}`}>
             
-            <div className="text-center pb-3">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
+            <div className="text-left pb-6 border-b border-border mb-6">
+              <div className="bg-secondary/10 text-secondary px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-xl font-bold text-foreground">
                 <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
               </h3>
               <div className="mt-3">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-3xl font-bold text-white drop-shadow-lg">{monthlyPrice}</span>
-                  <span className="text-base text-gray-300">/{t('subscription.monthlyDuration')}</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold text-foreground tabular-nums">{monthlyPrice}</span>
+                  <span className="text-base text-muted-foreground">/{t('subscription.monthlyDuration')}</span>
                 </div>
-                <div className="flex items-center justify-center gap-2 mt-1">
-                  <span className="text-base line-through text-gray-400">{monthlyOriginalPrice}</span>
-                  <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded text-xs font-medium">
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-base line-through text-muted-foreground">{monthlyOriginalPrice}</span>
+                  <span className="bg-secondary/10 text-secondary px-2 py-1 rounded text-xs font-medium">
                     <LanguageText>{t('subscription.discount50')}</LanguageText>
                   </span>
                 </div>
               </div>
             </div>
-            <div className="pt-0">
-              <ul className="space-y-2 mb-4">
+            <div className="flex flex-1 flex-col pt-0">
+              <ul className="space-y-3 mb-6 flex-1">
                 {features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
-                    <span className="text-gray-200 text-sm">{feature}</span>
+                  <li key={index} className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 text-secondary flex-shrink-0" />
+                    <span className="text-foreground text-sm">{feature}</span>
                   </li>
                 ))}
               </ul>
               <Button
                 onClick={() => handleSubscribe('monthly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-white/90 to-gray-100/90 text-slate-900 hover:from-gray-100/90 hover:to-white/90 font-semibold py-2 transition-colors duration-300 text-sm"
+                className="w-full font-semibold transition-colors duration-200"
               >
                 <LanguageText>
                   {loading === 'monthly' ? t('subscription.processing') : t('subscription.startFreeTrial')}
                 </LanguageText>
               </Button>
-              <p className="text-center text-xs text-gray-400 mt-2">
+              <p className="text-center text-xs text-muted-foreground mt-2">
                 <LanguageText>{t('subscription.trialThenBilling')}</LanguageText>
               </p>
             </div>
           </div>
 
           {/* Yearly Plan */}
-          <div className={`relative bg-slate-800/80 backdrop-blur-sm border border-slate-600 text-white transition-all duration-300 hover:scale-[1.02] hover:bg-slate-700/80 shadow-2xl rounded-xl p-6 ${isYearly ? 'ring-2 ring-yellow-500 shadow-yellow-500/25' : ''}`}>
-            {/* Static decorative elements */}
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400/40 rounded-full blur-sm" />
-            <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-orange-400/40 rounded-full blur-sm" />
+          <div className={`relative flex flex-col bg-card border border-border text-card-foreground transition-colors duration-200 rounded-lg p-6 sm:p-8 ${isYearly ? 'ring-2 ring-primary' : ''}`}>
             
-            <div className="text-center pb-3">
-              <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
+            <div className="text-left pb-6 border-b border-border mb-6">
+              <div className="bg-secondary/10 text-secondary px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
-              <h3 className="text-xl font-bold text-white">
+              <h3 className="text-xl font-bold text-foreground">
                 <LanguageText>{t('subscription.annualPlan')}</LanguageText>
               </h3>
               <div className="mt-3">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-3xl font-bold text-white drop-shadow-lg">{yearlyPrice}</span>
-                  <span className="text-base text-gray-300">/{t('subscription.yearlyDuration')}</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold text-foreground tabular-nums">{yearlyPrice}</span>
+                  <span className="text-base text-muted-foreground">/{t('subscription.yearlyDuration')}</span>
                 </div>
-                <div className="flex items-center justify-center gap-2 mt-1">
-                  <span className="text-base line-through text-gray-400">{yearlyOriginalPrice}</span>
-                  <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-1 rounded text-xs font-medium">
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-base line-through text-muted-foreground">{yearlyOriginalPrice}</span>
+                  <span className="bg-secondary/10 text-secondary px-2 py-1 rounded text-xs font-medium">
                     <LanguageText>{t('subscription.discount50')}</LanguageText>
                   </span>
                 </div>
               </div>
             </div>
-            <div className="pt-0">
-              <ul className="space-y-2 mb-4">
+            <div className="flex flex-1 flex-col pt-0">
+              <ul className="space-y-3 mb-6 flex-1">
                 {features.map((feature, index) => (
-                  <li key={index} className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-400 flex-shrink-0" />
-                    <span className="text-gray-200 text-sm">{feature}</span>
+                  <li key={index} className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 text-secondary flex-shrink-0" />
+                    <span className="text-foreground text-sm">{feature}</span>
                   </li>
                 ))}
               </ul>
               <Button
                 onClick={() => handleSubscribe('yearly')}
                 disabled={loading !== null}
-                className="w-full bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-black hover:from-yellow-400/90 hover:to-orange-400/90 font-semibold py-2 transition-colors duration-300 text-sm"
+                className="w-full font-semibold transition-colors duration-200"
               >
                 <LanguageText>
                   {loading === 'yearly' ? t('subscription.processing') : t('subscription.startFreeTrial')}
                 </LanguageText>
               </Button>
-              <p className="text-center text-xs text-gray-400 mt-2">
+              <p className="text-center text-xs text-muted-foreground mt-2">
                 <LanguageText>{t('subscription.trialThenBilling')}</LanguageText>
               </p>
             </div>
@@ -270,16 +251,16 @@ export const PricingSection = () => {
 
         {/* Enhanced Additional Info */}
         <div className="text-center mt-8">
-          <p className="text-gray-300 text-sm drop-shadow-sm">
+          <p className="text-muted-foreground text-sm">
             {!user && (
               <span>
                 <LanguageText>{t('auth.noAccount')}</LanguageText>{' '}
-                <button 
+                <Button variant="link"
                   onClick={() => navigate('/signup')}
-                  className="underline hover:text-white transition-colors font-medium hover:drop-shadow-lg text-primary"
+                  className="underline hover:text-foreground transition-colors font-medium hover:drop-shadow-lg text-primary"
                 >
                   <LanguageText>{t('auth.signUpCta')}</LanguageText>
-                </button>
+                </Button>
               </span>
             )}
           </p>
