@@ -181,21 +181,21 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="pl-0">
               <div className={cn(
-                isFeatureGrid ? "aspect-[16/10] overflow-hidden rounded-md" : "rounded-md overflow-hidden",
-                !isFeatureGrid && responsiveHeight
+                isHeroSlider ? "aspect-[4/3] overflow-hidden" : isFeatureGrid ? "aspect-[16/10] overflow-hidden rounded-md" : "rounded-md overflow-hidden",
+                !isFeatureGrid && !isHeroSlider && responsiveHeight
               )}>
                 <div className={cn(
                   "relative h-full w-full flex items-center justify-center",
                   "bg-card",
-                  isFeatureGrid ? "p-0" : image.customPadding || 'p-0'
+                  isFeatureGrid || isHeroSlider ? "p-0" : image.customPadding || 'p-0'
                 )}>
                   <CarouselImage
                     src={pickSrc(image)}
                     alt={image.alt}
-                    customStyle={image.customStyle}
+                    customStyle={isHeroSlider ? "object-contain" : image.customStyle}
                     objectFit={objectFit}
                     loading={isFeatureGrid ? 'lazy' : index === 0 ? 'eager' : 'lazy'}
-                    fitContainer={isFeatureGrid}
+                    fitContainer={isFeatureGrid || isHeroSlider}
                   />
                   {showTitles && image.title && (
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4 text-center">
@@ -239,19 +239,19 @@ export const ImageCarousel = ({
       
       {/* Simplified Carousel Indicators */}
       {count > 1 && (
-        <div className="flex justify-center space-x-1 mt-4">
+        <div className={cn("flex justify-center", isHeroSlider ? "border-t border-border bg-muted/20 py-2" : "mt-4")}>
           {Array.from({ length: count }, (_, index) => (
             <Button variant="ghost"
               key={index}
               className={cn(
-                "h-2 min-w-0 rounded-full p-0 transition-colors duration-200",
-                current === index + 1
-                  ? "bg-primary w-6"
-                  : "w-2 bg-primary/30 hover:bg-primary/60"
+                "h-7 w-7 min-w-0 rounded-md p-0 hover:bg-muted"
               )}
               onClick={() => api?.scrollTo(index)}
               aria-label={`Go to slide ${index + 1}`}
-            />
+              aria-current={current === index + 1 ? "true" : undefined}
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full transition-colors duration-200", current === index + 1 ? "bg-primary" : "bg-muted-foreground/40")} />
+            </Button>
           ))}
         </div>
       )}
