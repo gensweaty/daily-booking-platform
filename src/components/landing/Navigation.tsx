@@ -70,11 +70,11 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
       <div className="hidden md:flex items-center gap-3">
         <Button 
           onClick={handleDashboardClick}
-          className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105 text-sm flex items-center gap-2 glass-morphism animate-pulse-glow text-white dark:text-white"
+          className="flex items-center gap-2 rounded-md text-sm transition-colors duration-200"
         >
           <MemoizedAvatar className="h-6 w-6">
             <AvatarImage src={user?.user_metadata?.avatar_url} />
-            <AvatarFallback className="bg-white text-primary text-xs">
+            <AvatarFallback className="bg-background text-primary text-xs">
               {user?.email?.charAt(0)?.toUpperCase() || 'U'}
             </AvatarFallback>
           </MemoizedAvatar>
@@ -83,8 +83,8 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
         
         <Button
           onClick={handlePricingClick}
-          variant="outline" 
-          className="hover:scale-105 transition-transform text-sm"
+          variant="ghost" 
+          className="text-sm text-muted-foreground transition-colors duration-200 hover:text-foreground"
         >
           {t('nav.pricing')}
         </Button>
@@ -92,14 +92,14 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
         <Button 
           onClick={handleSignOut}
           variant="outline" 
-          className="hover:scale-105 transition-transform text-sm flex items-center gap-2"
+          className="flex items-center gap-2 text-sm transition-colors duration-200"
         >
           <LogOut className="h-4 w-4" />
           <LanguageText>{language === 'ka' ? "გამოსვლა" : t('nav.signOut')}</LanguageText>
         </Button>
         
         <Link to="/contact">
-          <Button variant="outline" className="hover:scale-105 transition-transform text-sm">
+          <Button variant="ghost" className="text-sm text-muted-foreground transition-colors duration-200 hover:text-foreground">
             {language === 'ka' ? "კონტაქტი" : t('nav.contact')}
           </Button>
         </Link>

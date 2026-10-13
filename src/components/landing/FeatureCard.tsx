@@ -1,4 +1,4 @@
-import { LucideIcon, CheckCircle } from "lucide-react";
+import { LucideIcon, Check } from "lucide-react";
 import { ImageCarousel } from "./ImageCarousel";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
@@ -56,7 +56,7 @@ const FeatureCardComponent = ({
     >
       <div className={cn("min-w-0 space-y-5", reverse && "lg:order-2")}>
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-transform duration-200 motion-safe:group-hover/feature:scale-105">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/5 text-primary">
             <Icon className="h-6 w-6" aria-hidden="true" />
           </div>
           <h3 className="min-w-0 pt-1 text-2xl font-bold leading-snug text-foreground sm:text-3xl">
@@ -72,7 +72,7 @@ const FeatureCardComponent = ({
               key={idx}
               className="flex min-w-0 items-start gap-2"
             >
-              <CheckCircle className="mt-1 h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
+              <Check className="mt-1 h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
               <span className="min-w-0 font-mono text-base leading-relaxed text-foreground">
                 <LanguageText>{t(getTranslationKey(`feature${idx + 1}`))}</LanguageText>
               </span>
@@ -80,7 +80,7 @@ const FeatureCardComponent = ({
           ))}
         </ul>
       </div>
-      <div className={cn("min-w-0 overflow-hidden rounded-lg border border-border bg-card p-2 transition-colors duration-200 hover:border-primary/40 sm:p-3", reverse && "lg:order-1")}>
+      <div className={cn("min-w-0 overflow-hidden rounded-lg border border-border bg-card p-1 transition-colors duration-200 hover:border-primary/40", reverse && "lg:order-1")}>
           {carousel ? (
             <ImageCarousel 
               images={carousel} 

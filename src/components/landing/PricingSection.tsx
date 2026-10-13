@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { createCheckoutSession } from "@/utils/stripeUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { PricingFAQ } from "./PricingFAQ";
 
 export const PricingSection = () => {
   const [isYearly, setIsYearly] = useState(false);
@@ -129,10 +130,10 @@ export const PricingSection = () => {
           </div>
           
           {/* Pricing Toggle on separate line */}
-          <div className="inline-flex flex-wrap items-baseline gap-2 mb-8 rounded-lg border border-border bg-background p-2">
-            <span className={`text-base font-medium transition-all duration-300 px-3 py-1 rounded-full ${!isYearly ? 'text-foreground bg-muted' : 'text-muted-foreground'}`}>
+          <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 rounded-lg border border-border bg-background p-2">
+            <Button variant="ghost" onClick={() => setIsYearly(false)} aria-pressed={!isYearly} className={`h-auto min-h-10 whitespace-normal px-3 py-2 text-sm font-medium ${!isYearly ? 'text-foreground bg-muted' : 'text-muted-foreground'}`}>
               <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
-            </span>
+            </Button>
             <div className="relative">
               <Switch
                 aria-label={t("subscription.annualPlan")}
@@ -141,15 +142,11 @@ export const PricingSection = () => {
                 className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-muted-foreground"
               />
             </div>
-            <span className={`text-base font-medium transition-all duration-300 px-3 py-1 rounded-full flex items-start gap-2 ${isYearly ? 'text-foreground bg-muted' : 'text-muted-foreground'}`}>
+            <Button variant="ghost" onClick={() => setIsYearly(true)} aria-pressed={isYearly} className={`h-auto min-h-10 whitespace-normal px-3 py-2 text-sm font-medium ${isYearly ? 'text-foreground bg-muted' : 'text-muted-foreground'}`}>
               <LanguageText>{t('subscription.annualPlan')}</LanguageText>
-              {isYearly && (
-                <span className="bg-secondary/10 text-secondary px-2 py-1 rounded-full text-xs font-bold">
-                  {getCheaperText()}
-                </span>
-              )}
-            </span>
+            </Button>
           </div>
+          <p className="mt-3 text-sm font-medium text-secondary"><LanguageText>{getCheaperText()}</LanguageText></p>
         </div>
 
         {/* Optimized Pricing Cards - removed heavy animations */}
@@ -165,9 +162,9 @@ export const PricingSection = () => {
                 <LanguageText>{t('subscription.monthlyPlan')}</LanguageText>
               </h3>
               <div className="mt-3">
-                <div className="flex items-baseline gap-2">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-4xl font-bold text-foreground tabular-nums">{monthlyPrice}</span>
-                  <span className="text-base text-muted-foreground">/{t('subscription.monthlyDuration')}</span>
+                   <span className="text-sm text-muted-foreground">/{t('subscription.monthlyDuration')}</span>
                 </div>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-base line-through text-muted-foreground">{monthlyOriginalPrice}</span>
@@ -178,11 +175,11 @@ export const PricingSection = () => {
               </div>
             </div>
             <div className="flex flex-1 flex-col pt-0">
-              <ul className="space-y-3 mb-6 flex-1">
+              <ul className="mb-6 flex-1 space-y-3">
                 {features.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-2">
+                   <li key={index} className={`flex items-start gap-2 ${index === 9 ? 'border-t border-border pt-4' : ''}`}>
                     <Check className="mt-0.5 h-4 w-4 text-secondary flex-shrink-0" />
-                    <span className="text-foreground text-sm">{feature}</span>
+                     <span className="min-w-0 text-sm leading-relaxed text-foreground">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -212,9 +209,9 @@ export const PricingSection = () => {
                 <LanguageText>{t('subscription.annualPlan')}</LanguageText>
               </h3>
               <div className="mt-3">
-                <div className="flex items-baseline gap-2">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-4xl font-bold text-foreground tabular-nums">{yearlyPrice}</span>
-                  <span className="text-base text-muted-foreground">/{t('subscription.yearlyDuration')}</span>
+                   <span className="text-sm text-muted-foreground">/{t('subscription.yearlyDuration')}</span>
                 </div>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-base line-through text-muted-foreground">{yearlyOriginalPrice}</span>
@@ -227,9 +224,9 @@ export const PricingSection = () => {
             <div className="flex flex-1 flex-col pt-0">
               <ul className="space-y-3 mb-6 flex-1">
                 {features.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-2">
+                   <li key={index} className={`flex items-start gap-2 ${index === 9 ? 'border-t border-border pt-4' : ''}`}>
                     <Check className="mt-0.5 h-4 w-4 text-secondary flex-shrink-0" />
-                    <span className="text-foreground text-sm">{feature}</span>
+                     <span className="min-w-0 text-sm leading-relaxed text-foreground">{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -249,6 +246,7 @@ export const PricingSection = () => {
           </div>
         </div>
 
+        <PricingFAQ />
         {/* Enhanced Additional Info */}
         <div className="text-center mt-8">
           <p className="text-muted-foreground text-sm">

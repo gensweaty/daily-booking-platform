@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { Calendar, ListTodo, Users, BarChart, Globe, MessageCircle, Bot, Mail, Send, Code2, MessageSquare } from "lucide-react";
+import { Calendar, ListTodo, Users, BarChart, Globe, MessageCircle, Bot, Mail, Send, Code2, MessageSquare, ArrowDownRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 
@@ -10,7 +10,7 @@ export const FeatureButtons = () => {
   const scrollToSection = (sectionId: string) => {
     const section = document.getElementById(sectionId);
     if (section) {
-      section.scrollIntoView({ behavior: 'smooth' });
+      section.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
     }
   };
 
@@ -35,9 +35,10 @@ export const FeatureButtons = () => {
       <nav aria-label={t('features.title')} className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
         {links.map(({ id, key, icon: Icon }) => (
           <Button key={id} variant="ghost" onClick={() => scrollToSection(id)}
-            className="h-auto min-h-12 justify-start gap-3 rounded-none border-b border-border px-0 py-3 text-left text-sm font-medium whitespace-normal hover:bg-primary/5 hover:text-primary">
+            className="group h-auto min-h-12 justify-start gap-3 rounded-none border-b border-border px-2 py-3 text-left text-sm font-medium whitespace-normal transition-colors duration-200 hover:bg-primary/5 hover:text-primary">
             <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            <LanguageText>{t(key)}</LanguageText>
+            <span className="min-w-0 flex-1"><LanguageText>{t(key)}</LanguageText></span>
+            <ArrowDownRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors duration-200 group-hover:text-primary" aria-hidden="true" />
           </Button>
         ))}
       </nav>
