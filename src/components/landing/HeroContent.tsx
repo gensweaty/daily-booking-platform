@@ -139,12 +139,12 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
       <div className="relative min-w-0">
         
         <div className="relative rounded-lg border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-2 border-b border-border bg-muted/40 px-4 py-2.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
-            <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
-            <span className="h-2.5 w-2.5 rounded-full bg-primary/60" />
-            <div className="ml-3 flex-1 truncate rounded-md bg-background/70 px-3 py-1 text-[11px] text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5"><LockKeyhole className="h-3 w-3" aria-hidden="true" />smartbookly.com</span>
+          <div className="flex h-11 items-center gap-1.5 border-b border-border bg-muted/40 px-3 sm:px-4">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/30" aria-hidden="true" />
+            <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/30" aria-hidden="true" />
+            <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/30" aria-hidden="true" />
+            <div className="ml-2 flex min-w-0 flex-1 items-center justify-center gap-1.5 font-mono text-[11px] text-muted-foreground sm:ml-3">
+              <LockKeyhole className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">smartbookly.com/dashboard</span>
             </div>
           </div>
           <MemoizedImageCarousel
@@ -152,6 +152,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
             permanentArrows={true}
             imageHeight={isMobile ? "h-[300px]" : "h-[440px]"}
             objectFit="object-contain"
+            arrowsInside={true}
             isHeroSlider={true}
           />
         </div>

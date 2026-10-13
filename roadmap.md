@@ -1,3 +1,5 @@
 # Current tasks
-- [ ] Refine home-page typography, navigation, feature links, industry list, screenshot presentation, and pricing; preserve existing content and flows; verify themes, languages, and controls.
+- [ ] Step 1: Refine the hero screenshot frame and compact industry list; verify themes, languages, and controls.
+- [ ] Step 2: Refine feature navigation and alternating rows without removing content or changing the layout.
+- [ ] Step 3: Improve pricing hierarchy and add factual, localized FAQs; preserve prices and checkout behavior.
 - [x] Restore the alternating product feature sections with subtle polish; preserve all 11 features, translations, screenshots, controls, and anchor links; verify both themes and narrow screens.

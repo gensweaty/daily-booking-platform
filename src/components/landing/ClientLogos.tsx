@@ -53,23 +53,23 @@ export const ClientLogos = () => {
   ];
 
   return (
-    <div className="mb-16 border-y border-border py-10 sm:py-12">
-      <h3 className="text-center text-2xl font-semibold mb-8 text-foreground">
+    <div className="mb-16 border-y border-border py-8 sm:py-10">
+      <h3 className="mb-7 text-xl font-semibold text-foreground sm:text-2xl">
         <LanguageText withFont={true}>{t('features.businessTitle')}</LanguageText>
       </h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-8">
+      <div className="grid grid-cols-2 gap-x-5 gap-y-6 md:grid-cols-3 lg:grid-cols-6 lg:gap-x-6">
         {logos.map((company, index) => (
           <div
             key={index}
-            className="flex flex-col items-center space-y-3"
+            className="min-w-0"
           >
-            <div className={"flex h-10 w-10 items-center justify-center"}>
-              <company.icon className={`w-7 h-7 ${company.iconColor}`} />
+            <div className="mb-2 flex min-h-10 items-center gap-2">
+              <company.icon className={`h-5 w-5 shrink-0 ${company.iconColor}`} aria-hidden="true" />
+              <span className="min-w-0 text-sm font-semibold leading-snug text-foreground">
+                <LanguageText withFont={true}>{company.name}</LanguageText>
+              </span>
             </div>
-            <span className="text-base font-medium text-center leading-tight">
-              <LanguageText withFont={true}>{company.name}</LanguageText>
-            </span>
-            <span className="text-sm text-muted-foreground text-center  leading-snug">
+            <span className="block text-xs leading-relaxed text-muted-foreground sm:text-sm">
               <LanguageText withFont={true}>{company.description}</LanguageText>
             </span>
           </div>
