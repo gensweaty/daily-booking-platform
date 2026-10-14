@@ -1,4 +1,5 @@
 # Current tasks
+- [ ] Restore a richer, modern home-page visual treatment with brand accents, dimensional screenshots, and tactile navigation; preserve alternating rows and verify desktop/mobile themes.
 - [x] Step 1: Refine the hero screenshot frame and compact industry list; verify themes, languages, and controls.
 - [x] Step 2: Refine feature navigation and alternating rows without removing content or changing the layout.
 - [x] Step 3: Improve pricing hierarchy and add factual, localized FAQs; preserve prices and checkout behavior.

@@ -32,13 +32,13 @@ export const FeatureButtons = () => {
       <h2 className="mb-6 text-2xl font-semibold text-foreground sm:text-3xl">
         <LanguageText>{t('features.title')}</LanguageText>
       </h2>
-      <nav aria-label={t('features.title')} className="grid grid-cols-1 gap-x-6 sm:grid-cols-2 lg:grid-cols-3">
+      <nav aria-label={t('features.title')} className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         {links.map(({ id, key, icon: Icon }) => (
           <Button key={id} variant="ghost" onClick={() => scrollToSection(id)}
-            className="group h-auto min-h-12 justify-start gap-3 rounded-none border-b border-border px-2 py-3 text-left text-sm font-medium whitespace-normal transition-colors duration-200 hover:bg-primary/5 hover:text-primary">
-            <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-            <span className="min-w-0 flex-1"><LanguageText>{t(key)}</LanguageText></span>
-            <ArrowDownRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors duration-200 group-hover:text-primary" aria-hidden="true" />
+            className="landing-surface group h-auto min-h-24 flex-wrap content-start items-start justify-start gap-2 rounded-lg border border-border p-3 text-left text-xs font-medium whitespace-normal transition-colors duration-200 hover:border-primary/40 hover:bg-primary/5 hover:text-primary sm:min-h-16 sm:flex-nowrap sm:items-center sm:gap-3 sm:p-4 sm:text-sm">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary"><Icon className="h-4 w-4" aria-hidden="true" /></span>
+            <span className="order-3 w-full min-w-0 leading-relaxed sm:order-none sm:w-auto sm:flex-1"><LanguageText>{t(key)}</LanguageText></span>
+            <ArrowDownRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground transition-colors duration-200 group-hover:text-primary sm:ml-0" aria-hidden="true" />
           </Button>
         ))}
       </nav>

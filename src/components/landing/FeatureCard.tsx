@@ -56,17 +56,17 @@ const FeatureCardComponent = ({
     >
       <div className={cn("min-w-0 space-y-5", reverse && "lg:order-2")}>
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-primary/15 bg-primary/5 text-primary">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
             <Icon className="h-6 w-6" aria-hidden="true" />
           </div>
-          <h3 className="min-w-0 pt-1 text-2xl font-bold leading-snug text-foreground sm:text-3xl">
+          <h3 className="landing-feature-heading min-w-0 pt-1 text-2xl font-bold leading-snug sm:text-3xl">
             <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>
         <p className="font-mono text-base leading-relaxed text-muted-foreground">
           <LanguageText>{t(getTranslationKey('description'))}</LanguageText>
         </p>
-        <ul className="grid gap-3">
+        <ul className="grid gap-3 border-l-2 border-primary/20 pl-4">
           {benefits.map((benefit, idx) => (
             <li
               key={idx}
@@ -80,7 +80,8 @@ const FeatureCardComponent = ({
           ))}
         </ul>
       </div>
-      <div className={cn("min-w-0 overflow-hidden rounded-lg border border-border bg-card p-1 transition-colors duration-200 hover:border-primary/40", reverse && "lg:order-1")}>
+      <div className={cn("landing-feature-stage min-w-0", reverse && "lg:order-1")}>
+        <div className="landing-elevated overflow-hidden rounded-lg border border-border bg-card p-1 transition-colors duration-200 hover:border-primary/40">
           {carousel ? (
             <ImageCarousel 
               images={carousel} 
@@ -98,6 +99,7 @@ const FeatureCardComponent = ({
               decoding="async"
             />
           )}
+        </div>
       </div>
     </article>
   );
