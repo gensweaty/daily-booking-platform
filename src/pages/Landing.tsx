@@ -73,7 +73,7 @@ export const Landing = memo(() => {
 
   // Memoize expensive class calculations
   const containerClasses = useMemo(() => cn(
-    "min-h-screen bg-background font-sans relative overflow-hidden gpu-layer",
+    "landing-page min-h-screen bg-background font-sans relative overflow-hidden",
     language === 'ka' ? 'lang-ka' : '',
     !isLoaded ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'
   ), [language, isLoaded]);

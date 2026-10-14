@@ -177,7 +177,7 @@ export const Navigation = memo(({ isMobileMenuOpen, setIsMobileMenuOpen, current
   );
 
   return (
-    <nav className="relative mx-auto border-b border-border bg-background py-3 mb-6 z-50" aria-label="Main navigation">
+    <nav className="landing-nav-shell relative mx-auto rounded-lg border border-border px-3 py-3 mb-6 z-50 sm:px-5" aria-label="Main navigation">
       <div className="flex justify-between items-center">
         <Link to="/" className="flex items-center gap-2" aria-label="SmartBookly Home">
           <div className="relative">
