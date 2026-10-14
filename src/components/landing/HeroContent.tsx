@@ -88,7 +88,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
       isMobileMenuOpen ? 'z-10' : 'z-20'
     )}>
       <div className="space-y-5 md:space-y-6">
-        <div className="inline-flex items-center gap-2 text-sm font-mono font-medium text-primary">
+        <div className="landing-surface inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 px-3 py-2 text-xs font-mono font-medium text-primary sm:text-sm">
           <span className="relative flex h-2 w-2">
             
             <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
@@ -96,13 +96,13 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           <LanguageText>{eyebrow[language as keyof typeof eyebrow] || eyebrow.en}</LanguageText>
         </div>
         <article className="space-y-3 md:space-y-4">
-          <h1 className="text-3xl md:text-4xl lg:text-[3.25rem] font-bold leading-[1.12] text-foreground">
+          <h1 className="landing-title text-3xl md:text-4xl lg:text-[3.25rem] font-bold leading-[1.12]">
             <LanguageText>{t('hero.title')}</LanguageText>
           </h1>
           <h2 className="text-base md:text-lg font-medium text-foreground">
             <LanguageText>{t('hero.subtitle')}</LanguageText>
           </h2>
-          <p className="text-base md:text-lg text-muted-foreground leading-relaxed max-w-xl">
+          <p className="text-sm md:text-lg text-muted-foreground leading-relaxed max-w-xl">
             <LanguageText>{t('hero.description')}</LanguageText>
           </p>
         </article>
@@ -110,7 +110,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           <Link to="/signup">
             <Button
               size={isMobile ? "default" : "lg"}
-              className="group rounded-md px-6 transition-colors duration-200"
+              className="landing-elevated group w-full rounded-md px-6 transition-colors duration-200 sm:w-auto"
             >
               <span className="flex items-center gap-2">
                 {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
@@ -136,13 +136,13 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           ))}
         </ul>
       </div>
-      <div className="relative min-w-0">
+      <div className="landing-stage relative min-w-0 rounded-lg border border-primary/15 p-3 sm:p-5">
         
-        <div className="relative rounded-lg border border-border bg-card overflow-hidden">
+        <div className="landing-elevated relative rounded-lg border border-border bg-card overflow-hidden">
           <div className="flex h-11 items-center gap-1.5 border-b border-border bg-muted/40 px-3 sm:px-4">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/30" aria-hidden="true" />
-            <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/30" aria-hidden="true" />
-            <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/30" aria-hidden="true" />
+            <span className="h-2 w-2 shrink-0 rounded-full bg-accent/70" aria-hidden="true" />
+            <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden="true" />
+            <span className="h-2 w-2 shrink-0 rounded-full bg-secondary/70" aria-hidden="true" />
             <div className="ml-2 flex min-w-0 flex-1 items-center justify-center gap-1.5 font-mono text-[11px] text-muted-foreground sm:ml-3">
               <LockKeyhole className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">smartbookly.com/dashboard</span>
             </div>

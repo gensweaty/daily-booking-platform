@@ -83,6 +83,12 @@
     --ring: 227 90% 58%;
 
     --radius: 0.5rem;
+    --landing-ink: 227 76% 43%;
+    --landing-surface: 225 60% 97%;
+    --landing-green: 150 76% 30%;
+    --landing-coral: 9 80% 48%;
+    --landing-shadow: 0 18px 45px -24px hsl(222 47% 11% / 0.35);
+    --landing-stage: linear-gradient(145deg, hsl(227 90% 58% / 0.12), hsl(150 76% 38% / 0.06));
   }
 
   .dark {
@@ -113,7 +119,39 @@
     --border: 220 26% 24%;
     --input: 220 26% 20%;
     --ring: 227 90% 68%;
+    --landing-ink: 227 100% 80%;
+    --landing-surface: 222 27% 18%;
+    --landing-green: 150 70% 65%;
+    --landing-coral: 9 95% 73%;
+    --landing-shadow: 0 18px 45px -24px hsl(0 0% 0% / 0.65);
+    --landing-stage: linear-gradient(145deg, hsl(227 90% 68% / 0.16), hsl(150 76% 38% / 0.08));
   }
+}
+
+/* Public-page treatments remain scoped; dashboard styling is unchanged. */
+.landing-title { color: hsl(var(--landing-ink)); }
+.landing-surface { background: hsl(var(--landing-surface)); }
+.landing-stage { background: var(--landing-stage); }
+.landing-elevated { box-shadow: var(--landing-shadow); }
+.landing-green { color: hsl(var(--landing-green)); }
+.landing-coral { color: hsl(var(--landing-coral)); }
+.landing-feature-heading { color: hsl(var(--landing-ink)); }
+.landing-feature-stage {
+  position: relative;
+  padding: 1rem;
+  background: var(--landing-stage);
+  border-radius: 8px;
+}
+.landing-feature-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 8px 0 0 8px;
+  background: hsl(var(--primary));
+}
+@media (min-width: 1024px) {
+  .landing-feature-stage { padding: 1.5rem; }
 }
 
 @layer base {

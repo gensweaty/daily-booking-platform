@@ -115,7 +115,7 @@ export const PricingSection = () => {
     <section id="pricing" className="border-t border-border py-16 sm:py-20 bg-muted/30 text-foreground relative">
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
+          <h2 className="landing-title text-3xl md:text-4xl font-bold mb-4">
             <LanguageText>{t('cta.title')}</LanguageText>
           </h2>
           <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
@@ -152,7 +152,7 @@ export const PricingSection = () => {
         {/* Optimized Pricing Cards - removed heavy animations */}
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Monthly Plan */}
-          <div className={`relative flex flex-col bg-card border border-border text-card-foreground transition-colors duration-200 rounded-lg p-6 sm:p-8 ${!isYearly ? 'ring-2 ring-primary' : ''}`}>
+          <div className={`landing-elevated relative flex flex-col bg-card border border-border text-card-foreground transition-colors duration-200 rounded-lg p-6 sm:p-8 ${!isYearly ? 'ring-2 ring-primary' : ''}`}>
             
             <div className="text-left pb-6 border-b border-border mb-6">
               <div className="bg-secondary/10 text-secondary px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
@@ -199,7 +199,7 @@ export const PricingSection = () => {
           </div>
 
           {/* Yearly Plan */}
-          <div className={`relative flex flex-col bg-card border border-border text-card-foreground transition-colors duration-200 rounded-lg p-6 sm:p-8 ${isYearly ? 'ring-2 ring-primary' : ''}`}>
+          <div className={`landing-surface landing-elevated relative flex flex-col border border-primary/25 text-card-foreground transition-colors duration-200 rounded-lg p-6 sm:p-8 ${isYearly ? 'ring-2 ring-primary' : ''}`}>
             
             <div className="text-left pb-6 border-b border-border mb-6">
               <div className="bg-secondary/10 text-secondary px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
