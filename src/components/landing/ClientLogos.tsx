@@ -61,7 +61,7 @@ export const ClientLogos = () => {
         {logos.map((company, index) => (
           <div
             key={index}
-            className="landing-surface min-w-0 rounded-lg border border-border p-3 sm:p-4"
+            className="landing-tile landing-surface min-w-0 rounded-lg border border-border p-3 hover:border-primary/30 sm:p-4"
           >
             <div className="mb-3 flex min-h-10 flex-col items-start gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10"><company.icon className={`h-5 w-5 shrink-0 ${index % 3 === 1 ? 'landing-green' : index % 3 === 2 ? 'landing-coral' : company.iconColor}`} aria-hidden="true" /></span>

@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
-import { ArrowRight, Check, LockKeyhole } from "lucide-react";
+import { ArrowRight, Check, LockKeyhole, Sparkles } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -84,33 +84,28 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
 
   return (
     <main className={cn(
-      "grid md:grid-cols-2 gap-10 md:gap-8 lg:gap-12 items-center mt-8 md:mt-12 lg:mt-16 mb-10 lg:mb-16 relative",
+      "flex flex-col items-center gap-6 sm:gap-8 mt-7 md:mt-12 mb-8 lg:mb-12 relative",
       isMobileMenuOpen ? 'z-10' : 'z-20'
     )}>
-      <div className="space-y-5 md:space-y-6">
-        <div className="landing-surface inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 px-3 py-2 text-xs font-mono font-medium text-primary sm:text-sm">
-          <span className="relative flex h-2 w-2">
-            
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-          </span>
+      <div className="w-full max-w-4xl space-y-4 text-center md:space-y-5">
+        <div className="landing-surface inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 px-3 py-2 text-[11px] font-mono font-medium text-primary sm:text-sm">
+          <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <LanguageText>{eyebrow[language as keyof typeof eyebrow] || eyebrow.en}</LanguageText>
         </div>
         <article className="space-y-3 md:space-y-4">
-          <h1 className="landing-title text-3xl md:text-4xl lg:text-[3.25rem] font-bold leading-[1.12]">
+          <h1 className="landing-display text-5xl font-bold leading-[1.05] sm:text-6xl lg:text-7xl">SmartBookly</h1>
+          <h2 className="text-xl font-semibold leading-tight text-foreground sm:text-3xl lg:text-4xl">
             <LanguageText>{t('hero.title')}</LanguageText>
-          </h1>
-          <h2 className="text-base md:text-lg font-medium text-foreground">
-            <LanguageText>{t('hero.subtitle')}</LanguageText>
           </h2>
-          <p className="text-sm md:text-lg text-muted-foreground leading-relaxed max-w-xl">
-            <LanguageText>{t('hero.description')}</LanguageText>
+          <p className="text-xs font-medium leading-relaxed text-muted-foreground sm:text-base">
+            <LanguageText>{t('hero.subtitle')}</LanguageText>
           </p>
         </article>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-1">
-          <Link to="/signup">
+        <div className="flex items-center justify-center gap-3 pt-1">
+          <Link to="/signup" className="min-w-0">
             <Button
               size={isMobile ? "default" : "lg"}
-              className="landing-elevated group w-full rounded-md px-6 transition-colors duration-200 sm:w-auto"
+              className="landing-elevated group max-w-full rounded-md px-4 text-sm transition-colors duration-200 sm:px-6"
             >
               <span className="flex items-center gap-2">
                 {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
@@ -121,13 +116,13 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           <Button
             variant="outline"
             size={isMobile ? "default" : "lg"}
-            className="rounded-md px-6 bg-background transition-colors duration-200"
+            className="rounded-md px-4 bg-card transition-colors duration-200 sm:px-6"
             onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
           >
             {t('nav.pricing')}
           </Button>
         </div>
-        <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted-foreground">
+        <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground sm:text-sm">
           {(trust[language as keyof typeof trust] || trust.en).map((item) => (
             <li key={item} className="flex items-center gap-1.5">
               <Check className="w-4 h-4 text-primary" aria-hidden="true" />
@@ -136,7 +131,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           ))}
         </ul>
       </div>
-      <div className="landing-stage relative min-w-0 rounded-lg border border-primary/15 p-3 sm:p-5">
+      <div className="landing-stage relative w-full min-w-0 max-w-4xl rounded-lg border border-primary/20 p-2 sm:p-4 lg:p-5">
         
         <div className="landing-elevated relative rounded-lg border border-border bg-card overflow-hidden">
           <div className="flex h-11 items-center gap-1.5 border-b border-border bg-muted/40 px-3 sm:px-4">
@@ -156,8 +151,10 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
             isHeroSlider={true}
           />
         </div>
-
       </div>
+      <p className="max-w-3xl text-center text-sm leading-relaxed text-muted-foreground sm:text-base">
+        <LanguageText>{t('hero.description')}</LanguageText>
+      </p>
     </main>
   );
 });

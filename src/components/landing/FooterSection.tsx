@@ -58,21 +58,21 @@ const FooterSection = () => {
   }, [theme, resolvedTheme, mounted]);
 
   return (
-    <footer className="bg-muted/30 border-t">
+    <footer className="landing-surface border-t border-border">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-3 md:gap-12">
+          <div className="col-span-2 space-y-4 md:col-span-1">
             <Link to="/" className="inline-block">
               <div className="relative">
                 <img 
                   src={currentLogo}
                   alt="SmartBookly Logo" 
-                  className="h-10" 
+                  className="h-10 w-auto max-w-[180px] object-contain" 
                 />
                 <AnimatedRobotEye size={12} top="44%" left="11%" />
               </div>
             </Link>
-            <p className="text-muted-foreground">
+            <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
               <LanguageText>{t('footer.description')}</LanguageText>
             </p>
             <div className="flex space-x-4">
@@ -106,7 +106,7 @@ const FooterSection = () => {
                   }}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <LanguageText>{language === 'ka' ? "AI ასისტენტი" : "AI Assistant"}</LanguageText>
+                  <LanguageText>{t('aiAssistant.title')}</LanguageText>
                 </a>
               </li>
               <li>
@@ -118,15 +118,15 @@ const FooterSection = () => {
                   }}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <LanguageText>{language === 'ka' ? "ჯავშანი" : "Smart Booking"}</LanguageText>
+                  <LanguageText>{t('features.smartAppointment')}</LanguageText>
                 </a>
               </li>
               <li>
                 <a 
-                  href="#crm" 
+                  href="#crm-solution" 
                   onClick={(e) => {
                     e.preventDefault();
-                    document.getElementById('crm')?.scrollIntoView({ behavior: 'smooth' });
+                    document.getElementById('crm-solution')?.scrollIntoView({ behavior: 'smooth' });
                   }}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -163,7 +163,7 @@ const FooterSection = () => {
           </div>
         </div>
         
-        <div className="border-t mt-8 pt-8 text-center text-muted-foreground">
+        <div className="border-t border-border mt-10 pt-6 text-xs leading-relaxed text-muted-foreground sm:text-sm">
           <p>
             <LanguageText>{t('footer.rights')}</LanguageText>
             <span className="block mt-1">AI SOFTWARE FACTORY LTD</span>
