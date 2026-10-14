@@ -80,7 +80,7 @@ const FeatureCardComponent = ({
           ))}
         </ul>
       </div>
-      <div className={cn("landing-feature-stage min-w-0", reverse && "lg:order-1")}>
+      <div className={cn("landing-feature-stage order-first min-w-0 lg:order-none", reverse && "lg:order-1")}>
         <div className="landing-elevated overflow-hidden rounded-lg border border-border bg-card p-1 transition-colors duration-200 hover:border-primary/40">
           {carousel ? (
             <ImageCarousel 
