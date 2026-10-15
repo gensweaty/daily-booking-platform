@@ -124,7 +124,7 @@ export const PricingSection = () => {
           
           {/* Free Trial Badge on its own line */}
           <div className="mb-4">
-            <div className="bg-secondary/10 text-secondary px-4 py-2 rounded-full text-base font-semibold inline-block">
+            <div className="bg-primary/10 text-primary px-4 py-2 rounded-full text-base font-semibold inline-block">
               <LanguageText>{t('subscription.freeTrial')}</LanguageText>
             </div>
           </div>
@@ -146,7 +146,7 @@ export const PricingSection = () => {
               <LanguageText>{t('subscription.annualPlan')}</LanguageText>
             </Button>
           </div>
-          <p className="mt-3 text-sm font-medium text-secondary"><LanguageText>{getCheaperText()}</LanguageText></p>
+          <p className="mt-3 text-sm font-medium landing-green"><LanguageText>{getCheaperText()}</LanguageText></p>
         </div>
 
         {/* Optimized Pricing Cards - removed heavy animations */}
@@ -155,7 +155,7 @@ export const PricingSection = () => {
           <div className={`landing-elevated relative flex flex-col bg-card border border-border text-card-foreground transition-colors duration-200 rounded-lg p-6 sm:p-8 ${!isYearly ? 'ring-2 ring-primary' : ''}`}>
             
             <div className="text-left pb-6 border-b border-border mb-6">
-              <div className="bg-secondary/10 text-secondary px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
+              <div className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
               <h3 className="text-xl font-bold text-foreground">
@@ -168,7 +168,7 @@ export const PricingSection = () => {
                 </div>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-base line-through text-muted-foreground">{monthlyOriginalPrice}</span>
-                  <span className="bg-secondary/10 text-secondary px-2 py-1 rounded text-xs font-medium">
+                  <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-medium">
                     <LanguageText>{t('subscription.discount50')}</LanguageText>
                   </span>
                 </div>
@@ -178,7 +178,7 @@ export const PricingSection = () => {
               <ul className="mb-6 flex-1 space-y-3">
                 {features.map((feature, index) => (
                    <li key={index} className={`flex items-start gap-2 ${index === 9 ? 'border-t border-border pt-4' : ''}`}>
-                    <Check className="mt-0.5 h-4 w-4 text-secondary flex-shrink-0" />
+                    <Check className="mt-0.5 h-4 w-4 landing-green flex-shrink-0" />
                      <span className="min-w-0 text-sm leading-relaxed text-foreground">{feature}</span>
                   </li>
                 ))}
@@ -202,7 +202,7 @@ export const PricingSection = () => {
           <div className={`landing-surface landing-elevated relative flex flex-col border border-primary/25 text-card-foreground transition-colors duration-200 rounded-lg p-6 sm:p-8 ${isYearly ? 'ring-2 ring-primary' : ''}`}>
             
             <div className="text-left pb-6 border-b border-border mb-6">
-              <div className="bg-secondary/10 text-secondary px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
+              <div className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium inline-block mb-2">
                 <LanguageText>{t('subscription.trialIncluded')}</LanguageText>
               </div>
               <h3 className="text-xl font-bold text-foreground">
@@ -215,7 +215,7 @@ export const PricingSection = () => {
                 </div>
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-base line-through text-muted-foreground">{yearlyOriginalPrice}</span>
-                  <span className="bg-secondary/10 text-secondary px-2 py-1 rounded text-xs font-medium">
+                  <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-medium">
                     <LanguageText>{t('subscription.discount50')}</LanguageText>
                   </span>
                 </div>
@@ -225,7 +225,7 @@ export const PricingSection = () => {
               <ul className="space-y-3 mb-6 flex-1">
                 {features.map((feature, index) => (
                    <li key={index} className={`flex items-start gap-2 ${index === 9 ? 'border-t border-border pt-4' : ''}`}>
-                    <Check className="mt-0.5 h-4 w-4 text-secondary flex-shrink-0" />
+                    <Check className="mt-0.5 h-4 w-4 landing-green flex-shrink-0" />
                      <span className="min-w-0 text-sm leading-relaxed text-foreground">{feature}</span>
                   </li>
                 ))}
