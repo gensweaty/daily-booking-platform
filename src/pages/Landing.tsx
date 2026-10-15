@@ -2,7 +2,7 @@
 import { HeroSection } from "@/components/landing/HeroSection";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
-import { lazy, Suspense, memo, useEffect, useState, useMemo } from "react";
+import { Suspense, memo } from "react";
 import { lazyWithRetry } from "@/utils/lazyWithRetry";
 import "@/components/landing/animations.css";
 
@@ -35,50 +35,11 @@ const SectionSkeleton = memo(({ className }: { className?: string }) => (
 SectionSkeleton.displayName = 'SectionSkeleton';
 
 export const Landing = memo(() => {
-  console.log('[DEBUG] Landing component rendering');
-  
-  const [isLoaded, setIsLoaded] = useState(false);
-  
-  // Add safety check for context availability
-  let language, contextReady;
-  try {
-    const context = useLanguage();
-    language = context.language;
-    contextReady = true;
-    console.log('[DEBUG] Landing - LanguageContext available:', context);
-  } catch (error) {
-    console.error('[DEBUG] Landing - LanguageContext not available:', error);
-    contextReady = false;
-    language = 'en'; // fallback
-  }
-  
-  // Don't render if context is not ready
-  if (!contextReady) {
-    console.log('[DEBUG] Landing - Context not ready, returning null');
-    return null;
-  }
-  
-  // Optimize initial loading with requestIdleCallback if available
-  useEffect(() => {
-    const loadHandler = () => {
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => setIsLoaded(true));
-      } else {
-        setTimeout(() => setIsLoaded(true), 50);
-      }
-    };
-    
-    loadHandler();
-  }, []);
-
-  // Memoize expensive class calculations
-  const containerClasses = useMemo(() => cn(
+  const { language } = useLanguage();
+  const containerClasses = cn(
     "landing-page min-h-screen bg-background font-sans relative overflow-hidden",
-    language === 'ka' ? 'lang-ka' : '',
-    !isLoaded ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'
-  ), [language, isLoaded]);
-  
-  console.log('[DEBUG] Landing - Rendering with classes:', containerClasses);
+    language === 'ka' ? 'lang-ka' : ''
+  );
   
   return (
     <div className={containerClasses}>

@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
-import { ArrowRight, Check, LockKeyhole, Sparkles } from "lucide-react";
+import { ArrowRight, Check, LockKeyhole, CalendarCheck } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -89,7 +89,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
     )}>
       <div className="w-full max-w-4xl space-y-4 text-center md:space-y-5">
         <div className="landing-surface inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 px-3 py-2 text-[11px] font-mono font-medium text-primary sm:text-sm">
-          <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <CalendarCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
           <LanguageText>{eyebrow[language as keyof typeof eyebrow] || eyebrow.en}</LanguageText>
         </div>
         <article className="space-y-3 md:space-y-4">
@@ -97,7 +97,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           <h2 className="text-xl font-semibold leading-tight text-foreground sm:text-3xl lg:text-4xl">
             <LanguageText>{t('hero.title')}</LanguageText>
           </h2>
-          <p className="text-xs font-medium leading-relaxed text-muted-foreground sm:text-base">
+          <p className="text-sm font-medium leading-relaxed text-muted-foreground sm:text-base">
             <LanguageText>{t('hero.subtitle')}</LanguageText>
           </p>
         </article>
@@ -131,7 +131,7 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
           ))}
         </ul>
       </div>
-      <div className="landing-stage relative w-full min-w-0 max-w-4xl rounded-lg border border-primary/20 p-2 sm:p-4 lg:p-5">
+      <div className="landing-stage relative w-full min-w-0 max-w-4xl rounded-lg border border-border p-2 sm:p-3 lg:p-4">
         
         <div className="landing-elevated relative rounded-lg border border-border bg-card overflow-hidden">
           <div className="flex h-11 items-center gap-1.5 border-b border-border bg-muted/40 px-3 sm:px-4">
