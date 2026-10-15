@@ -9,7 +9,7 @@ import {
   type CarouselApi
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
-import { useEffect, useState, memo, useCallback } from "react";
+import { useEffect, useState, memo, useCallback, useRef } from "react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
 
@@ -40,7 +40,8 @@ const CarouselImage = memo(({
   customStyle, 
   objectFit,
   loading = 'lazy',
-  fitContainer = false
+  fitContainer = false,
+  priority = false
 }: { 
   src: string; 
   alt: string; 
@@ -48,6 +49,7 @@ const CarouselImage = memo(({
   objectFit?: string;
   loading?: 'lazy' | 'eager';
   fitContainer?: boolean;
+  priority?: boolean;
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -59,6 +61,7 @@ const CarouselImage = memo(({
           src={src}
           alt={alt}
           loading={loading}
+          fetchPriority={priority ? 'high' : 'auto'}
           decoding="async"
           className={cn(
             "w-full h-full transition-opacity duration-300",
@@ -67,11 +70,6 @@ const CarouselImage = memo(({
           )}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
-          style={{ 
-            imageRendering: 'auto',
-            backfaceVisibility: 'hidden',
-            transform: 'translateZ(0)' // Force hardware acceleration
-          }}
         />
       ) : (
         <div className="w-full h-full bg-muted/20 flex items-center justify-center">
@@ -101,6 +99,11 @@ export const ImageCarousel = ({
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(false);
+  const [isPageVisible, setIsPageVisible] = useState(() => !document.hidden);
+  const [isPaused, setIsPaused] = useState(false);
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
   const { resolvedTheme } = useTheme();
@@ -112,16 +115,26 @@ export const ImageCarousel = ({
     [isDark]
   );
 
-  // Simplified auto-slide setup
-  const setupAutoSlide = useCallback(() => {
-    if (!api) return;
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsInView(entry?.isIntersecting ?? false);
+    });
+    observer.observe(root);
+    const onVisibility = () => setIsPageVisible(!document.hidden);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
-    const interval = setInterval(() => {
-      api.scrollNext();
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [api]);
+  useEffect(() => {
+    if (!api || images.length < 2 || !isInView || !isPageVisible || isPaused || reduceMotion) return;
+    const interval = window.setInterval(() => api.scrollNext(), 5000);
+    return () => window.clearInterval(interval);
+  }, [api, images.length, isInView, isPageVisible, isPaused, reduceMotion]);
 
   useEffect(() => {
     if (!api) return;
@@ -132,14 +145,10 @@ export const ImageCarousel = ({
     const handleSelect = () => setCurrent(api.selectedScrollSnap() + 1);
     api.on("select", handleSelect);
 
-    // Set up auto-sliding with cleanup
-    const cleanup = setupAutoSlide();
-
     return () => {
       api.off("select", handleSelect);
-      cleanup?.();
     };
-  }, [api, setupAutoSlide]);
+  }, [api]);
 
   // Determine appropriate height based on screen size
   const responsiveHeight = isMobile 
@@ -168,7 +177,16 @@ export const ImageCarousel = ({
     : "w-full relative group";
 
   return (
-    <div className={cn(containerClass, className)}>
+    <div
+      ref={rootRef}
+      className={cn(containerClass, className)}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(rootRef.current?.contains(document.activeElement) ?? false)}
+      onFocusCapture={() => setIsPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setIsPaused(false);
+      }}
+    >
       <Carousel
         opts={{
           align: "start",
@@ -195,10 +213,11 @@ export const ImageCarousel = ({
                     customStyle={isHeroSlider ? "object-contain" : image.customStyle}
                     objectFit={objectFit}
                     loading={isFeatureGrid ? 'lazy' : index === 0 ? 'eager' : 'lazy'}
+                    priority={isHeroSlider && index === 0}
                     fitContainer={isFeatureGrid || isHeroSlider}
                   />
                   {showTitles && image.title && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4 text-center">
+                    <div className="absolute bottom-0 left-0 right-0 bg-background/95 text-foreground p-4 text-center">
                       <span className="font-medium">{image.title}</span>
                     </div>
                   )}

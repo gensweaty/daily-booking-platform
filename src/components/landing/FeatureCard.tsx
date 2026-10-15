@@ -84,7 +84,6 @@ const FeatureCardComponent = ({
         <div className="mb-3 flex min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground">
           <Icon className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
           <span className="min-w-0 truncate"><LanguageText>{t(getTranslationKey('title'))}</LanguageText></span>
-          <span className="ml-auto flex gap-1" aria-hidden="true"><span className="h-1 w-1 rounded-full bg-primary/50" /><span className="h-1 w-1 rounded-full bg-secondary/50" /><span className="h-1 w-1 rounded-full bg-accent/50" /></span>
         </div>
         <div className="landing-elevated overflow-hidden rounded-lg border border-border bg-card p-1 transition-colors duration-200 hover:border-primary/40">
           {carousel ? (
