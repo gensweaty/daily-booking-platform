@@ -141,12 +141,63 @@
 .landing-coral { color: hsl(var(--landing-coral)); }
 .landing-feature-heading { color: hsl(var(--landing-ink)); }
 .landing-display {
-  color: hsl(var(--landing-ink));
+  background: var(--landing-heading-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.02em;
 }
 .landing-nav-shell {
-  background: hsl(var(--card));
-  box-shadow: var(--landing-shadow);
+  background: hsl(var(--card) / 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--landing-shadow), inset 0 1px 0 hsl(0 0% 100% / 0.08);
 }
+/* Static futuristic backdrop: painted once, no animation cost */
+.landing-page::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1400px;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(60% 40% at 50% 0%, hsl(var(--primary) / 0.16), transparent 70%),
+    radial-gradient(30% 25% at 88% 30%, hsl(var(--landing-green) / 0.10), transparent 70%),
+    radial-gradient(30% 25% at 10% 45%, hsl(var(--landing-coral) / 0.08), transparent 70%);
+}
+.landing-page::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 900px;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(hsl(var(--primary) / 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(var(--primary) / 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(70% 60% at 50% 20%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(70% 60% at 50% 20%, #000 30%, transparent 75%);
+}
+.landing-stage {
+  position: relative;
+  border-color: hsl(var(--primary) / 0.25) !important;
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.06), 0 30px 80px -30px hsl(var(--primary) / 0.45);
+}
+.landing-stage::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(120deg, hsl(var(--primary) / 0.7), transparent 35%, transparent 65%, hsl(var(--landing-green) / 0.6));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+.landing-tile:hover { border-color: hsl(var(--primary) / 0.4); }
 .landing-tile {
   transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
 }
@@ -931,3 +982,5 @@
   box-shadow: inset 0 0 0 1px hsl(var(--destructive) / 0.3);
   text-decoration: underline wavy currentColor;
 }
+
+.landing-feature-stage { box-shadow: 0 24px 60px -32px hsl(var(--primary) / 0.4); border: 1px solid hsl(var(--primary) / 0.12); }
