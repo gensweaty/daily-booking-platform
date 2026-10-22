@@ -5542,13 +5542,14 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       replyContextBlock = `\n\n[HIGH PRIORITY REPLY CONTEXT]\nThe user's new message is a direct reply to an earlier message from ${quotedSpeaker}${quotedMeta ? ` (${quotedMeta})` : ''}:\n"""${quotedText}"""${resolvedReminderLine}\nInterpret words like "this", "that", "it", "same one", "ეს", "ეგ", "eso", "это" as referring to the quoted message above. If the user asks to recreate/reschedule/convert/update something from the quote, use the quoted subject and resolved reminder details, not the latest unrelated chat item.\n`;
     }
     const promptWithReply = replyContextBlock ? `${replyContextBlock}\n${prompt}` : prompt;
-    const userMessage = attachmentContext 
+    const baseUserMessage = attachmentContext 
       ? `${promptWithReply}\n\n--- Attached Files ---${attachmentContext}`
       : promptWithReply;
+    const userMessage = `${baseUserMessage}${focusBlock}`;
     
     const messages = [
-      { role: 'system', content: `${systemPrompt}${savedContextBlock}${recentDiscussionBlock}` },
-      ...llmConversationHistory.map((msg: any) => ({
+      { role: 'system', content: `${systemPrompt}${savedContextBlock}${recentDiscussionBlock}\n\n🎯 TOPIC FOCUS: Always act on the user's NEWEST message. Only reuse a subject from older messages when the user clearly refers back to it (by name, by replying to it, or with words like "the earlier one"). Never re-use a previous reminder/task/event title for a new request about something else. If the user says your answer was wrong ("no", "not that", "I meant…"), fix the previous action instead of creating another copy.` },
+      ...focusedConversationHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content
       })),
