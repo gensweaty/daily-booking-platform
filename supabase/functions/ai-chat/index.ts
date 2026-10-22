@@ -5428,6 +5428,98 @@ Remember: You're a powerful AI agent that can both READ and WRITE data. Act proa
       }
     }
 
+    // ---- ATTACHMENT FOCUS & MEMORY ----
+    // 1) For a NEW image, extract its concrete facts (subject, dates, times, names)
+    //    with a stronger vision model so the main model cannot fall back to an
+    //    older, unrelated chat topic. 2) Persist that summary on the user's chat
+    //    message so later turns ("the image I sent", "that interview") still
+    //    remember it. 3) If the user refers to a recent image without attaching
+    //    one, re-inject the stored summary.
+    let currentAttachmentSummary = '';
+    let recalledAttachmentSummary = '';
+    if (imageAttachments.length > 0) {
+      try {
+        const lovableKeyForSummary = Deno.env.get('LOVABLE_API_KEY') || '';
+        const sumRes = await gatewayFetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${lovableKeyForSummary}`,
+            "Lovable-API-Key": lovableKeyForSummary,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: VISION_FALLBACK_MODEL,
+            messages: [
+              {
+                role: 'system',
+                content: 'Extract the factual content of the attached image(s) for a scheduling assistant. Reply in plain text, max 120 words, in this format:\nSUBJECT: <short 2-6 word title of what this is about, e.g. "Interview with recruiter">\nDATE_TIME: <every date/time visible, exactly as written, plus timezone if shown; "none" if none>\nPEOPLE_ORGS: <names/companies or "none">\nDETAILS: <other key facts>. Never invent anything not visible.',
+              },
+              {
+                role: 'user',
+                content: [
+                  { type: 'text', text: `User message: ${prompt || '(no text)'}\nUser timezone: ${userTimezone || 'UTC'}. Current time (UTC): ${currentLocalTime || new Date().toISOString()}.` },
+                  ...imageAttachments.map((img: any) => ({ type: 'image_url', image_url: { url: img.data } })),
+                ],
+              },
+            ],
+            max_tokens: 400,
+          }),
+        });
+        if (sumRes.ok) {
+          const sumJson = await sumRes.json();
+          currentAttachmentSummary = String(sumJson?.choices?.[0]?.message?.content || '').trim().slice(0, 1500);
+          console.log('🖼️ Attachment summary:', currentAttachmentSummary);
+        } else {
+          console.error('⚠️ Attachment summary failed:', sumRes.status, (await sumRes.text()).slice(0, 300));
+        }
+      } catch (sumErr) {
+        console.error('⚠️ Attachment summary error:', sumErr);
+      }
+
+      if (currentAttachmentSummary) {
+        try {
+          const sinceIso = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+          const { data: latestUserMsg } = await supabaseAdmin
+            .from('chat_messages')
+            .select('id, metadata')
+            .eq('channel_id', channelId)
+            .eq('owner_id', ownerId)
+            .eq('has_attachments', true)
+            .neq('sender_name', AI_ASSISTANT_NAME)
+            .gte('created_at', sinceIso)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (latestUserMsg?.id) {
+            await supabaseAdmin
+              .from('chat_messages')
+              .update({ metadata: { ...(latestUserMsg.metadata || {}), attachment_summary: currentAttachmentSummary } })
+              .eq('id', latestUserMsg.id);
+          }
+        } catch (persistErr) {
+          console.error('⚠️ Failed to persist attachment summary:', persistErr);
+        }
+      }
+    } else if (/\b(image|photo|picture|pic|screenshot|screen|file|document|attachment|sent you|just sent)\b|სურათ|ფოტო|ფაილ|скрин|фото|imagen|foto/i.test(prompt || '')) {
+      const recent = [...normalizedConversationHistory]
+        .reverse()
+        .find((m: any) => m?.role === 'user' && m?.metadata?.attachment_summary &&
+          (!m.createdAt || Date.now() - new Date(m.createdAt).getTime() < 3 * 60 * 60 * 1000));
+      if (recent) recalledAttachmentSummary = String(recent.metadata.attachment_summary);
+    }
+
+    const focusSummary = currentAttachmentSummary || recalledAttachmentSummary;
+    const focusBlock = focusSummary
+      ? `\n\n--- ${currentAttachmentSummary ? 'CONTENT OF THE IMAGE ATTACHED TO THIS MESSAGE' : 'CONTENT OF THE IMAGE THE USER SENT EARLIER (they are referring to it now)'} (AUTHORITATIVE) ---\n${focusSummary}\n--- END ---\nRULES: "this", "it", "that", "the image" refer to THIS image content. Take titles, dates and times from it (e.g. "1 hour before interview" = 1 hour before the DATE_TIME above, in the user's timezone). Do NOT reuse titles or topics from older, unrelated messages (e.g. previous reminders). If the image has no usable date/time, ask for it instead of guessing.`
+      : '';
+    // When the user is talking about a new attachment, older unrelated chat turns
+    // are the #1 cause of the model "latching" onto a stale topic. Keep only the
+    // last few turns in that case; memory recall for old topics stays intact otherwise.
+    const focusedConversationHistory = focusSummary
+      ? llmConversationHistory.slice(-6)
+      : llmConversationHistory;
+    // ---- END ATTACHMENT FOCUS ----
+
     // Build conversation with history and attachments
     // CRITICAL: Make files automatically available like events - no manual ID lookup needed!
     // If the user is REPLYING to a specific earlier message (Telegram reply or chat reply),
