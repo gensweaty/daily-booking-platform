@@ -530,7 +530,12 @@ async function processBotUpdates(
         .reverse()
         .map((m: any) => ({
           role: m.sender_name === 'Smartbookly AI' ? 'assistant' : 'user',
-          content: m.has_attachments && !m.content ? '[file attachment]' : (m.content || ''),
+          content: [
+            m.has_attachments && !m.content ? '[file attachment]' : (m.content || ''),
+            m.metadata?.attachment_summary
+              ? `[Attached image content: ${String(m.metadata.attachment_summary).slice(0, 600)}]`
+              : '',
+          ].filter(Boolean).join('\n'),
           messageId: m.id,
           senderType: m.sender_type,
           senderName: m.sender_name,

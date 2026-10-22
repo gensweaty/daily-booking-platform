@@ -368,7 +368,10 @@ const buildConversationContent = (message: any) => {
   }
 
   const content = typeof message?.content === 'string' ? message.content.trim() : '';
-  return [...labels, content].filter(Boolean).join('\n');
+  const attachmentSummary = message?.metadata?.attachment_summary
+    ? `[Attached image content: ${String(message.metadata.attachment_summary).slice(0, 600)}]`
+    : '';
+  return [...labels, content, attachmentSummary].filter(Boolean).join('\n');
 };
 
 const mapStoredMessageToConversationHistory = (message: any) => ({
