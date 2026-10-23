@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,9 @@ export function EmailHistory({ refreshKey, onReply }: { refreshKey: number; onRe
     try {
       const isSent = kind === "sent";
       const select: string = isSent ? "id,recipient,subject,status,reason,created_at,delivered_at,opened_at,clicked_at" : "id,sender,recipient,subject,body,received_at";
-      let query = supabase.from(isSent ? "email_logs" : "inbound_messages").select(select, { count: "exact" });
+      // The list spans two row shapes; pin the returned shape below rather than expanding the entire generated schema union.
+      const historyClient: SupabaseClient = supabase;
+      let query = historyClient.from(isSent ? "email_logs" : "inbound_messages").select(select, { count: "exact" });
       if (!isSent) query = query.eq("channel", "email");
       if (isSent && status !== "all") query = query.eq("status", status);
       // Escape filter grammar, then use wildcard search only on text fields.
