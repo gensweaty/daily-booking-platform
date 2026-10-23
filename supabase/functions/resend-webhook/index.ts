@@ -1,6 +1,7 @@
 // Receives Resend delivery events and updates email_logs.status/reason.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.2";
 import { Webhook } from "npm:svix@1.24.0";
+import { emailEventUpdate } from "../_shared/emailStatus.ts";
 
 const STATUS: Record<string, string> = {
   "email.sent": "sent",
@@ -13,7 +14,6 @@ const STATUS: Record<string, string> = {
   "email.clicked": "clicked",
 };
 // Never downgrade a final state with a later informational one.
-const RANK: Record<string, number> = { sent: 1, delayed: 2, delivered: 3, opened: 4, clicked: 5, bounced: 6, spam: 6, failed: 6 };
 
 const OWNER_ADDR_RE = /\br-([0-9a-f-]{36})@/i;
 
@@ -85,10 +85,11 @@ Deno.serve(async (req) => {
     (status === "spam" ? "Recipient marked the email as spam" : status === "delayed" ? "Delivery delayed by recipient server" : null);
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-  const { data: rows } = await admin.from("email_logs").select("id,status").eq("resend_id", id);
+  const { data: rows } = await admin.from("email_logs").select("id,status,delivered_at,opened_at,clicked_at").eq("resend_id", id);
+  const eventTime = typeof evt.created_at === "string" && Number.isFinite(Date.parse(evt.created_at)) ? new Date(evt.created_at).toISOString() : new Date().toISOString();
   for (const r of rows || []) {
-    if ((RANK[status] || 0) < (RANK[r.status] || 0)) continue;
-    await admin.from("email_logs").update({ status, reason: reason ?? undefined, updated_at: new Date().toISOString() }).eq("id", r.id);
+    const update = emailEventUpdate(r, status, eventTime, reason);
+    if (Object.keys(update).length) await admin.from("email_logs").update({ ...update, updated_at: new Date().toISOString() }).eq("id", r.id);
   }
   return new Response("ok");
 });

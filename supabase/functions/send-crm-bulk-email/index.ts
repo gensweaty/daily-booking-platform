@@ -217,7 +217,8 @@ serve(async (req: Request): Promise<Response> => {
                 "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
               },
         });
-        await logEmail({ ownerId: user.id, to: r.email, subject: r.subject || subject, purpose: "crm_email", result: res as any });
+        await logEmail({ ownerId: user.id, to: r.email, subject: r.subject || subject, purpose: "crm_email", result: res as any,
+          details: { from: fromAddress, to: [r.email], cc: i === 0 ? cc : [], bcc: i === 0 ? bcc : [], reply_to: replyTo, html: fullHtml, text: htmlToText(r.html), attachments: [...inline, ...links].map((a) => ({ filename: a.filename })) } });
         if ((res as any)?.error) {
           results.push({ email: r.email, ok: false, error: (res as any).error.message || "Send failed" });
         } else {
