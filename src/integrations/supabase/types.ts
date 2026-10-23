@@ -894,6 +894,7 @@ export type Database = {
           created_at: string
           delivered_at: string | null
           id: string
+          message_details: Json | null
           opened_at: string | null
           owner_id: string | null
           purpose: string | null
@@ -909,6 +910,7 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           id?: string
+          message_details?: Json | null
           opened_at?: string | null
           owner_id?: string | null
           purpose?: string | null
@@ -924,6 +926,7 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           id?: string
+          message_details?: Json | null
           opened_at?: string | null
           owner_id?: string | null
           purpose?: string | null
