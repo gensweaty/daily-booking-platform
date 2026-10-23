@@ -194,7 +194,8 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
-    await logEmail({ ownerId: await ownerFromRequest(req), to: emailRequest.recipient_email, subject: emailRequest.subject || subject, purpose: 'direct_email', result: emailResult as any });
+    await logEmail({ ownerId: await ownerFromRequest(req), to: emailRequest.recipient_email, subject: emailRequest.subject || subject, purpose: 'direct_email', result: emailResult as any,
+      details: { from: fromAddress, to: [emailRequest.recipient_email], reply_to: replyToAddress, html, attachments: resendAttachments.map((a) => ({ filename: a.filename, content_type: a.content_type })) } });
     console.log('✅ Direct email sent:', emailResult);
 
     // Check if Resend returned an error (even with 200 status)

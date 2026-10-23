@@ -1,4 +1,5 @@
 # Current tasks
+- [ ] Add searchable, sorted, paginated email history with secure full-message details, precise delivery/open tracking, and received replies; verify without changing sending or SMS settings.
 - [x] Refine the main page with less decorative styling, clearer pricing accents, immediate first paint and visibility-aware carousels; verify controls, languages, themes and loading behavior.
 - [x] Restore a richer, modern home-page visual treatment with brand accents, dimensional screenshots, and tactile navigation; preserve alternating rows and verify desktop/mobile themes.
 - [x] Step 1: Refine the hero screenshot frame and compact industry list; verify themes, languages, and controls.
