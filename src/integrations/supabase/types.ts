@@ -890,8 +890,11 @@ export type Database = {
       }
       email_logs: {
         Row: {
+          clicked_at: string | null
           created_at: string
+          delivered_at: string | null
           id: string
+          opened_at: string | null
           owner_id: string | null
           purpose: string | null
           reason: string | null
@@ -902,8 +905,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          clicked_at?: string | null
           created_at?: string
+          delivered_at?: string | null
           id?: string
+          opened_at?: string | null
           owner_id?: string | null
           purpose?: string | null
           reason?: string | null
@@ -914,8 +920,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          clicked_at?: string | null
           created_at?: string
+          delivered_at?: string | null
           id?: string
+          opened_at?: string | null
           owner_id?: string | null
           purpose?: string | null
           reason?: string | null
