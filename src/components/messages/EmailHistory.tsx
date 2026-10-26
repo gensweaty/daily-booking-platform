@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight, Mail, Reply, Search, Loader2, Paperclip } from "lucide-react";
 import { EMAIL_COPY } from "./emailHistoryCopy";
-import { emailStatus, relatedReplies, type EmailRecord, type ReceivedEmail, type MessageDetails } from "./emailHistoryModel";
+import { emailStatus, likePattern, relatedReplies, searchPattern, type EmailRecord, type ReceivedEmail, type MessageDetails } from "./emailHistoryModel";
 
 const PAGE_SIZE = 25;
 type Selection = { kind: "sent"; row: EmailRecord } | { kind: "received"; row: ReceivedEmail };
@@ -48,9 +48,9 @@ export function EmailHistory({ refreshKey, onReply }: { refreshKey: number; onRe
       let query = historyClient.from(isSent ? "email_logs" : "inbound_messages").select(select, { count: "exact" });
       if (!isSent) query = query.eq("channel", "email");
       if (isSent && status !== "all") query = query.eq("status", status);
-      // Escape filter grammar, then use wildcard search only on text fields.
-      const value = term.replace(/[\\%_(),.\"']/g, " ").trim();
-      if (value) query = query.or(`${isSent ? "recipient" : "sender"}.ilike.%${value}%,subject.ilike.%${value}%`);
+      // The value is quoted so commas and parentheses stay literal; LIKE wildcards in the term are dropped.
+      const value = searchPattern(term);
+      if (value) query = query.or(`${isSent ? "recipient" : "sender"}.ilike."%${value}%",subject.ilike."%${value}%"`);
       const column = sort === "recipient" ? isSent ? "recipient" : "sender" : sort === "subject" ? "subject" : isSent ? "created_at" : "received_at";
       const { data, error: err, count } = await query.order(column, { ascending: sort !== "newest" }).order("id").range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1).returns<(EmailRecord | ReceivedEmail)[]>();
       if (err) throw err;
@@ -81,7 +81,7 @@ export function EmailHistory({ refreshKey, onReply }: { refreshKey: number; onRe
           // Page through candidates; only show replies with matching sender + subject.
           const candidates: ReceivedEmail[] = [];
           for (let offset = 0; ; offset += 1000) {
-            const { data: batch, error: re } = await supabase.from("inbound_messages").select("id,sender,recipient,subject,body,html,received_at").eq("channel", "email").gte("received_at", selection.row.created_at).ilike("sender", `%${selection.row.recipient.replace(/[%_]/g, "")}%`).order("received_at").order("id").range(offset, offset + 999);
+            const { data: batch, error: re } = await supabase.from("inbound_messages").select("id,sender,recipient,subject,body,html,received_at").eq("channel", "email").gte("received_at", selection.row.created_at).ilike("sender", likePattern(selection.row.recipient)).order("received_at").order("id").range(offset, offset + 999);
             if (re) throw re;
             if (!active) return;
             candidates.push(...(batch || []));
