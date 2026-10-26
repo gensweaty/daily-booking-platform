@@ -15,3 +15,8 @@ export function emailStatus(row: EmailRecord) {
   if (row.opened_at || row.status === "opened") return "opened";
   return ["sent", "delivered", "delayed"].includes(row.status) ? row.status : "pending";
 }
+// SQL LIKE wildcards are escaped so a typed address matches itself instead of every address.
+export const likePattern = (raw: string) => `%${raw.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+// PostgREST reads "or" filters as a grammar: a comma splits conditions and a double quote ends the
+// value, so both are dropped. Dots, apostrophes and underscores stay in, keeping addresses searchable.
+export const searchPattern = (raw: string) => raw.replace(/[\\"]/g, "").trim();

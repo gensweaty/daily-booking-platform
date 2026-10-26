@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { emailStatus, relatedReplies } from "./emailHistoryModel";
+import { emailStatus, likePattern, relatedReplies, searchPattern } from "./emailHistoryModel";
 import { emailEventUpdate } from "../../../supabase/functions/_shared/emailStatus";
 const row = { id: "1", recipient: "client@example.com", subject: "Interview", status: "sent", reason: null, created_at: "2026-10-23T08:00:00Z" };
 describe("email history facts", () => {
@@ -14,5 +14,20 @@ describe("email history facts", () => {
       { id: "old", sender: "client@example.com", recipient: null, subject: "Re: Interview", body: "Old", received_at: "2026-10-22T09:00:00Z" },
     ];
     assert.deepEqual(relatedReplies(row, replies).map((r) => r.id), ["yes"]);
+  });
+  it("keeps underscores in a reply lookup as a literal character", () => {
+    assert.equal(likePattern("john_smith@company.com"), "%john\\_smith@company.com%");
+    assert.equal(likePattern("50%off@x.com"), "%50\\%off@x.com%");
+  });
+  it("keeps dots, apostrophes and commas in a search term", () => {
+    assert.equal(searchPattern("anna@gmail.com"), "anna@gmail.com");
+    assert.equal(searchPattern("Don't miss out"), "Don't miss out");
+    assert.equal(searchPattern("a,b (fwd)"), "a,b (fwd)");
+    assert.equal(searchPattern("john_smith@company.com"), "john_smith@company.com");
+  });
+  it("drops only the characters that break the filter grammar", () => {
+    assert.equal(searchPattern('say "hi"'), "say hi");
+    assert.equal(searchPattern("a\\b"), "ab");
+    assert.equal(searchPattern("   "), "");
   });
 });
