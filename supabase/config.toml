@@ -100,3 +100,6 @@ verify_jwt = false
 
 [functions.sms-inbound]
 verify_jwt = false
+
+[functions.agent-api]
+verify_jwt = false
