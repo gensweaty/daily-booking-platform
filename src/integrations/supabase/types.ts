@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_activity_log: {
+        Row: {
+          action: string
+          agent_name: string
+          created_at: string
+          details: Json
+          id: string
+          key_id: string | null
+          resource_id: string | null
+          resource_type: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          agent_name: string
+          created_at?: string
+          details?: Json
+          id?: string
+          key_id?: string | null
+          resource_id?: string | null
+          resource_type: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          agent_name?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          key_id?: string | null
+          resource_id?: string | null
+          resource_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_activity_log_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "agent_api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          revoked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          revoked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          revoked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_context_memories: {
         Row: {
           audience_sub_user_id: string | null
