@@ -2453,6 +2453,16 @@ export type Database = {
         Args: { p_subscription_type: string; p_user_id: string }
         Returns: Json
       }
+      apply_agent_change: {
+        Args: {
+          p_action: string
+          p_data?: Json
+          p_id?: string
+          p_key_id: string
+          p_resource: string
+        }
+        Returns: Json
+      }
       attach_files_to_message_public: {
         Args: {
           p_channel_id: string
