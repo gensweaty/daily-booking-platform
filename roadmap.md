@@ -1,4 +1,5 @@
 # Current tasks
+- [ ] Finish account-scoped AI agent keys, profile controls, documentation and activity history; deploy and test supported operations and revocation.
 - [ ] Add searchable, sorted, paginated email history with secure full-message details, precise delivery/open tracking, and received replies; verify without changing sending or SMS settings.
 - [x] Refine the main page with less decorative styling, clearer pricing accents, immediate first paint and visibility-aware carousels; verify controls, languages, themes and loading behavior.
 - [x] Restore a richer, modern home-page visual treatment with brand accents, dimensional screenshots, and tactile navigation; preserve alternating rows and verify desktop/mobile themes.

@@ -1,173 +1,99 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { resources, uuid, validateData, project, literalPattern } from './model.ts';
 
-// Per-resource whitelist: table, writable fields, soft-delete support, audit columns.
-type Resource = {
-  table: string;
-  fields: string[];
-  softDelete: boolean;
-  audit: boolean;
-  orderBy: string;
-};
-
-const RESOURCES: Record<string, Resource> = {
-  events: {
-    table: "events",
-    fields: ["title", "user_surname", "user_number", "social_network_link", "event_notes", "start_date", "end_date", "payment_status", "payment_amount", "event_name", "type"],
-    softDelete: true, audit: true, orderBy: "start_date",
-  },
-  customers: {
-    table: "customers",
-    fields: ["title", "user_surname", "user_number", "social_network_link", "event_notes", "payment_status", "payment_amount", "start_date", "end_date"],
-    softDelete: true, audit: true, orderBy: "created_at",
-  },
-  tasks: {
-    table: "tasks",
-    fields: ["title", "description", "status", "deadline_at", "reminder_at", "archived"],
-    softDelete: false, audit: true, orderBy: "created_at",
-  },
-  notes: {
-    table: "notes",
-    fields: ["title", "content", "color"],
-    softDelete: false, audit: false, orderBy: "created_at",
-  },
-  reminders: {
-    table: "custom_reminders",
-    fields: ["title", "message", "remind_at"],
-    softDelete: true, audit: false, orderBy: "remind_at",
-  },
-};
-
-const TASK_STATUSES = ["todo", "inprogress", "done"];
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
-async function sha256(value: string) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+async function hash(value: string) {
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
 }
-
-function pick(input: Record<string, unknown>, fields: string[]) {
-  const out: Record<string, unknown> = {};
-  for (const f of fields) if (f in input) out[f] = input[f];
-  return out;
-}
-
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-  const auth = req.headers.get("x-api-key") || (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!auth || !auth.startsWith("sbk_")) return json({ error: "Missing or invalid API key. Send it as 'Authorization: Bearer sbk_...'" }, 401);
-
-  const { data: key } = await supabase
-    .from("agent_api_keys")
-    .select("id, user_id, name, revoked_at")
-    .eq("key_hash", await sha256(auth))
-    .maybeSingle();
-  if (!key || key.revoked_at) return json({ error: "API key not recognised or revoked" }, 401);
-
-  const userId = key.user_id as string;
-  const agentName = key.name as string;
-  await supabase.from("agent_api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", key.id);
-
-  if (req.method === "GET") {
-    return json({ ok: true, account: userId, agent: agentName, resources: Object.keys(RESOURCES), actions: ["list", "get", "create", "update", "delete"] });
+Deno.serve(async req => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (!['GET','POST'].includes(req.method)) return json({ error: 'Use GET or POST' },405);
+  const url = Deno.env.get('SUPABASE_URL');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !serviceKey) return json({error:'Service unavailable'},503);
+  const db = createClient(url, serviceKey);
+  let body: Record<string, unknown> = {};
+  if (req.method === 'POST') {
+    const raw = await req.text();
+    if (raw.length > 100000) return json({error:'Request too large'},413);
+    try { body = JSON.parse(raw); } catch { return json({error:'Body must be JSON'},400); }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return json({error:'Body must be an object'},400);
   }
-  if (req.method !== "POST") return json({ error: "Use POST" }, 405);
-
-  let body: any;
-  try { body = await req.json(); } catch { return json({ error: "Body must be JSON" }, 400); }
-  const { action, resource, id, data, filters } = body ?? {};
-  const res = RESOURCES[resource];
-  if (!res) return json({ error: `Unknown resource. Use one of: ${Object.keys(RESOURCES).join(", ")}` }, 400);
-  if (!["list", "get", "create", "update", "delete"].includes(action)) return json({ error: "action must be list, get, create, update or delete" }, 400);
-  if (["get", "update", "delete"].includes(action) && (typeof id !== "string" || !/^[0-9a-f-]{36}$/i.test(id))) {
-    return json({ error: "A valid record id is required" }, 400);
-  }
-
-  const log = (resourceId: string | null, details: unknown) =>
-    supabase.from("agent_activity_log").insert({
-      user_id: userId, key_id: key.id, agent_name: agentName, action, resource_type: resource, resource_id: resourceId, details,
-    });
-
-  const scoped = () => {
-    let q: any = supabase.from(res.table);
-    return q;
-  };
-
   try {
-    if (action === "list") {
-      const limit = Math.min(Math.max(Number(filters?.limit) || 50, 1), 200);
-      let q = scoped().select("*").eq("user_id", userId).order(res.orderBy, { ascending: false }).limit(limit);
-      if (res.softDelete) q = q.is("deleted_at", null);
-      if (typeof filters?.search === "string" && filters.search.trim()) {
-        q = q.ilike("title", `%${filters.search.trim().replace(/[\\%]/g, (m: string) => "\\" + m)}%`);
+    // Key management requires a verified owner session, never an agent key.
+    if (body.management) {
+      const bearer = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i,'');
+      const { data: auth, error: authError } = await db.auth.getUser(bearer);
+      if (authError || !auth.user) return json({error:'Sign in to manage agent keys'},401);
+      const owner = auth.user.id;
+      if (body.management === 'create') {
+        if (typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 80) return json({error:'Agent name must be 1–80 characters'},400);
+        const secret = 'sbk_live_' + Array.from(crypto.getRandomValues(new Uint8Array(32)), b=>b.toString(16).padStart(2,'0')).join('');
+        const {data:key,error} = await db.from('agent_api_keys').insert({user_id:owner,name:body.name.trim(),key_hash:await hash(secret),key_prefix:'sbk_live_'}).select('id,name,created_at').single();
+        if (error) throw error;
+        return json({ok:true,key,secret});
       }
-      if (filters?.from) q = q.gte(res.orderBy, filters.from);
-      if (filters?.to) q = q.lte(res.orderBy, filters.to);
-      if (resource === "tasks" && filters?.status) q = q.eq("status", filters.status);
-      const { data: rows, error } = await q;
-      if (error) throw error;
-      return json({ ok: true, count: rows.length, items: rows });
+      if (body.management === 'revoke') {
+        if (typeof body.id !== 'string' || !uuid.test(body.id)) return json({error:'Invalid key id'},400);
+        const {data,error} = await db.from('agent_api_keys').update({revoked_at:new Date().toISOString()}).eq('id',body.id).eq('user_id',owner).is('revoked_at',null).select('id');
+        if(error) throw error;
+        return data?.length ? json({ok:true}) : json({error:'Key not found or already revoked'},404);
+      }
+      return json({error:'Unknown management action'},400);
     }
-
-    if (action === "get") {
-      let q = scoped().select("*").eq("user_id", userId).eq("id", id);
-      if (res.softDelete) q = q.is("deleted_at", null);
-      const { data: row, error } = await q.maybeSingle();
-      if (error) throw error;
-      if (!row) return json({ error: "Not found" }, 404);
-      return json({ ok: true, item: row });
+    const token = req.headers.get('x-api-key') || (req.headers.get('authorization') || '').replace(/^Bearer\s+/i,'');
+    if (!/^sbk_live_[0-9a-f]{64}$/.test(token)) return json({error:'Missing or invalid API key. Use Authorization: Bearer YOUR_KEY'},401);
+    const {data:key,error:keyError} = await db.from('agent_api_keys').select('id,user_id,name,revoked_at').eq('key_hash',await hash(token)).maybeSingle();
+    if(keyError) throw keyError;
+    if(!key || key.revoked_at) return json({error:'API key not recognised or revoked'},401);
+    await db.from('agent_api_keys').update({last_used_at:new Date().toISOString()}).eq('id',key.id);
+    if(req.method === 'GET') return json({ok:true,agent:key.name,resources:Object.fromEntries(Object.entries(resources).map(([name,r])=>[name,{fields:r.fields}])),actions:['list','get','create','update','delete'],max_page_size:200});
+    const {action,resource,id} = body;
+    if(typeof resource !== 'string' || !Object.hasOwn(resources,resource)) return json({error:'Unknown resource'},400);
+    const name = resource as keyof typeof resources;
+    const config = resources[name];
+    if(typeof action !== 'string' || !['list','get','create','update','delete'].includes(action)) return json({error:'Unknown action'},400);
+    if(['get','update','delete'].includes(action) && (typeof id !== 'string' || !uuid.test(id))) return json({error:'Valid record id required'},400);
+    if(action === 'list' || action === 'get') {
+      let q = db.from(config.table).select(['id','created_at',...config.fields].join(','),{count:'exact'}).eq('user_id',key.user_id);
+      if(config.soft) q=q.is('deleted_at',null);
+      if(action === 'get') {
+        const {data,error}=await q.eq('id',id).maybeSingle();
+        if(error) throw error;
+        return data ? json({ok:true,item:data}) : json({error:'Not found'},404);
+      }
+      const f = body.filters ?? {};
+      if(typeof f !== 'object' || !f || Array.isArray(f)) return json({error:'filters must be an object'},400);
+      const filters = f as Record<string, unknown>;
+      const limit = filters.limit === undefined ? 50 : Number(filters.limit);
+      const offset = filters.offset === undefined ? 0 : Number(filters.offset);
+      if(!Number.isInteger(limit) || limit<1 || limit>200 || !Number.isInteger(offset) || offset<0) return json({error:'limit must be 1–200; offset must be a non-negative integer'},400);
+      if(filters.search !== undefined) {
+        if(typeof filters.search !== 'string' || filters.search.length>255) return json({error:'Invalid search'},400);
+        if(filters.search.trim()) q=q.ilike('title',literalPattern(filters.search.trim()));
+      }
+      for(const field of ['from','to']) if(filters[field] !== undefined) {
+        if(typeof filters[field] !== 'string' || !Number.isFinite(Date.parse(String(filters[field])))) return json({error:'Invalid date filter'},400);
+        q=field==='from'?q.gte(config.date,filters[field]):q.lte(config.date,filters[field]);
+      }
+      if(name==='tasks' && filters.status !== undefined) {
+        if(!['todo','inprogress','done'].includes(String(filters.status))) return json({error:'Invalid task status'},400);
+        q=q.eq('status',filters.status);
+      }
+      const {data,error,count}=await q.order(config.date,{ascending:false}).order('id').range(offset,offset+limit-1);
+      if(error) throw error;
+      return json({ok:true,items:data,count:data?.length ?? 0,total:count,offset,next_offset:offset+(data?.length ?? 0)<(count ?? 0)?offset+limit:null});
     }
-
-    if (action === "delete") {
-      const q = res.softDelete
-        ? scoped().update({ deleted_at: new Date().toISOString() })
-        : scoped().delete();
-      const { data: rows, error } = await q.eq("user_id", userId).eq("id", id).select("id, title");
-      if (error) throw error;
-      if (!rows?.length) return json({ error: "Not found" }, 404);
-      await log(id, { title: rows[0].title });
-      return json({ ok: true, deleted: id });
-    }
-
-    const payload = pick((data ?? {}) as Record<string, unknown>, res.fields);
-    if (resource === "tasks" && payload.status && !TASK_STATUSES.includes(String(payload.status))) {
-      return json({ error: `status must be one of ${TASK_STATUSES.join(", ")}` }, 400);
-    }
-    const now = new Date().toISOString();
-    const label = `${agentName} (AI agent)`;
-
-    if (action === "create") {
-      if (!payload.title || typeof payload.title !== "string") return json({ error: "data.title is required" }, 400);
-      if (resource === "events" && (!payload.start_date || !payload.end_date)) return json({ error: "events need start_date and end_date (ISO 8601)" }, 400);
-      if (resource === "reminders" && !payload.remind_at) return json({ error: "reminders need remind_at (ISO 8601)" }, 400);
-      const row: Record<string, unknown> = { ...payload, user_id: userId };
-      if (resource === "tasks" && !row.status) row.status = "todo";
-      if (res.audit) Object.assign(row, { created_by_type: "admin", created_by_name: label, created_by_ai: true });
-      if (resource === "reminders") Object.assign(row, { created_by_type: "admin", created_by_name: label });
-      const { data: created, error } = await scoped().insert(row).select("*").single();
-      if (error) throw error;
-      await log(created.id, { title: created.title, fields: Object.keys(payload) });
-      return json({ ok: true, item: created });
-    }
-
-    // update — only provided fields change, everything else is preserved
-    if (!Object.keys(payload).length) return json({ error: `Nothing to update. Allowed fields: ${res.fields.join(", ")}` }, 400);
-    const patch: Record<string, unknown> = { ...payload };
-    if (res.audit) Object.assign(patch, { last_edited_by_type: "admin", last_edited_by_name: label, last_edited_at: now, last_edited_by_ai: true });
-    let q = scoped().update(patch).eq("user_id", userId).eq("id", id);
-    if (res.softDelete) q = q.is("deleted_at", null);
-    const { data: rows, error } = await q.select("*");
-    if (error) throw error;
-    if (!rows?.length) return json({ error: "Not found" }, 404);
-    await log(id, { title: rows[0].title, fields: Object.keys(payload) });
-    return json({ ok: true, item: rows[0] });
-  } catch (e) {
-    console.error("agent-api error", e);
-    return json({ error: (e as Error)?.message || "Request failed" }, 500);
+    let payload: Record<string,unknown> = {};
+    try { if(action !== 'delete') payload=validateData(name,action,body.data); } catch(e) { return json({error:(e as Error).message},400); }
+    // A database transaction applies ownership, attributes the change, and writes history together.
+    const {data:result,error} = await db.rpc('apply_agent_change',{p_key_id:key.id,p_action:action,p_resource:name,p_id:typeof id==='string'?id:null,p_data:payload});
+    if(error) return json({error:'Change could not be saved. Check field values and required dates.'},400);
+    if(!result) return json({error:'Not found'},404);
+    return action==='delete' ? json({ok:true,deleted:id}) : json({ok:true,item:project(name,result)});
+  } catch {
+    return json({error:'Service temporarily unavailable. No success is confirmed.'},503);
   }
 });
