@@ -16,33 +16,114 @@ const copy = {
   ka: { button: "AI აგენტები და API გასაღებები", title: "AI აგენტის წვდომა", keys: "გასაღებები", docs: "ინსტრუქცია", history: "ისტორია", name: "აგენტის სახელი, მაგ. Claude Desktop", create: "გასაღების შექმნა", once: "დააკოპირეთ ეს გასაღები ახლავე. ის აღარ გამოჩნდება.", revoke: "გამორთვა", revoked: "გამორთულია", lastUsed: "ბოლო გამოყენება", never: "არ გამოყენებულა", none: "გასაღებები ჯერ არ არის.", noHistory: "აგენტის ქმედებები ჯერ არ არის.", copied: "დაკოპირდა", copyDocs: "ინსტრუქციის კოპირება აგენტისთვის", intro: "მიეცით AI აგენტს გასაღები და ეს ინსტრუქცია. ის მხოლოდ თქვენს ანგარიშზე იმუშავებს და ყველა ცვლილება აქ შეინახება აგენტის სახელით." },
 };
 
-export const agentDocs = (endpoint: string) => `# SmartBookly Agent API
+export const agentDocs = (endpoint: string) => `# SmartBookly Agent API — README for AI agents
 
-You act on ONE SmartBookly account. Never claim a change succeeded unless the response has "ok": true.
+You are an assistant working on ONE SmartBookly account: the account that owns your API key.
+SmartBookly is a booking platform: calendar bookings, a customer list (CRM), tasks, notes and reminders.
+Everything you change is saved in the owner's History under your key's name.
 
+## 0. Golden rules
+1. Never say something was created, changed or deleted unless the response contains "ok": true. Quote what was saved.
+2. Before update or delete, find the exact record with "list" (use "search"). If several match, ask the user which one. Never guess an id.
+3. "update" changes ONLY the fields you send. Never resend fields you did not mean to change.
+4. Always use full ISO 8601 times WITH timezone, e.g. 2026-11-03T14:00:00+04:00. Ask the user's timezone if unsure.
+5. Ask before deleting. Ask when a date, time or name is missing — don't invent it.
+6. On an error, tell the user the error text. Don't retry the same request in a loop.
+7. You cannot see other accounts. You cannot read or change things not listed here (see section 9).
+
+## 1. Connecting
 Endpoint: ${endpoint}
-Auth header: Authorization: Bearer YOUR_KEY
+Header:   Authorization: Bearer YOUR_KEY   (or  x-api-key: YOUR_KEY)
+Content-Type: application/json
 
-GET  -> lists available resources and fields.
-POST -> JSON body: {"action": "...", "resource": "...", "id": "...", "data": {...}, "filters": {...}}
+GET  ${endpoint}  -> checks the key and returns your agent name, resources and fields. Call it first.
+POST ${endpoint}  -> do something. Body:
+{"action":"list|get|create|update|delete","resource":"events|customers|tasks|notes|reminders","id":"<uuid, for get/update/delete>","data":{...for create/update},"filters":{...for list}}
 
-Resources: events, customers, tasks, notes, reminders
-Actions: list, get, create, update, delete
-- list filters: limit (1-200, default 50), offset, search (title), from, to (ISO dates), status (tasks: todo | inprogress | done)
-- update only changes the fields you send; others stay as they are.
-- events/customers need start_date and end_date (ISO 8601, end after start).
-- reminders need remind_at (ISO 8601, in the future).
-- delete hides the item (events, customers, reminders) and is recorded in history.
+## 2. Actions (same for every resource)
+- list   — find records. Newest first. Response: {"ok":true,"items":[...],"count":n,"total":N,"offset":o,"next_offset":o2|null}
+           filters: limit (1-200, default 50), offset (default 0), search (text in title, case-insensitive), from / to (ISO dates), status (tasks only).
+           If next_offset is not null, call again with offset = next_offset to get more.
+- get    — one record by id. Response: {"ok":true,"item":{...}}
+- create — add a record. Response: {"ok":true,"item":{...}} (contains the new id)
+- update — change some fields of a record by id.
+- delete — remove a record by id. Response: {"ok":true,"deleted":"<id>"}
+Every record also has "id" and "created_at" (read-only).
 
-Before updating or deleting, use list with search to find the exact id. If several match, ask the user.
-
+## 3. Calendar bookings — resource "events"
+What a human does in the Calendar tab: add a booking, move it, change payment, delete it.
+Fields:
+- title (required, 1-255) — customer's full name / booking name
+- user_surname — extra name text
+- user_number — phone number, e.g. +995555123456
+- social_network_link — email or social profile link
+- event_notes — notes/comments
+- event_name — name of the service/event (e.g. "Haircut", "Interview")
+- start_date, end_date (required on create; end must be after start)
+- payment_status — "not_paid", "partly_paid" or "fully_paid"
+- payment_amount — number ≥ 0 (or null)
+- type — booking type text (usually leave empty)
+Date filters (from/to) use start_date.
 Examples:
-{"action":"list","resource":"events","filters":{"from":"2026-11-01T00:00:00Z","limit":20}}
-{"action":"create","resource":"tasks","data":{"title":"Call supplier","status":"todo"}}
-{"action":"update","resource":"tasks","id":"<uuid>","data":{"status":"done"}}
-{"action":"create","resource":"reminders","data":{"title":"Interview","remind_at":"2026-11-03T09:00:00Z"}}
+- See bookings next week: {"action":"list","resource":"events","filters":{"from":"2026-11-02T00:00:00+04:00","to":"2026-11-08T23:59:59+04:00"}}
+- Book: {"action":"create","resource":"events","data":{"title":"Anna Smith","user_number":"+995555123456","event_name":"Haircut","start_date":"2026-11-03T14:00:00+04:00","end_date":"2026-11-03T15:00:00+04:00","payment_status":"not_paid"}}
+- Reschedule (send both times): {"action":"update","resource":"events","id":"<id>","data":{"start_date":"2026-11-04T10:00:00+04:00","end_date":"2026-11-04T11:00:00+04:00"}}
+- Mark paid: {"action":"update","resource":"events","id":"<id>","data":{"payment_status":"fully_paid","payment_amount":50}}
+- Cancel: find it with list, confirm with the user, then {"action":"delete","resource":"events","id":"<id>"}
+Before booking, list events for that day to check the time is free; tell the user if it overlaps.
 
-Errors return {"error": "..."} with HTTP 4xx/5xx. Report the error to the user; do not retry blindly.`;
+## 4. Customers (CRM) — resource "customers"
+What a human does in the CRM tab: add, edit, look up and remove customers.
+Fields: title (required — customer's full name), user_surname, user_number (phone), social_network_link (email/social), event_notes (comments), payment_status, payment_amount, start_date, end_date (optional).
+Date filters use created_at.
+Examples:
+- Find: {"action":"list","resource":"customers","filters":{"search":"Anna"}}
+- Add: {"action":"create","resource":"customers","data":{"title":"Giorgi Beridze","user_number":"+995599000111","social_network_link":"giorgi@example.com","event_notes":"VIP"}}
+- Edit phone: {"action":"update","resource":"customers","id":"<id>","data":{"user_number":"+995599222333"}}
+Search before adding to avoid duplicates; if the person already exists, update instead.
+
+## 5. Tasks — resource "tasks"
+What a human does on the Tasks board: add a task, move it between columns, set deadline/reminder, archive.
+Fields:
+- title (required), description (text/HTML)
+- status — "todo" (To do), "inprogress" (In progress), "done" (Done)
+- deadline_at — due time; reminder_at — when to remind
+- archived — true / false
+Extra list filter: status.
+Examples:
+- Add: {"action":"create","resource":"tasks","data":{"title":"Call supplier","status":"todo","deadline_at":"2026-11-05T18:00:00+04:00"}}
+- Move to done: {"action":"update","resource":"tasks","id":"<id>","data":{"status":"done"}}
+- Open tasks: {"action":"list","resource":"tasks","filters":{"status":"todo"}}
+- Archive: {"action":"update","resource":"tasks","id":"<id>","data":{"archived":true}}
+
+## 6. Notes — resource "notes"
+Fields: title (required), content (text), color (e.g. "#FFE58F").
+Example: {"action":"create","resource":"notes","data":{"title":"Supplier prices","content":"Shampoo 12 GEL"}}
+
+## 7. Reminders — resource "reminders"
+What a human does with "remind me…": SmartBookly alerts the owner at that time (in the app, and by email/Telegram if the owner turned those on).
+Fields: title (required), message (text), remind_at (required, must be in the future).
+Date filters use remind_at.
+Example: "remind me 1 hour before my 10:00 interview on 3 Nov" -> {"action":"create","resource":"reminders","data":{"title":"Interview","message":"Interview at 10:00","remind_at":"2026-11-03T09:00:00+04:00"}}
+To change the time: update remind_at. To cancel: delete.
+
+## 8. Common jobs (step by step)
+- "What do I have tomorrow?" -> list events with from/to for tomorrow, plus list tasks with status todo; summarise.
+- "Move Anna's booking to Friday 3pm" -> list events search "Anna" -> confirm the right one -> update start_date and end_date (keep the same duration).
+- "Who hasn't paid?" -> list events (page through with next_offset) and report those with payment_status not "fully_paid".
+- "Add these 20 customers" -> create one at a time; report how many succeeded and which failed.
+- "Mark all of today's tasks done" -> list, then update each; report results.
+
+## 9. Not available through this key
+Sending emails or SMS, approving/rejecting booking requests, business profile and working hours, statistics, files/attachments, team members (sub-users), payments/subscription, settings, and other accounts. Tell the user to do these in the SmartBookly dashboard.
+
+## 10. Errors
+Errors return {"error":"..."}:
+- 401 — key missing, wrong or turned off. Ask the owner for a new key.
+- 400 — bad request: unknown field, missing title/dates, wrong date format, end before start, bad status. Fix the field and try once more.
+- 404 — record not found (wrong id, or already deleted). List again.
+- 413 — request too big (limit 100 KB).
+- 503 — temporary problem. Nothing is confirmed as saved; check with list before trying again.`;
 
 type Key = { id: string; name: string; created_at: string; last_used_at: string | null; revoked_at: string | null };
 type Log = { id: string; agent_name: string; action: string; resource_type: string; resource_id: string | null; created_at: string; details: unknown };
