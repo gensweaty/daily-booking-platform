@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { LogOut, RefreshCw } from "lucide-react";
+import { LogOut, RefreshCw, Bot } from "lucide-react";
+import { lazy, Suspense } from "react";
+const AgentAccessDialog = lazy(() => import("./agents/AgentAccessDialog"));
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -57,6 +59,7 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [userProfileName, setUserProfileName] = useState<string | null>(null);
+  const [isAgentOpen, setIsAgentOpen] = useState(false);
   const [teamManagementOpen, setTeamManagementOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
   const [mounted, setMounted] = useState(false);
