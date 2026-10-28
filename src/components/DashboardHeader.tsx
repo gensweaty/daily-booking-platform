@@ -660,6 +660,19 @@ export const DashboardHeader = ({ username }: DashboardHeaderProps) => {
                   >
                     <LanguageText>{t('profile.changePassword')}</LanguageText>
                   </Button>
+                  <Button
+                    variant="outline"
+                    className={`w-full mt-3 ${isMobile ? 'h-10 text-base' : 'h-12 text-lg'} font-medium`}
+                    onClick={() => setIsAgentOpen(true)}
+                  >
+                    <Bot className="h-4 w-4 mr-2" />
+                    {language === 'ka' ? 'AI აგენტები და API გასაღებები' : language === 'es' ? 'Agentes de IA y claves API' : 'AI agents & API keys'}
+                  </Button>
+                  {isAgentOpen && (
+                    <Suspense fallback={null}>
+                      <AgentAccessDialog open={isAgentOpen} onOpenChange={setIsAgentOpen} />
+                    </Suspense>
+                  )}
                 </div>
               </div>
             </DialogContent>
