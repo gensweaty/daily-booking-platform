@@ -2273,6 +2273,7 @@ export type Database = {
           created_by_name: string | null
           created_by_type: string | null
           deadline_at: string | null
+          deleted_at: string | null
           description: string | null
           email_reminder: boolean | null
           email_reminder_enabled: boolean | null
@@ -2307,6 +2308,7 @@ export type Database = {
           created_by_name?: string | null
           created_by_type?: string | null
           deadline_at?: string | null
+          deleted_at?: string | null
           description?: string | null
           email_reminder?: boolean | null
           email_reminder_enabled?: boolean | null
@@ -2341,6 +2343,7 @@ export type Database = {
           created_by_name?: string | null
           created_by_type?: string | null
           deadline_at?: string | null
+          deleted_at?: string | null
           description?: string | null
           email_reminder?: boolean | null
           email_reminder_enabled?: boolean | null
@@ -2451,6 +2454,20 @@ export type Database = {
       _as_service_role: { Args: never; Returns: undefined }
       activate_subscription: {
         Args: { p_subscription_type: string; p_user_id: string }
+        Returns: Json
+      }
+      agent_list: {
+        Args: {
+          p_date_field: string
+          p_from: string
+          p_limit: number
+          p_offset: number
+          p_resource: string
+          p_search: string
+          p_status: string
+          p_to: string
+          p_user: string
+        }
         Returns: Json
       }
       apply_agent_change: {
@@ -2857,6 +2874,7 @@ export type Database = {
           created_by_name: string | null
           created_by_type: string | null
           deadline_at: string | null
+          deleted_at: string | null
           description: string | null
           email_reminder: boolean | null
           email_reminder_enabled: boolean | null
