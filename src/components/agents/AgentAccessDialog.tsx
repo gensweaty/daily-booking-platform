@@ -42,12 +42,13 @@ POST ${endpoint}  -> do something. Body:
 
 ## 2. Actions (same for every resource)
 - list   — find records. Newest first. Response: {"ok":true,"items":[...],"count":n,"total":N,"offset":o,"next_offset":o2|null}
-           filters: limit (1-200, default 50), offset (default 0), search (text in title, case-insensitive), from / to (ISO dates), status (tasks only).
+           filters: limit (1-200, default 50), offset (default 0), search (plain text, max 200 characters, case-insensitive; symbols like * % _ are matched literally), from / to (ISO dates), date_field (which date from/to apply to — see each resource), status (tasks only).
+           An offset past the end returns an empty list with the real total.
            If next_offset is not null, call again with offset = next_offset to get more.
 - get    — one record by id. Response: {"ok":true,"item":{...}}
 - create — add a record. Response: {"ok":true,"item":{...}} (contains the new id)
 - update — change some fields of a record by id.
-- delete — remove a record by id. Response: {"ok":true,"deleted":"<id>"}
+- delete — remove a record by id. Response: {"ok":true,"deleted":"<id>"}. Deleting the same record again returns 404.
 Every record also has "id" and "created_at" (read-only).
 
 ## 3. Calendar bookings — resource "events"
@@ -63,7 +64,7 @@ Fields:
 - payment_status — "not_paid", "partly_paid" or "fully_paid"
 - payment_amount — number ≥ 0 (or null)
 - type — booking type text (usually leave empty)
-Date filters (from/to) use start_date.
+Date filters (from/to) use start_date by default. date_field can be: start_date, end_date, created_at.
 Examples:
 - See bookings next week: {"action":"list","resource":"events","filters":{"from":"2026-11-02T00:00:00+04:00","to":"2026-11-08T23:59:59+04:00"}}
 - Book: {"action":"create","resource":"events","data":{"title":"Anna Smith","user_number":"+995555123456","event_name":"Haircut","start_date":"2026-11-03T14:00:00+04:00","end_date":"2026-11-03T15:00:00+04:00","payment_status":"not_paid"}}
@@ -74,8 +75,8 @@ Before booking, list events for that day to check the time is free; tell the use
 
 ## 4. Customers (CRM) — resource "customers"
 What a human does in the CRM tab: add, edit, look up and remove customers.
-Fields: title (required — customer's full name), user_surname, user_number (phone), social_network_link (email/social), event_notes (comments), payment_status, payment_amount, start_date, end_date (optional).
-Date filters use created_at.
+Fields: title (required — customer's full name), user_surname, user_number (phone), social_network_link (email/social), event_notes (comments), payment_status, payment_amount, start_date, end_date (both optional; if both are given, end_date must be after start_date — on create and update).
+Date filters use created_at by default. date_field can be: start_date, end_date, created_at.
 Examples:
 - Find: {"action":"list","resource":"customers","filters":{"search":"Anna"}}
 - Add: {"action":"create","resource":"customers","data":{"title":"Giorgi Beridze","user_number":"+995599000111","social_network_link":"giorgi@example.com","event_notes":"VIP"}}
@@ -89,7 +90,8 @@ Fields:
 - status — "todo" (To do), "inprogress" (In progress), "done" (Done)
 - deadline_at — due time; reminder_at — when to remind
 - archived — true / false
-Extra list filter: status.
+Extra list filter: status. Date filters use created_at by default. date_field can be: deadline, created_at.
+Delete removes the task for good from the API and the dashboard (get/list/update then return 404). Archiving is separate and keeps the task in the archive.
 Examples:
 - Add: {"action":"create","resource":"tasks","data":{"title":"Call supplier","status":"todo","deadline_at":"2026-11-05T18:00:00+04:00"}}
 - Move to done: {"action":"update","resource":"tasks","id":"<id>","data":{"status":"done"}}
@@ -97,13 +99,14 @@ Examples:
 - Archive: {"action":"update","resource":"tasks","id":"<id>","data":{"archived":true}}
 
 ## 6. Notes — resource "notes"
-Fields: title (required), content (text), color (e.g. "#FFE58F").
+Fields: title (required), content (text), color — one of #F2FCE2, #FEF7CD, #FEC6A1, #E5DEFF, #FFDEE2, #D3E4FD.
+Date filters use created_at (date_field: created_at).
 Example: {"action":"create","resource":"notes","data":{"title":"Supplier prices","content":"Shampoo 12 GEL"}}
 
 ## 7. Reminders — resource "reminders"
 What a human does with "remind me…": SmartBookly alerts the owner at that time (in the app, and by email/Telegram if the owner turned those on).
 Fields: title (required), message (text), remind_at (required, must be in the future).
-Date filters use remind_at.
+Date filters use remind_at by default. date_field can be: remind_at, created_at.
 Example: "remind me 1 hour before my 10:00 interview on 3 Nov" -> {"action":"create","resource":"reminders","data":{"title":"Interview","message":"Interview at 10:00","remind_at":"2026-11-03T09:00:00+04:00"}}
 To change the time: update remind_at. To cancel: delete.
 
@@ -118,12 +121,13 @@ To change the time: update remind_at. To cancel: delete.
 Sending emails or SMS, approving/rejecting booking requests, business profile and working hours, statistics, files/attachments, team members (sub-users), payments/subscription, settings, and other accounts. Tell the user to do these in the SmartBookly dashboard.
 
 ## 10. Errors
-Errors return {"error":"..."}:
+Errors return {"ok":false,"error":{"code":"...","message":"...","field":"<field or null>"}}.
+Codes: invalid_request, invalid_value, missing_field, unauthorized, not_found, internal_error.
 - 401 — key missing, wrong or turned off. Ask the owner for a new key.
 - 400 — bad request: unknown field, missing title/dates, wrong date format, end before start, bad status. Fix the field and try once more.
 - 404 — record not found (wrong id, or already deleted). List again.
 - 413 — request too big (limit 100 KB).
-- 503 — temporary problem. Nothing is confirmed as saved; check with list before trying again.`;
+- 500 — internal_error, temporary problem. Nothing is confirmed as saved; check with list before trying again.`;
 
 type Key = { id: string; name: string; created_at: string; last_used_at: string | null; revoked_at: string | null };
 type Log = { id: string; agent_name: string; action: string; resource_type: string; resource_id: string | null; created_at: string; details: unknown };
