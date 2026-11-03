@@ -78,6 +78,7 @@ export const getTasks = async (ownerId: string) => {
     .select('*')
     .eq('user_id', ownerId)
     .is('archived_at', null)  // Only get non-archived tasks
+    .is('deleted_at', null)  // Hide tasks removed by an agent
     .order('position', { ascending: true })
     .order('created_at', { ascending: false });
 

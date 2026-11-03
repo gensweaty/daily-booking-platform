@@ -151,7 +151,7 @@ export default function AgentAccessDialog({ open, onOpenChange }: { open: boolea
 
   const call = async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke("agent-api", { body });
-    if (error || data?.error) throw new Error(data?.error || error?.message || "Error");
+    if (error || data?.error) throw new Error(data?.error?.message || data?.error || error?.message || "Error");
     return data;
   };
 
