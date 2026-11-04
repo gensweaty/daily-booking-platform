@@ -19,6 +19,8 @@ const LazyPricingSection = lazyWithRetry(() =>
   }))
 );
 
+const LazyAgentSection = lazyWithRetry(() => import("@/components/landing/AgentSection"));
+
 const LazyFooterSection = lazyWithRetry(() =>
   import("@/components/landing/FooterSection").then(module => ({
     default: module.default,
@@ -54,6 +56,10 @@ export const Landing = memo(() => {
           <LazyFeatureSection />
         </Suspense>
         
+        <Suspense fallback={<SectionSkeleton className="my-20 mx-4 h-80" />}>
+          <LazyAgentSection />
+        </Suspense>
+
         <Suspense fallback={<SectionSkeleton className="my-20 mx-4 h-96" />}>
           <LazyPricingSection />
         </Suspense>
