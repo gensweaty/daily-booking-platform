@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ImageCarousel } from "./ImageCarousel";
-import { Sparkles } from "lucide-react";
+import { ArrowRight, Check, LockKeyhole, CalendarCheck } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -62,6 +62,18 @@ const productImages = [{
 
 const MemoizedImageCarousel = memo(ImageCarousel);
 
+const eyebrow = {
+  en: "AI-powered booking & business workspace",
+  es: "Reservas y gestión empresarial con IA",
+  ka: "AI-ით მართული ჯავშნები და ბიზნეს სივრცე",
+};
+
+const trust = {
+  en: ["No credit card required", "Setup in minutes", "Free business website"],
+  es: ["Sin tarjeta de crédito", "Configuración en minutos", "Sitio web gratuito"],
+  ka: ["საკრედიტო ბარათი არ არის საჭირო", "წუთებში გამართვა", "უფასო ბიზნეს საიტი"],
+};
+
 interface HeroContentProps {
   isMobileMenuOpen: boolean;
 }
@@ -72,52 +84,77 @@ export const HeroContent = memo(({ isMobileMenuOpen }: HeroContentProps) => {
 
   return (
     <main className={cn(
-      "grid md:grid-cols-2 gap-6 md:gap-8 lg:gap-12 items-center mt-6 md:mt-8 lg:mt-12 relative",
+      "flex flex-col items-center gap-6 sm:gap-8 mt-7 md:mt-12 mb-8 lg:mb-12 relative",
       isMobileMenuOpen ? 'z-10' : 'z-20'
     )}>
-      <div className="space-y-3 md:space-y-4 animate-fade-in">
-        <article className="space-y-2 md:space-y-4">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-[#335CF4] via-[#08B531] to-[#FF4E32] bg-clip-text text-transparent transition-all duration-300 hover:from-[#FF4E32] hover:via-[#08B531] hover:to-[#335CF4]">
+      <div className="w-full max-w-4xl space-y-4 text-center md:space-y-5">
+        <div className="landing-surface inline-flex max-w-full items-center gap-2 rounded-full border border-primary/20 px-3 py-2 text-[11px] font-mono font-medium text-primary sm:text-sm">
+          <CalendarCheck className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <LanguageText>{eyebrow[language as keyof typeof eyebrow] || eyebrow.en}</LanguageText>
+        </div>
+        <article className="space-y-3 md:space-y-4">
+          <h1 className="landing-display text-5xl font-bold leading-[1.05] sm:text-6xl lg:text-7xl">SmartBookly</h1>
+          <h2 className="text-xl font-semibold leading-tight text-foreground sm:text-3xl lg:text-4xl">
             <LanguageText>{t('hero.title')}</LanguageText>
-          </h1>
-          <h2 className="text-xl md:text-2xl font-semibold text-foreground/90 transition-colors duration-300 hover:text-primary">
-            <LanguageText>{t('hero.subtitle')}</LanguageText>
           </h2>
-          <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
-            <LanguageText>{t('hero.description')}</LanguageText>
+          <p className="text-sm font-medium leading-relaxed text-muted-foreground sm:text-base">
+            <LanguageText>{t('hero.subtitle')}</LanguageText>
           </p>
         </article>
-        <div className="pt-2 md:pt-3 relative">
-          <div className="absolute -inset-4 pointer-events-none hidden lg:block">
-            <div className="absolute top-0 left-0 w-2 h-2 bg-primary/30 rounded-full animate-float will-animate" />
-            <div className="absolute top-2 right-0 w-1 h-1 bg-accent/40 rounded-full animate-float-slow will-animate" />
-            <div className="absolute bottom-0 left-1/2 w-1.5 h-1.5 bg-primary/20 rounded-full animate-float will-animate" style={{animationDelay: '1s'}} />
-          </div>
-          <Link to="/signup">
-            <Button 
-              size={isMobile ? "default" : "lg"} 
-              variant="purple"
-              className="group relative ripple-container will-animate gpu-layer"
+        <div className="flex items-center justify-center gap-3 pt-1">
+          <Link to="/signup" className="min-w-0">
+            <Button
+              size={isMobile ? "default" : "lg"}
+              className="landing-elevated group max-w-full rounded-md px-4 text-sm transition-colors duration-200 sm:px-6"
             >
               <span className="flex items-center gap-2">
                 {language === 'ka' ? "გამოსცადეთ უფასოდ" : t('nav.startJourney')}
-                <Sparkles className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} animate-pulse`} aria-hidden="true" />
+                <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true" />
               </span>
             </Button>
           </Link>
+          <Button
+            variant="outline"
+            size={isMobile ? "default" : "lg"}
+            className="rounded-md px-4 bg-card transition-colors duration-200 sm:px-6"
+            onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            {t('nav.pricing')}
+          </Button>
         </div>
+        <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground sm:text-sm">
+          {(trust[language as keyof typeof trust] || trust.en).map((item) => (
+            <li key={item} className="flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-primary" aria-hidden="true" />
+              <LanguageText>{item}</LanguageText>
+            </li>
+          ))}
+        </ul>
       </div>
-      <div className="animate-fade-in group">
-        <div className="transition-transform duration-700 ease-out group-hover:scale-[1.02]">
-          <MemoizedImageCarousel 
-            images={productImages} 
-            permanentArrows={true} 
-            imageHeight="h-[480px]"
+      <div className="landing-stage relative w-full min-w-0 max-w-4xl rounded-lg border border-border p-2 sm:p-3 lg:p-4">
+        
+        <div className="landing-elevated relative rounded-lg border border-border bg-card overflow-hidden">
+          <div className="flex h-11 items-center gap-1.5 border-b border-border bg-muted/40 px-3 sm:px-4">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-accent/70" aria-hidden="true" />
+            <span className="h-2 w-2 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden="true" />
+            <span className="h-2 w-2 shrink-0 rounded-full bg-secondary/70" aria-hidden="true" />
+            <div className="ml-2 flex min-w-0 flex-1 items-center justify-center gap-1.5 font-mono text-[11px] text-muted-foreground sm:ml-3">
+              <LockKeyhole className="h-3 w-3 shrink-0" aria-hidden="true" /><span className="truncate">smartbookly.com/dashboard</span>
+            </div>
+          </div>
+          <MemoizedImageCarousel
+            images={productImages}
+            permanentArrows={true}
+            imageHeight={isMobile ? "h-[300px]" : "h-[440px]"}
             objectFit="object-contain"
+            arrowsInside={true}
             isHeroSlider={true}
           />
         </div>
       </div>
+      <p className="max-w-3xl text-center text-sm leading-relaxed text-muted-foreground sm:text-base">
+        <LanguageText>{t('hero.description')}</LanguageText>
+      </p>
     </main>
   );
 });

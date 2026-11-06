@@ -193,13 +193,15 @@ export const FeatureSection = () => {
     id: "sms-notifications",
     reverse: false
   }];
-  return <section className="py-20 bg-muted/30">
+  return <section className="border-t border-border py-12 sm:py-16 bg-background">
       <div className="container mx-auto px-4">
         <FeatureButtons />
         <ClientLogos />
-        {features.map((feature, index) => <div key={index} id={feature.id}>
-            <FeatureCard {...feature} />
-          </div>)}
+        <div className="space-y-16 sm:space-y-20 lg:space-y-24">
+          {features.map((feature) => <div key={feature.id} id={feature.id} className="min-w-0 scroll-mt-28">
+              <FeatureCard {...feature} />
+            </div>)}
+        </div>
       </div>
     </section>;
 };

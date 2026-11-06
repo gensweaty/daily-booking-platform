@@ -10,6 +10,7 @@ import { EmailComposerDialog } from "@/components/crm/EmailComposerDialog";
 import { SmsComposerDialog } from "@/components/crm/SmsComposerDialog";
 import { getSmsLog, getGatewayCreds, registerInboundWebhook } from "@/lib/smsGateway";
 import { EmailDeliveryStatusPanel } from "@/components/business/EmailDeliveryStatusPanel";
+import { EmailHistory } from "./EmailHistory";
 const SmsSettingsSection = lazy(() => import("@/components/business/SmsSettingsSection"));
 
 const COPY = {
@@ -22,6 +23,45 @@ const group = (s: string) =>
   ["delivered", "sent", "opened", "clicked"].includes(s) ? "delivered" : ["failed", "bounced", "spam"].includes(s) ? "failed" : "pending";
 
 type Item = { id: string; who: string; title?: string; text?: string; status?: string; inbound: boolean; at: string };
+type Copy = (typeof COPY)["en"];
+
+const List = ({ items, c, onReply }: { items: Item[]; c: Copy; onReply: (it: Item) => void }) =>
+  items.length === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">{c.empty}</p> : (
+    <div className="space-y-2">
+      {items.map((it) => {
+        const g = it.status ? group(it.status) : "";
+        return (
+          <div key={it.id} className={`rounded-lg border p-3 ${it.inbound ? "border-primary/40 bg-primary/5" : ""}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{it.inbound && <Reply className="mr-1 inline h-3.5 w-3.5 text-primary" />}{it.who}</p>
+                {it.title && <p className="truncate text-sm">{it.title}</p>}
+              </div>
+              <div className="flex items-center gap-2">
+                {it.inbound ? <Badge>{c.replyTag}</Badge> : <Badge variant={g === "failed" ? "destructive" : g === "delivered" ? "default" : "secondary"}>{c[g as "delivered"]}</Badge>}
+                <Button size="sm" variant="ghost" onClick={() => onReply(it)}>{c.reply}</Button>
+              </div>
+            </div>
+            {it.text && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted-foreground">{it.text}</p>}
+            <p className="mt-1 text-[11px] text-muted-foreground">{new Date(it.at).toLocaleString()}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+const Section = ({ list, settings, view, setView, c }: { list: React.ReactNode; settings: React.ReactNode; view: "inbox" | "settings"; setView: (v: "inbox" | "settings") => void; c: Copy }) => (
+  <div className="space-y-4">
+    <div className="inline-flex rounded-lg border bg-muted/30 p-1">
+      {(["inbox", "settings"] as const).map((v) => (
+        <Button key={v} size="sm" variant={view === v ? "default" : "ghost"} onClick={() => setView(v)} className="gap-1.5">
+          {v === "inbox" ? <Mail className="h-4 w-4" /> : <Settings className="h-4 w-4" />}{v === "inbox" ? c.inbox : c.settings}
+        </Button>
+      ))}
+    </div>
+    {view === "inbox" ? list : <Suspense fallback={<p className="py-6 text-center text-sm text-muted-foreground">…</p>}>{settings}</Suspense>}
+  </div>
+);
 
 export const MessagesPage = ({ composeRequest }: { composeRequest: { kind: "email" | "sms"; at: number } | null }) => {
   const { language } = useLanguage();
@@ -32,7 +72,7 @@ export const MessagesPage = ({ composeRequest }: { composeRequest: { kind: "emai
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [prefill, setPrefill] = useState<any[]>([]);
-  const [emails, setEmails] = useState<Item[]>([]);
+  const [emailRefreshKey, setEmailRefreshKey] = useState(0);
   const [smsItems, setSmsItems] = useState<Item[]>([]);
 
   useEffect(() => {
@@ -43,15 +83,8 @@ export const MessagesPage = ({ composeRequest }: { composeRequest: { kind: "emai
   }, [composeRequest]);
 
   const load = useCallback(async () => {
-    const [{ data: logs }, { data: inbound }] = await Promise.all([
-      supabase.from("email_logs" as any).select("id,recipient,subject,status,reason,created_at").order("created_at", { ascending: false }).limit(200),
-      supabase.from("inbound_messages" as any).select("id,channel,sender,subject,body,received_at").order("received_at", { ascending: false }).limit(200),
-    ]);
+    const { data: inbound } = await supabase.from("inbound_messages").select("id,channel,sender,subject,body,received_at").eq("channel", "sms").order("received_at", { ascending: false }).limit(200);
     const inb = ((inbound as any[]) || []).map((m) => ({ id: m.id, who: m.sender, title: m.subject, text: m.body, inbound: true, at: m.received_at, channel: m.channel }));
-    setEmails([
-      ...((logs as any[]) || []).map((l) => ({ id: l.id, who: l.recipient, title: l.subject, text: l.reason, status: l.status, inbound: false, at: l.created_at })),
-      ...inb.filter((m) => m.channel === "email"),
-    ].sort((a, b) => b.at.localeCompare(a.at)));
     setSmsItems([
       ...getSmsLog().map((s) => ({ id: s.key, who: s.to, text: s.error ? `${s.text} — ${s.error}` : s.text, status: s.status, inbound: false, at: s.createdAt })),
       ...inb.filter((m) => m.channel === "sms"),
@@ -83,44 +116,6 @@ export const MessagesPage = ({ composeRequest }: { composeRequest: { kind: "emai
     else { setPrefill([{ user_number: who, title: who }]); setSmsOpen(true); }
   };
 
-  const List = ({ items }: { items: Item[] }) =>
-    items.length === 0 ? <p className="py-10 text-center text-sm text-muted-foreground">{c.empty}</p> : (
-      <div className="space-y-2">
-        {items.map((it) => {
-          const g = it.status ? group(it.status) : "";
-          return (
-            <div key={it.id} className={`rounded-lg border p-3 ${it.inbound ? "border-primary/40 bg-primary/5" : ""}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{it.inbound && <Reply className="mr-1 inline h-3.5 w-3.5 text-primary" />}{it.who}</p>
-                  {it.title && <p className="truncate text-sm">{it.title}</p>}
-                </div>
-                <div className="flex items-center gap-2">
-                  {it.inbound ? <Badge>{c.replyTag}</Badge> : <Badge variant={g === "failed" ? "destructive" : g === "delivered" ? "default" : "secondary"}>{c[g as "delivered"]}</Badge>}
-                  <Button size="sm" variant="ghost" onClick={() => replyTo(it)}>{c.reply}</Button>
-                </div>
-              </div>
-              {it.text && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted-foreground">{it.text}</p>}
-              <p className="mt-1 text-[11px] text-muted-foreground">{new Date(it.at).toLocaleString()}</p>
-            </div>
-          );
-        })}
-      </div>
-    );
-
-  const Section = ({ list, settings }: { list: React.ReactNode; settings: React.ReactNode }) => (
-    <div className="space-y-4">
-      <div className="inline-flex rounded-lg border bg-muted/30 p-1">
-        {(["inbox", "settings"] as const).map((v) => (
-          <Button key={v} size="sm" variant={view === v ? "default" : "ghost"} onClick={() => setView(v)} className="gap-1.5">
-            {v === "inbox" ? <Mail className="h-4 w-4" /> : <Settings className="h-4 w-4" />}{v === "inbox" ? c.inbox : c.settings}
-          </Button>
-        ))}
-      </div>
-      {view === "inbox" ? list : <Suspense fallback={<p className="py-6 text-center text-sm text-muted-foreground">…</p>}>{settings}</Suspense>}
-    </div>
-  );
-
   return (
     <div className="space-y-4">
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
@@ -130,17 +125,17 @@ export const MessagesPage = ({ composeRequest }: { composeRequest: { kind: "emai
             <TabsTrigger value="sms" className="gap-1.5"><MessageSquare className="h-4 w-4" />{c.sms}</TabsTrigger>
           </TabsList>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={load} className="gap-1.5"><RefreshCw className="h-4 w-4" />{c.refresh}</Button>
+            <Button size="sm" variant="outline" onClick={() => { void load(); setEmailRefreshKey((k) => k + 1); }} className="gap-1.5"><RefreshCw className="h-4 w-4" />{c.refresh}</Button>
             {tab === "sms" && <Button size="sm" variant="outline" onClick={enableSmsReplies}>{c.enableSms}</Button>}
             <Button size="sm" onClick={() => { setPrefill([]); tab === "email" ? setEmailOpen(true) : setSmsOpen(true); }}>
               {tab === "email" ? c.newEmail : c.newSms}
             </Button>
           </div>
         </div>
-        <TabsContent value="email" className="mt-4"><Section list={<List items={emails} />} settings={<EmailDeliveryStatusPanel />} /></TabsContent>
-        <TabsContent value="sms" className="mt-4"><Section list={<List items={smsItems} />} settings={<SmsSettingsSection />} /></TabsContent>
+        <TabsContent value="email" className="mt-4"><Section view={view} setView={setView} c={c} list={<EmailHistory refreshKey={emailRefreshKey} onReply={(who) => replyTo({ id: "", who, inbound: false, at: "" })} />} settings={<EmailDeliveryStatusPanel />} /></TabsContent>
+        <TabsContent value="sms" className="mt-4"><Section view={view} setView={setView} c={c} list={<List items={smsItems} c={c} onReply={replyTo} />} settings={<SmsSettingsSection />} /></TabsContent>
       </Tabs>
-      {emailOpen && <EmailComposerDialog open={emailOpen} onOpenChange={(v) => { setEmailOpen(v); if (!v) load(); }} customers={prefill} plainLayout />}
+      {emailOpen && <EmailComposerDialog open={emailOpen} onOpenChange={(v) => { setEmailOpen(v); if (!v) setEmailRefreshKey((k) => k + 1); }} customers={prefill} plainLayout />}
       {smsOpen && <SmsComposerDialog open={smsOpen} onOpenChange={(v) => { setSmsOpen(v); if (!v) load(); }} customers={prefill} />}
     </div>
   );

@@ -1,0 +1,2 @@
+ALTER TABLE public.email_logs ADD COLUMN IF NOT EXISTS message_details jsonb;
+COMMENT ON COLUMN public.email_logs.message_details IS 'Rendered sent message and attachment metadata; retrieved only in the owner email detail view, never in list queries.';

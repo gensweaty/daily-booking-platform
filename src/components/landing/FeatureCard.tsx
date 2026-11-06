@@ -1,10 +1,10 @@
-import { LucideIcon, CheckCircle } from "lucide-react";
+import { LucideIcon, Check } from "lucide-react";
 import { ImageCarousel } from "./ImageCarousel";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LanguageText } from "@/components/shared/LanguageText";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { memo } from "react";
 import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
 
 interface FeatureCardProps {
   icon: LucideIcon;
@@ -34,12 +34,10 @@ const FeatureCardComponent = ({
   image,
   imageDark,
   carousel,
-  reverse,
+  reverse = false,
   translationPrefix,
 }: FeatureCardProps) => {
   const { t } = useLanguage();
-  const isMobile = useMediaQuery("(max-width: 640px)");
-  const isTablet = useMediaQuery("(max-width: 1024px)");
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   // Use the opposite screenshot theme for deliberate contrast:
@@ -52,70 +50,62 @@ const FeatureCardComponent = ({
     return `${translationPrefix}.${key}`;
   };
   
-  const getObjectFit = () => {
-    if (translationPrefix === 'website') return 'object-cover';
-    return 'object-contain';
-  };
-  
-  const getImageHeight = () => {
-    if (isMobile) return 'h-[320px]';
-    if (isTablet) return 'h-[400px]';
-    return 'h-[480px]';
-  };
-  
   return (
-    <div
-      className={`grid md:grid-cols-2 gap-6 md:gap-12 items-center mb-8 md:mb-20 relative animate-fade-in ${
-        reverse ? 'md:flex-row-reverse' : ''
-      }`}
+    <article
+      className="group/feature grid min-w-0 items-center gap-8 lg:grid-cols-2 lg:gap-12"
     >
-      <div className={`space-y-4 md:space-y-6 ${reverse ? 'md:order-2' : ''} order-1 relative z-10`}>
-        <div className="flex items-center gap-3 mb-3 md:mb-4 group/header">
-          <div className="p-2 rounded-lg bg-primary/10 glass-morphism transition-transform duration-300 group-hover/header:scale-110">
-            <Icon className="w-5 h-5 md:w-6 md:h-6 text-primary transition-transform duration-300 group-hover/header:rotate-12" />
+      <div className={cn("min-w-0 space-y-5", reverse && "lg:order-2")}>
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+            <Icon className="h-6 w-6" aria-hidden="true" />
           </div>
-          <h3 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 bg-clip-text text-transparent transition-all duration-300 hover:from-purple-500 hover:via-pink-500 hover:to-orange-500">
+          <h3 className="landing-feature-heading min-w-0 pt-1 text-2xl font-bold leading-snug sm:text-3xl">
             <LanguageText>{t(getTranslationKey('title'))}</LanguageText>
           </h3>
         </div>
-        <p className="text-base md:text-lg text-muted-foreground">
+        <p className="font-mono text-base leading-relaxed text-muted-foreground">
           <LanguageText>{t(getTranslationKey('description'))}</LanguageText>
         </p>
-        <ul className="space-y-2 md:space-y-3">
+        <ul className="grid gap-3">
           {benefits.map((benefit, idx) => (
             <li
               key={idx}
-              className="flex items-start gap-2 group/item"
+              className="flex min-w-0 items-start gap-3"
             >
-              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-primary mt-1 flex-shrink-0 transition-transform duration-200 group-hover/item:scale-110" />
-              <span className="text-base group-hover/item:text-primary transition-colors duration-200">
+              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary/10"><Check className="h-3.5 w-3.5 landing-green" aria-hidden="true" /></span>
+              <span className="min-w-0 font-mono text-sm leading-relaxed text-foreground sm:text-base">
                 <LanguageText>{t(getTranslationKey(`feature${idx + 1}`))}</LanguageText>
               </span>
             </li>
           ))}
         </ul>
       </div>
-      <div className={`relative ${reverse ? 'md:order-1' : ''} order-2`}>
-        <div className="rounded-xl overflow-hidden shadow-xl bg-white/50 dark:bg-black/20 backdrop-blur-sm transition-shadow duration-300 hover:shadow-2xl">
+      <div data-tone={['telegramAi', 'teamChat', 'crm'].includes(translationPrefix) ? 'green' : ['smsNotifications', 'emailCampaigns', 'embedBooking'].includes(translationPrefix) ? 'coral' : 'blue'} className={cn("landing-feature-stage order-first min-w-0 lg:order-none", reverse && "lg:order-1")}>
+        <div className="mb-3 flex min-w-0 items-center gap-2 text-xs font-medium text-muted-foreground">
+          <Icon className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+          <span className="min-w-0 truncate"><LanguageText>{t(getTranslationKey('title'))}</LanguageText></span>
+        </div>
+        <div className="landing-elevated overflow-hidden rounded-lg border border-border bg-card p-1 transition-colors duration-200 hover:border-primary/40">
           {carousel ? (
             <ImageCarousel 
               images={carousel} 
               permanentArrows={true}
-              objectFit={getObjectFit()}
-              imageHeight={getImageHeight()}
+              objectFit="object-contain"
               arrowsInside={true}
+              isFeatureGrid={true}
             />
           ) : (
             <img 
               src={displayImage} 
               alt={t(getTranslationKey('title'))} 
-              className={`w-full ${getImageHeight()} ${getObjectFit()} p-2 md:p-4`}
+              className="aspect-[16/10] w-full rounded-md object-contain"
               loading="lazy"
+              decoding="async"
             />
           )}
         </div>
       </div>
-    </div>
+    </article>
   );
 };
 

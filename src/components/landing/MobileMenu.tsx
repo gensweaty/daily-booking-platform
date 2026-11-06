@@ -51,8 +51,8 @@ export const MobileMenu = memo(({ isMobileMenuOpen, handleMenuClose }: MobileMen
         </Button>
       </Link>
       <Link to="/signup" onClick={handleMenuClose} role="menuitem">
-        <Button variant="purple" className="w-full justify-start gpu-layer will-animate">
-          {language === 'ka' ? "რეგისტრაცია" : "Sign Up"}
+        <Button variant="default" className="w-full justify-start">
+          {language === 'ka' ? "რეგისტრაცია" : t('auth.signUpButton')}
         </Button>
       </Link>
       <Button 

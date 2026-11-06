@@ -1,0 +1,21 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import {validateData,project,dateColumn} from './model';
+const future = '2099-01-01T10:00:00Z';
+describe('account agent API rules',()=>{
+  it('rejects an account override',()=>assert.throws(()=>validateData('tasks','create',{title:'Test',user_id:'other'}),/Unsupported field/));
+  it('preserves unmentioned fields on updates',()=>assert.deepEqual(validateData('tasks','update',{status:'done'}),{status:'done'}));
+  it('accepts only real task statuses',()=>assert.throws(()=>validateData('tasks','update',{status:'completed'}),/status/));
+  it('requires actual event dates',()=>assert.throws(()=>validateData('events','create',{title:'Interview'}),/start_date/));
+  it('rejects end before start',()=>assert.throws(()=>validateData('events','create',{title:'Interview',start_date:'2026-10-28T12:00:00Z',end_date:'2026-10-28T11:00:00Z'}),/after/));
+  it('fix 1: update merges stored start before checking end',()=>assert.throws(()=>validateData('events','update',{end_date:'2020-01-01T00:00:00Z'},{start_date:'2026-05-01T10:00:00Z',end_date:'2026-05-01T11:00:00Z'}),/end_date must be after start_date/));
+  it('fix 2: past reminder rejected on create',()=>assert.throws(()=>validateData('reminders','create',{title:'x',remind_at:'2020-01-01T00:00:00Z'}),/future/));
+  it('fix 2: future reminder accepted',()=>assert.doesNotThrow(()=>validateData('reminders','create',{title:'x',remind_at:future})));
+  it('fix 3: customer without dates allowed',()=>assert.doesNotThrow(()=>validateData('customers','create',{title:'x'})));
+  it('fix 3: customer end before start rejected',()=>assert.throws(()=>validateData('customers','create',{title:'x',start_date:'2026-12-02T10:00:00Z',end_date:'2026-12-01T10:00:00Z'}),/after/));
+  it('fix 7: invalid payment status rejected',()=>assert.throws(()=>validateData('events','update',{payment_status:'banana'}),/not_paid, partly_paid, fully_paid/));
+  it('fix 7: invalid note colour rejected',()=>assert.throws(()=>validateData('notes','update',{color:'not-a-color'}),/color must be one of/));
+  it('fix 7: valid values accepted',()=>{for(const p of ['not_paid','partly_paid','fully_paid']) validateData('events','update',{payment_status:p}); validateData('notes','update',{color:'#f2fce2'});});
+  it('fix 9: date_field whitelist',()=>{assert.equal(dateColumn('tasks','deadline'),'deadline_at'); assert.equal(dateColumn('customers','start_date'),'start_date'); assert.equal(dateColumn('events',undefined),null); assert.throws(()=>dateColumn('notes','remind_at'),/date_field must be one of/);});
+  it('excludes private or unsupported columns',()=>assert.deepEqual(project('notes',{id:'1',title:'Note',user_id:'private',access_token:'private'}),{id:'1',title:'Note'}));
+});

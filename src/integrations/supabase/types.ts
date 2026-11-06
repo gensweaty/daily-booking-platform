@@ -14,6 +14,83 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_activity_log: {
+        Row: {
+          action: string
+          agent_name: string
+          created_at: string
+          details: Json
+          id: string
+          key_id: string | null
+          resource_id: string | null
+          resource_type: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          agent_name: string
+          created_at?: string
+          details?: Json
+          id?: string
+          key_id?: string | null
+          resource_id?: string | null
+          resource_type: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          agent_name?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          key_id?: string | null
+          resource_id?: string | null
+          resource_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_activity_log_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "agent_api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_api_keys: {
+        Row: {
+          created_at: string
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          revoked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          revoked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          revoked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_context_memories: {
         Row: {
           audience_sub_user_id: string | null
@@ -890,8 +967,12 @@ export type Database = {
       }
       email_logs: {
         Row: {
+          clicked_at: string | null
           created_at: string
+          delivered_at: string | null
           id: string
+          message_details: Json | null
+          opened_at: string | null
           owner_id: string | null
           purpose: string | null
           reason: string | null
@@ -902,8 +983,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          clicked_at?: string | null
           created_at?: string
+          delivered_at?: string | null
           id?: string
+          message_details?: Json | null
+          opened_at?: string | null
           owner_id?: string | null
           purpose?: string | null
           reason?: string | null
@@ -914,8 +999,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          clicked_at?: string | null
           created_at?: string
+          delivered_at?: string | null
           id?: string
+          message_details?: Json | null
+          opened_at?: string | null
           owner_id?: string | null
           purpose?: string | null
           reason?: string | null
@@ -2184,6 +2273,7 @@ export type Database = {
           created_by_name: string | null
           created_by_type: string | null
           deadline_at: string | null
+          deleted_at: string | null
           description: string | null
           email_reminder: boolean | null
           email_reminder_enabled: boolean | null
@@ -2218,6 +2308,7 @@ export type Database = {
           created_by_name?: string | null
           created_by_type?: string | null
           deadline_at?: string | null
+          deleted_at?: string | null
           description?: string | null
           email_reminder?: boolean | null
           email_reminder_enabled?: boolean | null
@@ -2252,6 +2343,7 @@ export type Database = {
           created_by_name?: string | null
           created_by_type?: string | null
           deadline_at?: string | null
+          deleted_at?: string | null
           description?: string | null
           email_reminder?: boolean | null
           email_reminder_enabled?: boolean | null
@@ -2362,6 +2454,30 @@ export type Database = {
       _as_service_role: { Args: never; Returns: undefined }
       activate_subscription: {
         Args: { p_subscription_type: string; p_user_id: string }
+        Returns: Json
+      }
+      agent_list: {
+        Args: {
+          p_date_field: string
+          p_from: string
+          p_limit: number
+          p_offset: number
+          p_resource: string
+          p_search: string
+          p_status: string
+          p_to: string
+          p_user: string
+        }
+        Returns: Json
+      }
+      apply_agent_change: {
+        Args: {
+          p_action: string
+          p_data?: Json
+          p_id?: string
+          p_key_id: string
+          p_resource: string
+        }
         Returns: Json
       }
       attach_files_to_message_public: {
@@ -2758,6 +2874,7 @@ export type Database = {
           created_by_name: string | null
           created_by_type: string | null
           deadline_at: string | null
+          deleted_at: string | null
           description: string | null
           email_reminder: boolean | null
           email_reminder_enabled: boolean | null

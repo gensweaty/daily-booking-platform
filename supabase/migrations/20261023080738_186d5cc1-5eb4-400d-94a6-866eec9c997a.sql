@@ -1,0 +1,3 @@
+ALTER TABLE public.email_logs ADD COLUMN IF NOT EXISTS delivered_at timestamptz, ADD COLUMN IF NOT EXISTS opened_at timestamptz, ADD COLUMN IF NOT EXISTS clicked_at timestamptz;
+CREATE INDEX IF NOT EXISTS email_logs_owner_created_idx ON public.email_logs(owner_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS inbound_messages_owner_channel_received_idx ON public.inbound_messages(owner_id, channel, received_at DESC);

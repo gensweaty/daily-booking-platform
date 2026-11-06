@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 
 import {
   Carousel,
@@ -8,7 +9,7 @@ import {
   type CarouselApi
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
-import { useEffect, useState, memo, useCallback } from "react";
+import { useEffect, useState, memo, useCallback, useRef } from "react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "next-themes";
 
@@ -29,6 +30,7 @@ interface ImageCarouselProps {
   imageHeight?: string;
   arrowsInside?: boolean; // New prop: true = arrows inside image, false = arrows outside
   isHeroSlider?: boolean; // New prop: for main hero slider specific styling
+  isFeatureGrid?: boolean;
 }
 
 // Simplified image component with better loading handling
@@ -37,24 +39,30 @@ const CarouselImage = memo(({
   alt, 
   customStyle, 
   objectFit,
-  loading = 'lazy'
+  loading = 'lazy',
+  fitContainer = false,
+  priority = false
 }: { 
   src: string; 
   alt: string; 
   customStyle?: string;
   objectFit?: string;
   loading?: 'lazy' | 'eager';
+  fitContainer?: boolean;
+  priority?: boolean;
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   
   return (
-    <div className="relative overflow-hidden">
+    <div className={cn("relative overflow-hidden", fitContainer && "h-full w-full")}>
       {!hasError ? (
         <img
           src={src}
           alt={alt}
           loading={loading}
+          fetchPriority={priority ? 'high' : 'auto'}
+          decoding="async"
           className={cn(
             "w-full h-full transition-opacity duration-300",
             customStyle || objectFit,
@@ -62,11 +70,6 @@ const CarouselImage = memo(({
           )}
           onLoad={() => setIsLoaded(true)}
           onError={() => setHasError(true)}
-          style={{ 
-            imageRendering: 'auto',
-            backfaceVisibility: 'hidden',
-            transform: 'translateZ(0)' // Force hardware acceleration
-          }}
         />
       ) : (
         <div className="w-full h-full bg-muted/20 flex items-center justify-center">
@@ -90,11 +93,17 @@ export const ImageCarousel = ({
   objectFit = "object-contain",
   imageHeight = "h-[400px]",
   arrowsInside = false,
-  isHeroSlider = false
+  isHeroSlider = false,
+  isFeatureGrid = false
 }: ImageCarouselProps) => {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
   const [count, setCount] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(false);
+  const [isPageVisible, setIsPageVisible] = useState(() => !document.hidden);
+  const [isPaused, setIsPaused] = useState(false);
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const isMobile = useMediaQuery("(max-width: 640px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
   const { resolvedTheme } = useTheme();
@@ -106,16 +115,26 @@ export const ImageCarousel = ({
     [isDark]
   );
 
-  // Simplified auto-slide setup
-  const setupAutoSlide = useCallback(() => {
-    if (!api) return;
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsInView(entry?.isIntersecting ?? false);
+    });
+    observer.observe(root);
+    const onVisibility = () => setIsPageVisible(!document.hidden);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
-    const interval = setInterval(() => {
-      api.scrollNext();
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [api]);
+  useEffect(() => {
+    if (!api || images.length < 2 || !isInView || !isPageVisible || isPaused || reduceMotion) return;
+    const interval = window.setInterval(() => api.scrollNext(), 5000);
+    return () => window.clearInterval(interval);
+  }, [api, images.length, isInView, isPageVisible, isPaused, reduceMotion]);
 
   useEffect(() => {
     if (!api) return;
@@ -126,14 +145,10 @@ export const ImageCarousel = ({
     const handleSelect = () => setCurrent(api.selectedScrollSnap() + 1);
     api.on("select", handleSelect);
 
-    // Set up auto-sliding with cleanup
-    const cleanup = setupAutoSlide();
-
     return () => {
       api.off("select", handleSelect);
-      cleanup?.();
     };
-  }, [api, setupAutoSlide]);
+  }, [api]);
 
   // Determine appropriate height based on screen size
   const responsiveHeight = isMobile 
@@ -162,7 +177,16 @@ export const ImageCarousel = ({
     : "w-full relative group";
 
   return (
-    <div className={cn(containerClass, className)}>
+    <div
+      ref={rootRef}
+      className={cn(containerClass, className)}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(rootRef.current?.contains(document.activeElement) ?? false)}
+      onFocusCapture={() => setIsPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setIsPaused(false);
+      }}
+    >
       <Carousel
         opts={{
           align: "start",
@@ -175,22 +199,25 @@ export const ImageCarousel = ({
           {images.map((image, index) => (
             <CarouselItem key={index} className="pl-0">
               <div className={cn(
-                "rounded-xl overflow-hidden transition-shadow duration-200 hover:shadow-lg",
-                responsiveHeight
+                isHeroSlider ? "aspect-[4/3] overflow-hidden" : isFeatureGrid ? "aspect-[16/10] overflow-hidden rounded-md" : "rounded-md overflow-hidden",
+                !isFeatureGrid && !isHeroSlider && responsiveHeight
               )}>
                 <div className={cn(
-                  "relative h-full w-full flex items-center justify-center bg-gradient-to-br from-white/90 to-white/70",
-                  image.customPadding || 'p-0'
+                  "relative h-full w-full flex items-center justify-center",
+                  "bg-card",
+                  isFeatureGrid || isHeroSlider ? "p-0" : image.customPadding || 'p-0'
                 )}>
                   <CarouselImage
                     src={pickSrc(image)}
                     alt={image.alt}
-                    customStyle={image.customStyle}
+                    customStyle={isHeroSlider ? "object-contain" : image.customStyle}
                     objectFit={objectFit}
-                    loading={index === 0 ? 'eager' : 'lazy'}
+                    loading={isFeatureGrid ? 'lazy' : index === 0 ? 'eager' : 'lazy'}
+                    priority={isHeroSlider && index === 0}
+                    fitContainer={isFeatureGrid || isHeroSlider}
                   />
                   {showTitles && image.title && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white p-4 text-center">
+                    <div className="absolute bottom-0 left-0 right-0 bg-background/95 text-foreground p-4 text-center">
                       <span className="font-medium">{image.title}</span>
                     </div>
                   )}
@@ -209,8 +236,8 @@ export const ImageCarousel = ({
                 "transition-opacity duration-200",
                 "absolute -translate-y-1/2 top-1/2",
                 getArrowLeftPosition(),
-                "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
-                "border border-gray-200 dark:border-gray-700 shadow-lg",
+                "bg-background/95 text-foreground hover:bg-muted border-border",
+                "border",
                 "w-10 h-10 rounded-full z-10"
               )}
             />
@@ -220,8 +247,8 @@ export const ImageCarousel = ({
                 "transition-opacity duration-200",
                 "absolute -translate-y-1/2 top-1/2",
                 getArrowRightPosition(),
-                "bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800",
-                "border border-gray-200 dark:border-gray-700 shadow-lg",
+                "bg-background/95 text-foreground hover:bg-muted border-border",
+                "border",
                 "w-10 h-10 rounded-full z-10"
               )}
             />
@@ -231,19 +258,19 @@ export const ImageCarousel = ({
       
       {/* Simplified Carousel Indicators */}
       {count > 1 && (
-        <div className="flex justify-center space-x-1 mt-4">
+        <div className={cn("flex justify-center", isHeroSlider ? "border-t border-border bg-muted/20 py-2" : "mt-4")}>
           {Array.from({ length: count }, (_, index) => (
-            <button
+            <Button variant="ghost"
               key={index}
               className={cn(
-                "w-2 h-2 rounded-full transition-all duration-200",
-                current === index + 1
-                  ? "bg-primary w-6"
-                  : "bg-primary/30 hover:bg-primary/60"
+                "h-7 w-7 min-w-0 rounded-md p-0 hover:bg-muted"
               )}
               onClick={() => api?.scrollTo(index)}
               aria-label={`Go to slide ${index + 1}`}
-            />
+              aria-current={current === index + 1 ? "true" : undefined}
+            >
+              <span className={cn("h-1.5 w-1.5 rounded-full transition-colors duration-200", current === index + 1 ? "bg-primary" : "bg-muted-foreground/40")} />
+            </Button>
           ))}
         </div>
       )}

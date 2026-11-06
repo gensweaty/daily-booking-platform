@@ -1,5 +1,4 @@
 
-import { motion } from "framer-motion";
 import { 
   PartyPopper, 
   Stethoscope, 
@@ -19,70 +18,61 @@ export const ClientLogos = () => {
       name: t('business.events'),
       icon: PartyPopper,
       description: t('business.eventsDesc'),
-      bgColor: "bg-purple-100",
-      iconColor: "text-purple-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.health'),
       icon: Stethoscope,
       description: t('business.healthDesc'),
-      bgColor: "bg-blue-100",
-      iconColor: "text-blue-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.sports'),
       icon: Dumbbell,
       description: t('business.sportsDesc'),
-      bgColor: "bg-green-100",
-      iconColor: "text-green-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.beauty'),
       icon: Flower2,
       description: t('business.beautyDesc'),
-      bgColor: "bg-pink-100",
-      iconColor: "text-pink-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.personal'),
       icon: Users,
       description: t('business.personalDesc'),
-      bgColor: "bg-orange-100",
-      iconColor: "text-orange-500"
+      iconColor: "text-primary"
     },
     { 
       name: t('business.education'),
       icon: GraduationCap,
       description: t('business.educationDesc'),
-      bgColor: "bg-teal-100",
-      iconColor: "text-teal-500"
+      iconColor: "text-primary"
     },
   ];
 
   return (
-    <div className="mb-16">
-      <h3 className="text-center text-2xl font-semibold mb-8 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+    <div className="mb-16 border-y border-border py-8 sm:py-10">
+      <h3 className="mb-7 text-xl font-semibold text-foreground sm:text-2xl">
         <LanguageText withFont={true}>{t('features.businessTitle')}</LanguageText>
       </h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+      <div className="grid grid-cols-2 gap-x-5 gap-y-6 md:grid-cols-3 lg:grid-cols-6 lg:gap-x-6">
         {logos.map((company, index) => (
-          <motion.div
+          <div
             key={index}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="flex flex-col items-center space-y-3 p-4 rounded-lg hover:bg-background/50 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:-translate-y-1 group"
+            className="landing-tile landing-surface min-w-0 rounded-lg border border-border p-3 hover:border-primary/30 sm:p-4"
           >
-            <div className={`p-4 rounded-full ${company.bgColor} group-hover:scale-110 transition-transform duration-300`}>
-              <company.icon className={`w-8 h-8 ${company.iconColor}`} />
+            <div className="mb-3 flex min-h-10 flex-col items-start gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10"><company.icon className={`h-5 w-5 shrink-0 ${index % 3 === 1 ? 'landing-green' : index % 3 === 2 ? 'landing-coral' : company.iconColor}`} aria-hidden="true" /></span>
+              <span className="min-w-0 text-sm font-semibold leading-snug text-foreground">
+                <LanguageText withFont={true}>{company.name}</LanguageText>
+              </span>
             </div>
-            <span className="text-base font-medium text-center leading-tight">
-              <LanguageText withFont={true}>{company.name}</LanguageText>
-            </span>
-            <span className="text-sm text-muted-foreground text-center hidden lg:block leading-snug">
+            <span className="block text-xs leading-relaxed text-muted-foreground sm:text-sm">
               <LanguageText withFont={true}>{company.description}</LanguageText>
             </span>
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>

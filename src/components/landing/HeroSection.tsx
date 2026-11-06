@@ -63,9 +63,11 @@ export const HeroSection = memo(() => {
 
   return (
       <header className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5 animate-gradient-shift" style={{backgroundSize: '400% 400%'}} />
+
+
+
       
-      <nav className="container mx-auto px-4 py-4 md:py-6 lg:py-8 relative">
+      <div className="container mx-auto px-4 py-4 md:py-6 lg:py-8 relative">
         <Navigation 
           isMobileMenuOpen={isMobileMenuOpen}
           setIsMobileMenuOpen={setIsMobileMenuOpen}
@@ -78,7 +80,7 @@ export const HeroSection = memo(() => {
         />
 
         <HeroContent isMobileMenuOpen={isMobileMenuOpen} />
-      </nav>
+      </div>
     </header>
   );
 });

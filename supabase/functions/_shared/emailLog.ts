@@ -23,6 +23,7 @@ export async function logEmail(entry: {
   to: string | string[];
   subject?: string;
   purpose: string;
+  details?: { from: string; to: string[]; cc?: string[]; bcc?: string[]; reply_to?: string; html: string; text?: string; attachments?: { filename: string; content_type?: string }[] };
   result?: { data?: { id?: string } | null; error?: { message?: string } | null } | null;
   error?: unknown;
 }) {
@@ -39,6 +40,7 @@ export async function logEmail(entry: {
         recipient: r,
         subject: entry.subject ?? null,
         purpose: entry.purpose,
+        message_details: entry.details ?? null,
         status: errMsg ? "failed" : "sent",
         reason: errMsg,
       })),
