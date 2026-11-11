@@ -20,6 +20,12 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+    if (type === 'traffic') {
+      return new Response(JSON.stringify(await trafficStats(supabase, dateRange)), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     if (type === 'analytics') {
       const now = new Date()
       let startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000) // Default to 24h ago
@@ -35,8 +41,6 @@ serve(async (req) => {
       const { count: totalUsers } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString())
       
       // Get new users in selected date range
       const { count: newUsers } = await supabase
@@ -49,6 +53,7 @@ serve(async (req) => {
       const { data: allSubscriptions } = await supabase
         .from('subscriptions')
         .select('plan_type, status, current_period_end, subscription_end_date, trial_end_date')
+        .range(0, 9999)
       
       let subscriptionStats = { trial: 0, monthly: 0, yearly: 0, ultimate: 0 }
       
@@ -79,10 +84,10 @@ serve(async (req) => {
       }
       
       const subscriptionData = [
-        { name: 'Trial', value: subscriptionStats.trial || 0, color: '#8884d8' },
-        { name: 'Monthly', value: subscriptionStats.monthly || 0, color: '#82ca9d' },
-        { name: 'Yearly', value: subscriptionStats.yearly || 0, color: '#ffc658' },
-        { name: 'Ultimate', value: subscriptionStats.ultimate || 0, color: '#ff7300' }
+        { name: 'Trial', value: subscriptionStats.trial || 0, color: '#94a3b8' },
+        { name: 'Monthly', value: subscriptionStats.monthly || 0, color: '#335CF4' },
+        { name: 'Yearly', value: subscriptionStats.yearly || 0, color: '#08B531' },
+        { name: 'Ultimate', value: subscriptionStats.ultimate || 0, color: '#FF4E32' }
       ]
       
       // Generate hourly registration data for selected date range
@@ -133,8 +138,8 @@ serve(async (req) => {
       const analyticsData = {
         totalUsers: totalUsers || 0,
         newUsers24h: newUsers || 0,
-        activeSessions: Math.floor(Math.random() * 50) + 10,
-        avgSessionTime: '12m',
+        activeSessions: 0,
+        avgSessionTime: '',
         registrationData,
         subscriptionData
       }
@@ -379,3 +384,118 @@ serve(async (req) => {
     })
   }
 })
+
+
+// ---------- Visitor traffic (privacy-friendly, aggregated) ----------
+const HOUR = 3600_000, DAY = 86_400_000
+
+async function fetchAll(q: () => any) {
+  const out: any[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await q().range(from, from + 999)
+    if (error) throw error
+    out.push(...(data || []))
+    if (!data || data.length < 1000) break
+  }
+  return out
+}
+
+function top(rows: { value: string; views: number; visitors: number }[], n = 10) {
+  const m = new Map<string, { value: string; views: number; visitors: number }>()
+  for (const r of rows) {
+    const c = m.get(r.value) || { value: r.value, views: 0, visitors: 0 }
+    c.views += r.views; c.visitors += r.visitors; m.set(r.value, c)
+  }
+  return [...m.values()].sort((a, b) => b.visitors - a.visitors || b.views - a.views).slice(0, n)
+}
+
+async function trafficStats(supabase: any, range: string) {
+  const now = Date.now()
+  const days = ({ '24h': 1, '7d': 7, '30d': 30, '90d': 90, '1y': 365 } as Record<string, number>)[range] || 7
+  const liveSince = new Date(now - 5 * 60_000).toISOString()
+  const { data: live } = await supabase.from('site_visits').select('visitor_id').gte('created_at', liveSince).limit(1000)
+  const activeNow = new Set((live || []).map((r: any) => r.visitor_id)).size
+
+  // Short windows: compute exactly from raw page views (kept 8 days)
+  if (days <= 7) {
+    const start = now - days * DAY
+    const raw = await fetchAll(() => supabase.from('site_visits')
+      .select('visitor_id, session_id, path, referrer_host, country, device, browser, created_at')
+      .gte('created_at', new Date(start - days * DAY).toISOString()).order('created_at'))
+    const cur = raw.filter(r => Date.parse(r.created_at) >= start)
+    const prev = raw.filter(r => Date.parse(r.created_at) < start)
+    const summarize = (rows: any[]) => {
+      const sessions = new Map<string, { n: number; a: number; b: number }>()
+      for (const r of rows) {
+        const t = Date.parse(r.created_at), s = sessions.get(r.session_id)
+        if (s) { s.n++; s.b = Math.max(s.b, t); s.a = Math.min(s.a, t) } else sessions.set(r.session_id, { n: 1, a: t, b: t })
+      }
+      const ss = [...sessions.values()]
+      return {
+        views: rows.length,
+        visitors: new Set(rows.map(r => r.visitor_id)).size,
+        sessions: ss.length,
+        bounces: ss.filter(s => s.n === 1).length,
+        duration: ss.reduce((x, s) => x + (s.b - s.a) / 1000, 0),
+      }
+    }
+    const bucketMs = days === 1 ? HOUR : DAY
+    const buckets = days === 1 ? 24 : 7
+    const first = days === 1 ? Math.floor(now / HOUR) * HOUR - 23 * HOUR : new Date(new Date(now).toISOString().slice(0, 10)).getTime() - 6 * DAY
+    const series = Array.from({ length: buckets }, (_, i) => ({ t: new Date(first + i * bucketMs).toISOString(), views: 0, visitors: 0, _v: new Set<string>() }))
+    for (const r of cur) {
+      const i = Math.floor((Date.parse(r.created_at) - first) / bucketMs)
+      if (i >= 0 && i < buckets) { series[i].views++; series[i]._v.add(r.visitor_id) }
+    }
+    const dim = (k: string, fallback: string) => {
+      const m = new Map<string, { value: string; views: number; v: Set<string> }>()
+      for (const r of cur) {
+        const val = r[k] || fallback, c = m.get(val) || { value: val, views: 0, v: new Set<string>() }
+        c.views++; c.v.add(r.visitor_id); m.set(val, c)
+      }
+      return [...m.values()].map(c => ({ value: c.value, views: c.views, visitors: c.v.size }))
+        .sort((a, b) => b.visitors - a.visitors || b.views - a.views).slice(0, 10)
+    }
+    return {
+      range, granularity: days === 1 ? 'hour' : 'day', activeNow,
+      current: summarize(cur), previous: summarize(prev),
+      series: series.map(({ _v, ...s }) => ({ ...s, visitors: _v.size })),
+      pages: dim('path', '/'), countries: dim('country', '??'), devices: dim('device', 'unknown'),
+      browsers: dim('browser', 'Other'), sources: dim('referrer_host', 'direct'),
+    }
+  }
+
+  // Long windows: daily totals (visitors = sum of daily unique visitors)
+  const today = new Date(new Date(now).toISOString().slice(0, 10)).getTime()
+  const startDay = new Date(today - (days - 1) * DAY).toISOString().slice(0, 10)
+  const prevStart = new Date(today - (2 * days - 1) * DAY).toISOString().slice(0, 10)
+  const daily = await fetchAll(() => supabase.from('site_visit_daily').select('*').gte('day', prevStart).order('day'))
+  const sum = (rows: any[]) => rows.reduce((a, r) => ({
+    views: a.views + r.views, visitors: a.visitors + r.visitors, sessions: a.sessions + r.sessions,
+    bounces: a.bounces + r.bounces, duration: a.duration + Number(r.duration_sec),
+  }), { views: 0, visitors: 0, sessions: 0, bounces: 0, duration: 0 })
+  const cur = daily.filter(r => r.day >= startDay), prev = daily.filter(r => r.day < startDay)
+  const byDay = new Map(cur.map(r => [r.day, r]))
+  const monthly = days > 90
+  const series: any[] = []
+  if (monthly) {
+    const m = new Map<string, any>()
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today - (days - 1 - i) * DAY).toISOString().slice(0, 10), k = d.slice(0, 7) + '-01'
+      const c = m.get(k) || { t: k, views: 0, visitors: 0 }; const r = byDay.get(d)
+      if (r) { c.views += r.views; c.visitors += r.visitors } m.set(k, c)
+    }
+    series.push(...m.values())
+  } else {
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today - (days - 1 - i) * DAY).toISOString().slice(0, 10), r = byDay.get(d)
+      series.push({ t: d, views: r?.views || 0, visitors: r?.visitors || 0 })
+    }
+  }
+  const br = await fetchAll(() => supabase.from('site_visit_daily_breakdown').select('dim, value, views, visitors').gte('day', startDay))
+  const pick = (d: string) => top(br.filter(r => r.dim === d))
+  return {
+    range, granularity: monthly ? 'month' : 'day', activeNow, current: sum(cur), previous: sum(prev), series,
+    pages: pick('page'), countries: pick('country'), devices: pick('device'), browsers: pick('browser'), sources: pick('source'),
+  }
+}

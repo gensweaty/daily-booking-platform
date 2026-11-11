@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, UserPlus, Activity, Clock } from 'lucide-react';
+import { Users, UserPlus, Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { DateRangeSelect } from '@/components/Statistics/DateRangeSelect';
 import { startOfMonth, endOfMonth } from 'date-fns';
@@ -68,13 +68,13 @@ export const AnalyticsCharts = () => {
     icon: any; 
     trend?: string 
   }) => (
-    <Card className="bg-card border-border shadow-lg hover:shadow-xl transition-shadow duration-300">
+    <Card className="bg-card border-border">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-1">{title}</p>
             <p className="text-3xl font-bold text-foreground">{value}</p>
-            {trend && <p className="text-xs text-green-600 mt-1">{trend}</p>}
+            {trend && <p className="text-xs text-muted-foreground mt-1">{trend}</p>}
           </div>
           <div className="flex items-center justify-center w-12 h-12 bg-primary/10 rounded-lg">
             <Icon className="w-6 h-6 text-primary" />
@@ -157,42 +157,23 @@ export const AnalyticsCharts = () => {
         />
       </div>
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="New Users (Selected Period)"
-          value={data.newUsers24h}
-          icon={UserPlus}
-          trend="+12% from previous period"
-        />
-        <MetricCard
-          title="Total Users"
-          value={data.totalUsers}
-          icon={Users}
-        />
-        <MetricCard
-          title="Active Sessions"
-          value={data.activeSessions}
-          icon={Activity}
-        />
-        <MetricCard
-          title="Avg Session Time"
-          value={data.avgSessionTime}
-          icon={Clock}
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <MetricCard title="New users (selected period)" value={data.newUsers24h} icon={UserPlus} />
+        <MetricCard title="Total users" value={data.totalUsers} icon={Users} />
+        <MetricCard title="Paying subscribers" value={data.subscriptionData.filter(s => s.name !== 'Trial').reduce((a, s) => a + s.value, 0)} icon={Activity} />
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* User Registrations Chart */}
-        <Card className="bg-card border-border shadow-lg">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl font-semibold text-foreground">User Registrations</CardTitle>
             <p className="text-sm text-muted-foreground">Registration breakdown for selected period</p>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={data.registrationData}>
+              <BarChart data={data.registrationData} margin={{ left: -16 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="hour" 
@@ -200,6 +181,7 @@ export const AnalyticsCharts = () => {
                   fontSize={12}
                 />
                 <YAxis 
+                  allowDecimals={false}
                   stroke="hsl(var(--muted-foreground))"
                   fontSize={12}
                 />
@@ -207,7 +189,7 @@ export const AnalyticsCharts = () => {
                 <Bar 
                   dataKey="users" 
                   fill="hsl(var(--primary))"
-                  radius={[4, 4, 0, 0]}
+                  radius={[6, 6, 0, 0]}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -215,7 +197,7 @@ export const AnalyticsCharts = () => {
         </Card>
 
         {/* Subscription Distribution Chart */}
-        <Card className="bg-card border-border shadow-lg">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl font-semibold text-foreground">Subscription Distribution</CardTitle>
             <p className="text-sm text-muted-foreground">Current subscription plan breakdown ({totalSubscriptions} total users)</p>

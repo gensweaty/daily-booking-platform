@@ -1774,6 +1774,93 @@ export type Database = {
         }
         Relationships: []
       }
+      site_visit_daily: {
+        Row: {
+          bounces: number
+          day: string
+          duration_sec: number
+          sessions: number
+          views: number
+          visitors: number
+        }
+        Insert: {
+          bounces?: number
+          day: string
+          duration_sec?: number
+          sessions?: number
+          views?: number
+          visitors?: number
+        }
+        Update: {
+          bounces?: number
+          day?: string
+          duration_sec?: number
+          sessions?: number
+          views?: number
+          visitors?: number
+        }
+        Relationships: []
+      }
+      site_visit_daily_breakdown: {
+        Row: {
+          day: string
+          dim: string
+          value: string
+          views: number
+          visitors: number
+        }
+        Insert: {
+          day: string
+          dim: string
+          value: string
+          views?: number
+          visitors?: number
+        }
+        Update: {
+          day?: string
+          dim?: string
+          value?: string
+          views?: number
+          visitors?: number
+        }
+        Relationships: []
+      }
+      site_visits: {
+        Row: {
+          browser: string | null
+          country: string | null
+          created_at: string
+          device: string | null
+          id: string
+          path: string
+          referrer_host: string | null
+          session_id: string
+          visitor_id: string
+        }
+        Insert: {
+          browser?: string | null
+          country?: string | null
+          created_at?: string
+          device?: string | null
+          id?: string
+          path: string
+          referrer_host?: string | null
+          session_id: string
+          visitor_id: string
+        }
+        Update: {
+          browser?: string | null
+          country?: string | null
+          created_at?: string
+          device?: string | null
+          id?: string
+          path?: string
+          referrer_host?: string | null
+          session_id?: string
+          visitor_id?: string
+        }
+        Relationships: []
+      }
       sms_devices: {
         Row: {
           created_at: string
@@ -3135,6 +3222,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      rollup_site_visits: { Args: never; Returns: undefined }
       save_event_with_persons: {
         Args: {
           p_additional_persons: Json
