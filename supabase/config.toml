@@ -54,7 +54,10 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.admin-change-user-plan]
-verify_jwt = true
+verify_jwt = false
+
+[functions.admin-login]
+verify_jwt = false
 
 [functions.send-comment-email]
 verify_jwt = false
@@ -102,4 +105,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.agent-api]
+verify_jwt = false
+
+[functions.admin-panel-data]
 verify_jwt = false

@@ -1,3 +1,4 @@
+import { invokeAdmin } from '@/hooks/useAdminAuth';
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,15 +40,13 @@ export const AnalyticsCharts = () => {
 
   const fetchAnalyticsData = async () => {
     try {
-      const { data: analyticsData, error } = await supabase.functions.invoke('admin-panel-data', {
-        body: { 
+      const { data: analyticsData, error } = await invokeAdmin('admin-panel-data', { 
           type: 'analytics',
           dateRange: {
             start: dateRange.start.toISOString(),
             end: dateRange.end.toISOString()
           }
-        }
-      });
+        });
 
       if (error) throw error;
       setData(analyticsData || data);

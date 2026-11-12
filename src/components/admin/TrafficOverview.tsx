@@ -1,3 +1,4 @@
+import { invokeAdmin } from '@/hooks/useAdminAuth';
 import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell } from "recharts";
 import { Eye, Users, MousePointerClick, Timer, LogOut, Radio, RefreshCw, Globe2, FileText, Share2, Monitor } from "lucide-react";
@@ -86,7 +87,7 @@ export function TrafficOverview() {
 
   const load = async (r = range) => {
     setLoading(true); setError("");
-    const { data: d, error: e } = await supabase.functions.invoke("admin-panel-data", { body: { type: "traffic", dateRange: r } });
+    const { data: d, error: e } = await invokeAdmin('admin-panel-data', { type: "traffic", dateRange: r });
     if (e || !d || d.error) setError("Couldn't load visitor statistics. Try again."); else setData(d as Traffic);
     setLoading(false);
   };

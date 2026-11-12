@@ -1,3 +1,4 @@
+import { invokeAdmin } from '@/hooks/useAdminAuth';
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,9 +53,7 @@ export const CRMTable = () => {
   const fetchUserData = async () => {
     setLoading(true);
     try {
-      const { data: userData, error } = await supabase.functions.invoke('admin-panel-data', {
-        body: { type: 'users' }
-      });
+      const { data: userData, error } = await invokeAdmin('admin-panel-data', { type: 'users' });
 
       if (error) throw error;
       
@@ -109,9 +108,7 @@ export const CRMTable = () => {
   const handlePlanChange = async (userId: string, newPlan: string) => {
     setChangingPlan(userId);
     try {
-      const { data, error } = await supabase.functions.invoke('admin-change-user-plan', {
-        body: { userId, newPlan }
-      });
+      const { data, error } = await invokeAdmin('admin-change-user-plan', { userId, newPlan });
 
       if (error) throw error;
 
