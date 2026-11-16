@@ -1,4 +1,5 @@
 # Current tasks
+- [x] Prepare a staged storage-security plan preserving anonymous bookings, team-board access, existing files, and public images; submit for approval before implementation.
 - [x] Finish account-scoped AI agent keys, profile controls, documentation and activity history; deploy and test rejection paths. (Signed-in key creation + real agent call still to be tried by the user.)
 - [x] Add searchable, sorted, paginated email history with secure full-message details, precise delivery/open tracking, and received replies; verify without changing sending or SMS settings.
 - [x] Refine the main page with less decorative styling, clearer pricing accents, immediate first paint and visibility-aware carousels; verify controls, languages, themes and loading behavior.
