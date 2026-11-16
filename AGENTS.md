@@ -1,4 +1,5 @@
 # Architecture rules
+- Keep file-access authorization pure and disconnected until server-verified identities, legacy ownership mapping, and signed-in compatibility checks pass; this prevents storage hardening from breaking public workflows.
 - Issue agent keys server-side, store only hashes, derive account identity from the key, and allow only explicitly supported owner-scoped operations; keep profile integration lazy-loaded to avoid dashboard overhead.
 
 - Keep the alternating public product showcase in FeatureSection and its repeated rows in FeatureCard; keep hero and feature screenshot framing opt-in in ImageCarousel to isolate presentation changes.
