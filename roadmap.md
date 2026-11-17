@@ -2,6 +2,7 @@
 - [x] Recover the exact selected security findings and establish aggregate attachment compatibility baseline.
 - [x] Add isolated file-authorization foundation and owner/team/anonymous-booking negative tests without changing live storage access.
 - [ ] Wire verified file sessions and cut over the first owner-only family; blocked on signed-in end-to-end verification unavailable for this external Supabase project.
+- [x] Move team-board sign-in, sign-up and password change to a server check (old passwords keep working).
 - [ ] Cut over team/booking file families; blocked on trustworthy team identity because current browser-written credentials and sessions cannot safely authorize privileged storage actions within storage-only scope.
 - [ ] Protect private attachment reads; blocked on approval for existing externally shared public download links to stop working.
 - [x] Prepare a staged storage-security plan preserving anonymous bookings, team-board access, existing files, and public images; submit for approval before implementation.

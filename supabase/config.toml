@@ -109,3 +109,6 @@ verify_jwt = false
 
 [functions.admin-panel-data]
 verify_jwt = false
+
+[functions.public-board-auth]
+verify_jwt = false

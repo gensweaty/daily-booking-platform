@@ -24,31 +24,6 @@ import { PublicBoardEventReminderNotifications } from "@/components/Calendar/Pub
 import { preloadNotificationSound, addMobileAudioUnlockListener } from "@/utils/audioManager";
 import { AnimatedRobotEye } from "@/components/shared/AnimatedRobotEye";
 
-// Password hashing utilities (PBKDF2, client-side)
-const bufToBase64 = (buffer: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buffer)));
-const base64ToBuf = (b64: string) => {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-};
-const deriveBits = async (password: string, salt: Uint8Array) => {
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveBits"]);
-  return crypto.subtle.deriveBits({ name: "PBKDF2", salt: salt as BufferSource, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256);
-};
-const createPasswordHash = async (password: string) => {
-  const salt = new Uint8Array(16);
-  crypto.getRandomValues(salt);
-  const bits = await deriveBits(password, salt);
-  return { hash: bufToBase64(bits), salt: bufToBase64(salt.buffer) };
-};
-const verifyPasswordHash = async (password: string, saltB64: string, hashB64: string) => {
-  const salt = new Uint8Array(base64ToBuf(saltB64));
-  const bits = await deriveBits(password, salt);
-  return bufToBase64(bits) === hashB64;
-};
-
 interface PublicBoardData {
   id: string;
   user_id: string;
@@ -399,53 +374,24 @@ const handleLogin = async () => {
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
-      // Find sub user for this board
-      const { data: authData, error: findError } = await supabase.rpc('get_sub_user_auth', {
-        p_owner_id: boardData.user_id,
-        p_email: normalizedEmail,
+      const { data: loginData, error: loginError } = await supabase.functions.invoke('public-board-auth', {
+        body: { action: 'login', slug, email: normalizedEmail, password },
       });
-      const subUser = authData && authData[0];
-
-      if (findError || !subUser) {
-        toast({ title: t('common.error'), description: 'This account is not registered for this board.', variant: 'destructive' });
+      if (loginError || !loginData?.token) {
+        let code = '';
+        try { code = (await (loginError as any)?.context?.json?.())?.error || ''; } catch { /* ignore */ }
+        const description = code === 'not_registered'
+          ? 'This account is not registered for this board.'
+          : code === 'password_not_set'
+            ? 'Password not set. Please register again.'
+            : 'Invalid email or password';
+        toast({ title: t('common.error'), description, variant: 'destructive' });
         setIsSubmitting(false);
         return;
       }
-
-      // Verify password against stored hash
-      if (!subUser.password_hash || !subUser.password_salt) {
-        toast({ title: t('common.error'), description: 'Password not set. Please register again.', variant: 'destructive' });
-        setIsSubmitting(false);
-        return;
-      }
-      const isValid = await verifyPasswordHash(password, subUser.password_salt, subUser.password_hash);
-      if (!isValid) {
-        toast({ title: t('common.error'), description: 'Invalid email or password', variant: 'destructive' });
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Update last login for sub user
-      const currentTime = new Date().toISOString();
-      await supabase
-        .from('sub_users')
-        .update({ last_login_at: currentTime, updated_at: currentTime })
-        .eq('id', subUser.id);
-
-      const actualFullName = subUser.fullname || email.trim();
-
-      // Generate access token for public board session
-      const token = `${boardData.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      const { error } = await supabase
-        .from('public_board_access')
-        .insert({
-          board_id: boardData.id,
-          access_token: token,
-          external_user_name: actualFullName,
-          external_user_email: normalizedEmail,
-        });
-      if (error) throw error;
+      const token: string = loginData.token;
+      const actualFullName: string = loginData.fullName || email.trim();
+      const subUser = { id: loginData.subUserId as string };
 
       // Persist session locally for the public board
       localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
@@ -533,108 +479,22 @@ const handleRegister = async () => {
     try {
       const normalizedEmail = email.trim().toLowerCase();
 
-      // Hash password client-side (PBKDF2)
-      const { hash, salt } = await createPasswordHash(password);
-
-      // Respect max sub users limit
-      const { data: existingSubUsers, error: countError } = await supabase
-        .from('sub_users')
-        .select('id')
-        .eq('board_owner_id', boardData.user_id);
-      if (countError) throw countError;
-      if (existingSubUsers && existingSubUsers.length >= 10) {
-        toast({ title: t('common.error'), description: 'Maximum number of sub users (10) reached for this board', variant: 'destructive' });
+      const { data: regData, error: regError } = await supabase.functions.invoke('public-board-auth', {
+        body: { action: 'register', slug, email: normalizedEmail, password, fullName: fullName.trim(), magicWord: magicWord.trim() },
+      });
+      if (regError || !regData?.token) {
+        let code = '';
+        try { code = (await (regError as any)?.context?.json?.())?.error || ''; } catch { /* ignore */ }
+        const description = code === 'max_sub_users'
+          ? 'Maximum number of sub users (10) reached for this board'
+          : code === 'invalid_magic_word'
+            ? t("publicBoard.invalidAccess")
+            : 'Registration failed. Please try again.';
+        toast({ title: t('common.error'), description, variant: 'destructive' });
         return;
       }
-
-      console.log('🔍 Registering sub-user:', { fullName: fullName.trim(), normalizedEmail, boardOwner: boardData.user_id });
-
-      // Check for existing sub-user by email (exact match, case-insensitive)
-      const { data: existing, error: findExistingError } = await supabase
-        .from('sub_users')
-        .select('id, fullname')
-        .eq('board_owner_id', boardData.user_id)
-        .ilike('email', normalizedEmail)
-        .maybeSingle();
-      
-      if (findExistingError) {
-        console.error('Error finding existing sub-user:', findExistingError);
-        throw findExistingError;
-      }
-
-      const now = new Date().toISOString();
-      let subUserId: string;
-      
-      if (existing) {
-        console.log('🔍 Updating existing sub-user:', existing.id);
-        const { error: updateError } = await supabase
-          .from('sub_users')
-          .update({ 
-            fullname: fullName.trim(), 
-            password_hash: hash, 
-            password_salt: salt, 
-            last_login_at: now, 
-            updated_at: now 
-          })
-          .eq('id', existing.id);
-        
-        if (updateError) {
-          console.error('Error updating sub-user:', updateError);
-          throw updateError;
-        }
-        subUserId = existing.id;
-      } else {
-        console.log('🔍 Creating new sub-user...');
-        
-        // Handle potential fullname uniqueness conflict
-        let finalFullName = fullName.trim();
-        const { data: nameConflict } = await supabase
-          .from('sub_users')
-          .select('id')
-          .eq('board_owner_id', boardData.user_id)
-          .eq('fullname', finalFullName)
-          .maybeSingle();
-        
-        if (nameConflict) {
-          // Append email local part to make fullname unique
-          const emailLocal = normalizedEmail.split('@')[0];
-          finalFullName = `${finalFullName}_${emailLocal}`;
-          console.log('🔍 Fullname conflict detected, using:', finalFullName);
-        }
-        
-        const { data: insertData, error: insertError } = await supabase
-          .from('sub_users')
-          .insert({
-            board_owner_id: boardData.user_id,
-            fullname: finalFullName,
-            email: normalizedEmail,
-            password_hash: hash,
-            password_salt: salt,
-            last_login_at: now,
-          })
-          .select('id')
-          .single();
-        
-        if (insertError) {
-          console.error('Error inserting sub-user:', insertError);
-          throw insertError;
-        }
-        
-        subUserId = insertData.id;
-        console.log('🔍 Sub-user created successfully:', subUserId);
-      }
-
-      // Create access token for immediate board access
-      const token = `${boardData.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const { error } = await supabase
-        .from('public_board_access')
-        .insert({
-          board_id: boardData.id,
-          access_token: token,
-          external_user_name: fullName.trim(),
-          external_user_email: normalizedEmail,
-        });
-      if (error) throw error;
+      const token: string = regData.token;
+      const subUserId: string = regData.subUserId;
 
       localStorage.setItem(`public-board-access-${slug}`, JSON.stringify({
         token,
