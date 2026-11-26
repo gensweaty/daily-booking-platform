@@ -1,4 +1,5 @@
 # Architecture rules
+- Keep automatic subscription-expiration dialogs behind a presentation-only switch; disabling them must not alter subscription checks, payment verification, or account access.
 - Keep file-access authorization pure and disconnected until server-verified identities, legacy ownership mapping, and signed-in compatibility checks pass; this prevents storage hardening from breaking public workflows.
 - Issue agent keys server-side, store only hashes, derive account identity from the key, and allow only explicitly supported owner-scoped operations; keep profile integration lazy-loaded to avoid dashboard overhead.
 
