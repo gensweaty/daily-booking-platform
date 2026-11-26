@@ -23,7 +23,7 @@ export default function AdminPanel() {
     setIsLoading(true);
     setError('');
 
-    const result = login(username, password);
+    const result = await login(username, password);
     
     if (!result.success) {
       setError(result.error || 'Login failed');

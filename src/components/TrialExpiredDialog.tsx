@@ -13,6 +13,7 @@ import { checkSubscriptionStatus, createCheckoutSession, verifySession, manualSy
 import { Button } from "@/components/ui/button";
 import { RefreshCw, AlertCircle } from "lucide-react";
 import { subscriptionCache } from "@/utils/subscriptionCache";
+import { SUBSCRIPTION_EXPIRATION_POPUPS_ENABLED } from "@/utils/subscriptionPopupPolicy";
 
 export const TrialExpiredDialog = () => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly');
@@ -234,7 +235,7 @@ export const TrialExpiredDialog = () => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open && SUBSCRIPTION_EXPIRATION_POPUPS_ENABLED} onOpenChange={handleOpenChange}>
       <DialogContent 
         className="w-[90vw] max-w-[475px] p-4 sm:p-6" 
         hideCloseButton={user?.email === 'anania.devsurashvili885@law.tsu.edu.ge' && subscriptionStatus === 'trial_expired'}

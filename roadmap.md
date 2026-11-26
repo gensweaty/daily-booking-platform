@@ -1,4 +1,11 @@
 # Current tasks
+- [x] Recover the exact selected security findings and establish aggregate attachment compatibility baseline.
+- [x] Add isolated file-authorization foundation and owner/team/anonymous-booking negative tests without changing live storage access.
+- [ ] Wire verified file sessions and cut over the first owner-only family; blocked on signed-in end-to-end verification unavailable for this external Supabase project.
+- [x] Move team-board sign-in, sign-up and password change to a server check (old passwords keep working).
+- [ ] Cut over team/booking file families; blocked on trustworthy team identity because current browser-written credentials and sessions cannot safely authorize privileged storage actions within storage-only scope.
+- [ ] Protect private attachment reads; blocked on approval for existing externally shared public download links to stop working.
+- [x] Prepare a staged storage-security plan preserving anonymous bookings, team-board access, existing files, and public images; submit for approval before implementation.
 - [x] Finish account-scoped AI agent keys, profile controls, documentation and activity history; deploy and test rejection paths. (Signed-in key creation + real agent call still to be tried by the user.)
 - [x] Add searchable, sorted, paginated email history with secure full-message details, precise delivery/open tracking, and received replies; verify without changing sending or SMS settings.
 - [x] Refine the main page with less decorative styling, clearer pricing accents, immediate first paint and visibility-aware carousels; verify controls, languages, themes and loading behavior.

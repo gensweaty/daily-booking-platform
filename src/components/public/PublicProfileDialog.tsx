@@ -197,20 +197,15 @@ export const PublicProfileDialog = ({
 
     setIsUpdatingPassword(true);
     try {
-      const { hash, salt } = await createPasswordHash(newPassword);
+      const slug = window.location.pathname.split('/').filter(Boolean).pop() || '';
+      let token = '';
+      try { token = JSON.parse(localStorage.getItem(`public-board-access-${slug}`) || '{}').token || ''; } catch { /* ignore */ }
+      const { data, error } = await supabase.functions.invoke('public-board-auth', {
+        body: { action: 'change_password', slug, email: userEmail.trim().toLowerCase(), token, newPassword },
+      });
 
-      const { error } = await supabase
-        .from('sub_users')
-        .update({ 
-          password_hash: hash,
-          password_salt: salt,
-          updated_at: new Date().toISOString()
-        })
-        .eq('board_owner_id', boardUserId)
-        .ilike('email', userEmail.trim().toLowerCase());
-
-      if (error) {
-        throw error;
+      if (error || !data?.ok) {
+        throw error || new Error('Password update failed');
       }
 
       setNewPassword("");

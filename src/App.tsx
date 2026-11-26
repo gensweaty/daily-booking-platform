@@ -22,6 +22,7 @@ import AdminPanel from "@/pages/AdminPanel";
 import { AdminRoute } from "@/components/admin/AdminRoute";
 import AdminPanelDashboard from "@/pages/AdminPanelDashboard";
 import RenderView from "@/pages/RenderView";
+import { trackPageView } from "@/lib/visitTracker";
 import { RenderMode } from "@/components/screenshot/RenderMode";
 
 // Create a client for React Query with improved retry logic
@@ -245,6 +246,12 @@ const BusinessRouteInterceptor = () => {
   return null;
 };
 
+const VisitTracker = () => {
+  const location = useLocation();
+  useEffect(() => { trackPageView(location.pathname); }, [location.pathname]);
+  return null;
+};
+
 // Inner App component that uses router hooks
 const AppContent = () => {
   return (
@@ -255,6 +262,7 @@ const AppContent = () => {
           <RouteAwareThemeProvider>
             <RouteAwareWrapper>
               <SEOManager />
+              <VisitTracker />
               <RenderMode />
               <Routes>
                 <Route path="/" element={<Landing />} />
